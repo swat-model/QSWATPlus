@@ -1,0 +1,34 @@
+<RCC>
+  <qresource prefix="/plugins/QSWATPlus">
+    <file>pause-24x24.png</file>
+    <file>play-24x24.png</file>
+    <file>rewind-24x24.png</file>
+    <file>subresults.qml</file>
+    <file>QSWAT-Icon/SWAT-Logo.png</file>
+    <file>wshed.qml</file>
+    <file>dem.qml</file>
+    <file>fullhrus.qml</file>
+    <file>outlets.qml</file>
+    <file>swatplus.ico</file>
+    <file>dem.qml</file>
+    <file>WaterBase_logo40x23.png</file>
+    <file>WaterBase_logo24x14.png</file>
+    <file>WaterBase_logo32x18.png</file>
+    <file>icon_without_map.png</file>
+    <file>waterbase small trans.png</file>
+    <file>stream.qml</file>
+    <file>icon_without_map.ico</file>
+    <file>icon.png</file>
+  </qresource>
+  <qresource prefix="fonts">
+    <file>fonts/Ubuntu-B.ttf</file>
+    <file>fonts/Ubuntu-BI.ttf</file>
+    <file>fonts/Ubuntu-C.ttf</file>
+    <file>fonts/Ubuntu-L.ttf</file>
+    <file>fonts/Ubuntu-LI.ttf</file>
+    <file>fonts/Ubuntu-M.ttf</file>
+    <file>fonts/Ubuntu-MI.ttf</file>
+    <file>fonts/Ubuntu-R.ttf</file>
+    <file>fonts/Ubuntu-RI.ttf</file>
+  </qresource>
+</RCC>

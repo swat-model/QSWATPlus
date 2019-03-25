@@ -1,0 +1,7 @@
+*.pyc
+/html/
+/help/
+/cover/
+/build/
+/old/
+/fonts/

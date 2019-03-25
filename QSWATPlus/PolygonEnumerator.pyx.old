@@ -1,0 +1,156 @@
+# -*- coding: utf-8 -*-
+
+'''
+/***************************************************************************
+ QSWAT
+                                 A QGIS plugin
+ Create SWAT inputs
+                              -------------------
+        begin                : 2014-07-18
+        copyright            : (C) 2014 by Chris George
+        email                : cgeorge@mcmaster.ca
+ ***************************************************************************/
+
+/***************************************************************************
+ *                                                                         *
+ *   This program is free software you can redistribute it and/or modify  *
+ *   it under the terms of the GNU General Public License as published by  *
+ *   the Free Software Foundation either version 2 of the License, or     *
+ *   (at your option) any later version.                                   *
+ *                                                                         *
+ ***************************************************************************/
+''' 
+# Based closely on GDALRasterPolygonEnumeratorT, for which many thanks.
+
+from QSWATUtils import QSWATUtils
+
+cdef class PolygonEnumerator:
+
+    """Maps of map values to polygon identifiers, and interediate identifiers to final ones."""
+    
+    cdef:
+        object panPolyIdMap
+        object panPolyValue
+        object nNextPolygonId
+        object nConnectedness
+        int noDataValue
+        
+    def __init__(self, int nConnectednessIn, int noDataValueIn):
+        self.panPolyIdMap = dict()
+        self.panPolyValue = dict()
+        self.nNextPolygonId = 0
+        self.nConnectedness = nConnectednessIn
+        assert self.nConnectedness == 4 or self.nConnectedness == 8, \
+                'Illeage connectness value {0}'.format(self.nConnectedness)
+        self.noDataValue = noDataValueIn
+                
+    cdef void mergePolygon(self, int nSrcId, int nDstIdInit):
+        """Update the polygon id map to merge two polygons, 
+        mapping source to destination."""
+        
+        cdef:
+            int nDstIdFinal = nDstIdInit
+            int nDstIdCur, nNextDstId, nNextSrcId
+            
+        # calculate the final destination id
+        while self.panPolyIdMap[nDstIdFinal] != nDstIdInit:
+            nDstIdFinal = self.panPolyIdMap[nDstIdFinal]
+        # map the intermediate chain to the final destination id
+        nDstIdCur = nDstIdInit
+        while self.panPolyIdMap[nDstIdCur] != nDstIdCur:
+            nNextDstId = self.panPolyIdMap[nDstIdCur]
+            self.panPolyIdMap[nDstIdCur] = nDstIdFinal
+            nDstIdCur = nNextDstId
+        # map the source chain to the final destination id
+        while self.panPolyIdMap[nSrcId] != nSrcId:
+            nNextSrcId = self.panPolyIdMap[nSrcId]
+            self.panPolyIdMap[nSrcId] = nDstIdFinal
+            nSrcId = nNextSrcId
+        self.panPolyIdMap[nSrcId] = nDstIdFinal
+        
+    cdef int newPolygon(int nValue):
+        """Allocate a new polygon id."""
+        cdef nPolyId = self.nNextPolygonId
+        
+        self.nNextPolygonId += 1
+        self.panPolyIdMap[nPolyId] = nPolyId
+        self.panPolyValue[nPolyId] = nValue
+        return nPolyId
+    
+    cdef void completeMerges(self):
+        """Replace all intermediate values in the maps with final ones."""
+        
+        cdef:
+            int nFinalPolyCount = 0
+            int iPoly, nId, nIdCur, nNextId
+            
+        for iPoly in range(self.nNextPolygonId):
+            # calculate final id
+            nId = self.panPolyIdMap[iPoly]
+            while nId != self.panPolyIdMap[nId]:
+                nId = self.panPolyIdMap[nId]
+            # map the intermediate chain to the final id
+            nIdCur = self.panPolyIdMap[iPoly]
+            self.panPolyIdMap[iPoly] = nId
+            while nIdCur != self.panPolyIdMap[nIdCur]
+                nNextId = self.panPolyIdMap[nIdCur]
+                self.panPolyIdMap[nIdCur] = nId
+                nIdCur = nNextId
+            if self.panPolyIdMap[iPoly] == iPoly:
+                nFinalPolyCount += 1
+                
+        QSWATUtils.loginfo('Counted {0} fragments forming {1} polygons' \
+                           .format(self.nNextPolygonId, nFinalPolyCount))
+            
+    cdef void processLine(self, object panLastLineVal, object panThisLineVal, 
+                          object panLastLineId, object panThisLineId, int nXSize):
+                          
+        cdef:
+            int i
+        
+        if panLastLineVal is None:
+            # first line       
+            for i in range(nXSize):
+                if panThisLineVal[i] == self.noDataValue:
+                    panThisLineVal[i] = -1
+                elif i == 0 or panThisLineVal[i] != panThisLineVal[i-1]:
+                    panThisLineId[i] = self.newPolygon(panThisLineVal[i])
+                else:
+                    panThisLineId[i] = panThisLineId[i-1]
+            return
+        # process each pixel, comparing to the previous pixel, 
+        # and to pixels in the previous line  
+        for i in range(nXSize):
+            if panThisLineVal[i] == self.noDataValue:
+                panThisLineId[i] = -1
+            elif i > 0 and panThisLineVal[i] == panThisLineVal[i-1]:
+                panThisLineId[i] = panThisLineId[i-1]
+                if panLastLineVal[i] == panThisLineVal[i] and \
+                     self.panPolyIdMap[panLastLineId[i]] != self.panPolyIdMap[panThisLineId[i]]:
+                    self.mergePolygon(panLastLineId[i], panThisLineId[i])
+                if self.nConnectedness == 8 and \
+                     panLastLineVal[i-1] == panThisLineVal[i] and \
+                     self.panPolyIdMap[panLastLineId[i-1]] != self.panPolyIdMap[panThisLineId[i]]:
+                        self.mergePolygon(panLastLineId[i-1], panThisLineId[i])
+                if i < nxSize-1 and self.nConnectedness == 8 and \
+                     panLastLineVal[i+1] == panThisLineVal[i] and \
+                     self.panPolyIdMap[panLastLineId[i+1]] != self.panPolyIdMap[panThisLineId[i]]:
+                    self.mergePolygon(panLastLineId[i+1], panThisLineId[i])
+            elif panLastLineVal[i] == panThisLineVal[i]:
+                panThisLineId[i] = panLastLineId[i]     
+            elif i > 0 and self.nConnectedness == 8 and \
+                panLastLineVal[i-1] == panThisLineVal[i]:
+                panThisLineId[i] = panLastLineId[i-1]
+                if i < nxSize-1 and panLastLineVal[i+1] == panThisLineVal[i] and \
+                    self.panPolyIdMap[panLastLineId[i+1]] != self.panPolyIdMap[panThisLineId[i]]:
+                    self.mergePolygon(panLastLineId[i+1], panThisLineId[i])
+            elif i < nxSize-1 and self.nConnectedness == 8 and \
+                panLastLineVal[i+1] == panThisLineVal[i]:
+                panThisLineId[i] = panLastLineId[i+1]
+            else:
+                panThisLineId[i] = self.newPolygon(panThisLineVal[i])
+                
+
+        
+        
+        
