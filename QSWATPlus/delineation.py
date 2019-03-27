@@ -468,7 +468,7 @@ class Delineation(QObject):
             self._gv.topo.addGridLakes(subbasinsLayer, streamsLayer, demLayer, self._gv)
         else:
             if self._gv.existingWshed:
-                lakesLayer.setCustomProperty('labeling/enabled', 'true')
+                lakesLayer.setLabelsEnabled(True)
                 lakesLayer.triggerRepaint()
                 self._gv.topo.addExistingLakes(lakesLayer, channelsLayer, demLayer, self._gv)
             else:
@@ -813,7 +813,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             if self._dlg.lakeIdCombo.count() == 0:
                 self._dlg.lakeIdCombo.addItems([str(i) for i in lakeIds])
         else:
-            lakesLayer.setCustomProperty('labeling/enabled', 'true')
+            lakesLayer.setLabelsEnabled(True)
             lakesLayer.triggerRepaint()
         return lakeIdIndex
     
@@ -2243,7 +2243,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         (lakesFile, lakesLayer) = QSWATUtils.openAndLoadFile(root, FileTypes._LAKES, self._dlg.selectLakes, self._gv.shapesDir, 
                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
         if lakesFile and lakesLayer:
-            lakesLayer.setCustomProperty('labeling/enabled', 'false')
+            lakesLayer.setLabelsEnabled(False)
             self._gv.lakeFile = lakesFile
             self.lakesDone = False
             self.lakePointsAdded = False
@@ -3059,7 +3059,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             shapes.addRow(wBuffer.reshape([numCols]), row)
         shapes.finish()
         legend = FileTypes.legend(ft)
-        if os.path.isfile(subbasinsFile):
+        shxFile = subbasinsFile.replace('.shp', '.shx')
+        dbfFile = subbasinsFile.replace('.shp', '.dbf')
+        if os.path.isfile(subbasinsFile) and os.path.isfile(shxFile) and os.path.isfile(dbfFile):
             subbasinsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), subbasinsFile, ft, None, None, None)[0]
             if subbasinsLayer is None:
                 subbasinsLayer = QgsVectorLayer(subbasinsFile, '{0} ({1})'.
@@ -3069,6 +3071,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = subbasinsLayer.fields()
         else:
+            QSWATUtils.tryRemoveLayerAndFiles(subbasinsFile, root)
             # create shapefile
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
@@ -3085,15 +3088,23 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 QSWATUtils.error('Cannot create watershed shapefile {0}: {1}'. \
                                  format(subbasinsFile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            if not writer.flushBuffer():
+                typ = 'subbasins' if ft == FileTypes._SUBBASINS else 'watershed'
+                QSWATUtils.error('Failed to complete creating {0} shapefile {i}'.format(typ, subbasinsFile), self._gv.isBatch)
+            del writer
             # wFile may not have a .prj (being a .tif) so use DEM's
             QSWATUtils.copyPrj(self._gv.demFile, subbasinsFile)
             subbasinsLayer = QgsVectorLayer(subbasinsFile, '{0} ({1})'. \
                                             format(legend, QFileInfo(subbasinsFile).baseName()), 'ogr')
         provider = subbasinsLayer.dataProvider()
-        basinIndex = fields.indexFromName(QSWATTopology._POLYGONID)
-        areaIndex = fields.indexFromName(Parameters._AREA)
+        basinIndex = provider.fieldNameIndex(QSWATTopology._POLYGONID)
+        areaIndex = provider.fieldNameIndex(Parameters._AREA)
+        if basinIndex < 0 or areaIndex < 0:
+            fieldName = QSWATTopology._POLYGONID if basinIndex < 0 else Parameters._AREA
+            typ = 'subbasins' if ft == FileTypes._SUBBASINS else 'watershed'
+            QSWATUtils.error('Failed to find {0} field in {1} shapefile {2}'.format(fieldName, typ, subbasinsFile), self._gv.isBatch)
+            return
         if ft == FileTypes._SUBBASINS:
             self._gv.topo.basinCentroids.clear()
         for basin in shapes.shapes:
@@ -3146,7 +3157,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             # labels should be turned off, as may persist from previous run
             # we turn back on when SWAT basin numbers are calculated and stored
             # in the Subbasin field
-            subbasinsLayer.setCustomProperty('labeling/enabled', 'false')
+            subbasinsLayer.setLabelsEnabled(False)
         
     def createBasinFile(self, basinsShapefile: str, demLayer: QgsRasterLayer, nameCode: str, root: QgsLayerTree) -> str:
         """Create basin file from subbasins or watershed basins shapefile."""
@@ -3594,7 +3605,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if gridLayer is None:
                 gridLayer = QgsVectorLayer(gridFile, '{0} ({1})'.format(legend, QFileInfo(gridFile).baseName()), 'ogr')
             # labels can cause crashes if we try to recalculate this file
-            gridLayer.setCustomProperty('labeling/enabled', 'false')
+            gridLayer.setLabelsEnabled(False)
             if not QSWATUtils.removeAllFeatures(gridLayer):
                 QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(gridFile), self._gv.isBatch)
                 return
@@ -3610,8 +3621,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid shapefile {0}: {1}'.format(gridFile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(flowFile, gridFile)
             gridLayer = QgsVectorLayer(gridFile, '{0} ({1})'.format(legend, QFileInfo(gridFile).baseName()), 'ogr')
         provider = gridLayer.dataProvider()
@@ -3659,7 +3671,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if not gridLayer:
             QSWATUtils.error('Failed to load grid shapefile {0}'.format(gridFile), self._gv.isBatch)
             return
-        gridLayer.setCustomProperty('labeling/enabled', 'false')
+        gridLayer.setLabelsEnabled(False)
         gridLayer.triggerRepaint()
         # preserve access to subbasinsFile so can use to clip when making valley depths later
         # the gridFile can be reduced if there are inlets, and its convex hull will not be appropriate
@@ -3696,8 +3708,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create streams shapefile {0}: {1}'.format(gridStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return -1
-            # need to release writer before making layer
-            writer = None
+            # flush writer
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(flowFile, gridStreamsFile)
             gridStreamsLayer = QgsVectorLayer(gridStreamsFile, '{0} ({1})'.format(legend, QFileInfo(gridStreamsFile).baseName()), 'ogr')
         provider = gridStreamsLayer.dataProvider()
@@ -3836,8 +3849,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid streams shapefile {0}: {1}'.format(drainStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(subbasinsFile, drainStreamsFile)
             drainStreamsLayer = QgsVectorLayer(drainStreamsFile, '{0} ({1})'.format(legend, QFileInfo(drainStreamsFile).baseName()), 'ogr')
         provider = drainStreamsLayer.dataProvider()
@@ -4142,6 +4156,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), isBatch)
                 return False
+            writer.flushBuffer()
             QSWATUtils.copyPrj(sourcePath, filePath)
             return True
     

@@ -34,9 +34,15 @@ import filecmp
 import re
 import traceback
 
-from .QSWATUtils import QSWATUtils, FileTypes
-from .dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
-from .parameters import Parameters
+try:
+    from .QSWATUtils import QSWATUtils, FileTypes
+    from .dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
+    from .parameters import Parameters
+except:
+    # used by convertFromArc
+    from QSWATUtils import QSWATUtils, FileTypes
+    from dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
+    from parameters import Parameters
 
 class DBUtils:
     

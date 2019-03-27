@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="/plugins/QSWATPlus">
+    <file>swatplus32.png</file>
     <file>pause-24x24.png</file>
     <file>play-24x24.png</file>
     <file>rewind-24x24.png</file>

@@ -531,16 +531,6 @@ Can also be controlled manually by dragging or by using left and right arrows on
                </property>
               </widget>
              </item>
-             <item row="7" column="0">
-              <widget class="QPushButton" name="recordButton">
-               <property name="styleSheet">
-                <string notr="true">background-color: green</string>
-               </property>
-               <property name="text">
-                <string notr="true"/>
-               </property>
-              </widget>
-             </item>
              <item row="7" column="1" colspan="3">
               <widget class="QLabel" name="recordLabel">
                <property name="text">
@@ -552,6 +542,9 @@ Can also be controlled manually by dragging or by using left and right arrows on
               <widget class="QPushButton" name="playButton">
                <property name="text">
                 <string>Play</string>
+               </property>
+               <property name="flat">
+                <bool>false</bool>
                </property>
               </widget>
              </item>
@@ -674,6 +667,28 @@ Can also be controlled manually by dragging or by using left and right arrows on
                  </widget>
                 </item>
                </layout>
+              </widget>
+             </item>
+             <item row="7" column="0">
+              <widget class="QPushButton" name="recordButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>40</width>
+                 <height>25</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">background-color: green; border: none;</string>
+               </property>
+               <property name="text">
+                <string notr="true"/>
+               </property>
               </widget>
              </item>
             </layout>

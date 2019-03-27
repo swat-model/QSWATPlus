@@ -38,14 +38,14 @@ import datetime
 import time
 import traceback
 
-from .convertdialog import ConvertDialog
-from .QSWATUtils import QSWATUtils
-from .DBUtils import DBUtils
-from .QSWATTopology import QSWATTopology
+from convertdialog import convertDialog
+from QSWATUtils import QSWATUtils
+from DBUtils import DBUtils
+from QSWATTopology import QSWATTopology
 #from parameters import Parameters
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
-from .QSWATPlus import QSWATPlus
+from QSWATPlus import QSWATPlus
 
 class ConvertFromArc(QObject):
     """Convert ArcSWAT projects to SWAT+"""
@@ -100,7 +100,7 @@ class ConvertFromArc(QObject):
         self.usedLanduses = set()
         ## wgn stations stored as station id -> (lat, long)
         self.wgnStations = dict()
-        self._dlg = ConvertDialog()
+        self._dlg = convertDialog()
         self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
         self._dlg.fullButton.clicked.connect(self.getChoice)
         self._dlg.existingButton.clicked.connect(self.getChoice)
@@ -236,7 +236,11 @@ class ConvertFromArc(QObject):
                                   format(self.arcProjName, self.qProjName, self.qProjDir))
         response = ConvertFromArc.question('Run QGIS on the QSWAT+ project?')
         if response == QMessageBox.Yes:
-            command = 'qgis --project "{0}"'.format(qProjFile)
+            osgeo4wroot = os.environ['OSGEO4W_ROOT']
+            # print('OSGEO4W_ROOT: {0}'.format(osgeo4wroot))
+            gisname = os.environ['GISNAME']
+            # print('GISNAME: {0}'.format(gisname))
+            command = '{0}/bin/{1}.bat --project "{2}"'.format(osgeo4wroot, gisname, qProjFile)
             subprocess.call(command, shell=True)
  
     def createSubDirectories(self):
@@ -309,7 +313,9 @@ class ConvertFromArc(QObject):
         if not crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
             QSWATUtils.error('Failed to create lat-long coordinate reference system')
             return False
-        self.transformToDeg = QgsCoordinateTransform(crsLatLong, self.crs)
+        
+        self.transformToDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
+        # self.transformToLatLong = QgsCoordinateTransform(self.crsProject, self.crsLatLong, QgsProject.instance())
         return True
         
     @staticmethod
@@ -727,6 +733,7 @@ class ConvertFromArc(QObject):
         if writer.hasError() != QgsVectorFileWriter.NoError:
             ConvertFromArc.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()))
             return False
+        writer.flushBuffer()
         shutil.copy(prjFile, os.path.splitext(filePath)[0] + '.prj')
         return True
     
@@ -2113,14 +2120,14 @@ class ConvertFromArc(QObject):
     hl_foliage  REAL          NOT NULL,
     hl_soil     REAL          NOT NULL,
     solub       REAL          NOT NULL,
-    aq_reac     REAL          NOT NULL,
+    aq_hlife    REAL          NOT NULL,
     aq_volat    REAL          NOT NULL,
     mol_wt      REAL          NOT NULL,
     aq_resus    REAL          NOT NULL,
     aq_settle   REAL          NOT NULL,
     ben_act_dep REAL          NOT NULL,
     ben_bury    REAL          NOT NULL,
-    ben_reac    REAL          NOT NULL,
+    ben_hlife   REAL          NOT NULL,
     description TEXT
     )
     """
@@ -2350,7 +2357,7 @@ class ConvertFromArc(QObject):
  
 if __name__ == '__main__':
     ## QApplication object needed 
-    app = QgsApplication(sys.argv, True)
+    app = QgsApplication([], True)
     app.initQgis()
     ## main program
     main = ConvertFromArc(sys.argv[1])

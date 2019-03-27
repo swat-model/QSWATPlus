@@ -2813,8 +2813,9 @@ class CreateHRUs(QObject):
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(self._gv.basinFile, self._gv.fullLSUsFile)
             layer = QgsVectorLayer(self._gv.fullLSUsFile, '{0} ({1})'.format(legend, Parameters._LSUS1), 'ogr')
         if self.insertLSUFeatures(layer, fields, lsuShapes, subbasinChannelLandscapeCropSoilSlopeNumbers):
@@ -2853,8 +2854,9 @@ class CreateHRUs(QObject):
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch)
                 return False
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(self._gv.demFile, self._gv.fullHRUsFile)
             layer = QgsVectorLayer(self._gv.fullHRUsFile, '{0} ({1})'.format(legend, QFileInfo(self._gv.fullHRUsFile).baseName()), 'ogr')
         if self.insertHRUFeatures(layer, fields, hruShapes, subbasinChannelLandscapeCropSoilSlopeNumbers, progressBar, lastHru):
@@ -4846,7 +4848,7 @@ class CreateHRUs(QObject):
             ft = FileTypes._EXISTINGSUBBASINS if self._gv.existingWshed else FileTypes._SUBBASINS
             subs1Layer = QSWATUtils.getLayerByFilename(root.findLayers(), subs1File, ft, 
                                                        self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)[0]
-            subs1Layer.setCustomProperty('labeling/enabled', 'true')
+            subs1Layer.setLabelsEnabled(True)
             # no need to expand legend since any subbasins upstream from inlets have been removed
             subs1TreeLayer = root.findLayer(subs1Layer.id())
             subs1TreeLayer.setExpanded(False)

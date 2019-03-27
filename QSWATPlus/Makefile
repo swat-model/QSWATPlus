@@ -63,7 +63,8 @@ PY_FILES = \
 	outletsdialog.py exempt.py exemptdialog.py split.py splitdialog.py selectlu.py selectludialog.py parameters.py parametersdialog.py \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
-	globals.py raster.py swatgraph.py graphdialog.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py
+	globals.py raster.py swatgraph.py graphdialog.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
+	ui_convert.py
 
 PYC_FILES = $(PY_FILES:.py=.pyc)
 
@@ -92,19 +93,15 @@ EXTRA_DIRS =
 
 COMPILED_RESOURCE_FILES = resources_rc.py
 
-EXAMPLEDATASETS = ExampleDatasets
-
 GLOBALDATA = GlobalData
 
-EXTRAPACKAGES = imageio
+EXTRAPACKAGES = imageio PIL
 
 TOOLS = Tools
 
 TESTDATA = testdata
 
 TESTOUTPUT = testdata/test
-
-SQLDIR = Databases
 
 PEP8EXCLUDE=pydev,resources_rc.py,conf.py,third_party,ui
 
@@ -196,11 +193,9 @@ deploy: compile
 #	cp -vufr i18n "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 #	cp -vufr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 #	cp -vufr $(HTML) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vufr $(EXAMPLEDATASETS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	cp -vufr $(GLOBALDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	cp -vufr $(EXTRAPACKAGES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vufr $(SQLDIR) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vufr $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+#	cp -vufr $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 # remove test outputs before copying test data
 	rm -vfr $(TESTOUTPUT)
 	cp -vufr $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"

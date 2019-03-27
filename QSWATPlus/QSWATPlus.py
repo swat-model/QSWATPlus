@@ -28,14 +28,22 @@ import os
 import subprocess
 import time
 import shutil
+import sys
 import traceback
 
 # Initialize Qt resources from file resources_rc.py
-from .resources_rc import * # @UnusedWildImport
+try:
+    from .resources_rc import * # @UnusedWildImport
+except:
+    from resources_rc import *  # for convertFromArc
 # Import the code for the dialog
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
-from .QSWATUtils import QSWATUtils, FileTypes
+try:
+    from .QSWATUtils import QSWATUtils, FileTypes
+except:
+    # for convertFromArc
+    from QSWATUtils import QSWATUtils, FileTypes
 try:
     txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
@@ -61,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.0'
+    __version__ = '1.0.0'
 
     def __init__(self, iface):
         """Constructor."""
@@ -85,6 +93,8 @@ class QSWATPlus(QObject):
         # initialize plugin directory
         ## plugin directory
         self.plugin_dir = os.path.dirname(__file__)
+        # add to PYTHONPATH
+        sys.path.append(self.plugin_dir)
         settings = QSettings()
         # initialize locale
         # in testing with a dummy iface object this settings value can be None

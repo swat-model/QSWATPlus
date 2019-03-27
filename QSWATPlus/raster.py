@@ -21,12 +21,16 @@
  """
 
 from osgeo import gdal
-from .QSWATUtils import QSWATUtils #, fileWriter, FileTypes
 from osgeo.gdalconst import GA_ReadOnly, GA_Update
 from qgis.core import QgsRasterLayer
 import numpy as np
 import os
 from distutils.version import LooseVersion
+
+try:
+    from .QSWATUtils import QSWATUtils #, fileWriter, FileTypes
+except:
+    pass  # not needed by convertFromArc (already imported)
 
 class Raster():
      

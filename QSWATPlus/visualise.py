@@ -254,7 +254,7 @@ class Visualise(QObject):
         self._dlg.pauseCommand.clicked.connect(self.doPause)
         self._dlg.rewindCommand.clicked.connect(self.doRewind)
         self._dlg.recordButton.clicked.connect(self.record)
-        self._dlg.recordButton.setStyleSheet("background-color: green")
+        self._dlg.recordButton.setStyleSheet("background-color: green; border: none;")
         self._dlg.playButton.clicked.connect(self.playRecording)
         self._dlg.spinBox.valueChanged.connect(self.changeSpeed)
         self.animateTimer.timeout.connect(self.doStep)
@@ -273,39 +273,9 @@ class Visualise(QObject):
         self._dlg.plotButton.clicked.connect(self.writePlotData)
         self._dlg.closeButton.clicked.connect(self.doClose)
         self._dlg.destroyed.connect(self.doClose)
-        # hide most layers and DEM
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
-        slopeGroup = root.findGroup(QSWATUtils._SLOPE_GROUP_NAME)
-        if slopeGroup is not None:
-            slopeGroup.setItemVisibilityCheckedRecursive(False)
-        soilGroup = root.findGroup(QSWATUtils._SOIL_GROUP_NAME)
-        if soilGroup is not None:
-            soilGroup.setItemVisibilityCheckedRecursive(False)
-        landuseGroup = root.findGroup(QSWATUtils._LANDUSE_GROUP_NAME)
-        if landuseGroup is not None:
-            landuseGroup.setItemVisibilityCheckedRecursive(False)
-        demLayer = QSWATUtils.getLayerByLegend(FileTypes.legend(FileTypes._DEM), root.findLayers())
-        if demLayer is not None:
-            demLayer.setItemVisibilityChecked(False)
-        hillshadeLayer = QSWATUtils.getLayerByLegend(FileTypes.legend(FileTypes._HILLSHADE), root.findLayers())
-        if hillshadeLayer is not None:
-            hillshadeLayer.setItemVisibilityChecked(False)
-        actHRUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
-        if actHRUsLayer is not None:
-            actHRUsLayer.setItemVisibilityChecked(False)
-        fullHRUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
-        if fullHRUsLayer is not None:
-            fullHRUsLayer.setItemVisibilityChecked(False)
-        actLSUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTLSUSLEGEND, root.findLayers())
-        if actLSUsLayer is not None:
-            actLSUsLayer.setItemVisibilityChecked(False)
-        fullLSUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLLSUSLEGEND, root.findLayers())
-        if fullLSUsLayer is not None:
-            fullLSUsLayer.setItemVisibilityChecked(False)
-        ptsrcandresLayer = QSWATUtils.getLayerByLegend(QSWATUtils._EXTRAPTSRCANDRESLEGEND, root.findLayers())
-        if ptsrcandresLayer is not None:
-            ptsrcandresLayer.setItemVisibilityChecked(False)
+        self.setBackgroundLayers(root)
         leftShortCut = QShortcut(QKeySequence(Qt.Key_Left), self._dlg)
         rightShortCut = QShortcut(QKeySequence(Qt.Key_Right), self._dlg)
         leftShortCut.activated.connect(self.animateStepLeft)
@@ -343,6 +313,28 @@ class Visualise(QObject):
         for i in range(31):
             self._dlg.startDay.addItem(str(i+1))
             self._dlg.finishDay.addItem(str(i+1))
+            
+    def setBackgroundLayers(self, root):
+        """Reduce visible layers to channels, actual LSUs and subbasins by making all others not visible.
+        Leave Results group in case we already have some layers there."""
+        slopeGroup = root.findGroup(QSWATUtils._SLOPE_GROUP_NAME)
+        if slopeGroup is not None:
+            slopeGroup.setItemVisibilityCheckedRecursive(False)
+        soilGroup = root.findGroup(QSWATUtils._SOIL_GROUP_NAME)
+        if soilGroup is not None:
+            soilGroup.setItemVisibilityCheckedRecursive(False)
+        watershedLayers = QSWATUtils.getLayersInGroup(QSWATUtils._WATERSHED_GROUP_NAME, root)
+        if self._gv.useGridModel:
+            # make grid and grid streams visible
+            keepVisible = lambda n: n.startswith(QSWATUtils._GRIDSTREAMSLEGEND) or \
+                                    n.startswith(QSWATUtils._GRIDLEGEND)
+        else:  
+            # make subbasins, channels and actual LSUs visible
+            keepVisible = lambda n: n.startswith(QSWATUtils._SUBBASINSLEGEND) or \
+                                    n.startswith(QSWATUtils._CHANNELSLEGEND) or \
+                                    n.startswith(QSWATUtils._ACTLSUSLEGEND)
+        for layer in watershedLayers:
+            layer.setItemVisibilityChecked(keepVisible(layer.name()))
     
     def setupDb(self):
         """Set current database and connection to it; put table names in outputCombo."""
@@ -1932,7 +1924,7 @@ class Visualise(QObject):
         
     def capture(self):
         """Make image file of current canvas."""
-        if self.animateLayer is None or self.animationDOM is None:
+        if self.animateLayer is None:
             return
         self.animateLayer.triggerRepaint()
         canvas = self._gv.iface.mapCanvas()
@@ -1961,7 +1953,7 @@ class Visualise(QObject):
             self.animationLayout.initializeDefaults()
             self.animationLayout.setName(title)
             self.setDateInTemplate()
-            items = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())
+            _ = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())
             ok = proj.layoutManager().addLayout(self.animationLayout)
             if not ok:
                 QSWATUtils.error('Failed to add animation layout to layout manager.  Try removing some.', self._gv.isBatch)
@@ -1973,9 +1965,12 @@ class Visualise(QObject):
             if res != QgsLayoutExporter.Success:
                 QSWATUtils.error('Failed with result {1} to save layout as image file {0}'.format(nextStillFile, res), self._gv.isBatch)
         else:
-            canvas.saveAsImage(nextStillFile)
-        
-        
+            # tempting bot omits canvas title
+            # canvas.saveAsImage(nextStillFile)
+            canvasId = canvas.winId()
+            screen = QGuiApplication.primaryScreen()
+            pixMap = screen.grabWindow(canvasId)
+            pixMap.save(nextStillFile)
         
         # no longer used
     #===========================================================================
@@ -2054,7 +2049,7 @@ class Visualise(QObject):
             table.startswith('aquifer') and var in aqWater or \
             '_wb_' in table and var in wbWater:
             # water
-            return (style.colorRamp('YlGnBu'), False)
+            return style.colorRamp('YlGnBu')
         elif '_wb_' in table and var in wbPrecip:
             # precipitation and transpiration:
             return style.colorRamp('GnBu')
@@ -2493,7 +2488,7 @@ class Visualise(QObject):
     def dateToString(self, dat):
         """Convert integer date to string."""
         if self.isDaily:
-            return self.julianToDate(dat%1000, dat/1000).strftime("%d %B %Y")
+            return self.julianToDate(dat%1000, dat//1000).strftime("%d %B %Y")
         if self.isMonthly:
             return date(dat//100, dat%100, 1).strftime("%B %Y")
         # annual or average annual
@@ -2507,12 +2502,12 @@ class Visualise(QObject):
             self.clearPngDir()
             if self._dlg.printAnimation.isChecked():
                 self.createAnimationComposition()
-            self._dlg.recordButton.setStyleSheet('background-color: red')
+            self._dlg.recordButton.setStyleSheet('background-color: red; border: none;')
             self._dlg.recordLabel.setText('Stop recording')
             self._dlg.playButton.setEnabled(False)
         else:
             self._dlg.setCursor(Qt.WaitCursor)
-            self._dlg.recordButton.setStyleSheet('background-color: green')
+            self._dlg.recordButton.setStyleSheet('background-color: green; border: none;')
             self._dlg.recordLabel.setText('Start recording')
             self.saveVideo()
             self._dlg.playButton.setEnabled(True)

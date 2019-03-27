@@ -166,14 +166,20 @@ class QSWATUtils:
     @staticmethod
     def loginfo(msg: str) -> None:
         """Log message as information."""
-        log: QgsMessageLog = QgsApplication.instance().messageLog()
-        log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Info)
+        app = QgsApplication.instance()
+        # allow to fail if no application
+        if app is not None:
+            log: QgsMessageLog = QgsApplication.instance().messageLog()
+            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Info)
         
     @staticmethod
     def logerror(msg: str) -> None:
         """Log message as error."""
-        log: QgsMessageLog = QgsApplication.instance().messageLog()
-        log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Critical)
+        app = QgsApplication.instance()
+        # allow to fail if no application
+        if app is not None:
+            log: QgsMessageLog = QgsApplication.instance().messageLog()
+            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Critical)
         
     @staticmethod
     def trans(msg: str) -> str:
@@ -1077,6 +1083,8 @@ class fileWriter:
         self.writer = open(path, 'w')
         ## write method
         self.write = self.writer.write
+        ## close
+        self.close = self.writer.close
     
     def writeLine(self, string):
         """Write string plus end-of-line."""

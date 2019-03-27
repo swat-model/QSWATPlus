@@ -30,11 +30,19 @@ import time
 import csv
 import traceback
 
-from .QSWATUtils import QSWATUtils, FileTypes, ListFuns
-from .DBUtils import DBUtils
-from .parameters import Parameters
-from .raster import Raster
-from .dataInC import ReachData, MergedChannelData, LakeData  # @UnresolvedImport
+try:
+    from .QSWATUtils import QSWATUtils, FileTypes, ListFuns
+    from .DBUtils import DBUtils
+    from .parameters import Parameters
+    from .raster import Raster
+    from .dataInC import ReachData, MergedChannelData, LakeData  # @UnresolvedImport
+except:
+    # used by convertFromArc
+    from QSWATUtils import QSWATUtils, FileTypes, ListFuns
+    from DBUtils import DBUtils
+    from parameters import Parameters
+    from raster import Raster
+    from dataInC import ReachData, MergedChannelData, LakeData  # @UnresolvedImport
 
 class QSWATTopology:
     
@@ -602,7 +610,7 @@ class QSWATTopology:
             subbasinsLayer.commitChanges()
         time6 = time.process_time()
         QSWATUtils.loginfo('Topology setting SWATBasin numbers took {0} seconds'.format(int(time6 - time5)))
-        subbasinsLayer.setCustomProperty('labeling/enabled', 'true')
+        subbasinsLayer.setLabelsEnabled(True)
         subbasinsLayer.triggerRepaint()
         if not useGridModel:
             # add SWAT channel numbers to watershed shapefile

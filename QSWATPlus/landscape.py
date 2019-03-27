@@ -420,8 +420,9 @@ class Landscape(QObject):
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # need to release writer before making layer
-            writer = None
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
             QSWATUtils.copyPrj(channels, bufferShapefile)
             bufferShapefileLayer = QgsVectorLayer(bufferShapefile, '{0} ({1})'.format(legend, QFileInfo(bufferShapefile).baseName()), 'ogr')
         if self._gv.useGridModel:
