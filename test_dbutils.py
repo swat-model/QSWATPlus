@@ -55,15 +55,15 @@ class TestDBUtils(unittest.TestCase):
     
     def setUp(self):
         """Initialize data for tests"""
-        projDir = 'testdata/test'
+        projDir = 'QSWATPlus/testdata/test'
         if not os.path.exists(projDir):
             os.makedirs(projDir)
         QSWATUtils.tryRemoveFiles(QSWATUtils.join(projDir, 'test.sqlite'))
         QSWATUtils.tryRemoveFiles(QSWATUtils.join(projDir, Parameters._DBREF))
         ## DBUtils object
-        dbTemplate = QSWATUtils.join('QSWATPlus', QSWATUtils.join(Parameters._DBDIR, Parameters._DBPROJ))
+        dbTemplate = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, QSWATUtils.join(Parameters._DBDIR, Parameters._DBPROJ))
         self.assertTrue(os.path.exists(dbTemplate), 'Template project database {0} does not exist'.format(dbTemplate))
-        dbRef = QSWATUtils.join('QSWATPlus', QSWATUtils.join(Parameters._DBDIR, Parameters._DBREF))
+        dbRef = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, QSWATUtils.join(Parameters._DBDIR, Parameters._DBREF))
         self.assertTrue(os.path.exists(dbRef), 'Reference database {0} does not exist'.format(dbRef))
         self.db = DBUtils(projDir, 'test', dbTemplate, dbRef, True)
         self.db.populateTableNames()

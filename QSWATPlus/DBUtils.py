@@ -331,7 +331,7 @@ class DBUtils:
                     table = row[0]
                     if 'landuse' in table:
                         self.landuseTableNames.append(table)
-                    elif 'soil' in table and DBUtils._SOILS_SOL_NAME not in table:
+                    elif 'soil' in table and 'usersoil' not in table and DBUtils._SOILS_SOL_NAME not in table:
                         self.soilTableNames.append(table)
                     self._allTableNames.append(table)
             except Exception:

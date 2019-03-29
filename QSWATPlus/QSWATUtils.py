@@ -1231,7 +1231,7 @@ class FileTypes:
             return 'outlets.qml'
         elif ft == FileTypes._STREAMS or ft == FileTypes._STREAMREACHES:
             return 'stream.qml'
-        elif ft == FileTypes._CHANNELS:
+        elif ft == FileTypes._CHANNELS or ft == FileTypes._GRIDSTREAMS:
             return 'channel.qml'
         elif ft == FileTypes._CHANNELREACHES:
             return 'channelandreservoir.qml'
@@ -1243,8 +1243,6 @@ class FileTypes:
             return 'lsus.qml'
         elif ft == FileTypes._GRID:
             return 'grid.qml'
-        elif ft == FileTypes._GRIDSTREAMS:
-            return None
         elif ft == FileTypes._DRAINSTREAMS:
             return 'drainchannels.qml'
         elif ft == FileTypes._EXTRAPTSRCANDRES:

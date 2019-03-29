@@ -175,8 +175,8 @@ HashTable2['soils_sol_layer'] = 'c5c1f8179ca7054fe29165f9015b8e64'
 #===============================================================================
 
 HashTable3 = dict()
-#HashTable3['gis_channels'] = '8c516af961fc3771f291b6fcf4584c83'  # unreliable
-#HashTable3['gis_points'] = '6fbec880dfed44e2b1071d697856b9a1'
+# HashTable3['gis_channels'] = '5265c40eb6e13d298a4dae6adb7f8809'  # unreliable
+# HashTable3['gis_points'] = '74f4adad3f70a25c503db31af93e9ae9'
 HashTable3['BASINSDATA'] = 'de271648a6ddfc60339c29146053c546'
 HashTable3['LSUSDATA'] = '32d6049075080f4077819de539d4b9e3'
 HashTable3['HRUSDATA'] = '36e9a7fdf48e8d33ac80dd8a99bbffbd'
@@ -184,10 +184,10 @@ HashTable3['WATERDATA'] = '806ae46da6ec916fe1dc294d63ce439c'
 HashTable3['gis_elevationbands'] = '7cb4deff34d859f54f9167b411613eeb'
 HashTable3['gis_landexempt'] = '843f4dfbcb5fa16105cdd5b8108f3d5f'
 HashTable3['gis_splithrus'] = '1221c315567ad59dbf8976f1c56c46b4'
-#HashTable3['gis_subbasins'] = '254b88ea9abb4a767ebd06015641bdf4'
+# HashTable3['gis_subbasins'] = 'b97f84dd210b4aa89234225d92662f27'
 HashTable3['gis_lsus'] = '38a0d309713522667f6b598f8c2cc08e'
-#HashTable3['gis_hrus'] = 'b1a1295604b19ed66f5656ee3d727abc'
-#HashTable3['gis_routing'] = 'b6d64d9e78ebab55143c600944100e1d'
+# HashTable3['gis_hrus'] = 'f537ccd8d6180721090f0a8cb1bae2a2'
+# HashTable3['gis_routing'] = '72cf3f50dacf291a169ca616eec1a8d4'
 HashTable3['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
 HashTable3['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
 
@@ -491,28 +491,6 @@ HashTable13['soils_sol_layer'] = 'ffdf99f5cc1e3617e5666c479041fa7d'
 HashTable13['plants_plt'] = '2262f96863a7750b4dc53fb1fdd33d69'
 HashTable13['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
-# gis_channels: 07150baec1ebef83435fdbbb2e004f15
-# gis_points: 4910843e5715431ab4af0e1709d3625d
-# BASINSDATA: c994fa17f9415f6b7607e327474eeca1
-# LSUSDATA: 197efe494967d490f398670ff079c4d4
-# HRUSDATA: 43c514366f3de68ce8c7ad555d5a0d23
-# WATERDATA: 94938c0f5dd92178216d68943f96bc07
-# LAKEBASINS: d41d8cd98f00b204e9800998ecf8427e
-# LAKELINKS: dc0afa5ece57d262954bbc269b4a2e62
-# LAKESDATA: 139cac211599599f742fbaf1a91fd5b7
-# gis_elevationbands: d41d8cd98f00b204e9800998ecf8427e
-# gis_landexempt: d41d8cd98f00b204e9800998ecf8427e
-# gis_splithrus: d41d8cd98f00b204e9800998ecf8427e
-# gis_subbasins: bd384dbea8b64c9d3bd09d31587548bd
-# gis_lsus: 1ae7c75ce5bad016c731653ce53b8ce9
-# gis_hrus: e3fc5953e076ac64818a7946fa1a5712
-# gis_routing: 45e35318acf0317568893e0218963d31
-# gis_water: 2e16249f4e260756d1fb06beb8a9de89
-# soils_sol: 1c13df70d2d40f74b03c7d9434bc1832
-# soils_sol_layer: ffdf99f5cc1e3617e5666c479041fa7d
-# plants_plt: 2262f96863a7750b4dc53fb1fdd33d69
-# urban_urb: 94ab13b7ddfd02b2aedde8912744ac17
-
 #===============================================================================
 # Test 14:
 # - MPI with 10 processes; 
@@ -569,19 +547,18 @@ class TestQswat(unittest.TestCase):
         self.projDir = os.path.join(self.dataDir, 'test')
         if not os.path.exists(self.projDir):
             os.makedirs(self.projDir)
-        # set up processing
-        # this is necessary in testing otherwise no processing algorithms are available
-        # seems that QGIS itself does this somewhere
-        # but whatever function is used is not invoked when running tests
-        # Processing.initialize()
-        # Processing.updateAlgsList()    
-        # clean up from previous runs
         QgsProject.instance().removeAllMapLayers()
+        QgsProject.instance().clear()
+        # clean up from previous runs
         projectDatabase = os.path.join(self.projDir, 'test.sqlite')
         if os.path.exists(projectDatabase):
             os.remove(projectDatabase)
-        shutil.rmtree(os.path.join(self.projDir, 'Scenarios'), ignore_errors=True)
-        shutil.rmtree(os.path.join(self.projDir, 'Watershed'), ignore_errors=True)
+        scenarios = os.path.join(self.projDir, 'Scenarios')
+        if os.path.isdir(scenarios):
+            shutil.rmtree(scenarios, ignore_errors=True)
+        wshed = os.path.join(self.projDir, 'Watershed')
+        if os.path.isdir(wshed):
+            shutil.rmtree(wshed, ignore_errors=True)
         # start with empty project
         projFile = os.path.join(self.projDir, 'test.qgs')
         shutil.copy(os.path.join(self.dataDir, 'test_proj_qgs'), projFile)
@@ -601,7 +578,7 @@ class TestQswat(unittest.TestCase):
         """Clean up: make sure no database connections survive."""
         self.plugin.finish()
         
-    def test1(self):
+    def test01(self):
         """No MPI; single outlet only; no merging/adding in delineation; slope limit 10; percent filters 20/10/5; change numeric parameters."""
         print('\nTest 1')
         proj = QgsProject.instance()
@@ -753,7 +730,7 @@ class TestQswat(unittest.TestCase):
         self.checkHashes(HashTable1a)
         self.plugin.finish()               
         
-    def test2(self):
+    def test02(self):
         """MPI with 12 processes; stream threshold 100 sq km; channel threshold 10 sq km;
         7 inlets/outlets; snap threshold 600; FullHRUs;  6 elev bands;  area filter 500 ha."""
         print('\nTest 2')
@@ -860,7 +837,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test3(self):
+    def test03(self):
         """No MPI; stream threshold 14400 cells; channel threshold 1440 cells; single outlet; 
         merge subbasins; split and exempts; target by area 100; rerun HRU creation."""
         print('\nTest 3')
@@ -1003,7 +980,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test4(self):
+    def test04(self):
         """No MPI; use existing; no outlet; no merging/adding in delineation; FullHRUs; 
         no slope limits; channel merge set to 10 and readFiles rerun; filter by percent area 10%."""
         print('\nTest 4')
@@ -1116,7 +1093,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test5(self):
+    def test05(self):
         """No MPI; Duffins example (with triple stream reach join); delineation threshold 100 ha; merges small subbasins with default 5% threshold;  no slope limits; target 170 HRUs by percentage."""
         print('\nTest 5')
         demFileName = self.copyDem('duff_dem.tif')
@@ -1227,7 +1204,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test6(self):
+    def test06(self):
         """MPI 12 processes
             Duffins example (with triple stream reach join)
             channel threshold 100 cells
@@ -1358,7 +1335,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test7(self):
+    def test07(self):
         """MPI with 12 processes; delineation threshod default; 7 inlets/outlets; snap threshold 600; grid size 4; FullHRUs; dominant HRU."""
         print('\nTest 7')
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
@@ -1452,7 +1429,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test8(self):
+    def test08(self):
         """No MPI; use existing; use grid; stream drainage; reuse; no outlet; no merging/adding in delineation; filter by percent area 25."""
         print('\nTest 8')
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
@@ -1560,7 +1537,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
-    def test9(self):
+    def test09(self):
         """No MPI; use existing; use grid; grid drainage; recalculate; 7 outlets; no merging/adding in delineation; filter by percent area 25."""
         print('\nTest 9')
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
@@ -1893,7 +1870,7 @@ class TestQswat(unittest.TestCase):
     def test12(self):
         """MPI with 6 processes; existing;
         lake;  1% channel merge; target 500 HRUs."""
-        print('\nTest 1')
+        print('\nTest 12')
         self.delin._dlg.selectDem.setText(self.copyDem('ravn_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)

@@ -1,7 +1,7 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
 <qgis version="2.18.17" simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="1" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="0" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
   <edittypes>
-    <edittype widgetv2type="TextEdit" name="AREA (ha)">
+    <edittype widgetv2type="TextEdit" name="AREA">
       <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
     </edittype>
     <edittype widgetv2type="TextEdit" name="Channel">
@@ -25,14 +25,14 @@
       <symbol alpha="1" clip_to_extent="1" type="fill" name="0">
         <layer pass="0" class="SimpleFill" locked="0">
           <prop k="border_width_map_unit_scale" v="0,0,0,0,0,0"/>
-          <prop k="color" v="120,205,174,255"/>
+          <prop k="color" v="0,0,255,255"/>
           <prop k="joinstyle" v="bevel"/>
           <prop k="offset" v="0,0"/>
           <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
-          <prop k="outline_color" v="0,0,0,255"/>
+          <prop k="outline_color" v="248,157,178,255"/>
           <prop k="outline_style" v="solid"/>
-          <prop k="outline_width" v="0.06"/>
+          <prop k="outline_width" v="0.3"/>
           <prop k="outline_width_unit" v="MM"/>
           <prop k="style" v="no"/>
         </layer>
@@ -240,7 +240,7 @@
   <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="0" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
   <annotationform></annotationform>
   <aliases>
-    <alias field="AREA (ha)" index="0" name=""/>
+    <alias field="AREA" index="0" name=""/>
     <alias field="Channel" index="1" name=""/>
     <alias field="LSUID" index="2" name=""/>
     <alias field="Subbasin" index="3" name=""/>

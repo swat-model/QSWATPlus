@@ -3859,7 +3859,7 @@ class CreateHRUs(QObject):
                     fw.writeLine(line2)
                     if self._gv.isBatch:
                         QSWATUtils.information(line2, True)
-            fw.writeLine('Number of subbasins: {0!s}'.format(len(self._gv.topo.subbasinToSWATBasin)))
+            fw.writeLine('Number of subbasins: {0!s}'.format(len(self.basins)))
             fw.writeLine('Number of channels: {0!s}'.format(self.countChannels()))
             fw.writeLine('Number of LSUs: {0!s}'.format(self.countLsus()))
             numLakes = len(self._gv.topo.lakesData)

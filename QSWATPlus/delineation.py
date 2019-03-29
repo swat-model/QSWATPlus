@@ -864,9 +864,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             for cell in gridLayer.getFeatures():
                 cellGeom = cell.geometry()
                 cellBox = cellGeom.boundingBox()
-                # cellArea = cell[areaIndex] * 1E4  # convert to square metres
-                # in Python 3 areas seem to be in hectares
-                cellArea = cell[areaIndex]
+                cellArea = cell[areaIndex] * 1E4  # convert to square metres
                 currentLakeId = cell[gridLakeIdIndex]
                 # ensure we remove old lake ids, but not lake ids already added
                 if currentLakeId != NULL and currentLakeId not in done:
@@ -1072,7 +1070,13 @@ assumed that its crossing the lake boundary is an inaccuracy
             if fileType != QgsWkbTypes.PolygonGeometry:
                 QSWATUtils.error('Subbasins file {0} is not a polygon shapefile'.format(self._dlg.selectSubbasins.text()), self._gv.isBatch)
             else:
-                self._gv.subbasinsFile = subbasinsFile 
+                self._gv.subbasinsFile = subbasinsFile
+                subbasinsLayer.setLabelsEnabled(True)
+                if self._gv.useGridModel:
+                    # don'texpand grid layer legend
+                    treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDLEGEND, root.findLayers())
+                    if treeLayer is not None:
+                        treeLayer.setExpanded(False)   
                 
     def btnSetWshed(self) -> None:
         """Open and load existing watershed shapefile."""
@@ -1085,7 +1089,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             if fileType != QgsWkbTypes.PolygonGeometry:
                 QSWATUtils.error('Subbasins file {0} is not a polygon shapefile'.format(self._dlg.selectWshed.text()), self._gv.isBatch)
             else:
-                self._gv.wshedFile = wshedFile   
+                self._gv.wshedFile = wshedFile 
         
     def btnSetStreams(self) -> None:
         """Open and load existing streams shapefile or drainage table."""
@@ -1093,7 +1097,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         legend = QSWATUtils._GRIDLEGEND if self._dlg.useGrid else QSWATUtils._SUBBASINSLEGEND
         subsLayer = QSWATUtils.getLayerByLegend(legend, root.findLayers())
         if subsLayer is not None:
-            self._gv.iface.setActiveLayer(subsLayer)
+            self._gv.iface.setActiveLayer(subsLayer.layer())
         if self._dlg.useGrid:
             if not self.gridDrainage and not self.streamDrainage:
                 ft = FileTypes._CSV
@@ -3654,8 +3658,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 feature.setFields(fields)
                 feature.setAttribute(idIndex, gridData.num)
                 feature.setAttribute(downIndex, gridData.downNum)
-                # convert area in raster cell count to area of grid cell in square metres
-                feature.setAttribute(areaIndex, float(abs(gridData.area * x_size * y_size)))
+                # convert area in raster cell count to area of grid cell in hectares
+                feature.setAttribute(areaIndex, abs(gridData.area * x_size * y_size) / 1E4)
                 geometry = QgsGeometry.fromPolygonXY([ring])
                 feature.setGeometry(geometry)
                 features.append(feature)
@@ -3672,6 +3676,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
             QSWATUtils.error('Failed to load grid shapefile {0}'.format(gridFile), self._gv.isBatch)
             return
         gridLayer.setLabelsEnabled(False)
+        # don't expand legend for grid layer
+        # have to start by getting layerTreeLayer
+        treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDLEGEND, root.findLayers())
+        if treeLayer is not None:
+            treeLayer.setExpanded(False)
         gridLayer.triggerRepaint()
         # preserve access to subbasinsFile so can use to clip when making valley depths later
         # the gridFile can be reduced if there are inlets, and its convex hull will not be appropriate

@@ -323,6 +323,9 @@ class Visualise(QObject):
         soilGroup = root.findGroup(QSWATUtils._SOIL_GROUP_NAME)
         if soilGroup is not None:
             soilGroup.setItemVisibilityCheckedRecursive(False)
+        landuseGroup = root.findGroup(QSWATUtils._LANDUSE_GROUP_NAME)
+        if landuseGroup is not None:
+            landuseGroup.setItemVisibilityCheckedRecursive(False)
         watershedLayers = QSWATUtils.getLayersInGroup(QSWATUtils._WATERSHED_GROUP_NAME, root)
         if self._gv.useGridModel:
             # make grid and grid streams visible
@@ -378,8 +381,8 @@ class Visualise(QObject):
         keepYearly = plotTable == '' or Visualise.tableIsYearly(plotTable)
         if keepYearly:
             self.addTablesByTerminator(tables, '_yr')
-        if self._dlg.tabWidget.currentIndex() == 0:  # static
-            self.addTablesByTerminator(tables, '_aa')
+            if self._dlg.tabWidget.currentIndex() == 0:  # static
+                self.addTablesByTerminator(tables, '_aa')
         for table in tables:
             self._dlg.outputCombo.addItem(table)
         self._dlg.outputCombo.setCurrentIndex(0)
@@ -2057,7 +2060,7 @@ class Visualise(QObject):
             return style.colorRamp('YlOrRd')
         
     def modeChange(self):
-        """Main tab has changed.  Show/hide Animation group."""
+        """Main tab has changed.  Show/hide Animation group.  Repopulate output tables."""
         root = QgsProject.instance().layerTreeRoot()
         expandAnimation = self._dlg.tabWidget.currentIndex() == 1
         animationGroup = root.findGroup(QSWATUtils._ANIMATION_GROUP_NAME)
@@ -2065,6 +2068,8 @@ class Visualise(QObject):
         # model = QgsLayerTreeModel(root)
         # view = self._gv.iface.layerTreeView()
         # TODO: how to link model and view so as to be able to expand the animation group? 
+        # tables available can depend on tab, so repopulate
+        self.populateOutputTables()
             
     def makeResults(self):
         """

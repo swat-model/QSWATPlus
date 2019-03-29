@@ -59,6 +59,8 @@ class Selectlu:
         namely the line up to the space before '('
         """
         length = selection.find('(')
-        self._luse = selection[ : length-1] # there is a space before the '('
-        assert selection[length-1 : length] == ' '
+        if length < 0:
+            self._luse = selection.strip()
+        else:
+            self._luse = selection[ : length].strip()
         
