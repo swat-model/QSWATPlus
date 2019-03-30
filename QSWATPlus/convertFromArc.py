@@ -78,8 +78,8 @@ class ConvertFromArc(QObject):
         self.crs = None
         ## outlets
         self.outletFile = ''
-        ## extra outlets
-        self.extraOutletFile = ''
+#         ## extra outlets
+#         self.extraOutletFile = ''
         ## Subbasins shapefile 
         self.subbasinsFile = ''
         ## watershed shapefile
@@ -393,47 +393,61 @@ class ConvertFromArc(QObject):
                     qPt.setAttribute(ptsrcIndex, 0)
                     provider.addFeatures([qPt])
                 elif typ == 'R':
-                    reservoirs.append(row)
+                    qPt = QgsFeature(fields)
+                    qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(row[xIndex]), float(row[yIndex]))))
+                    qPt.setAttribute(idIndex, idNum)
+                    idNum += 1
+                    qPt.setAttribute(inletIndex, 0)
+                    qPt.setAttribute(resIndex, 1)
+                    qPt.setAttribute(ptsrcIndex, 0)
+                    provider.addFeatures([qPt])
                 elif typ in ['P', 'D']:
-                    ptsrcs.append(row)
+                    qPt = QgsFeature(fields)
+                    qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(row[xIndex]), float(row[yIndex]))))
+                    qPt.setAttribute(idIndex, idNum)
+                    idNum += 1
+                    qPt.setAttribute(inletIndex, 1)
+                    qPt.setAttribute(resIndex, 0)
+                    qPt.setAttribute(ptsrcIndex, 1)
+                    provider.addFeatures([qPt])
         self.outletFile = qOutlets
-        if not len(reservoirs) == 0 or not len(ptsrcs) == 0:
-            # need an extra outlets layer
-            # note the file name arcextra.shp is used by delineation.py and by FileTypes in QSWATUtils.py
-            # and if changed here must be changed there
-            print('Creating reservoirs and point sources file ...')
-            qExtra = os.path.join(self.qProjDir, r'Watershed\Shapes\arcextra.shp')
-            if not ConvertFromArc.makeOutletFile(qExtra, fields, prjFile, basinWanted=True):
-                return False
-            qExtraLayer = QgsVectorLayer(qExtra, 'Extra', 'ogr')
-            provider = qExtraLayer.dataProvider()
-            idIndex = provider.fieldNameIndex('ID')
-            inletIndex = provider.fieldNameIndex('INLET')
-            resIndex = provider.fieldNameIndex('RES')
-            ptsrcIndex = provider.fieldNameIndex('PTSOURCE')
-            outSubIndex = provider.fieldNameIndex('Subbasin')
-            idNum = 0
-            for res in reservoirs:
-                qPt = QgsFeature(fields)
-                qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(res[xIndex]), float(res[yIndex]))))
-                qPt.setAttribute(idIndex, idNum)
-                idNum += 1
-                qPt.setAttribute(inletIndex, 0)
-                qPt.setAttribute(resIndex, 1)
-                qPt.setAttribute(ptsrcIndex, 0)
-                qPt.setAttribute(outSubIndex, int(res[subIndex]))
-                provider.addFeatures([qPt])
-            for ptsrc in ptsrcs:
-                qPt = QgsFeature(fields)
-                qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(ptsrc[xIndex]), float(ptsrc[yIndex]))))
-                qPt.setAttribute(idIndex, idNum)
-                idNum += 1
-                qPt.setAttribute(inletIndex, 1)
-                qPt.setAttribute(resIndex, 0)
-                qPt.setAttribute(ptsrcIndex, 1)
-                qPt.setAttribute(outSubIndex, int(ptsrc[subIndex]))
-                provider.addFeatures([qPt])
-            self.extraOutletFile = qExtra
+#         if not len(reservoirs) == 0 or not len(ptsrcs) == 0:
+#             # need an extra outlets layer
+#             # note the file name arcextra.shp is used by delineation.py and by FileTypes in QSWATUtils.py
+#             # and if changed here must be changed there
+#             print('Creating reservoirs and point sources file ...')
+#             qExtra = os.path.join(self.qProjDir, r'Watershed\Shapes\arcextra.shp')
+#             if not ConvertFromArc.makeOutletFile(qExtra, fields, prjFile, basinWanted=True):
+#                 return False
+#             qExtraLayer = QgsVectorLayer(qExtra, 'Extra', 'ogr')
+#             provider = qExtraLayer.dataProvider()
+#             idIndex = provider.fieldNameIndex('ID')
+#             inletIndex = provider.fieldNameIndex('INLET')
+#             resIndex = provider.fieldNameIndex('RES')
+#             ptsrcIndex = provider.fieldNameIndex('PTSOURCE')
+#             outSubIndex = provider.fieldNameIndex('Subbasin')
+#             idNum = 0
+#             for res in reservoirs:
+#                 qPt = QgsFeature(fields)
+#                 qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(res[xIndex]), float(res[yIndex]))))
+#                 qPt.setAttribute(idIndex, idNum)
+#                 idNum += 1
+#                 qPt.setAttribute(inletIndex, 0)
+#                 qPt.setAttribute(resIndex, 1)
+#                 qPt.setAttribute(ptsrcIndex, 0)
+#                 qPt.setAttribute(outSubIndex, int(res[subIndex]))
+#                 provider.addFeatures([qPt])
+#             for ptsrc in ptsrcs:
+#                 qPt = QgsFeature(fields)
+#                 qPt.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(ptsrc[xIndex]), float(ptsrc[yIndex]))))
+#                 qPt.setAttribute(idIndex, idNum)
+#                 idNum += 1
+#                 qPt.setAttribute(inletIndex, 1)
+#                 qPt.setAttribute(resIndex, 0)
+#                 qPt.setAttribute(ptsrcIndex, 1)
+#                 qPt.setAttribute(outSubIndex, int(ptsrc[subIndex]))
+#                 provider.addFeatures([qPt])
+#             self.extraOutletFile = qExtra
         return True
     
     # attempt to use flow accumulation and direction from ArcSWAT to get delineation consistent with ArcSWAT
@@ -776,7 +790,7 @@ class ConvertFromArc(QObject):
         self.proj.writeEntry(self.qProjName, 'delin/useOutlets', isFull)
         if isFull:
             self.proj.writeEntry(self.qProjName, 'delin/outlets', self.proj.writePath(self.outletFile))
-        self.proj.writeEntry(self.qProjName, 'delin/extraOutlets', self.proj.writePath(self.extraOutletFile))
+#         self.proj.writeEntry(self.qProjName, 'delin/extraOutlets', self.proj.writePath(self.extraOutletFile))
         self.proj.write()
     
     def copyLanduseAndSoil(self):
@@ -1724,8 +1738,8 @@ class ConvertFromArc(QObject):
                         qType = 'P'
                         ptsrcToSubbasin[ptNum] = subbasin
                     elif arcType == 'R':
+                        qType = 'R'
                         reservoirSubbasins.add(subbasin)
-                        continue  # reservoirs not included in gis_points
                     else:
                         # weather gauge: not included in gis_points
                         continue

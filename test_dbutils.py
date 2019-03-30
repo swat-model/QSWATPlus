@@ -111,7 +111,7 @@ class TestDBUtils(unittest.TestCase):
         self.db.plantTableNames = self.db.collectPlantSoilTableNames('plant', box)
         self.assertTrue('plant' in self.db.plantTableNames, 'plant table not in reference database')
         self.assertFalse('plant0'in self.db.plantTableNames, 'plant0 table already in reference database')
-        self.db.readCsvFile('QSWATPlus/ExampleDatasets/Robit/plant.csv', 'plant', self.db.plantTableNames)
+        self.db.readCsvFile('QSWATPlus/SWATPlus/ExampleDatasets/Robit/plant.csv', 'plant', self.db.plantTableNames)
         self.db.plantTableNames = self.db.collectPlantSoilTableNames('plant', box)
         self.assertTrue('plant0' in self.db.plantTableNames, 'plant0 table not added to reference database')
         # hashes different though they look the same
@@ -126,7 +126,7 @@ class TestDBUtils(unittest.TestCase):
         self.db.urbanTableNames = self.db.collectPlantSoilTableNames('urban', box)
         self.assertTrue('urban' in self.db.urbanTableNames, 'urban table not in reference database')
         self.assertFalse('urban0'in self.db.urbanTableNames, 'urban0 table already in reference database')
-        self.db.readCsvFile('QSWATPlus/ExampleDatasets/Robit/urban.csv', 'urban', self.db.urbanTableNames)
+        self.db.readCsvFile('QSWATPlus/SWATPlus/ExampleDatasets/Robit/urban.csv', 'urban', self.db.urbanTableNames)
         self.db.urbanTableNames = self.db.collectPlantSoilTableNames('urban', box)
         self.assertTrue('urban0' in self.db.urbanTableNames, 'urban0 table not added to reference database')
         # hashes different though they look the same

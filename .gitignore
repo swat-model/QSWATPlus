@@ -1,0 +1,9 @@
+*.pyc
+/html/
+/help/
+/cover/
+/build/
+/old/
+/fonts/
+**/__pycache__
+**/.mypy_cache

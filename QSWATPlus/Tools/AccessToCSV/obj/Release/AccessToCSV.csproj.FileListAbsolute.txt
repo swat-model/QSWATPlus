@@ -1,3 +1,0 @@
-C:\SWAT\SWAT-DEG\AccessToCSV.exe
-C:\Users\Chirs George\Documents\SharpDevelop Projects\AccessToCSV\obj\Release\AccessToCSV.csprojResolveAssemblyReference.cache
-C:\Users\Chirs George\Documents\SharpDevelop Projects\AccessToCSV\obj\Release\AccessToCSV.exe
