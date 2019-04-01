@@ -405,7 +405,7 @@ class Landscape(QObject):
         bufferShapefile = QSWATUtils.join(self._gv.shapesDir, 'bufferflood.shp')
         ft = FileTypes._BUFFERFLOOD
         legend = FileTypes.legend(ft)
-        if os.path.isfile(bufferShapefile):
+        if QSWATUtils.shapefileExists(bufferShapefile):
             bufferShapefileLayer = QSWATUtils.getLayerByFilename(root.findLayers(), bufferShapefile, ft, 
                                                               None, None, None)[0]
             if bufferShapefileLayer is None:
@@ -415,6 +415,7 @@ class Landscape(QObject):
                 return
             fields = bufferShapefileLayer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(bufferShapefile, root)
             fields = QgsFields()
             writer = QgsVectorFileWriter(bufferShapefile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.topo.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:

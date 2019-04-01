@@ -3063,9 +3063,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             shapes.addRow(wBuffer.reshape([numCols]), row)
         shapes.finish()
         legend = FileTypes.legend(ft)
-        shxFile = subbasinsFile.replace('.shp', '.shx')
-        dbfFile = subbasinsFile.replace('.shp', '.dbf')
-        if os.path.isfile(subbasinsFile) and os.path.isfile(shxFile) and os.path.isfile(dbfFile):
+        if QSWATUtils.shapefileExists(subbasinsFile):
             subbasinsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), subbasinsFile, ft, None, None, None)[0]
             if subbasinsLayer is None:
                 subbasinsLayer = QgsVectorLayer(subbasinsFile, '{0} ({1})'.
@@ -3075,7 +3073,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = subbasinsLayer.fields()
         else:
-            QSWATUtils.tryRemoveLayerAndFiles(subbasinsFile, root)
+            QSWATUtils.removeLayerAndFiles(subbasinsFile, root)
             # create shapefile
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
@@ -3603,7 +3601,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._GRID
         legend = FileTypes.legend(ft)
-        if os.path.isfile(gridFile):
+        if QSWATUtils.shapefileExists(gridFile):
             gridLayer = QSWATUtils.getLayerByFilename(root.findLayers(), gridFile, ft, 
                                                       None, None, None)[0]
             if gridLayer is None:
@@ -3615,6 +3613,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = gridLayer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(gridFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DOWNID, QVariant.Int))
@@ -3696,7 +3695,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._GRIDSTREAMS
         legend = FileTypes.legend(ft)
-        if os.path.isfile(gridStreamsFile):
+        if QSWATUtils.shapefileExists(gridStreamsFile):
             gridStreamsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), gridStreamsFile, ft, 
                                                       None, None, None)[0]
             if gridStreamsLayer is None:
@@ -3706,6 +3705,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = gridStreamsLayer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(gridStreamsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
@@ -3839,7 +3839,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         drainStreamsFile = QSWATUtils.join(self._gv.shapesDir, 'drainstreams.shp')
         ft = FileTypes._DRAINSTREAMS
         legend = FileTypes.legend(ft)
-        if os.path.isfile(drainStreamsFile):
+        if QSWATUtils.shapefileExists(drainStreamsFile):
             drainStreamsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), drainStreamsFile, ft, 
                                                               None, None, None)[0]
             if drainStreamsLayer is None:
@@ -3849,6 +3849,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = drainStreamsLayer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(drainStreamsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
@@ -4145,7 +4146,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         """Create filePath with fields needed for outlets file, 
         copying .prj from sourcePath, and adding Subbasin field if wanted.
         """
-        if os.path.isfile(filePath):
+        if QSWATUtils.shapefileExists(filePath):
             # safer to empty it than to try to create a new one
             # TODO: check it has expected fields
             ft = FileTypes._OUTLETS
@@ -4154,6 +4155,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 outletLayer = QgsVectorLayer(filePath, FileTypes.legend(ft), 'ogr')
             return QSWATUtils.removeAllFeatures(outletLayer)
         else:
+            QSWATUtils.removeLayerAndFiles(filePath, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._ID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))

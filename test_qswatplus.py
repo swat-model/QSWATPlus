@@ -57,10 +57,10 @@ else:
 
 app.initQgis()
 
-if len(QgsProviderRegistry.instance().providerList()) == 0:
-    raise RuntimeError('No data providers available.  Check prefix path setting in test_qswatplus.py.')
+# if len(QgsProject.instance().providerList()) == 0:
+#     raise RuntimeError('No data providers available.  Check prefix path setting in test_qswatplus.py.')
 
-# QSWATUtils.information('Providers: {0!s}'.format(QgsProviderRegistry.instance().providerList()), True)
+# QSWATUtils.information('Providers: {0!s}'.format(QgsProject.instance().providerList()), True)
 
 atexit.register(app.exitQgis)
 

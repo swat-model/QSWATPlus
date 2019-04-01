@@ -241,6 +241,7 @@ class ConvertFromArc(QObject):
             gisname = os.environ['GISNAME']
             # print('GISNAME: {0}'.format(gisname))
             command = '{0}/bin/{1}.bat --project "{2}"'.format(osgeo4wroot, gisname, qProjFile)
+            print('Command: {0}'.format(command))
             subprocess.call(command, shell=True)
  
     def createSubDirectories(self):

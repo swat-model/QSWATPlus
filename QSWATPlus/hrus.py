@@ -2792,7 +2792,7 @@ class CreateHRUs(QObject):
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._LSUS
         legend = QSWATUtils._FULLLSUSLEGEND
-        if os.path.isfile(self._gv.fullLSUsFile):
+        if QSWATUtils.shapefileExists(self._gv.fullLSUsFile):
             layer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.fullLSUsFile, ft, 
                                                               None, None, None)[0]
             if layer is None:
@@ -2802,6 +2802,7 @@ class CreateHRUs(QObject):
                 return
             fields = layer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(self._gv.fullLSUsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
@@ -2828,7 +2829,7 @@ class CreateHRUs(QObject):
         root = QgsProject.instance().layerTreeRoot()
         ft = FileTypes._HRUS
         legend = QSWATUtils._FULLHRUSLEGEND
-        if os.path.isfile(self._gv.fullHRUsFile):
+        if QSWATUtils.shapefileExists(self._gv.fullHRUsFile):
             layer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.fullHRUsFile, ft, 
                                                               None, None, None)[0]
             if layer is None:
@@ -2838,6 +2839,7 @@ class CreateHRUs(QObject):
                 return
             fields = layer.fields()
         else:
+            QSWATUtils.removeLayerAndFiles(self._gv.fullHRUsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
@@ -4935,12 +4937,17 @@ class CreateHRUs(QObject):
                             if waterBody.isReservoir and not waterBody.isInlet():
                                 # place reservoir point at channel outlet
                                 channelData = self._gv.topo.channelsData[channel]
+                                self._gv.topo.pointId += 1
                                 resPt = QgsPointXY(channelData.lowerX, channelData.lowerY)
-                                self._gv.topo.foundReservoirs[channel] = (waterBody.id, resPt)
+                                self._gv.topo.foundReservoirs[channel] = (waterBody.id, self._gv.topo.pointId, resPt)
             self._db.hashDbTable(conn, 'gis_water')
         reservoirsFile = QSWATUtils.join(self._gv.shapesDir, 'reservoirs.shp')
-        if Delineation.createOutletFile(reservoirsFile, self._gv.demFile, False, root, self._gv.isBatch):
-            self.addReservoirsToFile(self._gv.topo.chPointSources, self.mergees, self._gv.topo.foundReservoirs, reservoirsFile, root)
+        # for some reason cannot rewrite this layer if rerun
+        # QGIS has a lock on the .shp and .dbf files from somewhere
+        # so instead always create a new file
+        reservoirsFileN, _ = QSWATUtils.nextFileName(reservoirsFile, 0)
+        if Delineation.createOutletFile(reservoirsFileN, self._gv.demFile, False, root, self._gv.isBatch):
+            self.addReservoirsToFile(self._gv.topo.chPointSources, self.mergees, self._gv.topo.foundReservoirs, reservoirsFileN, root)
             
     def addReservoirsToFile(self, ptSources, mergees, reservoirs, outletFile, root):
         """Add reservoirs and point sources to outletFile.  Load as layer if not already loaded."""
@@ -4951,7 +4958,7 @@ class CreateHRUs(QObject):
         inletIndex = provider.fieldNameIndex(QSWATTopology._INLET)
         resIndex = provider.fieldNameIndex(QSWATTopology._RES)
         ptsourceIndex = provider.fieldNameIndex(QSWATTopology._PTSOURCE)
-        for pointId, point in reservoirs.values():
+        for _, pointId, point in reservoirs.values():
             feature = QgsFeature()
             feature.setFields(fields)
             feature.setAttribute(idIndex, pointId)

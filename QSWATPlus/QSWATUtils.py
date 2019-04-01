@@ -33,6 +33,7 @@ import shutil
 import random
 import datetime
 import sys
+import time
 from osgeo import gdal, ogr
 from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic
 from builtins import int
@@ -292,11 +293,15 @@ class QSWATUtils:
         """Remove any layers for fileName."""
         fileInfo: QFileInfo = QFileInfo(fileName)
         lIds: List[str] = []
+        layers = []
         for layer in root.findLayers():
             info: QFileInfo = QSWATUtils.layerFileInfo(layer.layer())
             if info == fileInfo:
                 lIds.append(layer.layerId())
+                layers.append(layer)
         QgsProject.instance().removeMapLayers(lIds)
+        for layer in layers:
+            del layer
      
     @staticmethod
     def removeLayerByLegend(legend: str, treeLayers: List[QgsLayerTreeLayer]) -> None:
@@ -314,13 +319,7 @@ class QSWATUtils:
         provider = layer.dataProvider()
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
         ids = [feature.id() for feature in provider.getFeatures(request)]
-        if provider.deleteFeatures(ids):
-            return True
-        # try one at a time
-        for feature in provider.getFeatures(request):
-            if not provider.deleteFeatures([feature.id()]):
-                return False
-        return True
+        return provider.deleteFeatures(ids)
         
     @staticmethod
     def setLayerVisibility(layer: QgsMapLayer, visibility: bool, root: QgsLayerTreeGroup) -> None:
@@ -368,7 +367,7 @@ class QSWATUtils:
         Delete all files with same root as fileName, 
         i.e. regardless of suffix.
         """
-        pattern: str = os.path.splitext(fileName)[0] + '.*'
+        pattern = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             os.remove(f)
                 
@@ -417,6 +416,20 @@ class QSWATUtils:
             suffix: str = os.path.splitext(f)[1]
             outfile: str = QSWATUtils.join(outdir, outbase + suffix)
             shutil.copy(f, outfile)
+            
+    @staticmethod
+    def shapefileExists(infile: str) -> bool:
+        """Assuming infile is.shp, check existence of .shp. .shx and .dbf."""
+        if not os.path.isfile(infile):
+            return False
+        shxFile = infile.replace('.shp', '.shx')
+        if not os.path.isfile(shxFile):
+            return False
+        dbfFile = infile.replace('.shp', '.dbf')
+        if not os.path.isfile(dbfFile):
+            return False
+        return True
+        
             
     @staticmethod
     def nextFileName(baseFile, n):

@@ -2044,7 +2044,7 @@ Other possible outlet stream links are {2}.
                         continue
                 elev = QSWATTopology.valueAtPoint(pt, demLayer)
                 self.addPoint(curs, subbasin, pointId, pt, elev, 'R')
-            for channel, (pointId, pt) in self.foundReservoirs.items():
+            for channel, (_, pointId, pt) in self.foundReservoirs.items():
                 if useGridModel:
                     subbasin = self.chLinkToChBasin[channel]
                 else:
@@ -2091,7 +2091,7 @@ Other possible outlet stream links are {2}.
             cursor.execute(sql, (pointId, SWATBasin, typ,
                            pt.x(), pt.y(), ptll.y(), ptll.x(), elev))
         except:
-            QSWATUtils.loginfo('Unable to add point {0} type {1}'.format(pointId, typ))
+            QSWATUtils.exceptionError('Internal error: unable to add point {0} type {1}'.format(pointId, typ), self.isBatch)
     
     #===========================================================================
     # def addPoint(self, cursor, link, data, pointId, typ):
@@ -2658,17 +2658,21 @@ Other possible outlet stream links are {2}.
                                 # route reservoir to reservoir point and reservoir point to outlet
                                 (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
                                 if resId < 0:
-                                    (resId, _) = self.foundReservoirs.get(channel, (-1, None))
+                                    (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                                else:
+                                    # it is safe to use same id for reservoir and reservoir outlet point when
+                                    # using DSNODEID from inlets/outlets file
+                                    ptId = resId
                                 if resId < 0:
                                     QSWATUtils.error('Cannot find reservoir point for channel {0}'
                                                      .format(SWATChannel), gv.isBatch)
                                 else:
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                 (rid, resCat, resId, ptCat, 100))
-                                    if resId not in routedPoints:
+                                                 (rid, resCat, ptId, ptCat, 100))
+                                    if ptId not in routedPoints:
                                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                     (resId, ptCat, pointId, ptCat, 100))
-                                        routedPoints.append(resId)
+                                                     (ptId, ptCat, pointId, ptCat, 100))
+                                        routedPoints.append(ptId)
                                     routedReservoirs.append(rid)
                         elif SWATChannel not in routedChannels:    
                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
@@ -2703,33 +2707,41 @@ Other possible outlet stream links are {2}.
                                         # route reservoir to reservoir point and reservoir point to ridDown
                                         (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
                                         if resId < 0:
-                                            (resId, _) = self.foundReservoirs.get(channel, (-1, None))
+                                            (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                                        else:
+                                            # it is safe to use same id for reservoir and reservoir outlet point when
+                                            # using DSNODEID from inlets/outlets file
+                                            ptId = resId
                                         if resId < 0:
                                             QSWATUtils.error('Cannot find reservoir point for channel {0}'
                                                              .format(SWATChannel), gv.isBatch)
                                         else:
                                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                         (rid, resCat, resId, ptCat, 100))
-                                            if resId not in routedPoints:
+                                                         (rid, resCat, ptId, ptCat, 100))
+                                            if ptId not in routedPoints:
                                                 curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                             (resId, ptCat, ridDown, resCat, 100))
-                                                routedPoints.append(resId)
+                                                             (ptId, ptCat, ridDown, resCat, 100))
+                                                routedPoints.append(ptId)
                                             routedReservoirs.append(rid)
                                 else:
                                     # route reservoir to reservoir point and reservoir point to downstream channel
                                     (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
                                     if resId < 0:
-                                        (resId, _) = self.foundReservoirs.get(channel, (-1, None))
+                                        (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                                    else:
+                                        # it is safe to use same id for reservoir and reservoir outlet point when
+                                        # using DSNODEID from inlets/outlets file
+                                        ptId = resId
                                     if resId < 0:
                                         QSWATUtils.error('Cannot find reservoir point for channel {0}'
                                                          .format(SWATChannel), gv.isBatch)
                                     else:
                                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                     (rid, resCat, resId, ptCat, 100))
-                                        if resId not in routedPoints:
+                                                     (rid, resCat, ptId, ptCat, 100))
+                                        if ptId not in routedPoints:
                                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                         (resId, ptCat, dsSWATChannel, chCat, 100))
-                                            routedPoints.append(resId)
+                                                         (ptId, ptCat, dsSWATChannel, chCat, 100))
+                                            routedPoints.append(ptId)
                                         routedReservoirs.append(rid)
                         elif SWATChannel not in routedChannels:
                             if ridDown >= 0:  
@@ -3306,14 +3318,13 @@ Other possible outlet stream links are {2}.
             inletIndex = self.getIndex(outletLayer, QSWATTopology._INLET, ignoreMissing=False)
             srcIndex = self.getIndex(outletLayer, QSWATTopology._PTSOURCE, ignoreMissing=False)
             resIndex = self.getIndex(outletLayer, QSWATTopology._RES, ignoreMissing=False)
-            # set pointId to max non-reservoir id value in outletLayer
+            # set pointId to max id value in outletLayer
             # and waterBodyId to max reservoir id
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
             for point in outletLayer.getFeatures(request):
+                self.pointId = max(self.pointId, point[idIndex])
                 if point[inletIndex] == 0 and point[resIndex] == 1:
                     self.waterBodyId = max(self.waterBodyId, point[idIndex])
-                else:
-                    self.pointId = max(self.pointId, point[idIndex])
         else:
             dsNodeIndex = -1
         for reach in channelLayer.getFeatures():
