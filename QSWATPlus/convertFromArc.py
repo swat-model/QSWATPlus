@@ -262,15 +262,20 @@ class ConvertFromArc(QObject):
         ConvertFromArc.makeDirs(floodDir)
         scenariosDir = os.path.join(self.qProjDir, 'Scenarios')
         ConvertFromArc.makeDirs(scenariosDir)
-        defaultDir = os.path.join(scenariosDir, 'Default')
-        ConvertFromArc.makeDirs(defaultDir)
-        txtInOutDir = os.path.join(defaultDir, 'TxtInOut')
-        ConvertFromArc.makeDirs(txtInOutDir)
-        resultsDir = os.path.join(defaultDir, 'Results')
-        ConvertFromArc.makeDirs(resultsDir)
-        plotsDir = os.path.join(resultsDir, 'Plots')
+        scensPattern = self.projDirOld + '/Scenarios/*'
+        for oldScenDir in glob.iglob(scensPattern):
+            scen = os.path.split(oldScenDir)[1]
+            newScenDir = os.path.join(scenariosDir, scen)
+            ConvertFromArc.makeDirs(newScenDir)
+            txtInOutDir = os.path.join(newScenDir, 'TxtInOut')
+            ConvertFromArc.makeDirs(txtInOutDir)
+            resultsDir = os.path.join(newScenDir, 'Results')
+            ConvertFromArc.makeDirs(resultsDir)
+            ConvertFromArc.copyFiles(oldScenDir + '/TablesOut', resultsDir)
+        defaultResultsDir = os.path.join(scenariosDir, 'Default/Results')
+        plotsDir = os.path.join(defaultResultsDir, 'Plots')
         ConvertFromArc.makeDirs(plotsDir)
-        animationDir = os.path.join(resultsDir, 'Animation')
+        animationDir = os.path.join(defaultResultsDir, 'Animation')
         ConvertFromArc.makeDirs(animationDir)
         pngDir = os.path.join(animationDir, 'Png')
         ConvertFromArc.makeDirs(pngDir)
@@ -1281,7 +1286,7 @@ class ConvertFromArc(QObject):
         """
         idc = int(row[3])
         daysMat = 120 if idc == 4 or idc == 5 else 365
-        data = (num, row[2].lower(), row[3], 'temp_gro', 0, daysMat) + tuple(row[5:13]) + (1,) + \
+        data = (num, row[2].lower(), idc, 'temp_gro', 0, daysMat) + tuple(row[5:13]) + (1,) + \
                 tuple(row[13:34]) + tuple(row[40:45]) + (12, 3, row[45], 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, row[4])
         cursor.execute(sql, data)
             

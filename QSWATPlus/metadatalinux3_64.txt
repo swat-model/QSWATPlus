@@ -11,7 +11,7 @@
 [general]
 name=QSWATPlusLinux3_64
 qgisMinimumVersion=3.0
-description=Create SWAT inputs
+description=Create SWAT+ inputs
 version=1.0.0
 author=Chris George
 email=cgeorge@mcmaster.ca
