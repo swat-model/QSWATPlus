@@ -227,6 +227,7 @@ class Visualise(QObject):
         
     def init(self):
         """Initialise the visualise form."""
+        self._dlg.tabWidget.setCurrentIndex(0)
         self.setSummary()
         self.fillScenarios()
         self._dlg.scenariosCombo.activated.connect(self.setupDb)
@@ -240,7 +241,6 @@ class Visualise(QObject):
         self._dlg.delButton.clicked.connect(self.delClick)
         self._dlg.clearButton.clicked.connect(self.clearClick)
         self._dlg.resultsFileButton.clicked.connect(self.setResultsFile)
-        self._dlg.tabWidget.setCurrentIndex(0)
         self._dlg.tabWidget.currentChanged.connect(self.modeChange)
         self._dlg.saveButton.clicked.connect(self.makeResults)
         self._dlg.printButton.clicked.connect(self.printResults)
@@ -1288,7 +1288,8 @@ class Visualise(QObject):
         outbase = os.path.splitext(outfile)[0]
         QSWATUtils.copyShapefile(resultsBase, outbase, outdir)
         selectVar = self._dlg.variableList.selectedItems()[0].text()[:10]
-        legend = '{0} {1} {2}'.format(self.scenario, selectVar, self._dlg.summaryCombo.currentText())
+        summary = Visualise._ANNUALMEANS if self.isAA else self._dlg.summaryCombo.currentText()
+        legend = '{0} {1} {2}'.format(self.scenario, selectVar, summary)
         if baseName == Parameters._SUBS:
             self.subResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.subResultsLayer.rendererChanged.connect(self.changeSubRenderer)
@@ -1441,7 +1442,8 @@ class Visualise(QObject):
             symbol.setWidth(1.0)
         selectVar = self._dlg.variableList.selectedItems()[0].text()
         selectVarShort = selectVar[:10]
-        layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, self._dlg.summaryCombo.currentText()))
+        summary = Visualise._ANNUALMEANS if self.isAA else self._dlg.summaryCombo.currentText()
+        layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, summary))
         if not keepColours:
             count = 5
             opacity = 1 if base == Parameters._RIVS else 65
