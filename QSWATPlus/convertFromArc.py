@@ -107,6 +107,8 @@ class ConvertFromArc(QObject):
         self._dlg.noGISButton.clicked.connect(self.getChoice)
         ## choice of conversion
         self.choice = ConvertFromArc._fullChoice
+        ## transform to projection from lat-long
+        self.transformFromDeg = None
         
     def run(self):
         print("Converting from ArcSWAT")
@@ -314,13 +316,13 @@ class ConvertFromArc(QObject):
         demLayer = QgsRasterLayer(self.demFile, 'DEM')
         QSWATUtils.writePrj(self.demFile, demLayer)
         self.crs = demLayer.crs()
-        # set up transform to lat-long
+        # set up transform from lat-long
         crsLatLong = QgsCoordinateReferenceSystem()
         if not crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
             QSWATUtils.error('Failed to create lat-long coordinate reference system')
             return False
         
-        self.transformToDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
+        self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
         # self.transformToLatLong = QgsCoordinateTransform(self.crsProject, self.crsLatLong, QgsProject.instance())
         return True
         
@@ -1292,7 +1294,7 @@ class ConvertFromArc(QObject):
             
     def writeFertRow(self, num, row, cursor, sql):
         """Write values from row of fert table using cursor and sql, using num for the first element."""
-        # columns 1-10 of new table same as columns 2:11 of fert
+        # columns 2-7 of new table same as columns 2:7 of fert, plus FERTNAME for description
         data = (num, row[2].lower()) + tuple(row[3:8]) + ('', row[11])
         cursor.execute(sql, data)
             
@@ -1713,7 +1715,7 @@ class ConvertFromArc(QObject):
                     elevmin = row[14]
                     elevmax = row[15]
                     lonlat = QgsPointXY(float(lon), float(lat))
-                    xy = self.transformToDeg.transform(lonlat)
+                    xy = self.transformFromDeg.transform(lonlat)
                     subbasinLatLonElev[subbasin] = (xy.x(), xy.y(), lat, lon, elev)
                     cursor.execute(ConvertFromArc._INSERTLSUS, 
                                    (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, csl, wid1, dep1, lat, lon, elev))

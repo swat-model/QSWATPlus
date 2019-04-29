@@ -156,7 +156,7 @@ class TauDEMUtils:
             output.append('------------------- TauDEM command: -------------------\n')
         if numProcesses != 0:
             mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
-            if mpiexecPath is not None:
+            if mpiexecPath != '':
                 commands.append(mpiexecPath)
                 commands.append('-np') # -n acceptable in Windows but only -np in OpenMPI
                 commands.append(str(numProcesses))
@@ -249,7 +249,7 @@ class TauDEMUtils:
         if os.path.exists(path):
             return path
         else:
-            return None
+            return ''
 
     @staticmethod
     def taudemHelp():
