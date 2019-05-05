@@ -38,10 +38,10 @@ import datetime
 import time
 import traceback
 
-from convertdialog import convertDialog
-from QSWATUtils import QSWATUtils
-from DBUtils import DBUtils
-from QSWATTopology import QSWATTopology
+from convertdialog import convertDialog  # @UnresolvedImport
+from QSWATUtils import QSWATUtils  # @UnresolvedImport
+from DBUtils import DBUtils  # @UnresolvedImport
+from QSWATTopology import QSWATTopology  # @UnresolvedImport
 #from parameters import Parameters
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
@@ -1462,7 +1462,7 @@ class ConvertFromArc(QObject):
             qRefDb = os.path.join(self.qProjDir, 'swatplus_datasets.sqlite')
             weatherDataDir = os.path.join(self.qProjDir, r'Scenarios\Default\TxtInOut')
             gisType = 'qgis'
-            gisVersion = QSWATPlus.__version__
+            gisVersion = QSWATPlus.__version__  # @UndefinedVariable
             cursor.execute('DROP TABLE IF EXISTS project_config')
             cursor.execute(DBUtils._CREATEPROJECTCONFIG)
             cursor.execute(DBUtils._INSERTPROJECTCONFIG, 

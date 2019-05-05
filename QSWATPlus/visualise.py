@@ -38,10 +38,11 @@ from datetime import date
 import math
 import csv
 import traceback
+# from collections import OrderedDict
 
 # Import the code for the dialog
 from .visualisedialog import VisualiseDialog
-from .QSWATUtils import QSWATUtils, FileTypes
+from .QSWATUtils import QSWATUtils
 from .QSWATTopology import QSWATTopology
 from .swatgraph import SWATGraph
 from .parameters import Parameters
@@ -221,6 +222,18 @@ class Visualise(QObject):
         self.animationTemplate = ''
         ## flag to show when user has perhaps changed the animation template
         self.animationTemplateDirty = False
+        ## map from subbasin to outlet channel
+        self.subbasinOutletChannels = dict()
+        ## last file used for Qq results
+        self.lastQqResultsFile = ''
+        ## last file used for dQp results
+        self.lastdQpResultsFile = ''
+        ## last file used for Qb results
+        self.lastQbResultsFile = ''
+        ## dQp result
+        self.dQpResult = 0
+        ## Qb result
+        self.QbResult = 0
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
@@ -228,12 +241,14 @@ class Visualise(QObject):
     def init(self):
         """Initialise the visualise form."""
         self._dlg.tabWidget.setCurrentIndex(0)
+        self._dlg.QtabWidget.setCurrentIndex(0)
         self.setSummary()
         self.fillScenarios()
         self._dlg.scenariosCombo.activated.connect(self.setupDb)
         self._dlg.scenariosCombo.setCurrentIndex(self._dlg.scenariosCombo.findText('Default'))
         if self.db == '':
             self.setupDb()
+        self.initQResults()
         self._dlg.outputCombo.activated.connect(self.setVariables)
         self._dlg.summaryCombo.activated.connect(self.changeSummary)
         self._dlg.addButton.clicked.connect(self.addClick)
@@ -271,6 +286,19 @@ class Visualise(QObject):
         self._dlg.observedFileButton.clicked.connect(self.setObservedFile)
         self._dlg.addObserved.clicked.connect(self.addObervedPlot)
         self._dlg.plotButton.clicked.connect(self.writePlotData)
+        self._dlg.QqSubbasin.activated.connect(self.setQqTableHead)
+        self._dlg.QqSpin.valueChanged.connect(self.setQqTableHead)
+        self._dlg.QqCalculate.clicked.connect(self.calculateQq)
+        self._dlg.QqSave.clicked.connect(self.saveQq)
+        self._dlg.dQpSubbasin.activated.connect(self.cleardQpResult)
+        self._dlg.dQpStartMonth.activated.connect(self.cleardQpResult)
+        self._dlg.dQpSpinD.valueChanged.connect(self.cleardQpResult)
+        self._dlg.dQpSpinP.valueChanged.connect(self.cleardQpResult)
+        self._dlg.dQpCalculate.clicked.connect(self.calculatedQp)
+        self._dlg.dQpSave.clicked.connect(self.savedQp)
+        self._dlg.QbSubbasin.activated.connect(self.setQbTableHead)
+        self._dlg.QbCalculate.clicked.connect(self.calculateQb)
+        self._dlg.QbSave.clicked.connect(self.saveQb)
         self._dlg.closeButton.clicked.connect(self.doClose)
         self._dlg.destroyed.connect(self.doClose)
         proj = QgsProject.instance()
@@ -365,7 +393,8 @@ class Visualise(QObject):
         self.populateOutputTables()
 
     def populateOutputTables(self):
-        """Add daily, monthly and annual output tables to output combo"""
+        """Add daily, monthly and annual output tables to output combo.
+        For post processing find subbasin outlet channels."""
         self._dlg.outputCombo.clear()
         self._dlg.outputCombo.addItem('')
         tables = []
@@ -391,7 +420,9 @@ class Visualise(QObject):
         self._dlg.variablePlot.clear()
         self._dlg.variablePlot.addItem('')
         self.updateCurrentPlotRow(0)
-        
+        if self._dlg.tabWidget.currentIndex() == 3:
+            self.setSubbasinOutletChannels()
+            
     def setConnection(self, scenario):
         """Set connection to scenario output database."""
         scenDir = QSWATUtils.join(self._gv.scenariosDir, scenario)
@@ -399,7 +430,7 @@ class Visualise(QObject):
         self.db = QSWATUtils.join(outDir, Parameters._OUTPUTDB)
         self.conn =  sqlite3.connect(self.db)
         if self.conn is None:
-            QSWATUtils.error('Failed to connect to output database {0}'.format(self.db), self.isBatch)
+            QSWATUtils.error('Failed to connect to output database {0}'.format(self.db), self._gv.isBatch)
         else:
             #self.conn.isolation_level = None # means autocommit
             self.conn.row_factory = sqlite3.Row
@@ -592,7 +623,7 @@ class Visualise(QObject):
             self.setFinishDate(finishDate)
         else:
             if requestedFinishDate > finishDate:
-                QSWATUtils.information('Chosen period finishes than scenario {0} period: changing chosen finish'.format(self.scenario), self._gv.isBatch)
+                QSWATUtils.information('Chosen period finishes later than scenario {0} period: changing chosen finish'.format(self.scenario), self._gv.isBatch)
                 self.setFinishDate(finishDate)
         
     def setPeriods(self):
@@ -822,7 +853,7 @@ class Visualise(QObject):
                 datesDone = True
         # data all collected: write csv file
         csvFile, _ = QFileDialog.getSaveFileName(None, 'Choose a csv file', self._gv.scenariosDir, 'CSV files (*.csv)')
-        if not csvFile:
+        if csvFile == '':
             return
         with open(csvFile, 'w', newline='') as f:
             writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)  # quote fields containing delimeter or other special characters 
@@ -914,6 +945,10 @@ class Visualise(QObject):
                     layerData[gisId][var][year] = dict()
                 layerData[gisId][var][year][tim] = val
         self.summaryChanged = True
+        
+    def readDailyFlowData(self, table, channel, monthData):
+        """Read data from table for channhel, organised by month."""
+        
         
     def inPeriod(self, year, tim, table, isDaily, isMonthly):
         """
@@ -1201,7 +1236,7 @@ class Visualise(QObject):
         if base is None:
             return
         resultsFileName, _ = QFileDialog.getSaveFileName(None, base + 'results', path, QgsProject.instance().fileVectorFilters())
-        if not resultsFileName:
+        if resultsFileName == '':
             return
         direc, resName = os.path.split(resultsFileName)
         direcUp, direcName = os.path.split(direc)
@@ -1229,7 +1264,7 @@ class Visualise(QObject):
         except Exception:
             path = ''
         observedFileName, _ = QFileDialog.getOpenFileName(None, 'Choose observed data file', path, 'CSV files (*.csv);;Any file (*.*)')
-        if not observedFileName:
+        if observedFileName == '':
             return
         self.observedFileName = observedFileName
         self._dlg.observedFileEdit.setText(observedFileName)
@@ -2495,7 +2530,7 @@ class Visualise(QObject):
     def dateToString(self, dat):
         """Convert integer date to string."""
         if self.isDaily:
-            return self.julianToDate(dat%1000, dat//1000).strftime("%d %B %Y")
+            return self.julianToDate(dat%1000, dat//1000).strftime(QSWATUtils._DATEFORMAT)
         if self.isMonthly:
             return date(dat//100, dat%100, 1).strftime("%B %Y")
         # annual or average annual
@@ -2963,6 +2998,414 @@ class Visualise(QObject):
                 except:
                     pass
         self.currentStillNumber = 0
+        
+    def setSubbasinOutletChannels(self):
+        """Fill subbasinOutletChannels from rivs shapefile unless already done.  Fill QqSubbasins combo."""
+        if len(self.subbasinOutletChannels) > 0:
+            return
+        scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
+        resultsDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+        rivsFile = QSWATUtils.join(resultsDir, Parameters._RIVS) + '.shp'
+        if not os.path.isfile(rivsFile):
+            QSWATUtils.error('Cannot find channels shapefile {0}'.format(rivsFile), self._gv.isBatch)
+            return
+        rivLayer = QgsVectorLayer(rivsFile, 'Channels', 'ogr')
+        fields = rivLayer.fields()
+        chIdx = fields.lookupField(QSWATTopology._CHANNEL)
+        chRIdx = fields.lookupField(QSWATTopology._CHANNELR)
+        subIdx = fields.lookupField(QSWATTopology._SUBBASIN)
+        if chRIdx < 0 or subIdx < 0:
+            rivs1File = QSWATUtils.join(self._gv.shapesDir, Parameters._RIVS1) + '.shp'
+            if os.path.isfile(rivs1File):
+                rivLayer = QgsVectorLayer(rivs1File, 'Channels', 'ogr')
+                fields = rivLayer.fields()
+                chIdx = fields.lookupField(QSWATTopology._CHANNEL)
+                chRIdx = fields.lookupField(QSWATTopology._CHANNELR)
+                subIdx = fields.lookupField(QSWATTopology._SUBBASIN)
+                if chIdx >= 0 and chRIdx >= 0 and subIdx >= 0:
+                    QSWATUtils.information('''Cannot find ChannelR or Subbasin fields in {0}.  
+                    Will use {1}.
+                    This is because your model was built with an older version of QSWAT+.
+                    There will be no harm if your subbasins and channels have not chenged.
+                    Otherwise you should rebuild and rerun your model.'''.format(rivsFile, rivs1File), self._gv.isBatch)
+                    rivsFile = rivs1File
+                else:
+                    QSWATUtils.error('Cannot find ChannelR or Subbasin fields in {0}'.format(rivsFile), self._gv.isBatch)
+                    return
+        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([chIdx, chRIdx, subIdx])
+        downChannel = dict()
+        channelToSubbasin = dict()
+        for ch in rivLayer.getFeatures(request):
+            chNum = ch[chIdx]
+            downChannel[chNum] = ch[chRIdx]
+            channelToSubbasin[chNum] = ch[subIdx]
+        mainOutlet = 0
+        for ch, chR in downChannel.items():
+            sub = channelToSubbasin[ch]
+            if chR == 0 or sub != channelToSubbasin[chR]:
+                self.subbasinOutletChannels[sub] = ch
+            if chR == 0:
+                mainOutlet = sub
+        self._dlg.QqSubbasin.clear()
+        self._dlg.QqSubbasin.addItems(map(str, sorted(self.subbasinOutletChannels.keys())))
+        self._dlg.dQpSubbasin.clear()
+        self._dlg.dQpSubbasin.addItems(map(str, sorted(self.subbasinOutletChannels.keys())))
+        self._dlg.QbSubbasin.clear()
+        self._dlg.QbSubbasin.addItems(map(str, sorted(self.subbasinOutletChannels.keys())))
+        # preselect main outlet subbasin
+        if mainOutlet > 0:
+            self._dlg.QqSubbasin.setCurrentText(str(mainOutlet))
+            self._dlg.dQpSubbasin.setCurrentText(str(mainOutlet))
+            self._dlg.QbSubbasin.setCurrentText(str(mainOutlet))
+        self.setQqTableHead()
+        self.cleardQpResult()
+        self.setQbTableHead()
+            
+    def setQqTableHead(self):
+        """Clears results table.  Sets header."""
+        self._dlg.QqResults.clearContents()
+        self._dlg.QqResults.setHorizontalHeaderLabels(['Q' + str(self._dlg.QqSpin.value())])
+            
+    def setQbTableHead(self):
+        """Clears results table.  Sets header."""
+        self._dlg.QbAnnualResult.setText('Annual result: ')
+        self._dlg.QbResults.clearContents()
+        self._dlg.QbResults.setHorizontalHeaderLabels(['Qb'])
+        
+    def initQResults(self):
+        """Initialise post processing results tables."""
+        self._dlg.QqResults.setVerticalHeaderLabels(Visualise._MONTHS)
+        self._dlg.QbResults.setVerticalHeaderLabels(Visualise._MONTHS)
+        # designer makes these false
+        self._dlg.QqResults.verticalHeader().setVisible(True)
+        self._dlg.QqResults.horizontalHeader().setVisible(True)
+        self._dlg.dQpStartMonth.clear()
+        self._dlg.dQpStartMonth.addItems(Visualise._MONTHS)
+        self._dlg.dQpStartMonth.setCurrentIndex(-1)
+        self._dlg.QbResults.verticalHeader().setVisible(True)
+        self._dlg.QbResults.horizontalHeader().setVisible(True)
+        
+    def calculateQq(self):
+        """Calcualte Qq results."""
+        if not self.setPeriods():
+            return
+        startDate = date(self.startYear, self.startMonth, self.startDay)
+        finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
+        flowDataTable = 'channel_sd_day'
+        if not self._gv.db.hasDataConn(flowDataTable, self.conn):
+            QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
+            return
+        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        selectString = '[mon], [day], [yr], [flo_out]'
+        where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.QqSubbasin.currentText())])
+        sql = self._gv.db.sqlSelect(flowDataTable, selectString, '', where)
+        for row in self.conn.execute(sql).fetchall():
+            thisDay = date(row[2], row[0], row[1])
+            if thisDay < startDate or finishDate < thisDay:
+                continue
+            monthData[row[0]].append(row[3])
+        for m, l in monthData.items():
+            if len(l) > 0:
+                l.sort()
+                percentile = Visualise.percentile(l, (100 - self._dlg.QqSpin.value()) / 100)
+                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(percentile)))
+#         QqStore = QSWATUtils.join(self._gv.resultsDir, 'q{0!s}.txt'.format(self._dlg.QqSpin.value()))
+#         with open(QqStore, 'w', newline='') as f:
+#             for m, l in monthData.items():
+#                 f.write(Visualise._MONTHS[m-1])
+#                 f.write('\n')
+#                 f.write(str(l))
+#                 f.write('\n')
+                
+    def saveQq(self):
+        if self.lastQqResultsFile != '':
+            startDir = os.path.split(self.lastQqResultsFile)[0]
+        else:
+            scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
+            startDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+        if self._dlg.QqAppend.isChecked():
+            fun = QFileDialog.getOpenFileName
+            mode = 'a'
+        else:
+            fun = QFileDialog.getSaveFileName
+            mode = 'w'
+        resultsFile, _ = fun(None, 'Choose results file', startDir, 'Text files (*.txt);;Any file (*.*)')
+        if resultsFile == '':
+            return
+        with open(resultsFile, mode, newline='') as f:
+            startDate = date(self.startYear, self.startMonth, self.startDay).strftime(QSWATUtils._DATEFORMAT)
+            finishDate = date(self.finishYear, self.finishMonth, self.finishDay).strftime(QSWATUtils._DATEFORMAT)
+            f.write('Q{0!s} for {1} to {2}\n'.format(self._dlg.QqSpin.value(), startDate, finishDate))
+            subbasin = self._dlg.QqSubbasin.currentText()
+            f.write('Subbasin {0};  Channel {1}\n'.format(subbasin, self.subbasinOutletChannels[int(subbasin)]))
+            for m in range(12):
+                f.write(Visualise._MONTHS[m].ljust(12))
+                f.write(self._dlg.QqResults.item(m, 0).text())
+                f.write('\n')
+            f.write('\n') 
+        self.lastQqResultsFile = resultsFile 
+        
+    def cleardQpResult(self):
+        self._dlg.dQpResult.setText('Result:')
+        
+    def calculatedQp(self):
+        """Calculate dQp result."""
+        if not self.setPeriods():
+            return
+        startDate = date(self.startYear, self.startMonth, self.startDay)
+        finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
+        flowDataTable = 'channel_sd_day'
+        if not self._gv.db.hasDataConn(flowDataTable, self.conn):
+            QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
+            return
+        startMonth = self._dlg.dQpStartMonth.currentIndex() + 1
+        if startMonth <= 0:
+            QSWATUtils.information('Please choose start month', self._gv.isBatch)
+            return
+        # data has structure yearIndex -> flow value list
+        flowData = dict()
+        yearIndex = -1
+        count = 0  # don't like using variable defined inside loop after completion, so define these here
+        expectedLength = 0 
+        selectString = '[mon], [day], [yr], [flo_out]'
+        where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.dQpSubbasin.currentText())])
+        orderBy = '[yr], [jday]'
+        sql = self._gv.db.sqlSelect(flowDataTable, selectString, orderBy, where)
+        for row in self.conn.execute(sql).fetchall():
+            mon = row[0]
+            day = row[1]
+            year = row[2]
+            val = row[3]
+            thisDay = date(row[2], row[0], row[1])
+            if thisDay < startDate or finishDate < thisDay:
+                continue
+            if year == self.startYear and mon < startMonth:
+                continue
+            if mon == startMonth and day == 1:
+                # start new year
+                count = 0
+                expectedLength = 366 if (startMonth <= 2 and Visualise.isLeap(year)) or (startMonth > 2 and Visualise.isLeap(year+1)) else 365
+                yearIndex = yearIndex + 1
+                flowData[yearIndex] = []
+                currentFlowData = flowData[yearIndex]
+            currentFlowData.append(val)
+            count += 1
+        if count < expectedLength:
+            # last year incomplete: delete it
+            del flowData[yearIndex]
+        if len(flowData) == 0:
+            QSWATUtils.error('There is insufficient data.  There must be at least a yesr starting from 1 {0} {1}.'.
+                             format(self._dlg.dQpStartMonth.currentText(), self.startYear), self._gv.isBatch)
+            return
+        d = self._dlg.dQpSpinD.value()
+        p = self._dlg.dQpSpinP.value()
+        fraction = (100 - p) / 100
+        # compute moving totals: no point in dividing by d until the end
+        totals = dict()
+        percentiles = []
+#         dQpStore = QSWATUtils.join(self._gv.resultsDir, '{0!s}Q{1!s}.txt'.format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value()))
+#         f =  open(dQpStore, 'w', newline='')
+        for yearIndex, flowVals in flowData.items():
+#             f.write('Year: {0!s}'.format(self.startYear + yearIndex))
+#             f.write('\n')
+#             f.write('Flows out: \n')
+#             f.write(str(flowVals))
+#             f.write('\n')
+            totals[yearIndex] = [sum(flowVals[0:d])]  # initial total for first d values
+            # currentTotals is a list of totals, where the list with index i is the sum from i to i+d-1 einclusive
+            currentTotals = totals[yearIndex]
+            for i in range(len(flowVals) - d): 
+                lastTotal = currentTotals[i]
+                currentTotals.append(lastTotal - flowVals[i] + flowVals[i+d])
+#             f.write('Unsorted totals: \n')
+#             f.write(str(currentTotals))
+#             f.write('\n')
+            currentTotals.sort()
+#             f.write('Sorted totals: \n')
+#             f.write(str(currentTotals))
+#             f.write('\n')
+            percentiles.append(Visualise.percentile(currentTotals, fraction))
+        # finally remember we need to return a mean moving average, not a mean moving total
+        self.dQpResult = (sum(percentiles) / len(percentiles)) / d 
+        self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult))
+#         f.write('Percentiles: {0!s}'.format(percentiles))
+#         f.write('\n')
+#         f.write('Result: {0!s}'.format(self.dQpResult))
+#         f.write('\n')
+#         f.close()
+                
+    def savedQp(self):
+        if self.lastdQpResultsFile != '':
+            startDir = os.path.split(self.lastdQpResultsFile)[0]
+        else:
+            scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
+            startDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+        if self._dlg.dQpAppend.isChecked():
+            fun = QFileDialog.getOpenFileName
+            mode = 'a'
+        else:
+            fun = QFileDialog.getSaveFileName
+            mode = 'w'
+        resultsFile, _ = fun(None, 'Choose results file', startDir, 'Text files (*.txt);;Any file (*.*)')
+        if resultsFile == '':
+            return
+        with open(resultsFile, mode, newline='') as f:
+            startDate = date(self.startYear, self.startMonth, self.startDay).strftime(QSWATUtils._DATEFORMAT)
+            finishDate = date(self.finishYear, self.finishMonth, self.finishDay).strftime(QSWATUtils._DATEFORMAT)
+            f.write('{0!s}Q{1!s} for {2} to {3}\n'.
+                    format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value(), startDate, finishDate))
+            subbasin = self._dlg.dQpSubbasin.currentText()
+            month = self._dlg.dQpStartMonth.currentText()
+            f.write('Subbasin {0};  Channel {1};  {2};  Result: {3:.2F}\n'.
+                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, self.dQpResult))
+            f.write('\n') 
+        self.lastdQpResultsFile = resultsFile 
+        
+    def calculateQb(self):
+        """Calculate Qb results."""
+        if not self.setPeriods():
+            return
+        startDate = date(self.startYear, self.startMonth, self.startDay)
+        finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
+        flowDataTable = 'channel_sd_day'
+        if not self._gv.db.hasDataConn(flowDataTable, self.conn):
+            QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
+            return
+        startMonth = self.startMonth  # TODO give user choice?
+#         if startMonth <= 0:
+#             QSWATUtils.information('Please choose start month', self._gv.isBatch)
+#             return
+        # data has structure yearIndex -> flow value list
+        flowData = dict()
+        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        yearIndex = -1
+        count = 0  # don't like using variable defined inside loop after completion, so define these here
+        expectedLength = 0 
+        selectString = '[mon], [day], [yr], [flo_out]'
+        where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.QbSubbasin.currentText())])
+        orderBy = '[yr], [jday]'
+        sql = self._gv.db.sqlSelect(flowDataTable, selectString, orderBy, where)
+        for row in self.conn.execute(sql).fetchall():
+            mon = row[0]
+            day = row[1]
+            year = row[2]
+            val = row[3]
+            thisDay = date(row[2], row[0], row[1])
+            if thisDay < startDate or finishDate < thisDay:
+                continue
+            # unnecessary if using self.startMonth for start
+#             if year == self.startYear and mon < startMonth:
+#                 continue
+            if mon == startMonth and day == 1:
+                # start new year
+                count = 0
+                expectedLength = 366 if (startMonth <= 2 and Visualise.isLeap(year)) or (startMonth > 2 and Visualise.isLeap(year+1)) else 365
+                yearIndex = yearIndex + 1
+                flowData[yearIndex] = []
+                currentFlowData = flowData[yearIndex]
+            currentFlowData.append(val)
+            count += 1
+            monthData[mon].append(val)
+        if count < expectedLength:
+            # last year incomplete: delete it
+            del flowData[yearIndex]
+        if len(flowData) == 0:
+            QSWATUtils.error('There is insufficient data.  There must be at least a yesr starting from 1 {0} {1}.'.
+                             format(self.startMonth, self.startYear), self._gv.isBatch)
+            return
+        # compute minimum moving averages with highest rate of change for 1 to 100 days for each year
+        avs = []
+        for yearIndex, flowVals in flowData.items():
+            numVals = len(flowVals)  # days in this year
+            maxRateOfIncrease = 0  # maximum rate of increase of minimum moving avaerage for i compared to i+1
+            avForMaxRateOfIncrease = 0  # corresponding minimum moving average for i
+            lastAv = 0  # minimum moving average for i+1
+            # compute from 100 down so that last value for i + 1 available when doing i
+            for i in range(100, 0, -1):
+                minTotal = sum(flowVals[0:i])  # initial total for first i values
+                lastTotal = minTotal  # remember total for j-1
+                for j in range(numVals - i):  
+                    currentTotal = lastTotal - flowVals[j] + flowVals[j+i]  # total from j+1 to j+i inclusive
+                    if currentTotal < minTotal:
+                        minTotal = currentTotal
+                    lastTotal = currentTotal
+                currentAv = minTotal / i
+                if i < 100 and currentAv > 0:
+                    rateOfIncrease = (lastAv - currentAv) / currentAv
+                    if rateOfIncrease > maxRateOfIncrease:
+                        maxRateOfIncrease = rateOfIncrease
+                        avForMaxRateOfIncrease = currentAv
+                lastAv = currentAv
+            avs.append(avForMaxRateOfIncrease)
+        self.QbResult = sum(avs) / len(avs)
+        # calculate Q85 for each month
+        q85s = dict()
+        minQ85 = float('inf')
+        for m, l in monthData.items():
+            if len(l) > 0:
+                l.sort()
+                q85 = Visualise.percentile(l, 0.85)
+                q85s[m] = q85
+                if q85 < minQ85:
+                    minQ85 = q85
+        self._dlg.QbAnnualResult.setText('Annual result: {0:.2F}'.format(self.QbResult))
+        # result for each month is Qb * variation factor
+        # variation factor is square root of ratio of Q85 for month to minimum Q85
+        for m, q85m in q85s.items():
+            factor = 1 if minQ85 == 0 else math.sqrt(q85m / minQ85)
+            Qbm = self.QbResult * factor
+            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
+            
+                
+    def saveQb(self):
+        if self.lastQbResultsFile != '':
+            startDir = os.path.split(self.lastQbResultsFile)[0]
+        else:
+            scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
+            startDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+        if self._dlg.QbAppend.isChecked():
+            fun = QFileDialog.getOpenFileName
+            mode = 'a'
+        else:
+            fun = QFileDialog.getSaveFileName
+            mode = 'w'
+        resultsFile, _ = fun(None, 'Choose results file', startDir, 'Text files (*.txt);;Any file (*.*)')
+        if resultsFile == '':
+            return
+        with open(resultsFile, mode, newline='') as f:
+            startDate = date(self.startYear, self.startMonth, self.startDay).strftime(QSWATUtils._DATEFORMAT)
+            finishDate = date(self.finishYear, self.finishMonth, self.finishDay).strftime(QSWATUtils._DATEFORMAT)
+            f.write('Qb for {0} to {1}\n'.format(startDate, finishDate))
+            subbasin = self._dlg.QbSubbasin.currentText()
+            f.write('Subbasin {0};  Channel {1};  Annual result: {2:.2F}\n'.
+                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], self.QbResult))
+            for m in range(12):
+                f.write(Visualise._MONTHS[m].ljust(12))
+                f.write(self._dlg.QbResults.item(m, 0).text())
+                f.write('\n')
+            f.write('\n') 
+        self.lastQbResultsFile = resultsFile 
+                
+    @staticmethod
+    def percentile(N, percent):
+        """
+        Find the percentile of a sorted list of values.
+    
+        N - is a list of values. Note N MUST BE already sorted.
+        percent - a float value from 0.0 to 1.0.
+    
+        return - the percentile of the values
+        """
+        if not N:
+            return None
+        k = (len(N)-1) * percent
+        f = math.floor(k)
+        c = math.ceil(k)
+        if f == c:
+            return N[int(k)]
+        d0 = N[int(f)] * (c-k)
+        d1 = N[int(c)] * (k-f)
+        return d0+d1
         
 
 class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable

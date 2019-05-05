@@ -79,6 +79,9 @@ class DBUtils:
         else:
             #self.conn.isolation_level = None # means autocommit
             self.conn.row_factory = sqlite3.Row
+            # turn journal off for better speed
+            sql = 'PRAGMA journal_mode=OFF'
+            self.conn.execute(sql)
         ## sqlite3 connection to reference database
         self.connRef = sqlite3.connect(self.dbRefFile)
         if self.connRef is None:
@@ -293,6 +296,15 @@ class DBUtils:
                 if table == row[0]:
                     return True
             return False
+        except Exception:
+            return False
+    
+    def hasDataConn(self, table, conn):
+        """Return true if table exists in existing connection and has data."""
+        try:
+            sql = self.sqlSelect(table, '*', '', '')
+            row = conn.execute(sql).fetchone()
+            return row is not None
         except Exception:
             return False
                     

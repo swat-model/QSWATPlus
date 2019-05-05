@@ -2391,8 +2391,8 @@ Other possible outlet stream links are {2}.
         rivFile = QSWATUtils.join(gv.resultsDir, Parameters._RIVS + '.shp')
         rivLayer = QgsVectorLayer(rivFile, 'Channels', 'ogr')
         provider = rivLayer.dataProvider()
-        # leave only the Channel attribute
-        self.removeFields(provider, [QSWATTopology._CHANNEL], rivFile, self.isBatch)
+        # leave only the Channel, ChannelR and Subbasin attributes
+        self.removeFields(provider, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
         # add PenWidth field to stream results template
         OK = provider.addAttributes([QgsField(QSWATTopology._PENWIDTH, QVariant.Double)])
         if not OK:

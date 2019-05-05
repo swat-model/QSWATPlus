@@ -1,3 +1,14 @@
+Version 1.0.2   5 May 2019
+--------------------------
+
+Post processing aded
+
+Journal mode off for writing project database
+
+Version 1.0.1   April 29 2019  
+-----------------------------
+
+Fixed findMPI bug
 
 Version 1.0.0   March 22 2019
 -----------------------------

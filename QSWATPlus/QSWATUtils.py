@@ -42,6 +42,7 @@ import traceback
 class QSWATUtils:
     """Various utilities."""
         
+    _DATEFORMAT = '%d %B %Y'
     _QSWATNAME: str = 'QSWAT+'
     
     _SLOPE_GROUP_NAME: str = 'Slope'
@@ -862,8 +863,8 @@ class QSWATUtils:
         
     @staticmethod
     def date() -> str:
-        """Retun tpday's date as day month year."""
-        return datetime.date.today().strftime('%d %B %Y')
+        """Retun today's date as day month year."""
+        return datetime.date.today().strftime(QSWATUtils._DATEFORMAT)
     
     @staticmethod
     def time() -> str:

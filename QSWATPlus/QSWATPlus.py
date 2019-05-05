@@ -35,15 +35,15 @@ import traceback
 try:
     from .resources_rc import * # @UnusedWildImport
 except:
-    from resources_rc import *  # for convertFromArc
+    from resources_rc import *  # for convertFromArc @UnresolvedImport
 # Import the code for the dialog
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes
+    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
 except:
     # for convertFromArc
-    from QSWATUtils import QSWATUtils, FileTypes
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
 try:
     txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '1.0.0'
+    __version__ = '1.0.2'
 
     def __init__(self, iface):
         """Constructor."""
