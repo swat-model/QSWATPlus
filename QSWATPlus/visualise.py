@@ -231,9 +231,9 @@ class Visualise(QObject):
         ## last file used for Qb results
         self.lastQbResultsFile = ''
         ## dQp result
-        self.dQpResult = 0
+        self.dQpResult = -1  # negative means not yet calculated
         ## Qb result
-        self.QbResult = 0
+        self.QbResult = -1
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
@@ -294,9 +294,12 @@ class Visualise(QObject):
         self._dlg.dQpStartMonth.activated.connect(self.cleardQpResult)
         self._dlg.dQpSpinD.valueChanged.connect(self.cleardQpResult)
         self._dlg.dQpSpinP.valueChanged.connect(self.cleardQpResult)
+        self._dlg.dQpPercentile.toggled.connect(self.dQpButtons)
+        self._dlg.dQpMean.toggled.connect(self.dQpButtons)
         self._dlg.dQpCalculate.clicked.connect(self.calculatedQp)
         self._dlg.dQpSave.clicked.connect(self.savedQp)
         self._dlg.QbSubbasin.activated.connect(self.setQbTableHead)
+        self._dlg.QbStartMonth.activated.connect(self.setQbTableHead)
         self._dlg.QbCalculate.clicked.connect(self.calculateQb)
         self._dlg.QbSave.clicked.connect(self.saveQb)
         self._dlg.closeButton.clicked.connect(self.doClose)
@@ -3084,6 +3087,9 @@ class Visualise(QObject):
         self._dlg.dQpStartMonth.setCurrentIndex(-1)
         self._dlg.QbResults.verticalHeader().setVisible(True)
         self._dlg.QbResults.horizontalHeader().setVisible(True)
+        self._dlg.QbStartMonth.clear()
+        self._dlg.QbStartMonth.addItems(Visualise._MONTHS)
+        self._dlg.QbStartMonth.setCurrentIndex(-1)
         
     def calculateQq(self):
         """Calcualte Qq results."""
@@ -3118,6 +3124,9 @@ class Visualise(QObject):
 #                 f.write('\n')
                 
     def saveQq(self):
+        if self._dlg.QqResults.item(0, 0) is None:
+            QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
+            return
         if self.lastQqResultsFile != '':
             startDir = os.path.split(self.lastQqResultsFile)[0]
         else:
@@ -3146,7 +3155,14 @@ class Visualise(QObject):
         self.lastQqResultsFile = resultsFile 
         
     def cleardQpResult(self):
+        """Clear dQp result."""
         self._dlg.dQpResult.setText('Result:')
+        self.dQpResult = -1
+        
+    def dQpButtons(self):
+        """Enable or not the percentile setting and clear the result."""
+        self._dlg.dQpSpinP.setEnabled(self._dlg.dQpPercentile.isChecked())
+        self.cleardQpResult()
         
     def calculatedQp(self):
         """Calculate dQp result."""
@@ -3198,11 +3214,8 @@ class Visualise(QObject):
                              format(self._dlg.dQpStartMonth.currentText(), self.startYear), self._gv.isBatch)
             return
         d = self._dlg.dQpSpinD.value()
-        p = self._dlg.dQpSpinP.value()
-        fraction = (100 - p) / 100
-        # compute moving totals: no point in dividing by d until the end
-        totals = dict()
-        percentiles = []
+        # compute minimum moving total for each year: no point in dividing by d until the end
+        totals = []
 #         dQpStore = QSWATUtils.join(self._gv.resultsDir, '{0!s}Q{1!s}.txt'.format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value()))
 #         f =  open(dQpStore, 'w', newline='')
         for yearIndex, flowVals in flowData.items():
@@ -3211,30 +3224,36 @@ class Visualise(QObject):
 #             f.write('Flows out: \n')
 #             f.write(str(flowVals))
 #             f.write('\n')
-            totals[yearIndex] = [sum(flowVals[0:d])]  # initial total for first d values
-            # currentTotals is a list of totals, where the list with index i is the sum from i to i+d-1 einclusive
-            currentTotals = totals[yearIndex]
+            currentTotal = sum(flowVals[0:d]) # initial total for first d values
+            minTotal = currentTotal
             for i in range(len(flowVals) - d): 
-                lastTotal = currentTotals[i]
-                currentTotals.append(lastTotal - flowVals[i] + flowVals[i+d])
-#             f.write('Unsorted totals: \n')
-#             f.write(str(currentTotals))
-#             f.write('\n')
-            currentTotals.sort()
-#             f.write('Sorted totals: \n')
-#             f.write(str(currentTotals))
-#             f.write('\n')
-            percentiles.append(Visualise.percentile(currentTotals, fraction))
-        # finally remember we need to return a mean moving average, not a mean moving total
-        self.dQpResult = (sum(percentiles) / len(percentiles)) / d 
-        self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult))
-#         f.write('Percentiles: {0!s}'.format(percentiles))
+                lastTotal = currentTotal
+                currentTotal = lastTotal - flowVals[i] + flowVals[i+d]
+                if currentTotal < minTotal:
+                    minTotal = currentTotal
+            totals.append(minTotal)
+        totals.sort()
+#         f.write('Sorted totals:\n')
+#         f.write(str(totals))
 #         f.write('\n')
+        # return percentile or mean according to final selection choice
+        # remember we need to return a moving average, not a moving total
+        if self._dlg.dQpPercentile.isChecked():
+            p = self._dlg.dQpSpinP.value()
+            fraction = (100 - p) / 100
+            self.dQpResult = Visualise.percentile(totals, fraction) / d
+            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult)) 
+        else:
+            self.dQpResult = (sum(totals) / len(totals)) / d
+            self._dlg.dQpResult.setText('Result: {0}Qm is {1:.2F}'.format(d, self.dQpResult))
 #         f.write('Result: {0!s}'.format(self.dQpResult))
 #         f.write('\n')
 #         f.close()
                 
     def savedQp(self):
+        if self.dQpResult < 0:
+            QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
+            return
         if self.lastdQpResultsFile != '':
             startDir = os.path.split(self.lastdQpResultsFile)[0]
         else:
@@ -3252,11 +3271,15 @@ class Visualise(QObject):
         with open(resultsFile, mode, newline='') as f:
             startDate = date(self.startYear, self.startMonth, self.startDay).strftime(QSWATUtils._DATEFORMAT)
             finishDate = date(self.finishYear, self.finishMonth, self.finishDay).strftime(QSWATUtils._DATEFORMAT)
-            f.write('{0!s}Q{1!s} for {2} to {3}\n'.
-                    format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value(), startDate, finishDate))
+            if self._dlg.dQpPercentile.isChecked():
+                f.write('{0!s}Q{1!s} for {2} to {3}\n'.
+                        format(self._dlg.dQpSpinD.value(), self._dlg.dQpSpinP.value(), startDate, finishDate))
+            else:
+                f.write('{0!s}Qm for {1} to {2}\n'.
+                        format(self._dlg.dQpSpinD.value(), startDate, finishDate))
             subbasin = self._dlg.dQpSubbasin.currentText()
             month = self._dlg.dQpStartMonth.currentText()
-            f.write('Subbasin {0};  Channel {1};  {2};  Result: {3:.2F}\n'.
+            f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3:.2F}\n'.
                     format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, self.dQpResult))
             f.write('\n') 
         self.lastdQpResultsFile = resultsFile 
@@ -3271,10 +3294,10 @@ class Visualise(QObject):
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return
-        startMonth = self.startMonth  # TODO give user choice?
-#         if startMonth <= 0:
-#             QSWATUtils.information('Please choose start month', self._gv.isBatch)
-#             return
+        startMonth = self._dlg.QbStartMonth.currentIndex() + 1
+        if startMonth <= 0:
+            QSWATUtils.information('Please choose start month', self._gv.isBatch)
+            return
         # data has structure yearIndex -> flow value list
         flowData = dict()
         monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
@@ -3293,9 +3316,8 @@ class Visualise(QObject):
             thisDay = date(row[2], row[0], row[1])
             if thisDay < startDate or finishDate < thisDay:
                 continue
-            # unnecessary if using self.startMonth for start
-#             if year == self.startYear and mon < startMonth:
-#                 continue
+            if year == self.startYear and mon < startMonth:
+                continue
             if mon == startMonth and day == 1:
                 # start new year
                 count = 0
@@ -3311,17 +3333,17 @@ class Visualise(QObject):
             del flowData[yearIndex]
         if len(flowData) == 0:
             QSWATUtils.error('There is insufficient data.  There must be at least a yesr starting from 1 {0} {1}.'.
-                             format(self.startMonth, self.startYear), self._gv.isBatch)
+                             format(self._dlg.QbStartMonth.currentText(), self.startYear), self._gv.isBatch)
             return
         # compute minimum moving averages with highest rate of change for 1 to 100 days for each year
         avs = []
         for yearIndex, flowVals in flowData.items():
             numVals = len(flowVals)  # days in this year
-            maxRateOfIncrease = 0  # maximum rate of increase of minimum moving avaerage for i compared to i+1
+            maxRateOfIncrease = 0  # maximum rate of increase of minimum moving avaerage for i compared to i-1
             avForMaxRateOfIncrease = 0  # corresponding minimum moving average for i
-            lastAv = 0  # minimum moving average for i+1
-            # compute from 100 down so that last value for i + 1 available when doing i
-            for i in range(100, 0, -1):
+            lastAv = 0  # minimum moving average for i-1.  Must be initialised to zero
+            # compute with increasing i so that last value for i - 1 available when doing i
+            for i in range(1, 101):
                 minTotal = sum(flowVals[0:i])  # initial total for first i values
                 lastTotal = minTotal  # remember total for j-1
                 for j in range(numVals - i):  
@@ -3330,8 +3352,8 @@ class Visualise(QObject):
                         minTotal = currentTotal
                     lastTotal = currentTotal
                 currentAv = minTotal / i
-                if i < 100 and currentAv > 0:
-                    rateOfIncrease = (lastAv - currentAv) / currentAv
+                if lastAv > 0:  # note this avoids i = 1 since lastAv initialised to zero, as well as preventing division by zero
+                    rateOfIncrease = (currentAv - lastAv) / lastAv
                     if rateOfIncrease > maxRateOfIncrease:
                         maxRateOfIncrease = rateOfIncrease
                         avForMaxRateOfIncrease = currentAv
@@ -3358,6 +3380,9 @@ class Visualise(QObject):
             
                 
     def saveQb(self):
+        if self._dlg.QbResults.item(0, 0) is None:
+            QSWATUtils.information('Please calculate before saving', self._gv.isBatch)
+            return
         if self.lastQbResultsFile != '':
             startDir = os.path.split(self.lastQbResultsFile)[0]
         else:
@@ -3377,8 +3402,9 @@ class Visualise(QObject):
             finishDate = date(self.finishYear, self.finishMonth, self.finishDay).strftime(QSWATUtils._DATEFORMAT)
             f.write('Qb for {0} to {1}\n'.format(startDate, finishDate))
             subbasin = self._dlg.QbSubbasin.currentText()
-            f.write('Subbasin {0};  Channel {1};  Annual result: {2:.2F}\n'.
-                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], self.QbResult))
+            month = self._dlg.QbStartMonth.currentText()
+            f.write('Subbasin {0};  Channel {1};  Starting in {2}\n'.format(subbasin, self.subbasinOutletChannels[int(subbasin)], month))
+            f.write('Annual      {0:.2F}\n'.format(self.QbResult))
             for m in range(12):
                 f.write(Visualise._MONTHS[m].ljust(12))
                 f.write(self._dlg.QbResults.item(m, 0).text())
