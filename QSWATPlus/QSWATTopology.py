@@ -1960,6 +1960,7 @@ Other possible outlet stream links are {2}.
             clearSQL = 'DROP TABLE IF EXISTS ' + table
             curs.execute(clearSQL)
             curs.execute(self.db._POINTSCREATESQL)
+            reservoirsAdded = []
             # Add outlets from streams
             for subbasin, (pointId, pt, chLink) in self.outlets.items():
                 if subbasin in self.upstreamFromInlets or subbasin in self.outletsInLake or \
@@ -2028,6 +2029,7 @@ Other possible outlet stream links are {2}.
                     (outletId, outPt, _) = self.outlets[subbasin]
                     self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
                 self.addPoint(curs, subbasin, pointId, pt, elev, 'R')
+                reservoirsAdded.append(pointId)
                 # inlets to lake.  These are outlets from streams in grid models, so not necessary
                 if not useGridModel:
                     for chLink, (pointId, pt, elev) in lake.inChLinks.items():
@@ -2035,6 +2037,10 @@ Other possible outlet stream links are {2}.
                         subbasin = self.chBasinToSubbasin[chBasin]
                         self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
             for chLink, (pointId, pt) in self.chLinkToReservoir.items():
+                # reservoir points at lake outlets can appear here 
+                # but already added from lakesdata
+                if pointId in reservoirsAdded:
+                    continue
                 if useGridModel:
                     subbasin = self.chLinkToChBasin[chLink]
                 else:
