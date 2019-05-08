@@ -469,8 +469,9 @@ class GlobalVars:
                     doneHRUsNum = row['hrus_done']
                 else:
                     doneHRUsNum = doneHRUs
-                sql = 'UPDATE ' + table + ' SET delineation_done=?,hrus_done=?'
-                cur.execute(sql, (doneDelinNum, doneHRUsNum))
+                # always update version in case running old project
+                sql = 'UPDATE ' + table + ' SET gis_version=?,delineation_done=?,hrus_done=?'
+                cur.execute(sql, (gisVersion, doneDelinNum, doneHRUsNum))
             else:
                 if doneDelin == -1:
                     doneDelinNum = 0

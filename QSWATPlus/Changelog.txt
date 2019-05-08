@@ -1,9 +1,15 @@
-Version 1.1.0   6 May 2019
+Version 1.1.0   8 May 2019
 --------------------------
 
 Post processing environmental flows added
 
 Journal mode off for writing project database
+
+Fixed multiple reservoir points
+
+Fixed animation selection of gis_ids
+
+QSWAT+ version always updated in project_config
 
 Version 1.0.1   April 29 2019  
 -----------------------------

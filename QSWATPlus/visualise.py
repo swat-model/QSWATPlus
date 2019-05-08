@@ -1918,12 +1918,13 @@ class Visualise(QObject):
                 base = self.selectBase()
                 if base is None:
                     return
-                unitIdx = provider.fieldNameIndex(QSWATTopology._HRUS)
-                if unitIdx < 0:
+                if base == Parameters._HRUS:
+                    unitIdx = provider.fieldNameIndex(QSWATTopology._HRUS)
+                elif base == Parameters._LSUS:
                     unitIdx = provider.fieldNameIndex(QSWATTopology._LSUID)
-                if unitIdx < 0:
+                elif base == Parameters._SUBS:
                     unitIdx = provider.fieldNameIndex(QSWATTopology._SUBBASIN)
-                if unitIdx < 0:
+                else:
                     unitIdx = provider.fieldNameIndex(QSWATTopology._CHANNEL)
                 if unitIdx < 0:
                     QSWATUtils.error('Cannot find unit column in {0}'.format(provider.dataSourceUri()), self._gv.isBatch)
