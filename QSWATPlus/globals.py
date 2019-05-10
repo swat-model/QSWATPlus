@@ -39,20 +39,7 @@ class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
     def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool) -> None:
         """Initialise class variables."""
-        # set SWAT EDitor, databases, TauDEM executables directory and mpiexec path
-        # In Windows values currently stored in registry, in HKEY_CURRENT_USER\Software\QGIS\QGIS2
-        # Read values from settings if present, else set to defaults
-        # This allows them to be set elsewhere, in particular by Parameters module
         settings = QSettings()
-        if settings.contains('/QSWATPlus/EditorDir'):
-            SWATEditorDir = settings.value('/QSWATPlus/EditorDir')
-        else:
-            settings.setValue('/QSWATPlus/EditorDir', Parameters._SWATEDITORDEFAULTDIR)
-            SWATEditorDir = Parameters._SWATEDITORDEFAULTDIR
-        ## SWAT Editor directory
-        self.SWATEditorDir = SWATEditorDir
-        ## Path of SWAT Editor
-        self.SWATEditorPath = QSWATUtils.join(SWATEditorDir, Parameters._SWATEDITOR)
         if settings.contains('/QSWATPlus/SWATPlusDir'):
             SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
         else:
@@ -521,23 +508,20 @@ class GlobalVars:
                 return int(row['hrus_done']) == 1
             
     def findSWATPlusEditor(self):
-        """Return path to SWAT+ editor, looking first in current setting, then in SWATEDITORDEFAULTDIR, then in user's home directory."""
-        editorDir1 = self.SWATEditorDir
+        """Return path to SWAT+ editor, looking first in current setting, then according to registry settings, then in user's home directory."""
+        editorDir1 = QSWATUtils.join(self.SWATPlusDir, Parameters._SWATEDITORDIR)
         editor1 = QSWATUtils.join(editorDir1, Parameters._SWATEDITOR)
         if os.path.exists(editor1):
             return editor1
         settings = QSettings()
-        editorDir2 = Parameters._SWATEDITORDEFAULTDIR
+        SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        editorDir2 = QSWATUtils.join(SWATPlusDir, Parameters._SWATEDITORDIR)
         editor2 = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
         if os.path.exists(editor2):
-            settings.setValue('/QSWATPlus/EditorDir', editorDir2)
-            self.SWATEditorDir = editor2
             return editor2
         editorDir3 = QSWATUtils.join(os.path.expanduser('~'), r'AppData\Local\Program\swatpluseditor')
-        editor3 = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
+        editor3 = QSWATUtils.join(editorDir3, Parameters._SWATEDITOR)
         if os.path.exists(editor3):
-            settings.setValue('/QSWATPlus/EditorDir', editorDir3)
-            self.SWATEditorDir = editor3
             return editor3
         QSWATUtils.information('Cannot find {0} in {1} or {2} or {3}.'. \
                                format(Parameters._SWATEDITOR, editorDir1, editorDir2, editorDir3), self.isBatch)

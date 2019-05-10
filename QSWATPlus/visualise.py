@@ -877,12 +877,6 @@ class Visualise(QObject):
                         return
                     row.append(str(plotData[i][d]))
                 writer.writerow(row)
-#         commands = []
-#         settings = QSettings()
-#         commands.append(QSWATUtils.join(QSWATUtils.join(settings.value('/QSWATPlus/EditorDir'), Parameters._SWATGRAPH), Parameters._SWATGRAPH))
-#         commands.append(csvFile)
-#         subprocess.Popen(commands)
-# above replaced with swatGraph form
         graph = SWATGraph(csvFile)
         graph.run()
     

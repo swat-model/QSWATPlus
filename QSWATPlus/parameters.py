@@ -37,9 +37,9 @@ class Parameters:
     """Collect QSWAT parameters (location of SWATPlus directory and MPI) from user and save."""
     
     _ISWIN = os.name == 'nt'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus'
-    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else '' # TODO: choose directories for Linux
-    _SWATEDITORDEFAULTDIR = r'C:\SWAT\SWATPlus\SWATPlusEditor' if _ISWIN else ''
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else ''  # TODO for Linux
+    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else '' # TODO: choose name for Linux
+    _SWATEDITORDIR = 'SWATPlusEditor'  # relative to SWATPlusDir
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'
     _MPIEXECDEFAULTDIR = 'C:\\Program Files\\Microsoft MPI\\Bin' if _ISWIN else '/usr/bin'
     _TAUDEMDIR = 'TauDEM5Bin'
@@ -256,7 +256,7 @@ class Parameters:
         self._dlg.close()
             
     def chooseSWATPlusDir(self):
-        """Choose SWAT Editor directory."""
+        """Choose SWATPlus directory."""
         title = QSWATUtils.trans('Select SWATPlus directory')
         if self._dlg.SWATPlusBox.text() != '':
             startDir = os.path.split(self._dlg.SWATPlusBox.text())[0]

@@ -742,8 +742,8 @@ class QSWATPlus(QObject):
         editor = self._gv.findSWATPlusEditor()
         if editor is None:
             return
-        QSWATUtils.loginfo('Starting SWAT+ editor with command: "{0}" "{1}"'.format(self._gv.SWATEditorPath, self._gv.db.dbFile))
-        subprocess.call('"{0}" "{1}"'.format(self._gv.SWATEditorPath, self._gv.db.dbFile))
+        QSWATUtils.loginfo('Starting SWAT+ editor with command: "{0}" "{1}"'.format(editor, self._gv.db.dbFile))
+        subprocess.call('"{0}" "{1}"'.format(editor, self._gv.db.dbFile))
         if os.path.exists(QSWATUtils.join(self._gv.resultsDir, Parameters._OUTPUTDB)):
             self._odlg.visualiseLabel.setVisible(True)
             self._odlg.visualiseButton.setVisible(True)
