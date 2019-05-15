@@ -249,7 +249,9 @@ class Visualise(QObject):
         if self.db == '':
             self.setupDb()
         self.initQResults()
+        self._dlg.variableList.setMouseTracking(True)
         self._dlg.outputCombo.activated.connect(self.setVariables)
+        self._dlg.variableCombo.activated.connect(self.changeVariableCombo)
         self._dlg.summaryCombo.activated.connect(self.changeSummary)
         self._dlg.addButton.clicked.connect(self.addClick)
         self._dlg.allButton.clicked.connect(self.allClick)
@@ -425,6 +427,16 @@ class Visualise(QObject):
         self.updateCurrentPlotRow(0)
         if self._dlg.tabWidget.currentIndex() == 3:
             self.setSubbasinOutletChannels()
+        model = self._dlg.outputCombo.model()
+        view = self._dlg.outputCombo.view()
+        view.setMouseTracking(True)
+        # ignore first row since it is empty
+        for row in range(1, self._dlg.outputCombo.count()):
+            item = model.item(row)
+            tip = self.getTableTip(self._dlg.outputCombo.itemText(row))
+            if tip != '':
+                item.setToolTip(tip)
+                         
             
     def setConnection(self, scenario):
         """Set connection to scenario output database."""
@@ -484,6 +496,8 @@ class Visualise(QObject):
         
     def setupTable(self):
         """Initialise the plot table."""
+        # designer makes this false
+        self._dlg.tableWidget.horizontalHeader().setVisible(True)
         self._dlg.tableWidget.setHorizontalHeaderLabels(['Scenario', 'Table', 'Unit', 'Variable'])
         self._dlg.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
         self._dlg.tableWidget.setSelectionMode(QAbstractItemView.SingleSelection)
@@ -495,14 +509,13 @@ class Visualise(QObject):
     def setVariables(self):
         """Fill variables combos from selected table; set default results file name."""
         table = self._dlg.outputCombo.currentText()
-        if self.table == table:
-            # no change: do nothing
-            return
         self.table = table 
         if self.table == '':
+            self._dlg.outputCombo.setToolTip('')
             return
         if not self.conn:
             return
+        self._dlg.outputCombo.setToolTip(self.getTableTip(table))
         self.isDaily, self.isMonthly, self.isAnnual, self.isAA = Visualise.tableIsDailyMonthlyOrAnnual(self.table)
         scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
         outDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
@@ -527,8 +540,36 @@ class Visualise(QObject):
                 self._dlg.variableCombo.addItem(var)
                 self._dlg.animationVariableCombo.addItem(var)
                 self._dlg.variablePlot.addItem(var)
+        self.setVarComboTips(self._dlg.variableCombo, 'Select variable to be added to list')
+        self.setVarComboTips(self._dlg.animationVariableCombo, 'Select variable for animation')
+        self.setVarComboTips(self._dlg.variablePlot, 'Select the current plot\'s variable')
         self.updateCurrentPlotRow(1)
-                
+        
+    def changeVariableCombo(self):
+        """Set tool tip according to selection."""
+        var = self.variableCombo.currentText()
+        if var == '':
+            self.variableCombo.setToolTip('Select variable to be added to list')
+        else:
+            self.variableCombo.setToolTip(self.getVarTip(var))
+        
+    def setVarComboTips(self, combo, initTip):
+        """Set tool tips for each variable in combo."""
+        model = combo.model()
+        view = combo.view()
+        view.setMouseTracking(True)
+        for row in range(combo.count()):
+            var = combo.itemText(row)
+            if var != '':
+                item = model.item(row)
+                tip = self.getVarTip(var)
+                if tip != '':
+                    item.setToolTip(tip)
+        if combo.currentText() == '':
+            combo.setToolTip(initTip)
+        else:
+            combo.setToolTip(self.getVarTip(combo.currentText()))
+        
     def plotting(self):
         """Return true if plot tab open and plot table has a selected row."""
         if self._dlg.tabWidget.currentIndex() != 2:
@@ -712,6 +753,9 @@ class Visualise(QObject):
         if not items or items == []:
             item = QListWidgetItem()
             item.setText(var)
+            tip = self.getVarTip(var)
+            if tip != '':
+                item.setToolTip(tip)
             self._dlg.variableList.addItem(item)
             
     def allClick(self):
@@ -720,7 +764,11 @@ class Visualise(QObject):
         self._dlg.variableList.clear()
         for i in range(self._dlg.variableCombo.count()):
             item = QListWidgetItem()
-            item.setText(self._dlg.variableCombo.itemText(i))
+            var = self._dlg.variableCombo.itemText(i)
+            item.setText(var)
+            tip = self.getVarTip(var)
+            if tip != '':
+                item.setToolTip(tip)
             self._dlg.variableList.addItem(item)
         
     def delClick(self):
@@ -735,6 +783,26 @@ class Visualise(QObject):
         """Clear variableList."""
         self.resultsFileUpToDate = False
         self._dlg.variableList.clear()
+        
+    def getVarTip(self, var):
+        """Return tool tip based on units and description from looking up current table and var in table column_description."""
+        sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
+        try:
+            row = self.conn.execute(sql, (self.table, var)).fetchone()
+            str1 = '' if row[0] is None else 'Units: {0}'.format(row[0])
+            str2 = '' if row[1] is None else 'Description: {0}'.format(row[1])
+            return str2 if str1 == '' else str1 if str2 == '' else '{0} {1}'.format(str1, str2)
+        except Exception:
+            return ''
+        
+    def getTableTip(self, table):
+        """Return tool tip based on description from looking up table in table table_description."""
+        sql = 'SELECT [description] FROM table_description WHERE table_name=?'
+        try:
+            row = self.conn.execute(sql, (table,)).fetchone()
+            return '' if row[0] is None else '{0}'.format(row[0])
+        except Exception:
+            return ''
         
     def doClose(self):
         """Close the db connection, timer, clean up from animation, and close the form."""
@@ -766,6 +834,11 @@ class Visualise(QObject):
         
     def plotSetVar(self):
         """Update the variable in the current plot row."""
+        var = self._dlg.variablePlot.currentText()
+        if var == '':
+            self._dlg.variablePlot.setToolTip('Select the current plot\'s variable')
+        else:
+            self._dlg.variablePlot.setToolTip(self.getVarTip(var))
         self.updateCurrentPlotRow(3)
         
     def writePlotData(self):
@@ -1305,7 +1378,7 @@ class Visualise(QObject):
                 return False
             if nextResultsFile == self.resultsFile:
                 # remove existing layer so new one replaces it
-                QSWATUtils.removeLayerAndFiles(self.resultsFile, root)
+                QSWATUtils.tryRemoveLayerAndFiles(self.resultsFile, root)
             else:
                 QSWATUtils.tryRemoveFiles(nextResultsFile)
                 self.resultsFile = nextResultsFile
@@ -2104,7 +2177,11 @@ class Visualise(QObject):
         # view = self._gv.iface.layerTreeView()
         # TODO: how to link model and view so as to be able to expand the animation group? 
         # tables available can depend on tab, so repopulate
+        currentTable = self._dlg.outputCombo.currentText()
         self.populateOutputTables()
+        if currentTable != '':
+            self._dlg.outputCombo.setCurrentText(currentTable)
+            self.setVariables()
             
     def makeResults(self):
         """
@@ -2315,8 +2392,11 @@ class Visualise(QObject):
         set speed accoring to spin box;
         set slider at minimum and display data for start time.
         """
-        if self._dlg.animationVariableCombo.currentText() == '':
+        var = self._dlg.animationVariableCombo.currentText()
+        if var == '':
+            self._dlg.animationVariableCombo.setToolTip('Select variable for animation')
             return
+        self._dlg.animationVariableCombo.setToolTip(self.getVarTip(var))
         # can take a while so set a wait cursor
         self._dlg.setCursor(Qt.WaitCursor)
         self.doRewind()
@@ -2325,7 +2405,7 @@ class Visualise(QObject):
         try:
             if not self.setPeriods():
                 return
-            self.animateVar = self._dlg.animationVariableCombo.currentText()
+            self.animateVar = var
             if not self.createAnimationLayer():
                 return
             lid = self.animateLayer.id()
@@ -2655,7 +2735,6 @@ class Visualise(QObject):
         size = self._dlg.tableWidget.rowCount()
         if size > 0 and self._dlg.tableWidget.item(size-1, 1).text() == '-':
             # last plot was observed: need to reset variables
-            self.table = ''
             self.setVariables()
         var = self._dlg.variablePlot.currentText()
         self._dlg.tableWidget.insertRow(size)
