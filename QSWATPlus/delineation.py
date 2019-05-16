@@ -306,7 +306,7 @@ class Delineation(QObject):
                 os.rename(dummyPath, dllPath)
                 QSWATUtils.loginfo('dummy renamed')
             else:
-                QSWATUtils.error('Cannot find executable mpiexec in the system or {0} in {1}: TauDEM functions will not run.  Install MPI or reinstall QSWAT.'.format(dll, self._gv.TauDEMDir), self._gv.isBatch)
+                QSWATUtils.error('Cannot find executable mpiexec in the system or {0} in {1}: TauDEM functions will not run.  Install MPI or reinstall QSWAT+.'.format(dll, self._gv.TauDEMDir), self._gv.isBatch)
 
     # noinspection PyArgumentList
     def finishDelineation(self) -> None:

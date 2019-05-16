@@ -57,7 +57,7 @@ class GlobalVars:
         ## Path of template reference database
         self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREF)
         ## Directory of TauDEM executables
-        self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, isBatch)
+        self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)
         ## Path of mpiexec
         self.mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
         proj = QgsProject.instance()
@@ -519,12 +519,10 @@ class GlobalVars:
         editor2 = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
         if os.path.exists(editor2):
             return editor2
-        editorDir3 = QSWATUtils.join(os.path.expanduser('~'), r'AppData\Local\Program\swatpluseditor')
-        editor3 = QSWATUtils.join(editorDir3, Parameters._SWATEDITOR)
-        if os.path.exists(editor3):
-            return editor3
-        QSWATUtils.information('Cannot find {0} in {1} or {2} or {3}.'. \
-                               format(Parameters._SWATEDITOR, editorDir1, editorDir2, editorDir3), self.isBatch)
+        QSWATUtils.information('''Cannot find {0} in {1} or {2}.  
+Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+If so use the QSWAT+ Parameters form to set the correct location.'''. \
+                               format(Parameters._SWATEDITOR, editorDir1, editorDir2), self.isBatch)  # TODO different message for Linux
         return None
             
     # old stuff from QSWAT        

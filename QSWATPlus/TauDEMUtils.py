@@ -161,12 +161,14 @@ class TauDEMUtils:
                 commands.append('-np') # -n acceptable in Windows but only -np in OpenMPI
                 commands.append(str(numProcesses))
         TauDEMDir = TauDEMUtils.findTauDEMDir(settings, hasQGIS)
-        if TauDEMDir is None:
+        if TauDEMDir == '':
             return False
         commands.append(QSWATUtils.join(TauDEMDir, command))
         for (pid, fileName) in inFiles:
             if not os.path.exists(fileName):
-                TauDEMUtils.error('File {0} does not exist'.format(fileName), hasQGIS)
+                TauDEMUtils.error('''File {0} does not exist.
+Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(fileName), hasQGIS)
                 return False
             commands.append(pid)
             commands.append(fileName)
@@ -222,7 +224,7 @@ class TauDEMUtils:
         return ok
 
     @staticmethod
-    def findTauDEMDir(settings, isBatch):
+    def findTauDEMDir(settings, hasQGIS):
         """Find and return path of TauDEM directory."""
         if Parameters._ISWIN:
             SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
@@ -232,8 +234,10 @@ class TauDEMUtils:
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
                 else:
-                    QSWATUtils.error('Cannot find TauDEM directory as {0} or {1}'.format(TauDEMDir, TauDEMDir2), isBatch)
-                    return  None
+                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
+Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
+                    return  ''
         else:
             TauDEMDir  = '/home/chris/TauDEM-Develop'  # TODO properly for Linux
         return TauDEMDir
@@ -256,7 +260,7 @@ class TauDEMUtils:
         """Display TauDEM help file."""
         settings = QSettings()
         TauDEMDir = TauDEMUtils.findTauDEMDir(settings, False)
-        if TauDEMDir is not None:
+        if TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
             os.startfile(taudemHelpFile)
         else:
