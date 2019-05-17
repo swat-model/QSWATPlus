@@ -3434,21 +3434,33 @@ class Visualise(QObject):
                 lastAv = currentAv
             avs.append(avForMaxRateOfIncrease)
         self.QbResult = sum(avs) / len(avs)
-        # calculate Q85 for each month
-        q85s = dict()
-        minQ85 = float('inf')
+#         # calculate Q85 for each month
+#         q85s = dict()
+#         minQ85 = float('inf')
+#         for m, l in monthData.items():
+#             if len(l) > 0:
+#                 l.sort()
+#                 q85 = Visualise.percentile(l, 0.85)
+#                 q85s[m] = q85
+#                 if q85 < minQ85:
+#                     minQ85 = q85
+        # calculate mean for each month
+        means = dict()
+        minMean = float('inf')
         for m, l in monthData.items():
             if len(l) > 0:
-                l.sort()
-                q85 = Visualise.percentile(l, 0.85)
-                q85s[m] = q85
-                if q85 < minQ85:
-                    minQ85 = q85
+                mean = sum(l) / len(l)
+                means[m] = mean
+                if mean < minMean:
+                    minMean = mean
         self._dlg.QbAnnualResult.setText('Annual result: {0:.2F}'.format(self.QbResult))
         # result for each month is Qb * variation factor
         # variation factor is square root of ratio of Q85 for month to minimum Q85
-        for m, q85m in q85s.items():
-            factor = 1 if minQ85 == 0 else math.sqrt(q85m / minQ85)
+        # replace above with sqaure root of monthly mean to minimal monthly mean
+#         for m, q85m in q85s.items():
+#             factor = 1 if minQ85 == 0 else math.sqrt(q85m / minQ85)
+        for m, mean in means.items():
+            factor = 1 if mean == 0 else math.sqrt(mean / minMean)
             Qbm = self.QbResult * factor
             self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
             

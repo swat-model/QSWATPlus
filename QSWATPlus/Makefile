@@ -63,8 +63,8 @@ PY_FILES = \
 	outletsdialog.py exempt.py exemptdialog.py split.py splitdialog.py selectlu.py selectludialog.py parameters.py parametersdialog.py \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
-	globals.py raster.py swatgraph.py graphdialog.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
-	ui_convert.py
+	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
+	ui_convert.py ui_graph.py
 
 PYC_FILES = $(PY_FILES:.py=.pyc)
 
@@ -146,6 +146,13 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 
 #%.py : %.ui
 #	pyuic5 -o $@ $<
+# instead of the above, ui_convert.py and ui_graph.py were made by running
+# %OSGEO4W_ROOT%\bin\o4w_env.bat
+# %OSGEO4W_ROOT%\bin\qt5_env.bat
+# %OSGEO4W_ROOT%\bin\py3_env.bat
+# python3 -m PyQt5.uic.pyuic ui_graph.ui -o ui_graph.py -x
+# (similarly for convert)
+# and by recoding graphdialog.py and convertdialog.py
 
 %.qm : %.ts
 	$(LRELEASE) $<

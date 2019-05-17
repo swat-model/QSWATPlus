@@ -25,8 +25,11 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt4agg import (
     FigureCanvasQTAgg as FigureCanvas,
     NavigationToolbar2QT as NavigationToolbar)
-from .graphdialog import GraphDialog
-
+try:
+    from .graphdialog import GraphDialog
+except:
+    # stand alone version
+    from graphdialog1 import GraphDialog
 
 class SWATGraph(QObject):
     """Display SWAT result data as line graphs or bar chart."""

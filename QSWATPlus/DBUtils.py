@@ -68,10 +68,20 @@ class DBUtils:
         #self._connRefStr = Parameters._ACCESSSTRING + self.dbRefFile
         # copy template project database to project folder if not already there
         if not os.path.exists(self.dbFile):
-            shutil.copyfile(dbProjTemplate, self.dbFile)
+            if not os.path.exists(dbProjTemplate):
+                QSWATUtils.error('''Cannot find project database template {0}.
+Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate))
+            else:
+                shutil.copyfile(dbProjTemplate, self.dbFile)
         # copy template reference database to project folder if not already there
         if not os.path.exists(self.dbRefFile):
-            shutil.copyfile(dbRefTemplate, self.dbRefFile)
+            if not os.path.exists(dbRefTemplate):
+                QSWATUtils.error('''Cannot find refence database template {0}.
+Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate))
+            else:
+                shutil.copyfile(dbRefTemplate, self.dbRefFile)
         ## sqlite3 connection to project database
         self.conn = sqlite3.connect(self.dbFile)
         if self.conn is None:

@@ -264,7 +264,7 @@ class ConvertFromArc(QObject):
         ConvertFromArc.makeDirs(floodDir)
         scenariosDir = os.path.join(self.qProjDir, 'Scenarios')
         ConvertFromArc.makeDirs(scenariosDir)
-        scensPattern = self.projDirOld + '/Scenarios/*'
+        scensPattern = self.arcProjDir + '/Scenarios/*'
         for oldScenDir in glob.iglob(scensPattern):
             scen = os.path.split(oldScenDir)[1]
             newScenDir = os.path.join(scenariosDir, scen)
