@@ -33,7 +33,6 @@ import shutil
 import random
 import datetime
 import sys
-import time
 from osgeo import gdal, ogr
 from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic
 from builtins import int

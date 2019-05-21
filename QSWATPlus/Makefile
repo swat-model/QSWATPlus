@@ -44,18 +44,21 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	PLUGINNAME = QSWATPlus3_64
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
+	QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
 else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	COMPILER = msvc
 	METADATA = metadata3_32.txt
 	PLUGINNAME = QSWATPlus3_32
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
+	QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	COMPILER = unix
 	METADATA = metadatalinux3_64.txt
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-x86_64-linux-gnu.so)
+	QGISDIR=.local/share/QGIS/QGIS3/profiles/default
 endif
 
 PY_FILES = \
@@ -66,13 +69,9 @@ PY_FILES = \
 	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
 	ui_convert.py ui_graph.py
 
-PYC_FILES = $(PY_FILES:.py=.pyc)
-
-PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
+PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
-
-SO_FILES = $(PYX_FILES:.pyx=.so)
 
 UI_FILES = ui_qswat.ui ui_delineation.ui ui_hrus.ui ui_outlets.ui ui_exempt.ui ui_split.ui ui_selectlu.ui ui_parameters.ui ui_elevationbands.ui \
 			ui_selectsubs.ui ui_landscape.ui ui_about.ui ui_visualise.ui ui_graph.ui ui_convert.ui ui_exporttable.ui
@@ -116,7 +115,7 @@ PLUGIN_UPLOAD = $(c)/plugin_upload.py
 
 RESOURCES_SRC=$(shell grep '^ *<file' resources.qrc | sed 's@</file>@@g;s/.*>//g' | tr '\n' ' ')
 
-QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
+
 
 HTML = html
 
@@ -138,8 +137,8 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
-%.so : %.pyx
-	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
+%.cpython-36m-x86_64-linux-gnu.so : %.pyx
+	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
 %_rc.py : %.qrc
 	pyrcc5 -o $*_rc.py  $<
@@ -207,14 +206,12 @@ deploy: compile
 	rm -vfr $(TESTOUTPUT)
 	cp -vufr $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 
-# The dclean target removes compiled python files from plugin directory
-# also deletes any .git entry
+# The dclean target deletes any .git entry
 dclean:
 	@echo
 	@echo "-----------------------------------"
 	@echo "Removing any compiled python files."
 	@echo "-----------------------------------"
-	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname "*.pyc" -delete
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname ".git" -prune -exec rm -Rf {} \;
 
 derase:
@@ -321,7 +318,8 @@ clean:
 	@echo "Removing rcc generated files, and all compiled files."
 	@echo "Also removing html, test, coverage and build directories."
 	@echo "---------------------------------------------------------"
-	rm -f $(COMPILED_RESOURCE_FILES) $(PYC_FILES) $(C_FILES) $(OBJ_FILES)
+#	rm -f $(COMPILED_RESOURCE_FILES) $(C_FILES) $(OBJ_FILES)
+	rm -f $(C_FILES) $(OBJ_FILES)
 	rm -fr $(HTML)
 	rm -fr $(TESTOUTPUT)
 	rm -rf cover

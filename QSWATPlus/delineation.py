@@ -999,7 +999,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                                 shell=True,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
-                                text=True)
+                                universal_newlines=True)    # text=True) only in python 3.7
             QSWATUtils.loginfo('Creating hillshade ...')
             QSWATUtils.loginfo(command)
             for line in  proc.stdout.split('\n'):

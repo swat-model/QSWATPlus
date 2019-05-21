@@ -237,7 +237,7 @@ class Landscape(QObject):
                                     shell=True,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
-                                    text=True)
+                                    universal_newlines=True)    # text=True) only in python 3.7
             #for line in  proc.stdout.split('\n'):
             #    QSWATUtils.loginfo(line)
             QSWATUtils.copyPrj(inFile, clipFile)

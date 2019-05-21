@@ -192,7 +192,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
                                 shell=True, 
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
-                                text=True)             
+                                universal_newlines=True)    # text=True) only in python 3.7     
         if hasQGIS:
             output.append(proc.stdout)
             output.moveCursor(QTextCursor.End)
@@ -226,11 +226,13 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
     @staticmethod
     def findTauDEMDir(settings, hasQGIS):
         """Find and return path of TauDEM directory."""
-        if Parameters._ISWIN:
-            SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
-            TauDEMDir = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
-            if not os.path.isdir(TauDEMDir):
-                TauDEMDir2 = r'C:\SWAT\SWATEditor\TauDEM5Bin'
+        SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        TauDEMDir = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
+        if not os.path.isdir(TauDEMDir):
+            if Parameters._ISWIN:
+                TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEMDIR)
+                if not os.path.isdir(TauDEMDir2):
+                    TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEMDIR)  # path from QSWAT
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
                 else:
@@ -238,8 +240,12 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
 If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
                     return  ''
-        else:
-            TauDEMDir  = '/home/chris/TauDEM-Develop'  # TODO properly for Linux
+            else:
+                TauDEMDir2 = QSWATUtils.join('~/.local/share/swatplus', Parameters._TAUDEMDIR)
+                if not os.path.isdir(TauDEMDir2):
+                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
+Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
+                    return ''
         return TauDEMDir
     
     @staticmethod
@@ -260,7 +266,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauD
         """Display TauDEM help file."""
         settings = QSettings()
         TauDEMDir = TauDEMUtils.findTauDEMDir(settings, False)
-        if TauDEMDir != '':
+        if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
             os.startfile(taudemHelpFile)
         else:

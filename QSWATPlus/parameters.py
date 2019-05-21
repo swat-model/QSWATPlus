@@ -37,15 +37,14 @@ class Parameters:
     """Collect QSWAT parameters (location of SWATPlus directory and MPI) from user and save."""
     
     _ISWIN = os.name == 'nt'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else ''  # TODO for Linux
-    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else '' # TODO: choose name for Linux
-    _SWATEDITORDIR = 'SWATPlusEditor'  # relative to SWATPlusDir
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/swatplus'
+    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor' # TODO: choose name for Linux
+    _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'
-    _MPIEXECDEFAULTDIR = 'C:\\Program Files\\Microsoft MPI\\Bin' if _ISWIN else '/usr/bin'
+    _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin'
     _TAUDEMDIR = 'TauDEM5Bin'
-    _TAUDEMHELP = 'TauDEM_Tools.chm' if _ISWIN else ''
+    _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'
-    _SWATGRAPH = 'SWATGraph'
     _DBDIR = 'Databases'
     _DBPROJ = 'QSWATPlusProj2018.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
@@ -156,9 +155,12 @@ class Parameters:
         self._dlg = ParametersDialog()
         self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         if self._gv:
-            self._dlg.move(self._gv.parametersPos)
-            ## flag showing if batch run
-            self.isBatch = self._gv.isBatch
+            try:   # globals may have exited prematurely if SWATPlus directory not found and needs setting
+                self._dlg.move(self._gv.parametersPos)
+                ## flag showing if batch run
+                self.isBatch = self._gv.isBatch
+            except Exception:
+               self.isBatch = False 
         else:
             self.isBatch = False
         
@@ -205,6 +207,8 @@ class Parameters:
         if SWATPlusDir == '' or not os.path.isdir(SWATPlusDir):
             QSWATUtils.error('Please select the SWATPlus directory', self.isBatch)
             return
+        settings = QSettings()
+        settings.setValue('/QSWATPlus/SWATPlusDir', SWATPlusDir)
 #         dbProjTemplate =  QSWATUtils.join(Parameters._DBDIR, Parameters._DBPROJ)
 #         if not os.path.exists(dbProjTemplate):
 #             QSWATUtils.error('Cannot find the default project database {0}'.format(dbProjTemplate), self.isBatch)
@@ -229,14 +233,14 @@ class Parameters:
                 return
         # no problems - save parameters
         if self._gv:
-#             self._gv.dbProjTemplate = dbProjTemplate
-#             self._gv.dbRefTemplate = dbRefTemplate
-#             self._gv.TauDEMDir = TauDEMDir
+            if self._gv.SWATPlusDir == '':
+                # failed earlier - need to restart project
+                QSWATUtils.information('The project needs to be restarted: please click the Existing Project button', self.isBatch)    
+                self._dlg.close()
+                return
             self._gv.mpiexecPath = mpiexecPath if self._dlg.checkUseMPI.isChecked() else ''
             self._gv.SWATPlusDir = SWATPlusDir
         self.saveProj()
-        settings = QSettings()
-        settings.setValue('/QSWATPlus/SWATPlusDir', SWATPlusDir)
         if self._dlg.checkUseMPI.isChecked():
             settings.setValue('/QSWATPlus/mpiexecDir', mpiexecDir)
             if self.numProcesses == '': # no previous setting

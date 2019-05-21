@@ -160,6 +160,8 @@ class Visualise(QObject):
         self.lsuResultsLayer = None
         ## current HRUs results layer
         self.hruResultsLayer = None
+        ## current results layer: equal to one of the riv, sub, lsu or hruResultsLayer
+        self.currentResultsLayer = None
         ## current resultsFile
         self.resultsFile = ''
         ## flag to indicate if summary has changed since last write to results file
@@ -1400,25 +1402,25 @@ class Visualise(QObject):
             self.subResultsLayer.rendererChanged.connect(self.changeSubRenderer)
             self.internalChangeToSubRenderer = True
             self.keepSubColours = False
-            layer = self.subResultsLayer
+            self.currentResultsLayer = self.subResultsLayer
         elif baseName == Parameters._LSUS:
             self.lsuResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.lsuResultsLayer.rendererChanged.connect(self.changeLSURenderer)
             self.internalChangeToLSURenderer = True
             self.keepLSUColours = False
-            layer = self.lsuResultsLayer
+            self.currentResultsLayer = self.lsuResultsLayer
         elif baseName == Parameters._HRUS:
             self.hruResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.hruResultsLayer.rendererChanged.connect(self.changeHRURenderer)
             self.internalChangeToHRURenderer = True
             self.keepHRUColours = False
-            layer = self.hruResultsLayer
+            self.currentResultsLayer = self.hruResultsLayer
         else:
             self.rivResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.rivResultsLayer.rendererChanged.connect(self.changeRivRenderer)
             self.internalChangeToRivRenderer = True
             self.keepRivColours = False
-            layer = self.rivResultsLayer
+            self.currentResultsLayer = self.rivResultsLayer
 #         if self.hasAreas:
 #             field = QgsField(Visualise._AREA, QVariant.Double, len=20, prec=0)
 #             if not layer.dataProvider().addAttributes([field]):
@@ -1427,28 +1429,25 @@ class Visualise(QObject):
         varz = self.varList(False)
         for var in varz:
             field = QgsField(var, QVariant.Double)
-            if not layer.dataProvider().addAttributes([field]):
+            if not self.currentResultsLayer.dataProvider().addAttributes([field]):
                 QSWATUtils.error('Could not add field {0} to results file {1}'.format(var, self.resultsFile), self._gv.isBatch)
                 return False
-        layer.updateFields()
+        self.currentResultsLayer.updateFields()
         self.updateResultsFile() 
-        layer = proj.addMapLayer(layer, False)
+        self.currentResultsLayer = proj.addMapLayer(self.currentResultsLayer, False)
         resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
-        resultsGroup.insertLayer(0, layer)
+        resultsGroup.insertLayer(0, self.currentResultsLayer)
         if baseName == Parameters._SUBS:
-            self.subResultsLayer = layer
             # add labels
             self.subResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
             self.internalChangeToSubRenderer = False
         elif baseName == Parameters._LSUS:
-            self.lsuResultsLayer = layer
             self.internalChangeToLSURenderer = False
         elif baseName == Parameters._HRUS:
-            self.hruResultsLayer = layer
             self.internalChangeToHRURenderer = False
         else:
-            self.rivResultsLayer = layer
             self.internalChangeToRivRenderer = False
+        self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
         return True
         
     def updateResultsFile(self):
@@ -1611,24 +1610,42 @@ class Visualise(QObject):
             self.internalChangeToRivRenderer = False
             self.keepRivColours = keepColours
             
+    def addResultsVars(self):
+        """Add any extra fields to variableList."""
+        if not self.resultsLayerExists():
+            return
+        newVars = []
+        fields = self.currentResultsLayer.fields()
+        indexes = fields.allAttributesList()
+        for i in indexes:
+            if fields.fieldOrigin(i) == QgsFields.OriginEdit:  # added by editing
+                newVars.append(fields.at(i).name())
+        for var in newVars:
+            items = self._dlg.variableList.findItems(var, Qt.MatchExactly)
+            if not items or items == []:
+                # add var to variableList
+                item = QListWidgetItem()
+                item.setText(var)
+                self._dlg.variableList.addItem(item)
+            
     def resultsLayerExists(self):
         """Return true if current results layer has not been removed."""
-        base = self.selectBase()
-        if base is None:
-            return False
-        if base == Parameters._SUBS:
-            layer = self.subResultsLayer
-        if base == Parameters._LSUS:
-            layer = self.lsuResultsLayer
-        elif base == Parameters._HRUS:
-            layer = self.hruResultsLayer
-        else:
-            layer = self.rivResultsLayer
-        if layer is None:
+#         base = self.selectBase()
+#         if base is None:
+#             return False
+#         if base == Parameters._SUBS:
+#             layer = self.subResultsLayer
+#         if base == Parameters._LSUS:
+#             layer = self.lsuResultsLayer
+#         elif base == Parameters._HRUS:
+#             layer = self.hruResultsLayer
+#         else:
+#             layer = self.rivResultsLayer
+        if self.currentResultsLayer is None:
             return False
         try:
             # a removed layer will fail with a RuntimeError 
-            layer.objectName()
+            self.currentResultsLayer.objectName()
             return True
         except RuntimeError:
             return False
@@ -3257,6 +3274,8 @@ class Visualise(QObject):
         yearIndex = -1
         count = 0  # don't like using variable defined inside loop after completion, so define these here
         expectedLength = 0 
+        # in case startmonth starts in output after day 1.  This data will be ignored.
+        currentFlowData = []
         selectString = '[mon], [day], [yr], [flo_out]'
         where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.dQpSubbasin.currentText())])
         orderBy = '[yr], [jday]'
@@ -3382,6 +3401,8 @@ class Visualise(QObject):
         where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.QbSubbasin.currentText())])
         orderBy = '[yr], [jday]'
         sql = self._gv.db.sqlSelect(flowDataTable, selectString, orderBy, where)
+        # in case startmonth starts in output after day 1.  This data will be ignored.
+        currentFlowData = []
         for row in self.conn.execute(sql).fetchall():
             mon = row[0]
             day = row[1]
@@ -3464,7 +3485,6 @@ class Visualise(QObject):
             Qbm = self.QbResult * factor
             self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
             
-                
     def saveQb(self):
         if self._dlg.QbResults.item(0, 0) is None:
             QSWATUtils.information('Please calculate before saving', self._gv.isBatch)

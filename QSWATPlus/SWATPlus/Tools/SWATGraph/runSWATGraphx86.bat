@@ -16,9 +16,7 @@ rem SET QT_PLUGIN_PATH=%OSGEO4W_ROOT%\apps\Qt5\plugins
 SET GDAL_DATA=%OSGEO4W_ROOT%\share\gdal
 SET GDAL_DRIVER_PATH=%OSGEO4W_ROOT%\bin\gdalplugins
 
-pushd "%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins"
-python3 QSWATPlus3_32\swatgraph.py" %1
-popd
+python3 "%USERPROFILE%\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\QSWATPlus3_32\swatgraph.py" %1
 
 
 

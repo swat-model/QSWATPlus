@@ -40,9 +40,9 @@ try:
     from .parameters import Parameters
 except:
     # used by convertFromArc
-    from QSWATUtils import QSWATUtils, FileTypes
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
     from dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
-    from parameters import Parameters
+    from parameters import Parameters  # @UnresolvedImport
 
 class DBUtils:
     
@@ -69,17 +69,25 @@ class DBUtils:
         # copy template project database to project folder if not already there
         if not os.path.exists(self.dbFile):
             if not os.path.exists(dbProjTemplate):
-                QSWATUtils.error('''Cannot find project database template {0}.
+                if Parameters._ISWIN:
+                    QSWATUtils.error('''Cannot find project database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate))
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate), self.isBatch)
+                else:
+                    QSWATUtils.error('''Cannot find project database template {0}.
+Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbProjTemplate, self.dbFile)
         # copy template reference database to project folder if not already there
         if not os.path.exists(self.dbRefFile):
             if not os.path.exists(dbRefTemplate):
-                QSWATUtils.error('''Cannot find refence database template {0}.
+                if Parameters._ISWIN:
+                    QSWATUtils.error('''Cannot find refence database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate))
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate), self.isBatch)
+                else:
+                    QSWATUtils.error('''Cannot find refence database template {0}.
+Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbRefTemplate, self.dbRefFile)
         ## sqlite3 connection to project database

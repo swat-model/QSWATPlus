@@ -328,6 +328,9 @@ class QSWATPlus(QObject):
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
         self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch)
+        if self._gv.SWATPlusDir == '':
+            # failed to find SWATPlus directory
+            return
         self._odlg.projPath.repaint()
         self.checkReports()
         self.setLegendGroups()

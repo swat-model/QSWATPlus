@@ -312,6 +312,11 @@ class HRUs(QObject):
             res = QSWATUtils.question('You have at least one floodplain map available.  Would you like to select one?', False, False)
             if res == QMessageBox.Yes:
                 return
+        # check if there is a slope limit not yet inserted
+        if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and self._dlg.slopeBand.text() != '':
+            res = QSWATUtils.question('You seem to be about to insert a slope limit.  Would you like to complete that?', False, False)
+            if res == QMessageBox.Yes:
+                return
         self._gv.writeProjectConfig(-1, 0)
         # don't hide undefined soil and landuse errors from previous run
         self._db._undefinedLanduseIds = []

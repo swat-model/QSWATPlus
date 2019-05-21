@@ -2,8 +2,9 @@
 /html/
 /help/
 /cover/
-/build/
+**/build/
 /old/
-/fonts/
+**/fonts/
 **/__pycache__
 **/.mypy_cache
+*.c

@@ -43,8 +43,14 @@ class GlobalVars:
         if settings.contains('/QSWATPlus/SWATPlusDir'):
             SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
         else:
-            settings.setValue('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
             SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
+        if os.path.isdir(SWATPlusDir):
+            settings.setValue('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        else:
+            QSWATUtils.error('''Cannot find SWATPlus directory, expected to be {0}.
+Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBatch)
+            self.SWATPlusDir = ''
+            return
         ## SWATPlus directory
         self.SWATPlusDir = SWATPlusDir
         ## Directory containing QSWAT plugin
@@ -519,10 +525,15 @@ class GlobalVars:
         editor2 = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
         if os.path.exists(editor2):
             return editor2
-        QSWATUtils.information('''Cannot find {0} in {1} or {2}.  
+        if Parameters._ISWIN:
+            QSWATUtils.information(r'''Cannot find {0} in {1} or {2}.  
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''. \
-                               format(Parameters._SWATEDITOR, editorDir1, editorDir2), self.isBatch)  # TODO different message for Linux
+If so use the QSWAT+ Parameters form to set the correct location.'''
+                               .format(Parameters._SWATEDITOR, editorDir1, editorDir2), self.isBatch)
+        else:
+            QSWATUtils.information('''Cannot find {0} in {1} or {2}.  
+Have you installed SWATPlus?'''
+                               .format(Parameters._SWATEDITOR, editorDir1, editorDir2), self.isBatch)
         return None
             
     # old stuff from QSWAT        

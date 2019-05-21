@@ -371,8 +371,8 @@ class ConvertFromArc(QObject):
         # cannot use monitoring_points shapefile as it omits reservoirs
         # instead use MonitoringPoint.csv stored earlier in csv\Project directory
         idNum = 0
-        reservoirs = []
-        ptsrcs = []
+#         reservoirs = []
+#         ptsrcs = []
         subIndex = 11
         typeIndex = 10
         xIndex = 4
