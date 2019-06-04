@@ -44,9 +44,9 @@ class GlobalVars:
             SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
         else:
             SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
-        if os.path.isdir(SWATPlusDir):
-            settings.setValue('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
-        else:
+            if os.path.isdir(SWATPlusDir):
+                settings.setValue('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        if not os.path.isdir(SWATPlusDir):
             QSWATUtils.error('''Cannot find SWATPlus directory, expected to be {0}.
 Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBatch)
             self.SWATPlusDir = ''

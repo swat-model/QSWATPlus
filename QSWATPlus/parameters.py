@@ -38,7 +38,7 @@ class Parameters:
     
     _ISWIN = os.name == 'nt'
     _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/swatplus'
-    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor' # TODO: choose name for Linux
+    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'
     _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin'
@@ -48,11 +48,9 @@ class Parameters:
     _DBDIR = 'Databases'
     _DBPROJ = 'QSWATPlusProj2018.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
-    # _ACCESSSTRING = 'DRIVER={SQLite3 ODBC Driver};DATABASE='
     _RESULTS = 'Results'
     _PLOTS = 'Plots'
     _TXTINOUT = 'TxtInOut'
-    # _TABLESOUT = 'TablesOut'
     _SOILDB = 'swatplus_soils.sqlite'
     _SIM = 'time.sim'
     _PRT = 'print.prt'

@@ -4118,22 +4118,32 @@ class CreateHRUs(QObject):
         for landscape, lsuData in channelData.items():
             lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
             rid = 0
+            downRid = 0
             # Route LSU
             if landscape == QSWATUtils._UPSLOPE:
                 # check floodplain LSU exists
                 if QSWATUtils._FLOODPLAIN in channelData:
                     downLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
-                    curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                 (lsuId, 'LSU', downLsuId, 'LSU', 100))
+                    # if floodplain LSU is all reservoir, route into the reservoir
+                    downLsuData = channelData[QSWATUtils._FLOODPLAIN]
+                    if downLsuData.cropSoilSlopeArea == 0 and downLsuData.waterBody is not None and \
+                        downLsuData.waterBody.isReservoir:
+                        downRid = downLsuData.waterBody.id
+                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                     (lsuId, 'LSU', downRid, 'RES', 100))
+                    else:
+                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                     (lsuId, 'LSU', downLsuId, 'LSU', 100))
                 else:
                     # route lsu directly into channel
                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                  (lsuId, 'LSU', SWATChannel, 'CH', 100))
             else:
                 if lsuData.waterBody is not None and lsuData.waterBody.isReservoir:
-                    rid = lsuData.waterBody.id
-                    curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                 (lsuId, 'LSU', rid, 'RES', 100))
+                    if lsuData.cropSoilSlopeArea > 0:  # else all water
+                        rid = lsuData.waterBody.id
+                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                     (lsuId, 'LSU', rid, 'RES', 100))
                 else:
                     lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                     if lake > 0:
@@ -4142,12 +4152,12 @@ class CreateHRUs(QObject):
                     else: 
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                      (lsuId, 'LSU', SWATChannel, 'CH', 100))
-            if self._gv.useLandscapes:
+            if self._gv.useLandscapes and lsuData.cropSoilSlopeArea > 0:  # else all water:
                 landscapeName = QSWATUtils.landscapeName(landscape, self._gv.useLeftRight)
                 fw.writeLine('{0} (LSU {1!s}):'.format(landscapeName, lsuId))
-            self.printLSUHRUs(lsuId, SWATChannel, landscape, lsuData, channelData, rid, basinHa, subHa, fw, curs)
+            self.printLSUHRUs(lsuId, SWATChannel, landscape, lsuData, channelData, rid, downRid, basinHa, subHa, fw, curs)
 
-    def printLSUHRUs(self, lsuId, SWATChannel, landscape, lsuData, channelData, rid, basinHa, subHa, fw, curs):
+    def printLSUHRUs(self, lsuId, SWATChannel, landscape, lsuData, channelData, rid, downRid, basinHa, subHa, fw, curs):
         '''Print and route HRUs and water bodies for an LSU.'''
         lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
         floodTarget, floodCat = (lake, 'RES') if lake > 0 else (rid, 'RES') if rid > 0 else (SWATChannel, 'CH')
@@ -4203,9 +4213,14 @@ class CreateHRUs(QObject):
                     else:
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                       (self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain))
-                        floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                      (self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain))
+                        if downRid > 0:
+                            # floodplain LSU is all reservoir: remainder of HRU drainage is into the reservoir
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                         (self.HRUNum, 'HRU', downRid, 'RES', 100 - self._gv.upslopeHRUDrain))
+                        else:
+                            floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                          (self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain))
         waterBody = lsuData.waterBody                    
         if waterBody is not None:
             # water area is original - prior to merging of reservoirs
@@ -4780,7 +4795,7 @@ class CreateHRUs(QObject):
                             floodDrop = abs(dropToSource * 0.25 if self._gv.useLandscapes else dropToSource)
                         floodLen = floodLsuData.farDistance
                     for landscape, lsuData in channelData.items():
-                        if lsuData.cellCount == 0:
+                        if lsuData.cropSoilSlopeArea == 0:
                             # was all water
                             continue
                         lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
@@ -4836,14 +4851,21 @@ class CreateHRUs(QObject):
             if not OK:
                 QSWATUtils.error('Cannot write data to {0}'.format(subs1File), self._gv.isBatch)
             lsuMap = dict()
+            toDelete = []
             request =  QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([lsuIdx])
             for feature in lsus2Layer.getFeatures(request):
                 fid = feature.id()
                 lsuId = feature[lsuIdx]
-                lsuMap[fid] = saveLSUMap[lsuId]
+                if lsuId in saveLSUMap:
+                    lsuMap[fid] = saveLSUMap[lsuId]
+                else:
+                    # was all water
+                    toDelete.append(fid)
             OK = lsusProvider2.changeAttributeValues(lsuMap)
             if not OK:
                 QSWATUtils.error('Cannot write data to {0}'.format(lsus2File), self._gv.isBatch)
+            else:
+                lsusProvider2.deleteFeatures(toDelete)
         # add subs1 layer in place of watershed layer, unless using grid model
         if not self._gv.useGridModel:
             root = QgsProject.instance().layerTreeRoot()

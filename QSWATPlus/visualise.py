@@ -98,6 +98,8 @@ class Visualise(QObject):
 #         self.reservoirs = None 
 #         ## map SWATBasin -> SWATChannel -> LSUId -> pond number
 #         self.ponds = None
+        ## flag to show if there is a HRUs shaefile available
+        self.hasHRUs = False
         ## Data read from db table
         #
         # data takes the form
@@ -381,7 +383,9 @@ class Visualise(QObject):
         self.setConnection(self.scenario)
         scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario)
         txtInOutDir = QSWATUtils.join(scenDir, Parameters._TXTINOUT)
-        self.db = QSWATUtils.join(QSWATUtils.join(scenDir, Parameters._RESULTS), Parameters._OUTPUTDB)
+        resultsDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+        self.db = QSWATUtils.join(resultsDir, Parameters._OUTPUTDB)
+        self.hasHRUs = os.path.exists(QSWATUtils.join(resultsDir, Parameters._HRUS + '.shp'))
         self.conn =  sqlite3.connect(self.db)
         if self.conn is None:
             QSWATUtils.error('Failed to connect to output database {0}'.format(self.db), self.isBatch)
@@ -461,6 +465,8 @@ class Visualise(QObject):
         for row in self.conn.execute(sql):
             table = row[0]
             if self._dlg.tabWidget.currentIndex() != 2 and table.startswith('basin_'):
+                continue
+            if not self.hasHRUs and self._dlg.tabWidget.currentIndex() != 2 and table.startswith('hru_'):
                 continue
             if table.endswith(terminator):
                 ignore = False
@@ -1350,15 +1356,12 @@ class Visualise(QObject):
             return Parameters._RIVS
         if self.table.startswith('lsunit_'):
             return Parameters._LSUS
-        if self.table.startswith('basin_'):
-            return Parameters._SUBS
-        resultsDir = os.path.split(self.db)[0]
-        hasHRUs = os.path.exists(QSWATUtils.join(resultsDir, Parameters._HRUS + '.shp'))
         if self.table.startswith('hru_'):
-            if hasHRUs:
+            if self.hasHRUs:
                 return Parameters._HRUS
             else:
-                return Parameters._LSUS  # TODO: should check numLSUs = numHRUs
+                QSWATUtils.error('Cannot show results for HRUs since no full HRUs file was created', self._gv.isBatch)
+                return None
         QSWATUtils.error('Do not know how to show results for table {0}'.format(self.table), self._gv.isBatch)
         return None
         
