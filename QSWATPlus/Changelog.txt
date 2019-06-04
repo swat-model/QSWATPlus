@@ -1,3 +1,15 @@
+Version 1.2.1   4 June 2019
+---------------------------
+
+Fixed problem of LSUs that are all reservoir
+
+hru_ tables removed from visualization when no hrus.shp file
+
+Version 1.2.0   21 May 2019
+---------------------------
+
+Linux version with appropriate directories
+
 Version 1.1.0   8 May 2019
 --------------------------
 
