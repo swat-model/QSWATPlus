@@ -1794,7 +1794,7 @@ class ConvertFromArc(QObject):
                             waterNum += 1
                             waterArea = float(row[4])  # ARLU field: area in this subbasin which is WATR
                             cursor.execute(ConvertFromArc._INSERTWATER,
-                                           (waterNum, wtype, lsu, waterArea, x, y, lat, lon, elev))
+                                           (waterNum, wtype, lsu, subbasin, waterArea, x, y, lat, lon, elev))
                             waters[waterNum] = wtype, subbasin
                     else:
                         hruNum = int(row[11])
@@ -2351,6 +2351,7 @@ class ConvertFromArc(QObject):
                   NOT NULL,
     wtype TEXT,
     lsu   INTEGER,
+    subbasin: INTEGER,
     area  REAL,
     xpr   REAL,
     ypr   REAL,
@@ -2360,7 +2361,7 @@ class ConvertFromArc(QObject):
     )
     """
     
-    _INSERTWATER = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?)'
+    _INSERTWATER = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?,?)'
     
     class WeatherStation():
         """Name, lat, long, ect for weather station."""

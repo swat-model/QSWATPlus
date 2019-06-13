@@ -75,7 +75,7 @@ class Visualise(QObject):
         self.ignoredVars = ['id', 'output_type_id', 'output_interval_id', 'time', 'year', 'unit', 'plantnm', 'ob_typ', 
                             'props', 'type', 'obj_type', 'hyd_typ', 'resnum', 'hru', 'area', 'vol']
         ## tables not suitable for visualisation
-        self.ignoredTables = ['crop_yld_', 'deposition_', 'hydin_', 'hydout_', 'ru_', 'basin_psc_']
+        self.ignoredTables = ['crop_yld_', 'deposition_', 'hydin_', 'hydout_', 'ru_', 'basin_psc_', 'recall_']
         ## tables only included when plotting
         self.plotOnlyTables = ['reservoir_', 'wetland_']
         ## current scenario
@@ -200,6 +200,8 @@ class Visualise(QObject):
         self.internalChangeToLSURenderer = False
         ## flag to indicate if HRU renderer being changed by code
         self.internalChangeToHRURenderer = False
+        ## flag to indicate if aquifer renderer being changed by code
+        self.internalChangeToAquRenderer = False
         ## flag to indicate if colours for rendering streams should be inherited from existing results layer
         self.keepRivColours = False
         ## flag to indicate if colours for rendering subbasins should be inherited from existing results layer
@@ -208,8 +210,8 @@ class Visualise(QObject):
         self.keepLSUColours = False
         ## flag to indicate if colours for rendering HRUs should be inherited from existing results layer
         self.keepHRUColours = False
-        ## flag for HRU results for current scenario: 0 for limited HRUs or multiple but no hru table; 1 for single HRUs; 2 for multiple
-        self.HRUsSetting = 0
+        ## flag to indicate if colours for rendering aquifers should be inherited from existing results layer
+        self.keepAquColours = False
         ## map sub -> LSU -> HRU numbers
         self.hruNums = dict()
         ## file with observed data for plotting
@@ -1352,7 +1354,7 @@ class Visualise(QObject):
         
     def selectBase(self):
         """Return base name of shapefile used for results according to table name and availability of actual hrus file"""
-        if self.table.startswith('aquifer_') or self.table.startswith('channel_'):
+        if self.table.startswith('channel_'):
             return Parameters._RIVS
         if self.table.startswith('lsunit_'):
             return Parameters._LSUS
@@ -2001,20 +2003,30 @@ class Visualise(QObject):
                 data = self.resultsData[layerId][dat]
                 self.mapTitle.updateLine2(date)
                 provider = animateLayer.dataProvider()
-                animateIndex = self.animateIndexes[layerId]
-                base = self.selectBase()
-                if base is None:
-                    return
-                if base == Parameters._HRUS:
-                    unitIdx = provider.fieldNameIndex(QSWATTopology._HRUS)
-                elif base == Parameters._LSUS:
-                    unitIdx = provider.fieldNameIndex(QSWATTopology._LSUID)
-                elif base == Parameters._SUBS:
-                    unitIdx = provider.fieldNameIndex(QSWATTopology._SUBBASIN)
+                path = provider.dataSourceUri()
+                # vector data sources have additional "|layerid=0"
+                pos = path.find('|')
+                if pos >= 0:
+                    path = path[:pos]
+                fileName = os.path.split(path)[1]
+                if fileName.startswith(Parameters._HRUS):
+                    base = Parameters._HRUS
+                    fieldName = QSWATTopology._HRUS
+                elif fileName.startswith(Parameters._LSUS):
+                    base = Parameters._LSUS
+                    fieldName = QSWATTopology._LSUID
+                elif fileName.startswith(Parameters._SUBS):
+                    base = Parameters._SUBS
+                    fieldName = QSWATTopology._SUBBASIN
+                elif fileName.startswith(Parameters._RIVS):
+                    base = Parameters._RIVS
+                    fieldName = QSWATTopology._CHANNEL
                 else:
-                    unitIdx = provider.fieldNameIndex(QSWATTopology._CHANNEL)
+                    return
+                animateIndex = self.animateIndexes[layerId]
+                unitIdx = provider.fieldNameIndex(fieldName)
                 if unitIdx < 0:
-                    QSWATUtils.error('Cannot find unit column in {0}'.format(provider.dataSourceUri()), self._gv.isBatch)
+                    QSWATUtils.error('Cannot find {0} field in {1}'.format(fieldName, path), self._gv.isBatch)
                     continue
                 mmap = dict()
                 for f in provider.getFeatures():
@@ -2160,7 +2172,7 @@ class Visualise(QObject):
     
     def chooseColorRamp(self, table, var):
         """Select a colour ramp."""
-        chaWater = ['floin', 'floout', 'evap', 'tloss']
+        chaWater = ['flo_in', 'flo_out', 'evap', 'tloss', 'aqu_in', 'peakr']
         aqWater = ['flo', 'stor', 'rchrg', 'seep', 'revap' 'flo_cha', 'flo_res', 'flo_ls']
         wbWater = ['snowmlt', 'sq_gen', 'latq', 'wtryld', 'perc', 'tloss', 'sq_cont', 'sw', 
                    'qtile', 'irr', 'sq_run', 'lq_run', 'ovbank', 'surqcha', 'surqres', 

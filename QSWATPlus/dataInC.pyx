@@ -99,6 +99,11 @@ cdef enum ChannelRole:
     _INNER = 0
     _OUTLET = 1
     _INLET = 2
+    
+cdef enum WaterRole:
+    _UNKNOWN = 0
+    _RESERVOIR = 1
+    _POND = 2
         
 cdef class WaterBody:
 
@@ -110,8 +115,8 @@ cdef class WaterBody:
         public double totalLatitude
         public double totalLongitude
         public int id
-        public int role
-        public bint isReservoir
+        public int channelRole
+        public int waterRole
         
     """Data about areas with landuse WATR."""
     def __init__(self, int count, double area, double elevation, double x, double y):
@@ -131,9 +136,9 @@ cdef class WaterBody:
         ## id set later
         self.id = 0
         ## role of channel: _INNER is default
-        self.role = _INNER
-        ## flag to show if reservoir or pond
-        self.isReservoir = False
+        self.channelRole = _INNER
+        ## water role
+        self.waterRole = _UNKNOWN
         
     cdef void addCell(self, double area, double elevation, double x, double y):
         """Add data for 1 cell."""
@@ -164,21 +169,40 @@ cdef class WaterBody:
         self.totalLongitude += wb.totalLongitude
         
     cpdef void setInlet(self):
-        """Set role to inlet.  Also makes it a reservoir automatically."""
-        self.role = _INLET
-        self.isReservoir = True
+        """Set  to inlet.  provents merging downstream"""
+        self.channelRole = _INLET
         
     cpdef void setOutlet(self):
-        """Set role to outlet."""
-        self.role = _OUTLET
+        """Set  to outlet."""
+        self.channelRole = _OUTLET
+        
+    cpdef void setReservoir(self):
+        """Set to reservoir."""
+        self.waterRole = _RESERVOIR
+        
+    cpdef void setPond(self):
+        """Set to pond."""
+        self.waterRole = _POND
         
     cpdef bint isInlet(self):
-        """Return true if role is inlet."""
-        return self.role == _INLET
+        """Return true if  is inlet."""
+        return self.channelRole == _INLET
     
     cpdef bint isOutlet(self):
-        """Return true if role is outlet."""
-        return self.role == _OUTLET
+        """Return true if  is outlet."""
+        return self.channelRole == _OUTLET
+    
+    cpdef bint isUnknown(self):
+        """Return true if water role is unknown."""
+        return self.waterRole == _UNKNOWN
+    
+    cpdef bint isReservoir(self):
+        """Return true if is reservoir."""
+        return self.waterRole == _RESERVOIR
+    
+    cpdef bint isPond(self):
+        """Return true if is pond."""
+        return self.waterRole == _POND
     
     cpdef WaterBody copy(self):
     
@@ -187,8 +211,8 @@ cdef class WaterBody:
             
         result = WaterBody(self.cellCount, self.area, self.totalElevation, self.totalLongitude, self.totalLatitude)
         result.originalArea = self.originalArea
-        result.role = self.role
-        result.isReservoir = self.isReservoir
+        result.channelRole = self.channelRole
+        result.waterRole = self.waterRole
         result.id = self.id
         return result
         
@@ -220,7 +244,13 @@ cdef class LSUData:
         public WaterBody waterBody
         public int lastHru
     
-    """Data held about landscape unit."""
+    """Data held about landscape unit.
+    
+    Note that pixels of landuse WATR appear in both the main LSU data and also in the water body component.
+    A decision is made later according to the water role:
+    if the water role is a reservoir or pond then the water body is added to the model as reservoir or pond, and WATR HRUs are removed.
+    If the water role ins _UNKNOWN then the water body is ignored and the WATR HRUs included. 
+    """
     def __init__(self):
         """Initialise class variables."""
         ## Number of cells
@@ -362,28 +392,32 @@ cdef class LSUData:
             int hru 
             CellData cellData 
         
-        # note use of items rather than iteritems as we change hruMap in the loop
         for (hru, cellData) in self.hruMap.items():
             cellData.multiply(factor)
             self.hruMap[hru] = cellData
+        # keep area of water hrus and water body consistent
+        if self.waterBody is not None:
+            self.waterBody.area *= factor
+            self.waterBody.originalArea *= factor
             
-    cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes):
+    cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 
          
-        Also removes water body if not a separate reservoir and channel flows into or is inside lake and lscape is nolandscape or floodplain."""
+        Also removes water body if not a separate reservoir or pond 
+        and channel flows into or is inside lake and lscape is nolandscape or floodplain."""
         cdef:
-            double landArea, areaToRedistribute, redistributeFactor
+            double areaToRedistribute, redistributeFactor
         
-        # ponds adjacent to lakes are counted as part of lakes, and whole lsu area is counted as land 
+        # water bodies adjacent to lakes are counted as part of lakes, and whole lsu area is counted as land 
         # but beware making area zero if all is water
-        if self.waterBody is not None and self.cropSoilSlopeArea > 0 and \
-            not self.waterBody.isReservoir and chLink in chLinksByLakes and \
+        if self.waterBody is not None and self.cropSoilSlopeArea > self.waterBody.originalArea and \
+            self.waterBody.isUnknown() and chLink in chLinksByLakes and \
             lscape in {0, 1}:  # {QSWATUtils._NOLANDSCAPE, QSWATUtils._FLOODPLAIN}
+            # self.removeWaterHRUs(waterLanduse)
             self.waterBody = None
-        landArea = self.area if self.waterBody is None else self.area - self.waterBody.originalArea
-        areaToRedistribute = landArea - self.cropSoilSlopeArea
-        if landArea > areaToRedistribute > 0:
-            redistributeFactor = landArea / (landArea - areaToRedistribute)
+        areaToRedistribute = self.area - self.cropSoilSlopeArea
+        if self.area > areaToRedistribute > 0:
+            redistributeFactor = self.area / (self.area - areaToRedistribute)
             self.redistribute(redistributeFactor)
             
     cpdef void removeHRU(self, int hru, int crop, int soil, int slope):
@@ -398,6 +432,24 @@ cdef class LSUData:
             del self.cropSoilSlopeNumbers[crop][soil]
             if len(self.cropSoilSlopeNumbers[crop]) == 0:
                 del self.cropSoilSlopeNumbers[crop]
+                
+    cpdef void removeWaterHRUs(self, int waterLanduse):
+        """Remove HRUs with landuse water"""
+        cdef:
+            int crop 
+            dict soilSlopeNumbers
+            int soil
+            dict slopeNumbers
+            int slope
+            int hru 
+            
+        # note use of list as dictionaries changed within loop
+        for crop, soilSlopeNumbers in list(self.cropSoilSlopeNumbers.items()):
+            if crop == waterLanduse:
+                for soil, slopeNumbers in list(soilSlopeNumbers.items()):
+                    for slope, hru in list(slopeNumbers.items()):
+                        self.cropSoilSlopeArea =- self.hruMap[hru].area
+                        self.removeHRU(hru, crop, soil, slope)
                   
     cpdef void setCropAreas(self, bint isOriginal):
         '''Make map crop -> area from hruMap and cropSoilSlopeNumbers.'''
@@ -635,7 +687,7 @@ cdef class LSUData:
         """Set water body to a reservoir if water area exceeds threshold percent of LSU."""
        
         if self.waterBody is not None and self.waterBody.area > threshold * self.area / 100:
-            self.waterBody.isReservoir = True
+            self.waterBody.waterRole = _RESERVOIR
         
     @staticmethod
     cdef void mergeMaps(dict map1, dict map2):
@@ -736,7 +788,7 @@ cdef class BasinData:
                 lsuData.waterBody = WaterBody(1, area, elevation, x, y)
             else:
                 lsuData.waterBody.addCell(area, elevation, x, y)
-        elif (crop != _gv.cropNoData) and (soil != _gv.soilNoData) and (slopeValue != _gv.slopeNoData):
+        if (crop != _gv.cropNoData) and (soil != _gv.soilNoData) and (slopeValue != _gv.slopeNoData):
             lsuData.cropSoilSlopeArea += area
             hru = lsuData.getHruNumber(crop, soil, slope)
             cellData = lsuData.hruMap.get(hru, None)
@@ -834,7 +886,7 @@ cdef class BasinData:
                 targetData[landscape] = lsuData
         del self.mergedLsus[channel]
     
-    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes):
+    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes, int waterLanduse):
         """Set area maps for crop, soil and slope."""
         
         cdef:
@@ -847,7 +899,10 @@ cdef class BasinData:
                     # nodata area is included in final areas: need to add to original
                     # so final and original tally
                     # also remove water bodies that should be incorporated into lakes
-                    lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes)
+                    lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes, waterLanduse)
+                    # remove WATR HRUs if the LSU's water body is a reservoir or pond
+                    # if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                    #     lsuData.removeWaterHRUs(waterLanduse)
                 lsuData.setCropAreas(isOriginal)
                 lsuData.setSoilAreas(isOriginal)
                 lsuData.setSlopeAreas(isOriginal)
@@ -1080,8 +1135,9 @@ cdef class LakeData:
         public double area
         public double elevation
         public object centroid
+        public int waterRole
         
-    def __init__(self, area, centroid):
+    def __init__(self, area, centroid, waterRole):
         ## linknos of inflowing channels mapped to point id, point and elevation of channel outlet
         self.inChLinks = dict()
         ## linknos of channels within lake
@@ -1098,5 +1154,7 @@ cdef class LakeData:
         self.elevation = 0
         ##centroid
         self.centroid = centroid
+        ## pond or reservoir
+        self.waterRole = waterRole
         
         

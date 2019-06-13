@@ -84,7 +84,8 @@ class Points:
     _OUTLET = 0
     _INLET = 1
     _RESERVOIR = 2
-    _POINTSOURCE = 3
+    _POND = 3
+    _POINTSOURCE = 4
     
     @staticmethod
     def toString(point):
@@ -95,6 +96,8 @@ class Points:
             return 'inlet'
         elif point == Points._RESERVOIR:
             return 'reservoir'
+        elif point == Points._POND:
+            return 'pond'
         else:
             return 'point source'
     
@@ -266,7 +269,7 @@ class Delineation(QObject):
     
     def checkMPI(self) -> None:
         """
-        Try to make sure there is just one msmpi.dll, either on the path or in the TauDEM directory.
+        In Windows, try to make sure there is just one msmpi.dll, either on the path or in the TauDEM directory.
         
         TauDEM executables are built on the assumption that MPI is available.
         But they can run without MPI if msmpi.dll is placed in their directory.
@@ -277,6 +280,8 @@ class Delineation(QObject):
         This function is called every time delineation is started so that if the user installs MPI
         or uninstalls it the appropriate steps are taken.
         """
+        if not Parameters._ISWIN:
+            return
         dll = 'msmpi.dll'
         dummy = 'msmpi_dll'
         dllPath = QSWATUtils.join(self._gv.TauDEMDir, dll)
@@ -488,6 +493,7 @@ class Delineation(QObject):
         Not used with grid models or existing watersheds."""
         
         lakeIdIndex = self.identifyLakes(lakesLayer)
+        lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
         if lakeIdIndex < 0:
             return False
         if not self._dlg.useOutlets.isChecked():
@@ -566,6 +572,7 @@ class Delineation(QObject):
 #             return False
         for lake in lakeProvider.getFeatures():
             lakeId = lake[lakeIdIndex]
+            res = 1 if lakeResIndex >= 0 and lake[lakeResIndex] > 0 else 2  # default to pond
             geom = geoMap[lake.id()]
             self._gv.topo.lakeInlets[lakeId] = set()
             self._gv.topo.lakeOutlets[lakeId] = set()
@@ -661,7 +668,7 @@ that it flows out the lake at its last crossing point.
                             point = QgsFeature(fields)
                             currentPointId += 1
                             point.setAttribute(idIndex, currentPointId)
-                            point.setAttribute(resIndex, 1)
+                            point.setAttribute(resIndex, res)
                             point.setAttribute(inletIndex, 0)
                             point.setAttribute(srcIndex, 0)
                             # check point not too close to channel end
@@ -696,7 +703,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                         point.setAttribute(resIndex, 0)
                         self._gv.topo.lakeInlets[lakeId].add(currentPointId)
                     else:
-                        point.setAttribute(resIndex, 1)
+                        point.setAttribute(resIndex, res)
                         self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
                         QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
                                            .format(lakeId, chLink, int(reachData.lowerX), int(reachData.lowerY)))
@@ -782,17 +789,17 @@ assumed that its crossing the lake boundary is an inaccuracy
         lakeIds = []
         if lakeIdIndex < 0:
             if not lakeProvider.addAttributes([QgsField(QSWATTopology._LAKEID, QVariant.Int)]):
-                QSWATUtils.error('Unable to edit lakes shapefile {0}'.format(self._gv.lakeFile), self.isBatch)
+                QSWATUtils.error('Unable to edit lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
                 return -1
             lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
             attMap = dict()
-            self._gv.topo.waterBodyId = self.getMaxResId()
+            self._gv.topo.waterBodyId = self.getMaxWaterId()
             for lake in lakeProvider.getFeatures(request):
                 self._gv.topo.waterBodyId += 1
                 attMap[lake.id()] = {lakeIdIndex: self._gv.topo.waterBodyId}
                 lakeIds.append(self._gv.topo.waterBodyId)
             if not lakeProvider.changeAttributeValues(attMap):
-                QSWATUtils.error('Unable to update lakes shapefile {0}'.format(self._gv.lakeFile), self.isBatch)
+                QSWATUtils.error('Unable to update lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
                 return -1
             lakesLayer.updateFields()
         else:
@@ -801,11 +808,11 @@ assumed that its crossing the lake boundary is an inaccuracy
                 try:
                     intLakeId = int(lakeId)
                 except Exception:
-                    QSWATUtils.error('LakeId {0} cannot be parsed as an integer'.format(lakeId), self.isBatch)
+                    QSWATUtils.error('LakeId {0} cannot be parsed as an integer'.format(lakeId), self._gv.isBatch)
                     return -1
                 if lakeId in lakeIds:
                     QSWATUtils.error('LakeId {0} appears at least twice in {1}: LakeId values must be unique'.
-                                     format(lakeId, QSWATUtils.layerFilename(lakesLayer)))
+                                     format(lakeId, QSWATUtils.layerFilename(lakesLayer)), self._gv.isBatch)
                     return -1  
                 ListFuns.insertIntoSortedList(intLakeId, lakeIds, True)
                 self._gv.topo.waterBodyId = max(self._gv.topo.waterBodyId, intLakeId)
@@ -817,8 +824,8 @@ assumed that its crossing the lake boundary is an inaccuracy
             lakesLayer.triggerRepaint()
         return lakeIdIndex
     
-    def getMaxResId(self):
-        """Return maximum of 0 and reservoir id values in inlets/outlets file if any."""
+    def getMaxWaterId(self):
+        """Return maximum of 0 and reservoir or pond id values in inlets/outlets file if any."""
         result = 0
         if self._dlg.useOutlets.isChecked() and os.path.isfile(self._gv.outletFile):
             layer = QgsVectorLayer(self._gv.outletFile, 'Outlets', 'ogr')
@@ -827,7 +834,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             if resIndex >=0:
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
                 for point in layer.getFeatures(request):
-                    if point[resIndex] == 1:
+                    if point[resIndex] > 0:
                         result = max(result, point[idIndex])
         return result
                 
@@ -845,20 +852,35 @@ assumed that its crossing the lake boundary is an inaccuracy
         
     
     def makeGridLakes(self, lakesLayer, gridLayer):
-        """Convert lakes into collections of grid cells and mark the cells with the lake id."""
+        """Convert lakes into collections of grid cells and mark the cells with the lake id and RES value."""
         if self.gridLakesAdded:
             return
         lakeIdIndex = self.identifyLakes(lakesLayer)
         if lakeIdIndex < 0:
             return
+        lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
+        if lakeResIndex < 0:
+            QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
+                                   format(QSWATUtils.layerFilename(lakesLayer)), self._gv.isBatch)
+        gridProvider = gridLayer.dataProvider()
         areaIndex = self._gv.topo.getIndex(gridLayer, Parameters._AREA)
         gridLakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
-        gridProvider = gridLayer.dataProvider()
-        # ids of lakes already added to grid
+        gridResIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._RES, ignoreMissing=True)
+        if gridResIndex < 0:
+            if not gridProvider.addAttributes([QgsField(QSWATTopology._RES, QVariant.Int)]):
+                QSWATUtils.error('Unable to edit grid shapefile {0}'.format(QSWATUtils.layerFilename(gridLayer)), self._gv.isBatch)
+                return
+            gridLayer.updateFields()
+            gridResIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._RES)
+        # list of ids of lakes already added to grid
         done = []
         mmap = dict()
         for lake in lakesLayer.getFeatures():
             lakeId = lake[lakeIdIndex]
+            if lakeResIndex < 0:
+                waterRole = QSWATTopology._RESTYPE
+            else:
+                waterRole = lake[lakeResIndex]
             lakeGeom = lake.geometry()
             lakeBox = lakeGeom.boundingBox()
             for cell in gridLayer.getFeatures():
@@ -876,7 +898,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                     continue
                 if lakePart.area() < 0.5 * cellArea:
                     continue
-                mmap[cell.id()] = {gridLakeIdIndex: lakeId}
+                mmap[cell.id()] = {gridLakeIdIndex: lakeId, gridResIndex: waterRole}
             done.append(lakeId)
         if not gridProvider.changeAttributeValues(mmap):
             QSWATUtils.error('Cannot edit attributes of grid {0}'.format(QSWATUtils.layerFilename(gridLayer)), self._gv.isBatch)
@@ -2105,7 +2127,8 @@ assumed that its crossing the lake boundary is an inaccuracy
         # so set to -1 and fix them later
         pid = -1
         inlet = 1 if isInlet else 0
-        res = 1 if self._odlg.reservoirButton.isChecked() else 0
+        # use 2 for pond, 1 for reservoir, 0 for neither
+        res = 2 if self._odlg.pondButton.isChecked() else 1 if self._odlg.reservoirButton.isChecked() else 0
         ptsource = 1 if self._odlg.ptsourceButton.isChecked() else 0
         idIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._ID)
         inletIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._INLET)
@@ -3374,9 +3397,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
         others = []
         for f in ioLayer.getFeatures():
             if f[inletIndex] == 0:
-                if f[resIndex] != 0:
+                if f[resIndex] > 0:
                     others.append(f.id())
-            elif f[ptsourceIndex] != 0:
+            elif f[ptsourceIndex] > 0:
                 others.append(f.id())
         if len(others) > 0:
             provider = ioLayer.dataProvider()
@@ -3427,8 +3450,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if f[inletIndex] == 0:
                 if f[resIndex] == 0:
                     point = Points._OUTLET
-                else:
+                elif f[resIndex] == 1:
                     point = Points._RESERVOIR
+                else:
+                    point = Points._POND
                 others.append(f.id())
             elif f[ptsourceIndex] == 0:
                 point = Points._INLET
@@ -3822,8 +3847,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
                         point = Points._POINTSOURCE
                     else:
                         point = Points._INLET
-                elif resIndex >= 0 and feature[resIndex] == 1:
-                    point = Points._RESERVOIR
+                elif resIndex >= 0:
+                    if feature[resIndex] == 1:
+                        point = Points._RESERVOIR
+                    else:
+                        point = Points._POND
                 else:
                     point = Points._OUTLET
                     outlets.append(feature.geometry().asPoint())
@@ -4171,23 +4199,25 @@ If you want to start again from scratch, reload the lakes shapefile."""
             QSWATUtils.copyPrj(sourcePath, filePath)
             return True
     
-    def getOutletIds(self, field: str, root: QgsLayerTree) -> Set[int]:
-        """Get list of ID values from inlets/outlets layer 
-        for which field has value 1.
-        """
-        result: Set[int] = set()
-        if self._gv.outletFile == '':
-            return result
-        outletLayer = QSWATUtils.getLayerByFilenameOrLegend(root.findLayers(), self._gv.outletFile, FileTypes._OUTLETS, '', self._gv.isBatch)
-        if not outletLayer:
-            QSWATUtils.error('Cannot find inlets/outlets layer', self._gv.isBatch)
-            return result
-        idIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._ID)
-        fieldIndex = self._gv.topo.getIndex(outletLayer, field)
-        for f in outletLayer.getFeatures():
-            if f[fieldIndex] == 1:
-                result.add(f[idIndex])
-        return result
+    #===========no longer used================================================================
+    # def getOutletIds(self, field: str, root: QgsLayerTree) -> Set[int]:
+    #     """Get list of ID values from inlets/outlets layer 
+    #     for which field has value 1.
+    #     """
+    #     result: Set[int] = set()
+    #     if self._gv.outletFile == '':
+    #         return result
+    #     outletLayer = QSWATUtils.getLayerByFilenameOrLegend(root.findLayers(), self._gv.outletFile, FileTypes._OUTLETS, '', self._gv.isBatch)
+    #     if not outletLayer:
+    #         QSWATUtils.error('Cannot find inlets/outlets layer', self._gv.isBatch)
+    #         return result
+    #     idIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._ID)
+    #     fieldIndex = self._gv.topo.getIndex(outletLayer, field)
+    #     for f in outletLayer.getFeatures():
+    #         if f[fieldIndex] == 1:
+    #             result.add(f[idIndex])
+    #     return result
+    #===========================================================================
     
     def progress(self, msg: str) -> None:
         """Update progress label with message; emit message for display in testing."""

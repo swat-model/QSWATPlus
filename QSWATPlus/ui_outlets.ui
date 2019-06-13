@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>238</width>
-    <height>335</height>
+    <width>243</width>
+    <height>293</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,8 +17,8 @@
    <iconset resource="resources.qrc">
     <normaloff>:/plugins/QSWATPlus/swatplus.ico</normaloff>:/plugins/QSWATPlus/swatplus.ico</iconset>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
-   <item>
+  <layout class="QGridLayout" name="gridLayout_2">
+   <item row="0" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
       <string>Select type of point to add, then click on map to place it.  If you return to the map canvas to pan, zoom, etc click Resume adding to enable adding more points. Click OK to confirm and exit, Cancel to remove points and exit.</string>
@@ -28,7 +28,7 @@
      </property>
     </widget>
    </item>
-   <item>
+   <item row="1" column="0">
     <widget class="QWidget" name="widget" native="true">
      <layout class="QVBoxLayout" name="verticalLayout">
       <item>
@@ -52,6 +52,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QRadioButton" name="pondButton">
+        <property name="text">
+         <string>Pond</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QRadioButton" name="inletButton">
         <property name="text">
          <string>Inlet</string>
@@ -68,24 +75,33 @@
      </layout>
     </widget>
    </item>
-   <item>
+   <item row="2" column="0">
     <widget class="QWidget" name="widget_2" native="true">
-     <widget class="QPushButton" name="resumeButton">
-      <property name="geometry">
-       <rect>
-        <x>0</x>
-        <y>10</y>
-        <width>97</width>
-        <height>23</height>
-       </rect>
-      </property>
-      <property name="text">
-       <string>Resume adding</string>
-      </property>
-     </widget>
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="0">
+       <widget class="QPushButton" name="resumeButton">
+        <property name="text">
+         <string>Resume adding</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>113</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
     </widget>
    </item>
-   <item>
+   <item row="3" column="0">
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
       <enum>Qt::Horizontal</enum>

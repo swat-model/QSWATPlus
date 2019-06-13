@@ -504,7 +504,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             self.landuseCodes[landuseCat] = landuseCode
             self.landuseIds[landuseCat] = landuseId
             if landuseCode.upper() == 'WATR':
-                self.waterLanduse = landuseCat
+                self.waterLanduse = landuseCat  # TODO: should use a set of water landuses
             return OK
         finally:
             if not (isProjDb or isRefDb):
@@ -1176,8 +1176,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     totalLatitude REAL,  
     totalLongitude REAL,
     id INTEGER,
-    role INTEGER,
-    isReservoir INTEGER)
+    channelRole INTEGER,
+    waterRole INTEGER)
     """
     
     _WATERDATAINSERTSQL = 'INSERT INTO WATERDATA VALUES(?,?,?,?,?,?,?,?,?,?)'
@@ -1606,12 +1606,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 # because they have been added to the mergedLsus, and DATA tables are written from (unmerged) lsus.
                 # But after regenerating from the DATA tables the reservoirs will be recreated, so there is no harm.
                 if waterBody is not None:
-                    isReservoir = 1 if waterBody.isReservoir else 0
                     try:
                         curs.execute(DBUtils._WATERDATAINSERTSQL, (lsuId, waterBody.cellCount, float(waterBody.area),
                                                                     float(waterBody.originalArea), float(waterBody.totalElevation),
                                                                     float(waterBody.totalLatitude), float(waterBody.totalLongitude),
-                                                                    waterBody.id, waterBody.role, isReservoir))
+                                                                    waterBody.id, waterBody.channelRole, waterBody.waterRole))
                     except Exception:
                         QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._WATERDATA, self.dbFile), self.isBatch)
                         return False
@@ -1758,8 +1757,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                                                       wrow['totalLongitude'], wrow['totalLatitude'])
                         lsuData.waterBody.originalArea = wrow['originalArea']
                         lsuData.waterBody.id = wrow['id']
-                        lsuData.waterBody.role = wrow['role']
-                        lsuData.waterBody.isReservoir = wrow['isReservoir'] == 1
+                        lsuData.waterBody.channelRole = wrow['channelRole']
+                        lsuData.waterBody.waterRole = wrow['waterRole']
                     # add hrus
                     for hrow in cur.execute(self.sqlSelect(self._HRUSDATA, '*', '', '')):
                         hru = hrow['hru']
@@ -2614,6 +2613,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 findRow = conn.execute(findSql, (tid, tcat)).fetchone()
                 if findRow is None:
                     errors.append('Cannot find id {1} category {2} as a source in the {0} table'.format(table, tid, tcat))
+                    break  # from while loop
                 sid = tid
                 scat = tcat
                 tid = int(findRow['sinkid'])
@@ -2626,7 +2626,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         for scat, data in percentages.items():
             for sid, percent in data.items():
                 if int(percent + 0.5) != 100:
-                    if percent == 0 and scat == 'RES':
+                    if percent == 0 and scat in {'RES', 'PND'}:
                         # an unused lake exit: ignore
                         pass
                     else:
@@ -2741,6 +2741,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                              NOT NULL,
             wtype TEXT,
             lsu   INTEGER,
+            subbasin INTEGER,
             area  REAL,
             xpr   REAL,
             ypr   REAL,
@@ -2750,7 +2751,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         );
         """
         
-    _WATERINSERTSQL = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?)'
+    _WATERINSERTSQL = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?,?)'
 
     _ROUTINGCREATESQL = \
         """
@@ -2834,6 +2835,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     CREATE TABLE LAKESDATA (
     id         INTEGER PRIMARY KEY,
     subbasin   INTEGER,
+    role       INTEGER,
     area       REAL,
     meanelev   REAL,
     outlink    INTEGER,
@@ -2846,7 +2848,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     )
     """
     
-    _INSERTLAKESDATA = 'INSERT INTO LAKESDATA VALUES(?,?,?,?,?,?,?,?,?,?,?)' 
+    _INSERTLAKESDATA = 'INSERT INTO LAKESDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?)' 
     
     _CREATELAKELINKS = \
     """

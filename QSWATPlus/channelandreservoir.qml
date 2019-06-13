@@ -1,51 +1,22 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis version="2.18.17" simplifyAlgorithm="0" minimumScale="0" maximumScale="1e+08" simplifyDrawingHints="0" minLabelScale="0" maxLabelScale="1e+08" simplifyDrawingTol="1" readOnly="0" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" scaleBasedLabelVisibilityFlag="0">
-  <edittypes>
-    <edittype widgetv2type="TextEdit" name="Channel">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="ChannelR">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Subbasin">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="AreaC">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Len2">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Slo2">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Wid2">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Dep2">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="MinEl">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="MaxEl">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-    <edittype widgetv2type="TextEdit" name="Reservoir">
-      <widgetv2config IsMultiline="0" fieldEditable="1" constraint="" UseHtml="0" labelOnTop="0" constraintDescription="" notNull="0"/>
-    </edittype>
-  </edittypes>
-  <renderer-v2 forceraster="0" symbollevels="0" type="RuleRenderer" enableorderby="0">
+<qgis minScale="1e+08" simplifyDrawingTol="1" readOnly="0" styleCategories="AllStyleCategories" simplifyDrawingHints="0" labelsEnabled="0" maxScale="0" simplifyMaxScale="1" hasScaleBasedVisibilityFlag="0" simplifyLocal="1" version="3.4.7-Madeira" simplifyAlgorithm="0">
+  <flags>
+    <Identifiable>1</Identifiable>
+    <Removable>1</Removable>
+    <Searchable>1</Searchable>
+  </flags>
+  <renderer-v2 forceraster="0" type="RuleRenderer" enableorderby="0" symbollevels="0">
     <rules key="{50ab9495-26fd-4273-9c00-a04b2e8a8b6c}">
-      <rule filter=" &quot;Reservoir&quot; = 0" key="{d08297ae-7ac2-40dd-b266-b666c1d99d5c}" symbol="0" label="Channel"/>
-      <rule filter=" &quot;Reservoir&quot; > 0" key="{49129db6-8dbb-4e40-ad9d-1d806820c5f4}" symbol="1" label="Reservoir"/>
+      <rule label="Channel" key="{d08297ae-7ac2-40dd-b266-b666c1d99d5c}" filter=" &quot;Reservoir&quot; = 0 AND  &quot;Pond&quot;  = 0" symbol="0"/>
+      <rule label="Reservoir" key="{49129db6-8dbb-4e40-ad9d-1d806820c5f4}" filter=" &quot;Reservoir&quot; > 0 AND  &quot;Pond&quot; = 0" symbol="1"/>
+      <rule label="Pond" key="{9ea290bc-2764-4fbe-bbdc-0d991d819325}" description="Pond" filter=" &quot;Reservoir&quot; = 0 AND  &quot;Pond&quot; > 0" symbol="2"/>
     </rules>
     <symbols>
-      <symbol alpha="1" clip_to_extent="1" type="line" name="0">
-        <layer pass="0" class="SimpleLine" locked="0">
+      <symbol name="0" clip_to_extent="1" force_rhr="0" alpha="1" type="line">
+        <layer class="SimpleLine" enabled="1" pass="0" locked="0">
           <prop k="capstyle" v="round"/>
           <prop k="customdash" v="5;2"/>
-          <prop k="customdash_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="customdash_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="customdash_unit" v="MM"/>
           <prop k="draw_inside_polygon" v="0"/>
           <prop k="joinstyle" v="round"/>
@@ -54,17 +25,25 @@
           <prop k="line_width" v="0.26"/>
           <prop k="line_width_unit" v="MM"/>
           <prop k="offset" v="0"/>
-          <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="offset_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
+          <prop k="ring_filter" v="0"/>
           <prop k="use_custom_dash" v="0"/>
-          <prop k="width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="width_map_unit_scale" v="3x:0,0,0,0,0,0"/>
+          <data_defined_properties>
+            <Option type="Map">
+              <Option name="name" type="QString" value=""/>
+              <Option name="properties"/>
+              <Option name="type" type="QString" value="collection"/>
+            </Option>
+          </data_defined_properties>
         </layer>
       </symbol>
-      <symbol alpha="1" clip_to_extent="1" type="line" name="1">
-        <layer pass="0" class="SimpleLine" locked="0">
+      <symbol name="1" clip_to_extent="1" force_rhr="0" alpha="1" type="line">
+        <layer class="SimpleLine" enabled="1" pass="0" locked="0">
           <prop k="capstyle" v="square"/>
           <prop k="customdash" v="5;2"/>
-          <prop k="customdash_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="customdash_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="customdash_unit" v="MM"/>
           <prop k="draw_inside_polygon" v="0"/>
           <prop k="joinstyle" v="bevel"/>
@@ -73,272 +52,286 @@
           <prop k="line_width" v="2"/>
           <prop k="line_width_unit" v="MM"/>
           <prop k="offset" v="0"/>
-          <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="offset_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="offset_unit" v="MM"/>
+          <prop k="ring_filter" v="0"/>
           <prop k="use_custom_dash" v="0"/>
-          <prop k="width_map_unit_scale" v="0,0,0,0,0,0"/>
+          <prop k="width_map_unit_scale" v="3x:0,0,0,0,0,0"/>
+          <data_defined_properties>
+            <Option type="Map">
+              <Option name="name" type="QString" value=""/>
+              <Option name="properties"/>
+              <Option name="type" type="QString" value="collection"/>
+            </Option>
+          </data_defined_properties>
+        </layer>
+      </symbol>
+      <symbol name="2" clip_to_extent="1" force_rhr="0" alpha="1" type="line">
+        <layer class="SimpleLine" enabled="1" pass="0" locked="0">
+          <prop k="capstyle" v="square"/>
+          <prop k="customdash" v="5;2"/>
+          <prop k="customdash_map_unit_scale" v="3x:0,0,0,0,0,0"/>
+          <prop k="customdash_unit" v="MM"/>
+          <prop k="draw_inside_polygon" v="0"/>
+          <prop k="joinstyle" v="bevel"/>
+          <prop k="line_color" v="21,217,234,255"/>
+          <prop k="line_style" v="solid"/>
+          <prop k="line_width" v="1"/>
+          <prop k="line_width_unit" v="MM"/>
+          <prop k="offset" v="0"/>
+          <prop k="offset_map_unit_scale" v="3x:0,0,0,0,0,0"/>
+          <prop k="offset_unit" v="MM"/>
+          <prop k="ring_filter" v="0"/>
+          <prop k="use_custom_dash" v="0"/>
+          <prop k="width_map_unit_scale" v="3x:0,0,0,0,0,0"/>
+          <data_defined_properties>
+            <Option type="Map">
+              <Option name="name" type="QString" value=""/>
+              <Option name="properties"/>
+              <Option name="type" type="QString" value="collection"/>
+            </Option>
+          </data_defined_properties>
         </layer>
       </symbol>
     </symbols>
   </renderer-v2>
-  <labeling type="simple"/>
   <customproperties>
+    <property key="dualview/previewExpressions" value="COALESCE(&quot;ID&quot;, '&lt;NULL>')"/>
     <property key="embeddedWidgets/count" value="0"/>
-    <property key="labeling" value="pal"/>
-    <property key="labeling/addDirectionSymbol" value="false"/>
-    <property key="labeling/angleOffset" value="0"/>
-    <property key="labeling/blendMode" value="0"/>
-    <property key="labeling/bufferBlendMode" value="0"/>
-    <property key="labeling/bufferColorA" value="255"/>
-    <property key="labeling/bufferColorB" value="255"/>
-    <property key="labeling/bufferColorG" value="255"/>
-    <property key="labeling/bufferColorR" value="255"/>
-    <property key="labeling/bufferDraw" value="false"/>
-    <property key="labeling/bufferJoinStyle" value="64"/>
-    <property key="labeling/bufferNoFill" value="false"/>
-    <property key="labeling/bufferSize" value="1"/>
-    <property key="labeling/bufferSizeInMapUnits" value="false"/>
-    <property key="labeling/bufferSizeMapUnitMaxScale" value="0"/>
-    <property key="labeling/bufferSizeMapUnitMinScale" value="0"/>
-    <property key="labeling/bufferSizeMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/bufferTransp" value="0"/>
-    <property key="labeling/centroidInside" value="false"/>
-    <property key="labeling/centroidWhole" value="false"/>
-    <property key="labeling/decimals" value="3"/>
-    <property key="labeling/displayAll" value="false"/>
-    <property key="labeling/dist" value="0"/>
-    <property key="labeling/distInMapUnits" value="false"/>
-    <property key="labeling/distMapUnitMaxScale" value="0"/>
-    <property key="labeling/distMapUnitMinScale" value="0"/>
-    <property key="labeling/distMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/drawLabels" value="false"/>
-    <property key="labeling/enabled" value="false"/>
-    <property key="labeling/fieldName" value=""/>
-    <property key="labeling/fitInPolygonOnly" value="false"/>
-    <property key="labeling/fontBold" value="false"/>
-    <property key="labeling/fontCapitals" value="0"/>
-    <property key="labeling/fontFamily" value="MS Shell Dlg 2"/>
-    <property key="labeling/fontItalic" value="false"/>
-    <property key="labeling/fontLetterSpacing" value="0"/>
-    <property key="labeling/fontLimitPixelSize" value="false"/>
-    <property key="labeling/fontMaxPixelSize" value="10000"/>
-    <property key="labeling/fontMinPixelSize" value="3"/>
-    <property key="labeling/fontSize" value="8.25"/>
-    <property key="labeling/fontSizeInMapUnits" value="false"/>
-    <property key="labeling/fontSizeMapUnitMaxScale" value="0"/>
-    <property key="labeling/fontSizeMapUnitMinScale" value="0"/>
-    <property key="labeling/fontSizeMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/fontStrikeout" value="false"/>
-    <property key="labeling/fontUnderline" value="false"/>
-    <property key="labeling/fontWeight" value="50"/>
-    <property key="labeling/fontWordSpacing" value="0"/>
-    <property key="labeling/formatNumbers" value="false"/>
-    <property key="labeling/isExpression" value="true"/>
-    <property key="labeling/labelOffsetInMapUnits" value="true"/>
-    <property key="labeling/labelOffsetMapUnitMaxScale" value="0"/>
-    <property key="labeling/labelOffsetMapUnitMinScale" value="0"/>
-    <property key="labeling/labelOffsetMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/labelPerPart" value="false"/>
-    <property key="labeling/leftDirectionSymbol" value="&lt;"/>
-    <property key="labeling/limitNumLabels" value="false"/>
-    <property key="labeling/maxCurvedCharAngleIn" value="20"/>
-    <property key="labeling/maxCurvedCharAngleOut" value="-20"/>
-    <property key="labeling/maxNumLabels" value="2000"/>
-    <property key="labeling/mergeLines" value="false"/>
-    <property key="labeling/minFeatureSize" value="0"/>
-    <property key="labeling/multilineAlign" value="0"/>
-    <property key="labeling/multilineHeight" value="1"/>
-    <property key="labeling/namedStyle" value="Normal"/>
-    <property key="labeling/obstacle" value="true"/>
-    <property key="labeling/obstacleFactor" value="1"/>
-    <property key="labeling/obstacleType" value="0"/>
-    <property key="labeling/offsetType" value="0"/>
-    <property key="labeling/placeDirectionSymbol" value="0"/>
-    <property key="labeling/placement" value="2"/>
-    <property key="labeling/placementFlags" value="10"/>
-    <property key="labeling/plussign" value="false"/>
-    <property key="labeling/predefinedPositionOrder" value="TR,TL,BR,BL,R,L,TSR,BSR"/>
-    <property key="labeling/preserveRotation" value="true"/>
-    <property key="labeling/previewBkgrdColor" value="#ffffff"/>
-    <property key="labeling/priority" value="5"/>
-    <property key="labeling/quadOffset" value="4"/>
-    <property key="labeling/repeatDistance" value="0"/>
-    <property key="labeling/repeatDistanceMapUnitMaxScale" value="0"/>
-    <property key="labeling/repeatDistanceMapUnitMinScale" value="0"/>
-    <property key="labeling/repeatDistanceMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/repeatDistanceUnit" value="1"/>
-    <property key="labeling/reverseDirectionSymbol" value="false"/>
-    <property key="labeling/rightDirectionSymbol" value=">"/>
-    <property key="labeling/scaleMax" value="10000000"/>
-    <property key="labeling/scaleMin" value="1"/>
-    <property key="labeling/scaleVisibility" value="false"/>
-    <property key="labeling/shadowBlendMode" value="6"/>
-    <property key="labeling/shadowColorB" value="0"/>
-    <property key="labeling/shadowColorG" value="0"/>
-    <property key="labeling/shadowColorR" value="0"/>
-    <property key="labeling/shadowDraw" value="false"/>
-    <property key="labeling/shadowOffsetAngle" value="135"/>
-    <property key="labeling/shadowOffsetDist" value="1"/>
-    <property key="labeling/shadowOffsetGlobal" value="true"/>
-    <property key="labeling/shadowOffsetMapUnitMaxScale" value="0"/>
-    <property key="labeling/shadowOffsetMapUnitMinScale" value="0"/>
-    <property key="labeling/shadowOffsetMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shadowOffsetUnits" value="1"/>
-    <property key="labeling/shadowRadius" value="1.5"/>
-    <property key="labeling/shadowRadiusAlphaOnly" value="false"/>
-    <property key="labeling/shadowRadiusMapUnitMaxScale" value="0"/>
-    <property key="labeling/shadowRadiusMapUnitMinScale" value="0"/>
-    <property key="labeling/shadowRadiusMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shadowRadiusUnits" value="1"/>
-    <property key="labeling/shadowScale" value="100"/>
-    <property key="labeling/shadowTransparency" value="30"/>
-    <property key="labeling/shadowUnder" value="0"/>
-    <property key="labeling/shapeBlendMode" value="0"/>
-    <property key="labeling/shapeBorderColorA" value="255"/>
-    <property key="labeling/shapeBorderColorB" value="128"/>
-    <property key="labeling/shapeBorderColorG" value="128"/>
-    <property key="labeling/shapeBorderColorR" value="128"/>
-    <property key="labeling/shapeBorderWidth" value="0"/>
-    <property key="labeling/shapeBorderWidthMapUnitMaxScale" value="0"/>
-    <property key="labeling/shapeBorderWidthMapUnitMinScale" value="0"/>
-    <property key="labeling/shapeBorderWidthMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shapeBorderWidthUnits" value="1"/>
-    <property key="labeling/shapeDraw" value="false"/>
-    <property key="labeling/shapeFillColorA" value="255"/>
-    <property key="labeling/shapeFillColorB" value="255"/>
-    <property key="labeling/shapeFillColorG" value="255"/>
-    <property key="labeling/shapeFillColorR" value="255"/>
-    <property key="labeling/shapeJoinStyle" value="64"/>
-    <property key="labeling/shapeOffsetMapUnitMaxScale" value="0"/>
-    <property key="labeling/shapeOffsetMapUnitMinScale" value="0"/>
-    <property key="labeling/shapeOffsetMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shapeOffsetUnits" value="1"/>
-    <property key="labeling/shapeOffsetX" value="0"/>
-    <property key="labeling/shapeOffsetY" value="0"/>
-    <property key="labeling/shapeRadiiMapUnitMaxScale" value="0"/>
-    <property key="labeling/shapeRadiiMapUnitMinScale" value="0"/>
-    <property key="labeling/shapeRadiiMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shapeRadiiUnits" value="1"/>
-    <property key="labeling/shapeRadiiX" value="0"/>
-    <property key="labeling/shapeRadiiY" value="0"/>
-    <property key="labeling/shapeRotation" value="0"/>
-    <property key="labeling/shapeRotationType" value="0"/>
-    <property key="labeling/shapeSVGFile" value=""/>
-    <property key="labeling/shapeSizeMapUnitMaxScale" value="0"/>
-    <property key="labeling/shapeSizeMapUnitMinScale" value="0"/>
-    <property key="labeling/shapeSizeMapUnitScale" value="0,0,0,0,0,0"/>
-    <property key="labeling/shapeSizeType" value="0"/>
-    <property key="labeling/shapeSizeUnits" value="1"/>
-    <property key="labeling/shapeSizeX" value="0"/>
-    <property key="labeling/shapeSizeY" value="0"/>
-    <property key="labeling/shapeTransparency" value="0"/>
-    <property key="labeling/shapeType" value="0"/>
-    <property key="labeling/substitutions" value="&lt;substitutions/>"/>
-    <property key="labeling/textColorA" value="255"/>
-    <property key="labeling/textColorB" value="0"/>
-    <property key="labeling/textColorG" value="0"/>
-    <property key="labeling/textColorR" value="0"/>
-    <property key="labeling/textTransp" value="0"/>
-    <property key="labeling/upsidedownLabels" value="0"/>
-    <property key="labeling/useSubstitutions" value="false"/>
-    <property key="labeling/wrapChar" value=""/>
-    <property key="labeling/xOffset" value="0"/>
-    <property key="labeling/yOffset" value="0"/>
-    <property key="labeling/zIndex" value="0"/>
     <property key="variableNames"/>
     <property key="variableValues"/>
   </customproperties>
   <blendMode>0</blendMode>
   <featureBlendMode>0</featureBlendMode>
-  <layerTransparency>0</layerTransparency>
-  <displayfield>ID</displayfield>
-  <label>0</label>
-  <labelattributes>
-    <label fieldname="" text="Label"/>
-    <family fieldname="" name="MS Shell Dlg 2"/>
-    <size fieldname="" units="pt" value="12"/>
-    <bold fieldname="" on="0"/>
-    <italic fieldname="" on="0"/>
-    <underline fieldname="" on="0"/>
-    <strikeout fieldname="" on="0"/>
-    <color fieldname="" red="0" blue="0" green="0"/>
-    <x fieldname=""/>
-    <y fieldname=""/>
-    <offset x="0" y="0" units="pt" yfieldname="" xfieldname=""/>
-    <angle fieldname="" value="0" auto="0"/>
-    <alignment fieldname="" value="center"/>
-    <buffercolor fieldname="" red="255" blue="255" green="255"/>
-    <buffersize fieldname="" units="pt" value="1"/>
-    <bufferenabled fieldname="" on=""/>
-    <multilineenabled fieldname="" on=""/>
-    <selectedonly on=""/>
-  </labelattributes>
-  <SingleCategoryDiagramRenderer diagramType="Histogram" sizeLegend="0" attributeLegend="1">
-    <DiagramCategory penColor="#000000" labelPlacementMethod="XHeight" penWidth="0" diagramOrientation="Up" sizeScale="0,0,0,0,0,0" minimumSize="0" barWidth="5" penAlpha="255" maxScaleDenominator="1e+08" backgroundColor="#ffffff" transparency="0" width="15" scaleDependency="Area" backgroundAlpha="255" angleOffset="1440" scaleBasedVisibility="0" enabled="0" height="15" lineSizeScale="0,0,0,0,0,0" sizeType="MM" lineSizeType="MM" minScaleDenominator="inf">
+  <layerOpacity>1</layerOpacity>
+  <SingleCategoryDiagramRenderer attributeLegend="1" diagramType="Histogram">
+    <DiagramCategory enabled="0" maxScaleDenominator="1e+08" barWidth="5" sizeScale="3x:0,0,0,0,0,0" minScaleDenominator="0" diagramOrientation="Up" sizeType="MM" lineSizeType="MM" opacity="1" width="15" scaleBasedVisibility="0" rotationOffset="270" height="15" penColor="#000000" scaleDependency="Area" minimumSize="0" lineSizeScale="3x:0,0,0,0,0,0" backgroundAlpha="255" labelPlacementMethod="XHeight" penWidth="0" backgroundColor="#ffffff" penAlpha="255">
       <fontProperties description="MS Shell Dlg 2,8.25,-1,5,50,0,0,0,0,0" style=""/>
-      <attribute field="" color="#000000" label=""/>
+      <attribute label="" color="#000000" field=""/>
     </DiagramCategory>
-    <symbol alpha="1" clip_to_extent="1" type="marker" name="sizeSymbol">
-      <layer pass="0" class="SimpleMarker" locked="0">
-        <prop k="angle" v="0"/>
-        <prop k="color" v="255,0,0,255"/>
-        <prop k="horizontal_anchor_point" v="1"/>
-        <prop k="joinstyle" v="bevel"/>
-        <prop k="name" v="circle"/>
-        <prop k="offset" v="0,0"/>
-        <prop k="offset_map_unit_scale" v="0,0,0,0,0,0"/>
-        <prop k="offset_unit" v="MM"/>
-        <prop k="outline_color" v="0,0,0,255"/>
-        <prop k="outline_style" v="solid"/>
-        <prop k="outline_width" v="0"/>
-        <prop k="outline_width_map_unit_scale" v="0,0,0,0,0,0"/>
-        <prop k="outline_width_unit" v="MM"/>
-        <prop k="scale_method" v="diameter"/>
-        <prop k="size" v="2"/>
-        <prop k="size_map_unit_scale" v="0,0,0,0,0,0"/>
-        <prop k="size_unit" v="MM"/>
-        <prop k="vertical_anchor_point" v="1"/>
-      </layer>
-    </symbol>
   </SingleCategoryDiagramRenderer>
-  <DiagramLayerSettings yPosColumn="-1" showColumn="-1" linePlacementFlags="10" placement="2" dist="0" xPosColumn="-1" priority="0" obstacle="0" zIndex="0" showAll="1"/>
-  <annotationform>.</annotationform>
+  <DiagramLayerSettings placement="2" zIndex="0" linePlacementFlags="2" priority="0" dist="0" obstacle="0" showAll="1">
+    <properties>
+      <Option type="Map">
+        <Option name="name" type="QString" value=""/>
+        <Option name="properties"/>
+        <Option name="type" type="QString" value="collection"/>
+      </Option>
+    </properties>
+  </DiagramLayerSettings>
+  <geometryOptions removeDuplicateNodes="0" geometryPrecision="0">
+    <activeChecks/>
+    <checkConfiguration/>
+  </geometryOptions>
+  <fieldConfiguration>
+    <field name="LINKNO">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Channel">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="ChannelR">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Subbasin">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="AreaC">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Len2">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Slo2">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Wid2">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Dep2">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="MinEl">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="MaxEl">
+      <editWidget type="TextEdit">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Reservoir">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="Pond">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="LakeIn">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+    <field name="LakeOut">
+      <editWidget type="Range">
+        <config>
+          <Option/>
+        </config>
+      </editWidget>
+    </field>
+  </fieldConfiguration>
   <aliases>
-    <alias field="Channel" index="0" name=""/>
-    <alias field="ChannelR" index="1" name=""/>
-    <alias field="Subbasin" index="2" name=""/>
-    <alias field="AreaC" index="3" name=""/>
-    <alias field="Len2" index="4" name=""/>
-    <alias field="Slo2" index="5" name=""/>
-    <alias field="Wid2" index="6" name=""/>
-    <alias field="Dep2" index="7" name=""/>
-    <alias field="MinEl" index="8" name=""/>
-    <alias field="MaxEl" index="9" name=""/>
-    <alias field="Reservoir" index="10" name=""/>
+    <alias name="" index="0" field="LINKNO"/>
+    <alias name="" index="1" field="Channel"/>
+    <alias name="" index="2" field="ChannelR"/>
+    <alias name="" index="3" field="Subbasin"/>
+    <alias name="" index="4" field="AreaC"/>
+    <alias name="" index="5" field="Len2"/>
+    <alias name="" index="6" field="Slo2"/>
+    <alias name="" index="7" field="Wid2"/>
+    <alias name="" index="8" field="Dep2"/>
+    <alias name="" index="9" field="MinEl"/>
+    <alias name="" index="10" field="MaxEl"/>
+    <alias name="" index="11" field="Reservoir"/>
+    <alias name="" index="12" field="Pond"/>
+    <alias name="" index="13" field="LakeIn"/>
+    <alias name="" index="14" field="LakeOut"/>
   </aliases>
   <excludeAttributesWMS/>
   <excludeAttributesWFS/>
-  <attributeactions default="-1"/>
-  <attributetableconfig actionWidgetStyle="dropDown" sortExpression="&quot;Reservoir&quot;" sortOrder="1">
+  <defaults>
+    <default field="LINKNO" expression="" applyOnUpdate="0"/>
+    <default field="Channel" expression="" applyOnUpdate="0"/>
+    <default field="ChannelR" expression="" applyOnUpdate="0"/>
+    <default field="Subbasin" expression="" applyOnUpdate="0"/>
+    <default field="AreaC" expression="" applyOnUpdate="0"/>
+    <default field="Len2" expression="" applyOnUpdate="0"/>
+    <default field="Slo2" expression="" applyOnUpdate="0"/>
+    <default field="Wid2" expression="" applyOnUpdate="0"/>
+    <default field="Dep2" expression="" applyOnUpdate="0"/>
+    <default field="MinEl" expression="" applyOnUpdate="0"/>
+    <default field="MaxEl" expression="" applyOnUpdate="0"/>
+    <default field="Reservoir" expression="" applyOnUpdate="0"/>
+    <default field="Pond" expression="" applyOnUpdate="0"/>
+    <default field="LakeIn" expression="" applyOnUpdate="0"/>
+    <default field="LakeOut" expression="" applyOnUpdate="0"/>
+  </defaults>
+  <constraints>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="LINKNO"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Channel"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="ChannelR"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Subbasin"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="AreaC"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Len2"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Slo2"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Wid2"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Dep2"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="MinEl"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="MaxEl"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Reservoir"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="Pond"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="LakeIn"/>
+    <constraint exp_strength="0" constraints="0" unique_strength="0" notnull_strength="0" field="LakeOut"/>
+  </constraints>
+  <constraintExpressions>
+    <constraint exp="" field="LINKNO" desc=""/>
+    <constraint exp="" field="Channel" desc=""/>
+    <constraint exp="" field="ChannelR" desc=""/>
+    <constraint exp="" field="Subbasin" desc=""/>
+    <constraint exp="" field="AreaC" desc=""/>
+    <constraint exp="" field="Len2" desc=""/>
+    <constraint exp="" field="Slo2" desc=""/>
+    <constraint exp="" field="Wid2" desc=""/>
+    <constraint exp="" field="Dep2" desc=""/>
+    <constraint exp="" field="MinEl" desc=""/>
+    <constraint exp="" field="MaxEl" desc=""/>
+    <constraint exp="" field="Reservoir" desc=""/>
+    <constraint exp="" field="Pond" desc=""/>
+    <constraint exp="" field="LakeIn" desc=""/>
+    <constraint exp="" field="LakeOut" desc=""/>
+  </constraintExpressions>
+  <expressionfields/>
+  <attributeactions>
+    <defaultAction key="Canvas" value="{00000000-0000-0000-0000-000000000000}"/>
+  </attributeactions>
+  <attributetableconfig sortOrder="1" sortExpression="&quot;Pond&quot;" actionWidgetStyle="dropDown">
     <columns>
-      <column width="-1" hidden="0" type="field" name="Channel"/>
-      <column width="-1" hidden="0" type="field" name="ChannelR"/>
-      <column width="-1" hidden="0" type="field" name="Subbasin"/>
-      <column width="-1" hidden="0" type="field" name="AreaC"/>
-      <column width="-1" hidden="0" type="field" name="Len2"/>
-      <column width="-1" hidden="0" type="field" name="Slo2"/>
-      <column width="-1" hidden="0" type="field" name="Wid2"/>
-      <column width="-1" hidden="0" type="field" name="Dep2"/>
-      <column width="-1" hidden="0" type="field" name="MinEl"/>
-      <column width="-1" hidden="0" type="field" name="MaxEl"/>
-      <column width="-1" hidden="0" type="field" name="Reservoir"/>
-      <column width="-1" hidden="1" type="actions"/>
+      <column name="Channel" hidden="0" type="field" width="-1"/>
+      <column name="ChannelR" hidden="0" type="field" width="-1"/>
+      <column name="Subbasin" hidden="0" type="field" width="-1"/>
+      <column name="AreaC" hidden="0" type="field" width="-1"/>
+      <column name="Len2" hidden="0" type="field" width="-1"/>
+      <column name="Slo2" hidden="0" type="field" width="-1"/>
+      <column name="Wid2" hidden="0" type="field" width="-1"/>
+      <column name="Dep2" hidden="0" type="field" width="-1"/>
+      <column name="MinEl" hidden="0" type="field" width="-1"/>
+      <column name="MaxEl" hidden="0" type="field" width="-1"/>
+      <column name="Reservoir" hidden="0" type="field" width="-1"/>
+      <column hidden="1" type="actions" width="-1"/>
+      <column name="LINKNO" hidden="0" type="field" width="-1"/>
+      <column name="Pond" hidden="0" type="field" width="-1"/>
+      <column name="LakeIn" hidden="0" type="field" width="-1"/>
+      <column name="LakeOut" hidden="0" type="field" width="-1"/>
     </columns>
   </attributetableconfig>
-  <editform>.</editform>
+  <conditionalstyles>
+    <rowstyles/>
+    <fieldstyles/>
+  </conditionalstyles>
+  <editform tolerant="1">C:/PROGRA~1/QGIS3~1.4/bin</editform>
   <editforminit/>
   <editforminitcodesource>0</editforminitcodesource>
-  <editforminitfilepath>.</editforminitfilepath>
+  <editforminitfilepath>C:/PROGRA~1/QGIS3~1.4/bin</editforminitfilepath>
   <editforminitcode><![CDATA[# -*- coding: utf-8 -*-
 """
 QGIS forms can have a Python function that is called when the form is
@@ -358,24 +351,42 @@ def my_form_open(dialog, layer, feature):
 ]]></editforminitcode>
   <featformsuppress>0</featformsuppress>
   <editorlayout>generatedlayout</editorlayout>
+  <editable>
+    <field name="AreaC" editable="1"/>
+    <field name="Channel" editable="1"/>
+    <field name="ChannelR" editable="1"/>
+    <field name="Dep2" editable="1"/>
+    <field name="LINKNO" editable="1"/>
+    <field name="LakeIn" editable="1"/>
+    <field name="LakeOut" editable="1"/>
+    <field name="Len2" editable="1"/>
+    <field name="MaxEl" editable="1"/>
+    <field name="MinEl" editable="1"/>
+    <field name="Pond" editable="1"/>
+    <field name="Reservoir" editable="1"/>
+    <field name="Slo2" editable="1"/>
+    <field name="Subbasin" editable="1"/>
+    <field name="Wid2" editable="1"/>
+  </editable>
+  <labelOnTop>
+    <field name="AreaC" labelOnTop="0"/>
+    <field name="Channel" labelOnTop="0"/>
+    <field name="ChannelR" labelOnTop="0"/>
+    <field name="Dep2" labelOnTop="0"/>
+    <field name="LINKNO" labelOnTop="0"/>
+    <field name="LakeIn" labelOnTop="0"/>
+    <field name="LakeOut" labelOnTop="0"/>
+    <field name="Len2" labelOnTop="0"/>
+    <field name="MaxEl" labelOnTop="0"/>
+    <field name="MinEl" labelOnTop="0"/>
+    <field name="Pond" labelOnTop="0"/>
+    <field name="Reservoir" labelOnTop="0"/>
+    <field name="Slo2" labelOnTop="0"/>
+    <field name="Subbasin" labelOnTop="0"/>
+    <field name="Wid2" labelOnTop="0"/>
+  </labelOnTop>
   <widgets/>
-  <conditionalstyles>
-    <rowstyles/>
-    <fieldstyles/>
-  </conditionalstyles>
-  <defaults>
-    <default field="Channel" expression=""/>
-    <default field="ChannelR" expression=""/>
-    <default field="Subbasin" expression=""/>
-    <default field="AreaC" expression=""/>
-    <default field="Len2" expression=""/>
-    <default field="Slo2" expression=""/>
-    <default field="Wid2" expression=""/>
-    <default field="Dep2" expression=""/>
-    <default field="MinEl" expression=""/>
-    <default field="MaxEl" expression=""/>
-    <default field="Reservoir" expression=""/>
-  </defaults>
   <previewExpression>COALESCE("ID", '&lt;NULL>')</previewExpression>
+  <mapTip>ID</mapTip>
   <layerGeometryType>1</layerGeometryType>
 </qgis>

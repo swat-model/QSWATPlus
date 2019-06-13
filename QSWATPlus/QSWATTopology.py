@@ -65,6 +65,9 @@ class QSWATTopology:
     ## and must not be -1 since this indicates a 'not found' in most gets, or a main outlet
     _NOBASIN = -2
     
+    _RESTYPE = 1
+    _PONDTYPE = 2
+    
     _LINKNO = 'LINKNO'
     _DSLINKNO = 'DSLINKNO'
     _USLINKNO1 = 'USLINKNO1'
@@ -100,6 +103,7 @@ class QSWATTopology:
     _CHANNEL = 'Channel'
     _CHANNELR = 'ChannelR'
     _LANDSCAPE = 'Landscape'
+    _AQUIFER = 'Aquifer'
     _LSU = 'LSU'
     _LSUID = 'LSUID'
     _PENWIDTH = 'PenWidth'
@@ -107,6 +111,7 @@ class QSWATTopology:
     _HRUGIS = 'HRUGIS'
     _LAKEID = 'LakeId'
     _RESERVOIR = 'Reservoir'
+    _POND = 'Pond'
     _AREAC = 'AreaC'
     _LEN2 = 'Len2'
     _SLO2 = 'Slo2'
@@ -201,8 +206,8 @@ class QSWATTopology:
         self.pointId = 0
         ## current water body id (for lakes, reservoirs and ponds)
         self.waterBodyId = 0
-        ## channel links to reservoir point ids: reservoir discharges into channel
-        self.chLinkToReservoir = dict()
+        ## channel links to reservoir or pond point ids plus water type: reservoir or pond discharges into channel
+        self.chLinkToWater = dict()
         ## channel links with point sources flowing into them (defined by inlets/outlets file)
         self.chLinkToPtSrc = dict()
         ## channel links to watershed inlets (for grid models only)
@@ -342,7 +347,7 @@ class QSWATTopology:
         self.channelLengths.clear()
         self.channelSlopes.clear()
         self.channelsData.clear()
-        self.chLinkToReservoir.clear()
+        self.chLinkToWater.clear()
         self.chLinkToPtSrc.clear()
         self.chLinkToInlet.clear()
         self.distancesToJoins.clear()
@@ -492,6 +497,7 @@ class QSWATTopology:
                     isInlet = point[inletIndex] == 1
                     isPtSource = point[ptSourceIndex] == 1
                     isReservoir = point[resIndex] == 1
+                    isPond = point[resIndex] == 2
                     if lakesLayer is not None: 
                         # check if point is inside lake
                         inLake = False
@@ -506,6 +512,8 @@ class QSWATTopology:
                                     typ = 'Point source'
                                 elif isReservoir:
                                     typ = 'Reservoir'
+                                elif isPond:
+                                    typ = 'Pond'
                                 else:
                                     # main outlets allowed within lakes
                                     break
@@ -523,7 +531,10 @@ class QSWATTopology:
                             self.chLinkToInlet[chLink] = (self.nonzeroPointId(dsNode), pt)
                     elif isReservoir:
                         pt = point.geometry().asPoint()
-                        self.chLinkToReservoir[chLink] = (self.nonzeroPointId(dsNode), pt)
+                        self.chLinkToWater[chLink] = (self.nonzeroPointId(dsNode), pt, QSWATTopology._RESTYPE)
+                    elif isPond:
+                        pt = point.geometry().asPoint()
+                        self.chLinkToWater[chLink] = (self.nonzeroPointId(dsNode), pt, QSWATTopology._PONDTYPE)
                     # else an outlet: nothing to do
                     
                     # check for user-defined outlets coincident with stream junctions
@@ -531,6 +542,7 @@ class QSWATTopology:
                         if isInlet: typ = 'Inlet'
                         elif isPtSource: typ = 'Point source'
                         elif isReservoir: typ = 'Reservoir'
+                        elif isPond: typ = 'Pond'
                         else: typ = 'Outlet'
                         msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(typ, dsNode)
                         if reportErrors:
@@ -645,6 +657,10 @@ class QSWATTopology:
         Not used with grid models.""" 
         lakesProvider = lakesLayer.dataProvider()
         lakeIdIndex = lakesProvider.fieldNameIndex(QSWATTopology._LAKEID)
+        lakeResIndex = lakesProvider.fieldNameIndex(QSWATTopology._RES)
+        if lakeResIndex < 0:
+            QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
+                                   format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
         subsProvider =  subbasinsLayer.dataProvider()
         subsAreaIndex = subsProvider.fieldNameIndex(Parameters._AREA)
         if subsAreaIndex < 0:
@@ -690,7 +706,11 @@ class QSWATTopology:
             lakeGeom = lake.geometry()
             lakeRect = lakeGeom.boundingBox()
             lakeId = lake[lakeIdIndex]
-            lakeData = LakeData(lakeGeom.area(), lakeGeom.centroid().asPoint())
+            if lakeResIndex < 0:
+                waterRole = QSWATTopology._RESTYPE
+            else:
+                waterRole = lake[lakeResIndex]
+            lakeData = LakeData(lakeGeom.area(), lakeGeom.centroid().asPoint(), waterRole)
             totalElevation = 0
             # the area removed from channel basins that intersect wih the lake
             chBasinWaterArea = 0
@@ -984,6 +1004,7 @@ class QSWATTopology:
         if gridLakeIdIndex < 0:
             # can be no lakes
             return 0
+        gridResIndex = gridProvider.fieldNameIndex(QSWATTopology._RES)
         channelsProvider = channelsLayer.dataProvider()
         channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
         channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
@@ -1012,17 +1033,18 @@ class QSWATTopology:
         # map of lake id to (area, x moment of area, y moment)
         lakeAreaData = dict()
         for cell in gridProvider.getFeatures():
+            waterRole = cell[gridResIndex]
             poly = cell[gridPolyIndex]
             downPoly = cell[gridDownIndex]
             sourceLake = cell[gridLakeIdIndex]
             targetLake = polyToLake.get(downPoly, None)
             if sourceLake != NULL:
                 if sourceLake not in lakeAreaData:
-                    lakeAreaData[sourceLake] = (0, 0, 0)
+                    lakeAreaData[sourceLake] = (waterRole, 0, 0, 0)
                 area = cell[gridAreaIndex] * 1E4  # convert ha to m^2
                 centre, _, _ = QSWATUtils.centreGridCell(cell)
-                totalArea, xMoment, yMoment = lakeAreaData[sourceLake]
-                lakeAreaData[sourceLake] = (totalArea + area, xMoment + area * centre.x(), yMoment + area * centre.y())
+                _, totalArea, xMoment, yMoment = lakeAreaData[sourceLake]
+                lakeAreaData[sourceLake] = (waterRole, totalArea + area, xMoment + area * centre.x(), yMoment + area * centre.y())
                 if targetLake == sourceLake:
                     # channel links two lake cells within lake
                     polysInsidelake[poly] = sourceLake
@@ -1035,9 +1057,9 @@ class QSWATTopology:
         # map of lake id to possible exit channels
         # will choose one with largest drainage
         exitData = dict()
-        for lakeId, (area, xMoment, yMoment) in lakeAreaData.items():
+        for lakeId, (waterRole, area, xMoment, yMoment) in lakeAreaData.items():
             centroid = QgsPointXY(float(xMoment) / area, float(yMoment) / area)
-            self.lakesData[lakeId] = LakeData(area, centroid)
+            self.lakesData[lakeId] = LakeData(area, centroid, waterRole)
             totalElevation[lakeId] = 0
             exitData[lakeId] = dict()
         # convert wsnos to links and complete LakesData
@@ -1135,6 +1157,7 @@ Other possible outlet stream links are {2}.
         and inlets/outlets are little use in any case with existing watersheds."""
         
         lakeIdIndex = self.getIndex(lakesLayer, QSWATTopology._LAKEID)
+        lakeResIndex = self.getIndex(lakesLayer, QSWATTopology._RES)
         channelLinkIndex = self.getIndex(channelsLayer, QSWATTopology._LINKNO)
         channelDsLinkIndex = self.getIndex(channelsLayer, QSWATTopology._DSLINKNO)
         channelBasinIndex = self.getIndex(channelsLayer, QSWATTopology._BASINNO)
@@ -1148,6 +1171,7 @@ Other possible outlet stream links are {2}.
         self.lakesData = dict()
         for lake in lakesLayer.getFeatures():
             lakeId = lake[lakeIdIndex]
+            waterRole = lake[lakeResIndex]
             if lakeId in self.lakesData:
                 QSWATUtils.error('Lake identifier {0} occurs twice in {1}.  Lakes not added.'.format(lakeId, QSWATUtils.layerFilename(lakesLayer)), 
                                  gv.isBatch, reportErrors=reportErrors)
@@ -1158,7 +1182,7 @@ Other possible outlet stream links are {2}.
             geom = lake.geometry()
             area = geom.area()
             centroid = geom.centroid().asPoint()
-            self.lakesData[lakeId] = LakeData(area, centroid)
+            self.lakesData[lakeId] = LakeData(area, centroid, waterRole)
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
@@ -1284,7 +1308,7 @@ Other possible outlet stream links are {2}.
             curs.execute(clearSQL)
             curs.execute(db._CREATELAKEBASINS)
             for lakeId, lakeData in self.lakesData.items():
-                curs.execute(db._INSERTLAKESDATA, (lakeId, lakeData.outPoint[0], lakeData.area, lakeData.elevation, lakeData.outChLink,
+                curs.execute(db._INSERTLAKESDATA, (lakeId, lakeData.outPoint[0], lakeData.waterRole, lakeData.area, lakeData.elevation, lakeData.outChLink,
                                           lakeData.outPoint[1], lakeData.outPoint[2].x(), lakeData.outPoint[2].y(),
                                           lakeData.outPoint[3], lakeData.centroid.x(), lakeData.centroid.y()))
                 # QSWATUtils.loginfo(str(lakeData.inChLinks.keys()))
@@ -1332,7 +1356,7 @@ Other possible outlet stream links are {2}.
                 for lakeRow in curs.execute(lakeSql).fetchall():
                     lakeId = lakeRow['id']
                     self.waterBodyId = max(self.waterBodyId, lakeId)
-                    self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy']))
+                    self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy'], lakeRow['role']))
                     outChLink = lakeRow['outlink']
                     self.lakesData[lakeId].outChLink = outChLink
                     self.chLinkFromLake[outChLink] = lakeId
@@ -1960,7 +1984,7 @@ Other possible outlet stream links are {2}.
             clearSQL = 'DROP TABLE IF EXISTS ' + table
             curs.execute(clearSQL)
             curs.execute(self.db._POINTSCREATESQL)
-            reservoirsAdded = []
+            waterAdded = []
             # Add outlets from streams
             for subbasin, (pointId, pt, chLink) in self.outlets.items():
                 if subbasin in self.upstreamFromInlets or subbasin in self.outletsInLake or \
@@ -2028,18 +2052,18 @@ Other possible outlet stream links are {2}.
                     # so add its definition
                     (outletId, outPt, _) = self.outlets[subbasin]
                     self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
-                self.addPoint(curs, subbasin, pointId, pt, elev, 'R')
-                reservoirsAdded.append(pointId)
+                self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
+                waterAdded.append(pointId)
                 # inlets to lake.  These are outlets from streams in grid models, so not necessary
                 if not useGridModel:
                     for chLink, (pointId, pt, elev) in lake.inChLinks.items():
                         chBasin = self.chLinkToChBasin[chLink]
                         subbasin = self.chBasinToSubbasin[chBasin]
                         self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
-            for chLink, (pointId, pt) in self.chLinkToReservoir.items():
+            for chLink, (pointId, pt, _) in self.chLinkToWater.items():
                 # reservoir points at lake outlets can appear here 
                 # but already added from lakesdata
-                if pointId in reservoirsAdded:
+                if pointId in waterAdded:
                     continue
                 if useGridModel:
                     subbasin = self.chLinkToChBasin[chLink]
@@ -2049,7 +2073,7 @@ Other possible outlet stream links are {2}.
                     if subbasin in self.upstreamFromInlets:
                         continue
                 elev = QSWATTopology.valueAtPoint(pt, demLayer)
-                self.addPoint(curs, subbasin, pointId, pt, elev, 'R')
+                self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
             for channel, (_, pointId, pt) in self.foundReservoirs.items():
                 if useGridModel:
                     subbasin = self.chLinkToChBasin[channel]
@@ -2059,7 +2083,7 @@ Other possible outlet stream links are {2}.
                     if subbasin in self.upstreamFromInlets:
                         continue
                 elev = QSWATTopology.valueAtPoint(pt, demLayer)
-                self.addPoint(curs, subbasin, pointId, pt, elev, 'R')
+                self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
 #             for subbasin, (pointId, pt) in self.extraReservoirs.iteritems():
 #                 if subbasin in self.upstreamFromInlets: 
 #                 # shouldn't happen, but users can be stupid
@@ -2290,6 +2314,7 @@ Other possible outlet stream links are {2}.
             fields.append(QgsField(QSWATTopology._MINEL, QVariant.Double))
             fields.append(QgsField(QSWATTopology._MAXEL, QVariant.Double))
             fields.append(QgsField(QSWATTopology._RESERVOIR, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._POND, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LAKEIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LAKEOUT, QVariant.Int))
             provider1.addAttributes(fields)
@@ -2304,6 +2329,7 @@ Other possible outlet stream links are {2}.
             minElIdx = self.getIndex(rivs1Layer, QSWATTopology._MINEL)
             maxElIdx = self.getIndex(rivs1Layer, QSWATTopology._MAXEL)
             resIdx = self.getIndex(rivs1Layer, QSWATTopology._RESERVOIR)
+            pndIdx = self.getIndex(rivs1Layer, QSWATTopology._POND)
             lakeInIdx = self.getIndex(rivs1Layer, QSWATTopology._LAKEIN)
             lakeOutIdx = self.getIndex(rivs1Layer, QSWATTopology._LAKEOUT)
             mmap = dict()
@@ -2355,18 +2381,21 @@ Other possible outlet stream links are {2}.
                     slopePercent = float(mergeData.slope * 100 * gv.reachSlopeMultiplier) / gv.mainLengthMultiplier
                     minEl = float(mergeData.minEl)
                     maxEl = float(mergeData.maxEl)
+                # possible for channel to be so short it has no pixels draining to it
+                # also no LSU data when channel is outlet from lake in grid model
+                basinData = basins.get(subbasin, None)
+                lsuData = None if basinData is None else basinData.getLsus().get(channel, None)
                 drainAreaKm = float(drainAreaHa) / 100 
                 channelWidth = float(gv.channelWidthMultiplier * (drainAreaKm ** gv.channelWidthExponent))
                 wid2Data[SWATChannel] = channelWidth
                 channelDepth = float(gv.channelDepthMultiplier * (drainAreaKm ** gv.channelDepthExponent))
-                curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, length, slopePercent, 
-                                   channelWidth, channelDepth, minEl, maxEl))
+                rid = 0 if lsuData is None else self.getReservoirId(lsuData, floodscape)
+                pid = 0 if lsuData is None else self.getPondId(lsuData, floodscape)
+                if rid == 0 and pid == 0:
+                    # omit from gis_channels channels which have become reservoirs or ponds
+                    curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, length, slopePercent, 
+                                       channelWidth, channelDepth, minEl, maxEl))
                 if addToRiv1:
-                    # possible for channel to be so short it has no pixels draining to it
-                    # also no LSU data when channel is outlet from lake in grid model
-                    basinData = basins.get(subbasin, None)
-                    lsuData = None if basinData is None else basinData.getLsus().get(channel, None)
-                    rid = 0 if lsuData is None else self.getReservoirId(lsuData, floodscape)
                     lakeInId = self.chLinkIntoLake.get(channel, 0)
                     mmap[fid] = dict()
                     mmap[fid][areaCIdx] = drainAreaHa
@@ -2377,6 +2406,7 @@ Other possible outlet stream links are {2}.
                     mmap[fid][minElIdx] = minEl
                     mmap[fid][maxElIdx] = maxEl
                     mmap[fid][resIdx] = rid
+                    mmap[fid][pndIdx] = pid
                     mmap[fid][lakeInIdx] = lakeInId
                     mmap[fid][lakeOutIdx] = lakeOutId
             time2 = time.process_time()
@@ -2456,7 +2486,14 @@ Other possible outlet stream links are {2}.
     def getReservoirId(self, channelData, floodscape):
         """Return reservoir id, if any, else 0."""
         lsuData = channelData.get(floodscape, None)
-        if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isReservoir:
+        if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isReservoir():
+            return lsuData.waterBody.id
+        return 0
+    
+    def getPondId(self, channelData, floodscape):
+        """Return pond id, if any, else 0."""
+        lsuData = channelData.get(floodscape, None)
+        if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isPond():
             return lsuData.waterBody.id
         return 0
         
@@ -2504,7 +2541,7 @@ Other possible outlet stream links are {2}.
         subbasinCat = 'SUB'
         ptCat = 'PT'
         resCat = 'RES'
-        lakeCat = 'RES'
+        pondCat = 'PND'
         xCat = 'X'
         # first associate any inlets, point sources and reservoirs with appropriate channels
         if gv.useGridModel:
@@ -2537,20 +2574,20 @@ Other possible outlet stream links are {2}.
                 channel not in self.chLinkInsideLake and \
                 not (gv.useGridModel and channel in self.chLinkFromLake):  # not already has a point, not merged, not inslide lake 
                 channelToPtSrc[channel] = ptsrc
-        # map channels to Reservoirs that replace them as drainage targets
-        # and reservoirs to channels they drain into
+        # map channels to water bodies that replace them as drainage targets
+        # and water bodies to channels they drain into
         floodscape = QSWATUtils._FLOODPLAIN if gv.useLandscapes else QSWATUtils._NOLANDSCAPE
-        channelToReservoir = dict()
+        channelToWater = dict()
         for basinData in basins.values():
             for channel, channelData in basinData.getLsus().items():
                 lsuData = channelData.get(floodscape, None)
-                if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isReservoir:
-                    channelToReservoir[channel] = lsuData.waterBody.id
+                if lsuData is not None and lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                    channelToWater[channel] = (lsuData.waterBody.id, lsuData.waterBody.waterRole)
         try:
             with self.db.conn as conn:
                 curs = conn.cursor()
                 routedPoints = []
-                routedReservoirs = []
+                routedWater = []
                 routedChannels = []
 #                 routedSubbasins = []
                 for channel, SWATChannel in self.channelToSWATChannel.items():
@@ -2561,10 +2598,11 @@ Other possible outlet stream links are {2}.
                             ptsrcId = ptsrc[0]
                             if ptsrcId not in routedPoints:
                                 finalChannel = self.finalTarget(channel, mergedChannels)
-                                rid = channelToReservoir.get(finalChannel, -1)
-                                if rid >= 0:
+                                wid, role = channelToWater.get(finalChannel, (-1, -1))
+                                if wid >= 0:
+                                    wCat = resCat if role == 1 else pondCat
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                 (ptsrcId, ptCat, rid, resCat, 100))
+                                                 (ptsrcId, ptCat, wid, wCat, 100))
                                 else:
                                     finalSWATChannel = self.channelToSWATChannel[finalChannel]
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
@@ -2577,10 +2615,11 @@ Other possible outlet stream links are {2}.
                     outLakeId = self.chLinkFromLake.get(channel, -1)
                     if outLakeId >= 0:
                         lakeData = self.lakesData[outLakeId]
+                        wCat = resCat if lakeData.waterRole == 1 else pondCat
                         if channel == lakeData.outChLink:
                             # main outlet
                             outletId = lakeData.outPoint[1]
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outLakeId, lakeCat, outletId, ptCat, 100))
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outLakeId, wCat, outletId, ptCat, 100))
                             if outletId not in routedPoints:
                                 if gv.useGridModel and self.downChannels.get(channel, -1) < 0:
                                     # we have an internal lake exit: route outlet id to watershed exit
@@ -2590,7 +2629,7 @@ Other possible outlet stream links are {2}.
                             routedPoints.append(outletId)
                         else:
                             # other outlet
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outLakeId, lakeCat, SWATChannel, chCat, 0))
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outLakeId, wCat, SWATChannel, chCat, 0))
                     # check if channel routes into lake
                     inLakeId = self.chLinkIntoLake.get(channel, -1)
                     if inLakeId >= 0:
@@ -2603,12 +2642,14 @@ Other possible outlet stream links are {2}.
                                                  (ptsrcId, ptCat, SWATChannel, chCat, 100))
                                 routedPoints.append(ptsrcId)
                         # route the channel into its outlet, and the outlet into the lake
-                        outletId = self.lakesData[inLakeId].inChLinks[channel][0]
+                        lakeData = self.lakesData[inLakeId]
+                        outletId = lakeData.inChLinks[channel][0]
+                        wCat = resCat if lakeData.waterRole == 1 else pondCat
                         if SWATChannel not in routedChannels:
                             curs.execute(DBUtils._ROUTINGINSERTSQL, (SWATChannel, chCat, outletId, ptCat, 100))
                             routedChannels.append(SWATChannel)
                         if outletId not in routedPoints:
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outletId, ptCat, inLakeId, lakeCat, 100))
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, (outletId, ptCat, inLakeId, wCat, 100))
                             routedPoints.append(outletId)
                         if not gv.useGridModel:
                             continue # since we know it is into the lake and so cannot have a downstream channel or be a subbasin outlet
@@ -2625,12 +2666,13 @@ Other possible outlet stream links are {2}.
                         continue
                     dsChannel = self.finalDownstream(channel, mergedChannels)
                     dsSWATChannel = self.channelToSWATChannel.get(dsChannel, 0)
-                    rid = channelToReservoir.get(channel, -1)
+                    wid, role = channelToWater.get(channel, (-1, -1))
+                    wCat = resCat if role == 1 else pondCat
                     inlet = channelToInlet.get(channel, None)
                     if inlet is not None:
-                        # route inlet to channel or reservoir
-                        if rid >= 0:
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, (inlet[0], ptCat, rid, resCat, 100))
+                        # route inlet to channel or water
+                        if wid >= 0:
+                            curs.execute(DBUtils._ROUTINGINSERTSQL, (inlet[0], ptCat, wid, wCat, 100))
                         else:
                             curs.execute(DBUtils._ROUTINGINSERTSQL, (inlet[0], ptCat, SWATChannel, chCat, 100))
                     (pointId, _, outletChannel) = self.outlets[subbasin]
@@ -2649,47 +2691,48 @@ Other possible outlet stream links are {2}.
                             # route it to the outlet channel, unless already routed
                             ptsrcId = ptsrc[0]
                             if ptsrcId not in routedPoints:
-                                if rid < 0:
+                                if wid < 0:
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                                  (ptsrcId, ptCat, SWATChannel, chCat, 100))
                                 else:
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                 (ptsrcId, ptCat, rid, resCat, 100))
+                                                 (ptsrcId, ptCat, wid, wCat, 100))
                                 routedPoints.append(ptsrcId)
-                        if rid >= 0:
-                            # need to check if this reservoir is continued in the downstream subbasin
+                        if wid >= 0:
+                            # need to check if this is a reservoir that is continued in the downstream subbasin
                             # to make sure we only route it once, and at its final downstream end
-                            ridDown = channelToReservoir.get(dsChannel, -1)
-                            if rid not in routedReservoirs and rid != ridDown:
-                                # route reservoir to reservoir point and reservoir point to outlet
-                                (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
-                                if resId < 0:
-                                    (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                            widDown, _ = channelToWater.get(dsChannel, (-1, -1))
+                            if wid not in routedWater and wid != widDown:
+                                # route water to water point and water point to outlet
+                                (waterId, _, _) = self.chLinkToWater.get(channel, (-1, None, -1))
+                                if waterId < 0:
+                                    (waterId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
                                 else:
                                     # it is safe to use same id for reservoir and reservoir outlet point when
                                     # using DSNODEID from inlets/outlets file
-                                    ptId = resId
-                                if resId < 0:
-                                    QSWATUtils.error('Cannot find reservoir point for channel {0}'
+                                    ptId = waterId
+                                if waterId < 0:
+                                    QSWATUtils.error('Cannot find water point for channel {0}'
                                                      .format(SWATChannel), gv.isBatch)
                                 else:
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                 (rid, resCat, ptId, ptCat, 100))
+                                                 (wid, wCat, ptId, ptCat, 100))
                                     if ptId not in routedPoints:
                                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                                      (ptId, ptCat, pointId, ptCat, 100))
                                         routedPoints.append(ptId)
-                                    routedReservoirs.append(rid)
+                                    routedWater.append(wid)
                         elif SWATChannel not in routedChannels:    
                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                          (SWATChannel, chCat, pointId, ptCat, 100))
                             routedChannels.append(SWATChannel)
                         if pointId not in routedPoints:
                             if dsSWATChannel > 0:
-                                ridDown = channelToReservoir.get(dsChannel, -1)
-                                if ridDown >= 0:
+                                widDown, roleDown = channelToWater.get(dsChannel, (-1, -1))
+                                if widDown >= 0:
+                                    wCat = resCat if roleDown == 1 else pondCat
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                 (pointId, ptCat, ridDown, resCat, 100))
+                                                 (pointId, ptCat, widDown, wCat, 100))
                                 else:
                                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                                  (pointId, ptCat, dsSWATChannel, chCat, 100))
@@ -2700,78 +2743,80 @@ Other possible outlet stream links are {2}.
                             routedPoints.append(pointId)
                     else:
                         # channel and downstream channel within a subbasin: 
-                        # channel routes to downstream channel unless it is replaced by a reservoir
+                        # channel routes to downstream channel unless it is replaced by water
                         # and if it has a point source this is added
                         assert dsSWATChannel > 0, 'Channel {0} has no downstream channel'.format(channel)
-                        ridDown = channelToReservoir.get(dsChannel, -1)
-                        if rid >= 0:
-                            if rid not in routedReservoirs:
-                                if ridDown >= 0:
-                                    # if rid == ridDown rid is only a part reservoir 
+                        widDown, roleDown = channelToWater.get(dsChannel, (-1, -1))
+                        if wid >= 0:
+                            if wid not in routedWater:
+                                if widDown >= 0:
+                                    # if wid == widDown wid is only a part water body
                                     # and we will eventually route the one downstream
-                                    if rid != ridDown:
-                                        # route reservoir to reservoir point and reservoir point to ridDown
-                                        (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
-                                        if resId < 0:
-                                            (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                                    if wid != widDown:
+                                        # route water to water point and water point to ridDown
+                                        (waterId, _, _) = self.chLinkToWater.get(channel, (-1, None))
+                                        if waterId < 0:
+                                            (waterId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
                                         else:
                                             # it is safe to use same id for reservoir and reservoir outlet point when
                                             # using DSNODEID from inlets/outlets file
-                                            ptId = resId
-                                        if resId < 0:
-                                            QSWATUtils.error('Cannot find reservoir point for channel {0}'
+                                            ptId = waterId
+                                        if waterId < 0:
+                                            QSWATUtils.error('Cannot find water point for channel {0}'
                                                              .format(SWATChannel), gv.isBatch)
                                         else:
                                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                         (rid, resCat, ptId, ptCat, 100))
+                                                         (wid, wCat, ptId, ptCat, 100))
                                             if ptId not in routedPoints:
+                                                wCat = resCat if roleDown == 1 else pondCat
                                                 curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                             (ptId, ptCat, ridDown, resCat, 100))
+                                                             (ptId, ptCat, widDown, wCat, 100))
                                                 routedPoints.append(ptId)
-                                            routedReservoirs.append(rid)
+                                            routedWater.append(wid)
                                 else:
-                                    # route reservoir to reservoir point and reservoir point to downstream channel
-                                    (resId, _) = self.chLinkToReservoir.get(channel, (-1, None))
-                                    if resId < 0:
-                                        (resId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
+                                    # route water to water point and water point to downstream channel
+                                    (waterId, _, _) = self.chLinkToWater.get(channel, (-1, None, -1))
+                                    if waterId < 0:
+                                        (waterId, ptId, _) = self.foundReservoirs.get(channel, (-1, -1, None))
                                     else:
-                                        # it is safe to use same id for reservoir and reservoir outlet point when
+                                        # it is safe to use same id for water and water outlet point when
                                         # using DSNODEID from inlets/outlets file
-                                        ptId = resId
-                                    if resId < 0:
-                                        QSWATUtils.error('Cannot find reservoir point for channel {0}'
+                                        ptId = waterId
+                                    if waterId < 0:
+                                        QSWATUtils.error('Cannot find water point for channel {0}'
                                                          .format(SWATChannel), gv.isBatch)
                                     else:
                                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                                     (rid, resCat, ptId, ptCat, 100))
+                                                     (wid, wCat, ptId, ptCat, 100))
                                         if ptId not in routedPoints:
                                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                                          (ptId, ptCat, dsSWATChannel, chCat, 100))
                                             routedPoints.append(ptId)
-                                        routedReservoirs.append(rid)
+                                        routedWater.append(wid)
                         elif SWATChannel not in routedChannels:
-                            if ridDown >= 0:  
+                            if widDown >= 0:  
                                 # insert an outlet point so that channel's contribution to reservoir 
                                 # is included in outputs
                                 self.pointId += 1
                                 extraPoints.append((channel, self.pointId))
                                 curs.execute(DBUtils._ROUTINGINSERTSQL,
                                             (SWATChannel, chCat, self.pointId, ptCat, 100))
+                                wCat = resCat if roleDown == 1 else pondCat
                                 curs.execute(DBUtils._ROUTINGINSERTSQL,
-                                            (self.pointId, ptCat, ridDown, resCat, 100))
+                                            (self.pointId, ptCat, widDown, wCat, 100))
                                 routedPoints.append(self.pointId)
                             else:
                                 curs.execute(DBUtils._ROUTINGINSERTSQL,
                                             (SWATChannel, chCat, dsSWATChannel, chCat, 100))
                             routedChannels.append(SWATChannel)    
-                    # also route point source, if any, to channel  or reservoir
+                    # also route point source, if any, to channel  or water
                     ptsrc = channelToPtSrc.get(channel, None)
                     if ptsrc is not None:
                         ptsrcId = ptsrc[0]
                         if ptsrcId not in routedPoints:
-                            if rid > 0:
+                            if wid > 0:
                                 curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                             (ptsrcId, ptCat, rid, resCat, 100))
+                                             (ptsrcId, ptCat, wid, wCat, 100))
                             else:
                                 curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                              (ptsrcId, ptCat, SWATChannel, chCat, 100))
@@ -2781,8 +2826,9 @@ Other possible outlet stream links are {2}.
                     if lakeData.outChLink == -1:
                         (subbasin, lakeOutletId, _, _) = lakeData.outPoint
                         (outletId, _, _) = self.outlets[subbasin]
+                        wCat = resCat if lakeData.waterRole == 1 else pondCat
                         # route the lake to its lake outlet, the lake outlet to the main outlet, and mark main outlet as category X 
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, (lakeId, lakeCat, lakeOutletId, ptCat, 100))
+                        curs.execute(DBUtils._ROUTINGINSERTSQL, (lakeId, wCat, lakeOutletId, ptCat, 100))
                         if lakeOutletId not in routedPoints:
                             curs.execute(DBUtils._ROUTINGINSERTSQL, (lakeOutletId, ptCat, outletId, ptCat, 100))
                             routedPoints.append(lakeOutletId)
@@ -2803,8 +2849,10 @@ Other possible outlet stream links are {2}.
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                      (SWATBasin, subbasinCat, pointId, ptCat, 100))
                     else:
+                        lakeData = self.lakesData[lakeId]
+                        wCat = resCat if lakeData.waterRole == 1 else pondCat
                         curs.execute(DBUtils._ROUTINGINSERTSQL,
-                                     (SWATBasin, subbasinCat, lakeId, resCat, 100))
+                                     (SWATBasin, subbasinCat, lakeId, wCat, 100))
             return True               
         except Exception:
             QSWATUtils.loginfo('Routing channels, outlets and subbasins failed: {0}'.format(traceback.format_exc()))
@@ -3325,11 +3373,11 @@ Other possible outlet stream links are {2}.
             srcIndex = self.getIndex(outletLayer, QSWATTopology._PTSOURCE, ignoreMissing=False)
             resIndex = self.getIndex(outletLayer, QSWATTopology._RES, ignoreMissing=False)
             # set pointId to max id value in outletLayer
-            # and waterBodyId to max reservoir id
+            # and waterBodyId to max reservoir or pond id
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
             for point in outletLayer.getFeatures(request):
                 self.pointId = max(self.pointId, point[idIndex])
-                if point[inletIndex] == 0 and point[resIndex] == 1:
+                if point[inletIndex] == 0 and point[resIndex] > 0:
                     self.waterBodyId = max(self.waterBodyId, point[idIndex])
         else:
             dsNodeIndex = -1
@@ -3379,13 +3427,13 @@ Other possible outlet stream links are {2}.
             srcId = self.pointId
             if self.outletAtStart:
                 if not useGridModel and pt is not None and not QSWATTopology.coincidentPoints(first[0], pt, self.xThreshold, self.yThreshold):
-                    QSWATUtils.error('Outlet point {0} at ({1}, {2}) not concident with start of channel link {3}'
+                    QSWATUtils.error('Outlet point {0} at ({1}, {2}) not coincident with start of channel link {3}'
                                      .format(outId, pt.x(), pt.y(), chLink), self.isBatch)
                 chOutlets[chLink] = (outId, first[0])
                 self.chPointSources[chLink] = (srcId, last[-1])
             else:
                 if not useGridModel and pt is not None and not QSWATTopology.coincidentPoints(last[-1], pt, self.xThreshold, self.yThreshold):
-                    QSWATUtils.error('Outlet point {0} at ({1}, {2}) not concident with end of channel link {3}'
+                    QSWATUtils.error('Outlet point {0} at ({1}, {2}) not coincident with end of channel link {3}'
                                      .format(outId, pt.x(), pt.y(), chLink), self.isBatch)
                 chOutlets[chLink] = (outId, last[-1])
                 self.chPointSources[chLink] = (srcId, first[0])

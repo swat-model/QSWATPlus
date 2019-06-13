@@ -59,6 +59,8 @@ class Parameters:
     _RIVS = 'rivs'
     _LSUS = 'lsus'
     _HRUS = 'hrus'
+    _AQUIFERS = 'aquifers'
+    _DEEPAQUIFERS = 'deep_aquifers'
     _SUBS1 = 'subs1'
     _RIVS1 = 'rivs1'
     _LSUS1 = 'lsus1'

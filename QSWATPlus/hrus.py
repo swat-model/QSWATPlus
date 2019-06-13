@@ -32,6 +32,8 @@ import math
 import time
 import numpy
 import glob
+import subprocess
+import processing  # @UnresolvedImport
 
 # Import the code for the dialog
 from .hrusdialog import HrusDialog
@@ -74,7 +76,7 @@ class HRUs(QObject):
         ## Soil grid layer
         self.soilLayer = None
         ## CreateHRUs object
-        self.CreateHRUs = CreateHRUs(gv, reportsCombo, self._dlg.progressLabel)
+        self.CreateHRUs = CreateHRUs(gv, reportsCombo, self._dlg)
         ## Flag to indicate completion
         self.completed = False
         
@@ -1373,7 +1375,7 @@ class CreateHRUs(QObject):
         At least one HRU is retained in each landscape unit, regardless of thresholds.
     '''
     
-    def __init__(self, gv, reportsCombo, progressLabel):
+    def __init__(self, gv, reportsCombo, dialog):
         """Constructor."""
         QObject.__init__(self)
         ## Map of basin number to basin data
@@ -1382,7 +1384,8 @@ class CreateHRUs(QObject):
         self._db = gv.db
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
-        self._progressLabel = progressLabel
+        self._dlg = dialog
+        self._progressLabel = self._dlg.progressLabel
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -2287,7 +2290,7 @@ class CreateHRUs(QObject):
         e.g. the outlet of a merged channel is the same as the outlet of the merge target,
         which has the same channel number as the target."""   
                 
-        def mergeCandidate(basin, lsus, channel, mergedToResOrPtSrc, isSmall, threshold):
+        def mergeCandidate(basin, lsus, channel, mergedToWaterOrPtSrc, isSmall, threshold):
             """Return a channel within the basin into which channel can be merged, else -1.
             For a candidate to be successful, channel must not be a lake or marked reservoir outlet;
             channel my not have a user defined reservoir or point source;
@@ -2309,21 +2312,21 @@ class CreateHRUs(QObject):
                         return True
                 return False
     
-            def isReservoirOutlet(channel):
-                """Return true if there is a user-marked reservoir flowing directly into channel."""
-                for chLink in self._gv.topo.chLinkToReservoir.keys():
+            def isWaterOutlet(channel):
+                """Return true if there is a user-marked water body flowing directly into channel."""
+                for chLink in self._gv.topo.chLinkToWater.keys():
                     if self._gv.topo.getDownChannel(chLink) == channel:
                         return True
                 return False 
             
-            if isReservoirOutlet(channel):
-                # cannot merge down because could pull outlets of channels joining downstream up into reservoir
+            if isWaterOutlet(channel):
+                # cannot merge down because could pull outlets of channels joining downstream up into water body
                 return -1
             if isLakeInlet(channel):
                 # downstream channel would be in lake
                 return -1
             # try downstream channel
-            dsChannel = -1 if channel in mergedToResOrPtSrc else self._gv.topo.getDownChannel(channel)
+            dsChannel = -1 if channel in mergedToWaterOrPtSrc else self._gv.topo.getDownChannel(channel)
             if dsChannel < 0:
                 return -1
             else:
@@ -2331,7 +2334,7 @@ class CreateHRUs(QObject):
                 if nextChannel >= 0:
                     # downstream channel dsChannel already merged with nextChannel further downstream: 
                     # try starting with dsChannel
-                    return mergeCandidate(basin, lsus, dsChannel, mergedToResOrPtSrc, 
+                    return mergeCandidate(basin, lsus, dsChannel, mergedToWaterOrPtSrc, 
                                           isSmall, threshold)
             if dsChannel >= 0:
                 if isLakeOutlet(dsChannel):
@@ -2351,13 +2354,13 @@ class CreateHRUs(QObject):
         
         self.mergedChannels.clear()
         self.mergees.clear()
-        # keep list of channels with reservoirs or point sources,
+        # keep list of channels with water bodies or point sources,
         # and extend this list as merges are made
-        mergedToResOrPtSrc = []
-        for channel in self._gv.topo.chLinkToReservoir.keys():
-            mergedToResOrPtSrc.append(channel)
+        mergedToWaterOrPtSrc = []
+        for channel in self._gv.topo.chLinkToWater.keys():
+            mergedToWaterOrPtSrc.append(channel)
         for channel in self._gv.topo.chLinkToPtSrc.keys():
-            mergedToResOrPtSrc.append(channel)
+            mergedToWaterOrPtSrc.append(channel)
         for basin, basinData in self.basins.items():
             lsus = basinData.getLsus()
             if len(lsus) == 1:
@@ -2378,7 +2381,7 @@ class CreateHRUs(QObject):
                 for channel, channelData in basinData.mergedLsus.items():
                     if channel not in self.mergedChannels:
                         isSmall = BasinData.channelArea(channelData) < threshold
-                        candidate = mergeCandidate(basin, basinData.mergedLsus, channel, mergedToResOrPtSrc, 
+                        candidate = mergeCandidate(basin, basinData.mergedLsus, channel, mergedToWaterOrPtSrc, 
                                                    isSmall, threshold)
                         if candidate < 0:
                             continue
@@ -2397,8 +2400,8 @@ class CreateHRUs(QObject):
 #                             for landscape, lsuData in basinData.mergedLsus[candidate].iteritems():
 #                                 CreateHRUs.checkConsistent(lsuData, basin, candidate, landscape, 3)
                             # if channel has a point source or reservoir, mark merged one similarly
-                            if channel in mergedToResOrPtSrc:
-                                mergedToResOrPtSrc.append(candidate)
+                            if channel in mergedToWaterOrPtSrc:
+                                mergedToWaterOrPtSrc.append(candidate)
                             # continue looking for merges
                             merging = True
                             # remember to retain merge
@@ -2443,7 +2446,7 @@ class CreateHRUs(QObject):
                         dsLsuData = dsChannelData.get(floodscape, None)
                         if dsLsuData is not None:
                             dsWaterBody = dsLsuData.waterBody
-                            if dsWaterBody is not None and dsWaterBody.isReservoir:
+                            if dsWaterBody is not None and dsWaterBody.isReservoir():
                                 if dsWaterBody.isOutlet():
                                     return None
                                 if dsWaterBody.cellCount > 0:
@@ -2457,7 +2460,7 @@ class CreateHRUs(QObject):
                 for channel, channelData in basinData.getLsus().items():
                     lsuData = channelData.get(floodscape, None)
                     waterBody = None if lsuData is None else lsuData.waterBody
-                    if waterBody is not None and waterBody.isReservoir and not waterBody.isInlet() and waterBody.cellCount > 0:
+                    if waterBody is not None and waterBody.isReservoir() and not waterBody.isInlet() and waterBody.cellCount > 0:
                         dsWaterBody = findDownstreamReservoir(channel, floodscape)
                         if dsWaterBody is not None:
                             dsWaterBody.addWater(waterBody, True)
@@ -2466,7 +2469,7 @@ class CreateHRUs(QObject):
                             
         reservoirChannels = set()
         floodscape = QSWATUtils._FLOODPLAIN if self._gv.useLandscapes else QSWATUtils._NOLANDSCAPE
-        # mark water bodies that are reservoirs, either by being user-defined or by exceeding threshold
+        # mark water bodies, either by being user-defined or by exceeding reservoir threshold
         # then merge reservoirs
         for basinData in self.basins.values():
             for channel, channelData in basinData.getLsus().items():
@@ -2476,23 +2479,27 @@ class CreateHRUs(QObject):
                 if lsuData is None: # eg only upslope lsu, which happens with grid model
                     continue
                 waterBody = lsuData.waterBody
-                reservoir = self._gv.topo.chLinkToReservoir.get(channel, None)
-                if reservoir is not None:
+                wid, _, role = self._gv.topo.chLinkToWater.get(channel, (-1, None, -1))
+                if wid >= 0:
                     if waterBody is None:
-                        # Make an empty reservoir so upstream waterbodies can be merged with it.
+                        # Make an empty water body so upstream waterbodies can be merged with it.
                         # channelsData is not up to date after merging
                         # (and should not be changed by merging to allow re-merging)
-                        # but the channel a reservoir is on can only be merged with channels upstream
+                        # but the channel a water body is on can only be merged with channels upstream
                         # so its outlet data is still correct
                         channelData = self._gv.topo.channelsData[channel]
                         waterBody = WaterBody(0, 0, channelData.lowerZ, channelData.lowerX, channelData.lowerY)
                         lsuData.waterBody = waterBody
-                    waterBody.id = reservoir[0]
-                    waterBody.setInlet() # mark as reservoir and prevent merging downstream
-                if waterBody is not None:
+                    waterBody.id = wid
+                    waterBody.setInlet()  # prevent merging downstream
+                    if role == QSWATTopology._RESTYPE:
+                        waterBody.setReservoir()
+                    else:
+                        waterBody.setPond()
+                if waterBody is not None and waterBody.isUnknown():
                     # make reservoir if exceeds threshold
                     lsuData.makeReservoir(self.reservoirThreshold)
-                    if waterBody.isReservoir:
+                    if waterBody.isReservoir():
                         reservoirChannels.add(channel)
         for channel in reservoirChannels:
             QSWATUtils.loginfo('Reservoir water body in channel {0} ({1})'.format(self._gv.topo.channelToSWATChannel[channel], channel))
@@ -2932,7 +2939,7 @@ class CreateHRUs(QObject):
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
         for data in self.basins.values():
-            data.setAreas(isOriginal, chLinksByLakes)
+            data.setAreas(isOriginal, chLinksByLakes, self._gv.db.waterLanduse)
         
     def maxLandscapeArea(self):
         """
@@ -3193,16 +3200,11 @@ class CreateHRUs(QObject):
                 for landscape, lsuData in channelData.items():
                     (crop, soil, slope) = lsuData.getDominantHRU()
                     if crop < 0:
-                        if lsuData.waterBody is not None:
-                            # LSU is all water - nothing to do
-                            continue
-                        else:
-                            raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                    if lsuData.waterBody is None:
+                        raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
+                    if lsuData.waterBody is None or lsuData.waterBody.isUnknown():
                         cellCount = lsuData.cellCount
                         area = lsuData.area
                     else:
-                        # exclude water 
                         cellCount = lsuData.cellCount - lsuData.waterBody.cellCount
                         area = lsuData.area - lsuData.waterBody.originalArea
                     cellData = CellData(cellCount, area, lsuData.totalElevation, lsuData.totalSlope,
@@ -3221,22 +3223,17 @@ class CreateHRUs(QObject):
                 for landscape, lsuData in channelData.items():          
                     crop, _ = BasinData.dominantKey(lsuData.originalCropAreas)
                     if crop < 0:
-                        if lsuData.waterBody is not None:
-                            # LSU is all water - nothing to do
-                            return
-                        else:
-                            raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
+                        raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
                     soil, _ = BasinData.dominantKey(lsuData.originalSoilAreas)
                     if soil < 0:
                         raise ValueError('No soil data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
                     slope, _ = BasinData.dominantKey(lsuData.originalSlopeAreas)
                     if slope < 0:
                         raise ValueError('No slope data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                    if lsuData.waterBody is None:
+                    if lsuData.waterBody is None or lsuData.waterBody.isUnknown():
                         cellCount = lsuData.cellCount
                         area = lsuData.area
                     else:
-                        # exclude water 
                         cellCount = lsuData.cellCount - lsuData.waterBody.cellCount
                         area = lsuData.area - lsuData.waterBody.originalArea
                     cellData = CellData(cellCount, area, lsuData.totalElevation, lsuData.totalSlope,
@@ -3277,7 +3274,8 @@ class CreateHRUs(QObject):
                     # self.areaVal is either an area in hectares or a percentage of the subbasin
                     # in either case convert to square metres
                     threshold = self.areaVal * 10000 if self.useArea else (lsuData.cropSoilSlopeArea * self.areaVal) / 100
-                    landArea = lsuData.area if lsuData.waterBody is None else lsuData.area - lsuData.waterBody.originalArea
+                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
+                    hruArea = lsuData.area
                     areaToRedistribute = 0
                     unfinished = True
                     while unfinished:
@@ -3288,13 +3286,12 @@ class CreateHRUs(QObject):
                         minHru = 0
                         minArea = threshold
                         for (crop, soilSlopeNumbers) in lsuData.cropSoilSlopeNumbers.items():
-                            if not self._gv.isExempt(crop):
+                            if not self._gv.isExempt(crop) and not (crop == self._gv.db.waterLanduse and exemptWater):
                                 for (soil, slopeNumbers) in soilSlopeNumbers.items():
                                     for (slope, hru) in slopeNumbers.items():
                                         cellData = lsuData.hruMap[hru]
-                                        hruArea = cellData.area
-                                        if hruArea < minArea:
-                                            minArea = hruArea
+                                        if cellData.area < minArea:
+                                            minArea = cellData.area
                                             minHru = hru
                                             minCrop = crop
                                             minSoil = soil
@@ -3310,9 +3307,9 @@ class CreateHRUs(QObject):
                                 unfinished = False
                             if areaToRedistribute > 0:
                                 # make sure we don't divide by zero
-                                if landArea - areaToRedistribute == 0:
+                                if hruArea - areaToRedistribute == 0:
                                     raise ValueError('No HRUs for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                                redistributeFactor = landArea / (landArea - areaToRedistribute)
+                                redistributeFactor = hruArea / (hruArea - areaToRedistribute)
                                 lsuData.redistribute(redistributeFactor)
                                 areaToRedistribute = 0
                         else:
@@ -3340,14 +3337,15 @@ class CreateHRUs(QObject):
             for channel, channelData in basinData.getLsus().items(): 
                 for landscape, lsuData in channelData.items():
                     cropAreas = lsuData.originalCropAreas
-                    landArea = lsuData.area if lsuData.waterBody is None else lsuData.area - lsuData.waterBody.originalArea
+                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
+                    hruArea = lsuData.area
                     areaToRedistribute = 0
                     minCropArea = (lsuData.cropSoilSlopeArea * minCropPercent) / 100
                     # reduce area if necessary to avoid removing all crops
                     if not self.hasExemptCrop(lsuData):
                         minCropArea = min(minCropArea, self.maxValue(cropAreas))
                     for (crop, area) in cropAreas.items():
-                        if not self._gv.isExempt(crop):
+                        if not self._gv.isExempt(crop) and not (crop == self._gv.db.waterLanduse and exemptWater):
                             if area < minCropArea:
                                 areaToRedistribute += area
                                 # remove this crop
@@ -3358,9 +3356,9 @@ class CreateHRUs(QObject):
                                         lsuData.removeHRU(hru, crop, soil, slope)
                     if areaToRedistribute > 0:
                         # just to make sure we don't divide by zero
-                        if landArea - areaToRedistribute == 0:
+                        if hruArea - areaToRedistribute == 0:
                             raise ValueError('No landuse data for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                        redistributeFactor = landArea / (landArea - areaToRedistribute)
+                        redistributeFactor = hruArea / (hruArea - areaToRedistribute)
                         lsuData.redistribute(redistributeFactor)
                     # Now have to remove soil areas within each crop area that are
                     # less than minSoilVal for that crop.
@@ -3455,10 +3453,11 @@ class CreateHRUs(QObject):
                         minCropArea = min(minCropAreaBasin, self.maxValue(cropAreas))
                     else:
                         minCropArea = minCropAreaBasin
-                    landArea = lsuData.area if lsuData.waterBody is None else lsuData.area - lsuData.waterBody.originalArea
+                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
+                    hruArea = lsuData.area
                     areaToRedistribute = 0
                     for (crop, area) in cropAreas.items():
-                        if not self._gv.isExempt(crop):
+                        if not self._gv.isExempt(crop) and not (crop == self._gv.db.waterLanduse and exemptWater):
                             if area < minCropArea:
                                 # remove this crop
                                 # going to change maps so make lists
@@ -3508,13 +3507,15 @@ class CreateHRUs(QObject):
                     if areaToRedistribute > 0:
                         # Now redistribute removed areas
                         # just to make sure we don't divide by zero
-                        if landArea - areaToRedistribute == 0:
+                        if hruArea - areaToRedistribute == 0:
                             raise ValueError('Cannot redistribute area of {3:.2F} ha for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel, (areaToRedistribute / 10000)))
-                        redistributeFactor = landArea / (landArea - areaToRedistribute)
+                        redistributeFactor = hruArea / (hruArea - areaToRedistribute)
                         lsuData.redistribute(redistributeFactor)
                 
     def hasExemptCrop(self, lsuData):
         """Return true if landscape unit has an exempt crop."""
+        if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and self._gv.db.waterLanduse in lsuData.cropSoilSlopeNumbers:
+            return True
         for crop in lsuData.cropSoilSlopeNumbers.keys():
             if self._gv.isExempt(crop):
                 return True
@@ -3553,8 +3554,9 @@ class CreateHRUs(QObject):
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.getLsus().items(): 
                 for landscape, lsuData in channelData.items():
+                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
                     for crop, soilSlopeNumbers in lsuData.cropSoilSlopeNumbers.items():
-                        if not self._gv.isExempt(crop):
+                        if not self._gv.isExempt(crop) and not (crop == self._gv.db.waterLanduse and exemptWater):
                             for soil, slopeNumbers in soilSlopeNumbers.items():
                                 for slope, hru in slopeNumbers.items():
                                     hruArea = lsuData.hruMap[hru].area
@@ -3593,7 +3595,7 @@ class CreateHRUs(QObject):
         lsuData.removeHRU(hru, crop, soil, slope)
         if areaToRedistribute > 0:
             # make sure we don't divide by zero
-            if lsuData.cropSoilSlopeArea - areaToRedistribute == 0:
+            if lsuData.area - areaToRedistribute == 0:
                 raise ValueError('No HRUs for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
             redistributeFactor = lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea - areaToRedistribute)
             lsuData.redistribute(redistributeFactor)
@@ -3890,17 +3892,17 @@ class CreateHRUs(QObject):
                         fw.writeLine('')
             lakesArea = self.totalLakesArea()
             waterBodiesArea = self.totalWaterBodiesArea()
-            if lakesArea > 0 or waterBodiesArea > 0:
+            if lakesArea > 0:
                 fw.writeLine('')
                 if lakesArea > 0:
-                    fw.writeLine('Area of watershed includes lakes and subbasins.')
-                    subsString = ''
-                else:
-                    subsString = 'watershed, '
-                if waterBodiesArea > 0:
-                    fw.writeLine('Areas of {0}subbasins, landscape units and channels include land, ponds and reservoirs.'.format(subsString))
-                    hruString = ', slope ranges and HRUs' if withHRUs else ' and slope ranges'
-                    fw.writeLine('Areas of landuses, soils{0} are land only.'.format(hruString))
+                    fw.writeLine('Area of watershed includes lakes; other areas do not include lakes.')
+#                     subsString = ''
+#                 else:
+#                     subsString = 'watershed, '
+#                 if waterBodiesArea > 0:
+#                     fw.writeLine('Areas of {0}subbasins, landscape units and channels include ponds and reservoirs.'.format(subsString))
+#                     hruString = ', slope ranges and HRUs' if withHRUs else ' and slope ranges'
+#                     fw.writeLine('Areas of landuses, soils{0} exclude ponds and reservoirs.'.format(hruString))
             if withHRUs:
                 fw.writeLine('')
                 fw.writeLine('Numbers in parentheses are corresponding values before HRU creation')
@@ -4117,122 +4119,132 @@ class CreateHRUs(QObject):
         '''Print HRUs for each landscape.'''
         for landscape, lsuData in channelData.items():
             lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
-            rid = 0
-            downRid = 0
+            # identity of the floodplain water body if any
+            wid = 0
+            wCat = 'unknown'
+            # treat as upslope if is upslope and floodplain LSU exists
+            # as in grids may all be upslope
+            treatAsUpslope = landscape == QSWATUtils._UPSLOPE and QSWATUtils._FLOODPLAIN in channelData
+            # true if this is upslope and the floodplain lsu is all water body
+            downAllWater = False
             # Route LSU
-            if landscape == QSWATUtils._UPSLOPE:
-                # check floodplain LSU exists
-                if QSWATUtils._FLOODPLAIN in channelData:
-                    downLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
-                    # if floodplain LSU is all reservoir, route into the reservoir
-                    downLsuData = channelData[QSWATUtils._FLOODPLAIN]
-                    if downLsuData.cropSoilSlopeArea == 0 and downLsuData.waterBody is not None and \
-                        downLsuData.waterBody.isReservoir:
-                        downRid = downLsuData.waterBody.id
+            if treatAsUpslope:
+                downLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
+                downLsuData = channelData[QSWATUtils._FLOODPLAIN]
+                if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown():
+                    wid = downLsuData.waterBody.id
+                    # if floodplain LSU is all water, route into the water body
+                    if downLsuData.cropSoilSlopeArea == downLsuData.waterBody.originalArea:
+                        downAllWater = True
+                        wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', downRid, 'RES', 100))
+                                     (lsuId, 'LSU', wid, wCat, 100))
                     else:
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                      (lsuId, 'LSU', downLsuId, 'LSU', 100))
                 else:
-                    # route lsu directly into channel
                     curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                 (lsuId, 'LSU', SWATChannel, 'CH', 100))
+                                 (lsuId, 'LSU', downLsuId, 'LSU', 100))
             else:
-                if lsuData.waterBody is not None and lsuData.waterBody.isReservoir:
-                    if lsuData.cropSoilSlopeArea > 0:  # else all water
-                        rid = lsuData.waterBody.id
+                if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                    if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
+                        wid = lsuData.waterBody.id
+                        wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', rid, 'RES', 100))
+                                     (lsuId, 'LSU', wid, wCat, 100))
                 else:
                     lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                     if lake > 0:
+                        lakeData = self._gv.topo.lakesData[lake]
+                        lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', lake, 'RES', 100))
+                                     (lsuId, 'LSU', lake, lCat, 100))
                     else: 
                         curs.execute(DBUtils._ROUTINGINSERTSQL, 
                                      (lsuId, 'LSU', SWATChannel, 'CH', 100))
-            if self._gv.useLandscapes and lsuData.cropSoilSlopeArea > 0:  # else all water:
+            if self._gv.useLandscapes:
                 landscapeName = QSWATUtils.landscapeName(landscape, self._gv.useLeftRight)
                 fw.writeLine('{0} (LSU {1!s}):'.format(landscapeName, lsuId))
-            self.printLSUHRUs(lsuId, SWATChannel, landscape, lsuData, channelData, rid, downRid, basinHa, subHa, fw, curs)
+            self.printLSUHRUs(lsuId, SWATChannel, landscape, lsuData, channelData, wid, wCat, downAllWater, basinHa, subHa, fw, curs)
 
-    def printLSUHRUs(self, lsuId, SWATChannel, landscape, lsuData, channelData, rid, downRid, basinHa, subHa, fw, curs):
+    def printLSUHRUs(self, lsuId, SWATChannel, landscape, lsuData, channelData, wid, wCat, downAllWater, basinHa, subHa, fw, curs):
         '''Print and route HRUs and water bodies for an LSU.'''
         lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
-        floodTarget, floodCat = (lake, 'RES') if lake > 0 else (rid, 'RES') if rid > 0 else (SWATChannel, 'CH')
+        if lake > 0:
+            lakeData = self._gv.topo.lakesData[lake]
+            lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+        floodTarget, floodCat = (lake, lCat) if lake > 0 else (wid, wCat) if wid > 0 else (SWATChannel, 'CH')
         arlsuHa = float(lsuData.area) / 1E4
+        routeWaterAsWaterBody = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
         for (crop, soilSlopeNumbers) in lsuData.cropSoilSlopeNumbers.items():
-            arluse = lsuData.cropAreas[crop] / 10000
-            for (soil, slopeNumbers) in soilSlopeNumbers.items():
-                arso = lsuData.cropSoilArea(crop, soil) / 10000
-                for (slope, landscape_hru) in slopeNumbers.items():
-                    self.HRUNum += 1
-                    cellData = lsuData.hruMap[landscape_hru]
-                    cellData.actHRUNum = self.HRUNum
-                    luse = self._db.getLanduseCode(crop)
-                    snam = self._db.getSoilName(soil)
-                    slp = self._db.slopeRange(slope)
-                    cropSoilSlope = luse + '/' + snam + '/' + slp
-                    # use cellArea rather than cellCount to calculate means
-                    # cellCounts are integer and inaccurate (even zero) for small HRUs
-                    if cellData.area == 0:
-                        QSWATUtils.error('HRU {0} in LSU {1} has zero area'.format(self.HRUNum, lsuId), self._gv.isBatch)
-                        meanMultiplier = 1
-                    else:
-                        meanMultiplier = self._gv.cellArea / cellData.area
-                    meanSlopePercent = cellData.totalSlope * meanMultiplier * 100
-                    hruha = cellData.area / 10000
-                    if hruha == 0:
-                        QSWATUtils.error('HRU {0} in LSU {1} has zero area'.format(self.HRUNum, lsuId), self._gv.isBatch)
-                    arslp = hruha
-                    fw.write(str(self.HRUNum).ljust(5) + cropSoilSlope.rjust(25) + \
-                                 '{:.2F}'.format(hruha).rjust(15))
-                    if basinHa > 0:
-                        percent1 = (hruha / basinHa) * 100
-                        fw.write('{:.2F}'.format(percent1).rjust(30))
-                    if subHa > 0:
-                        percent2 = (hruha / subHa) * 100
-                        fw.write('{:.2F}'.format(percent2).rjust(23))
-                    if arlsuHa > 0:
-                        percent3 = (hruha / arlsuHa) * 100
-                        fw.write('{:.2F}'.format(percent3).rjust(23))
-                    fw.writeLine('')
-
-                    meanElevation = cellData.totalElevation * meanMultiplier
-                    centroid = QgsPointXY(cellData.totalLongitude * meanMultiplier, cellData.totalLatitude * meanMultiplier)
-                    centroidll = self._gv.topo.pointToLatLong(centroid)
-                    curs.execute(DBUtils._HRUSINSERTSQL, 
-                                 (self.HRUNum, lsuId, subHa, arlsuHa, luse, arluse, snam, arso, slp,
-                                  arslp, meanSlopePercent, centroidll.y(), centroidll.x(), meanElevation))
-                    # route HRU
-                    if landscape == QSWATUtils._NOLANDSCAPE or landscape == QSWATUtils._FLOODPLAIN or \
-                        QSWATUtils._FLOODPLAIN not in channelData: # upslope with no floodplain; can happen in grid models
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                      (self.HRUNum, 'HRU', floodTarget, floodCat, 100))
-                    else:
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                      (self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain))
-                        if downRid > 0:
-                            # floodplain LSU is all reservoir: remainder of HRU drainage is into the reservoir
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                         (self.HRUNum, 'HRU', downRid, 'RES', 100 - self._gv.upslopeHRUDrain))
+            if crop != self._gv.db.waterLanduse or not routeWaterAsWaterBody:
+                arluse = lsuData.cropAreas[crop] / 10000
+                for (soil, slopeNumbers) in soilSlopeNumbers.items():
+                    arso = lsuData.cropSoilArea(crop, soil) / 10000
+                    for (slope, landscape_hru) in slopeNumbers.items():
+                        self.HRUNum += 1
+                        cellData = lsuData.hruMap[landscape_hru]
+                        cellData.actHRUNum = self.HRUNum
+                        luse = self._db.getLanduseCode(crop)
+                        snam = self._db.getSoilName(soil)
+                        slp = self._db.slopeRange(slope)
+                        cropSoilSlope = luse + '/' + snam + '/' + slp
+                        # use cellArea rather than cellCount to calculate means
+                        # cellCounts are integer and inaccurate (even zero) for small HRUs
+                        if cellData.area == 0:
+                            QSWATUtils.error('HRU {0} in LSU {1} has zero area'.format(self.HRUNum, lsuId), self._gv.isBatch)
+                            meanMultiplier = 1
                         else:
-                            floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
+                            meanMultiplier = self._gv.cellArea / cellData.area
+                        meanSlopePercent = cellData.totalSlope * meanMultiplier * 100
+                        hruha = cellData.area / 10000
+                        arslp = hruha
+                        fw.write(str(self.HRUNum).ljust(5) + cropSoilSlope.rjust(25) + \
+                                     '{:.2F}'.format(hruha).rjust(15))
+                        if basinHa > 0:
+                            percent1 = (hruha / basinHa) * 100
+                            fw.write('{:.2F}'.format(percent1).rjust(30))
+                        if subHa > 0:
+                            percent2 = (hruha / subHa) * 100
+                            fw.write('{:.2F}'.format(percent2).rjust(23))
+                        if arlsuHa > 0:
+                            percent3 = (hruha / arlsuHa) * 100
+                            fw.write('{:.2F}'.format(percent3).rjust(23))
+                        fw.writeLine('')
+    
+                        meanElevation = cellData.totalElevation * meanMultiplier
+                        centroid = QgsPointXY(cellData.totalLongitude * meanMultiplier, cellData.totalLatitude * meanMultiplier)
+                        centroidll = self._gv.topo.pointToLatLong(centroid)
+                        curs.execute(DBUtils._HRUSINSERTSQL, 
+                                     (self.HRUNum, lsuId, subHa, arlsuHa, luse, arluse, snam, arso, slp,
+                                      arslp, meanSlopePercent, centroidll.y(), centroidll.x(), meanElevation))
+                        # route HRU
+                        if landscape == QSWATUtils._NOLANDSCAPE or landscape == QSWATUtils._FLOODPLAIN or \
+                            QSWATUtils._FLOODPLAIN not in channelData: # upslope with no floodplain; can happen in grid models
                             curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                          (self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain))
+                                          (self.HRUNum, 'HRU', floodTarget, floodCat, 100))
+                        else:
+                            if downAllWater:
+                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                              (self.HRUNum, 'HRU', floodTarget, floodCat, 100))
+                            else:
+                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                             (self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain))
+                                floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
+                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
+                                              (self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain))
         waterBody = lsuData.waterBody                    
-        if waterBody is not None:
+        if waterBody is not None and routeWaterAsWaterBody:
             # water area is original - prior to merging of reservoirs
             waterHa = waterBody.originalArea / 10000
-            if waterBody.isReservoir:
+            if waterBody.isReservoir():
                 # reservoir cellCount is zero if it has been merged
                 if waterBody.cellCount > 0:
                     string1 = 'Reservoir {0}'.format(waterBody.id)
                 else:
                     string1 = 'Reservoir {0} (part)'.format(waterBody.id)
             else:
-                string1 = 'Pond'
+                string1 = 'Pond {0}'.format(waterBody.id)
             string2 = '{:.2F}'.format(waterHa)
             fw.write(string1.ljust(30) + string2.rjust(15))
             if basinHa > 0:
@@ -4246,14 +4258,11 @@ class CreateHRUs(QObject):
                 fw.write('{:.2F}'.format(percent3).rjust(23))
             fw.writeLine('')
             # for actual reservoir print total area
-            if waterBody.isReservoir:
+            if waterBody.isReservoir():
                 if waterBody.cellCount > 0:
                     areaHa = waterBody.area / 10000
                     fw.writeLine('Total reservoir area:'.rjust(30) + '{:.2F}'.format(areaHa).rjust(15))
-                    # reservoirs were routed with channels
-            else:
-                # route pond
-                curs.execute(DBUtils._ROUTINGINSERTSQL, (waterBody.id, 'PND', floodTarget, floodCat, 100))
+                    # reservoirs and ponds were routed with channels
         return
 
     def clearHRUSNums(self, fullHRUsLayer, hrusIndx, chIndx, linkIndx):
@@ -4291,8 +4300,8 @@ class CreateHRUs(QObject):
             # FullHRUS file created before channel merging, so based on original channels, which might have been merged
             targetChannel = self._gv.topo.finalTarget(channel, self.mergedChannels)
             lsuData = basinData.getLsus()[targetChannel][category]
-            if lsuData.waterBody is not None and origCropCode == 'WATR':
-                if lsuData.waterBody.isReservoir:
+            if lsuData.waterBody is not None and origCropCode == 'WATR' and not lsuData.waterBody.isUnknown():
+                if lsuData.waterBody.isReservoir():
                     hruNum = 'RES {0}'.format(lsuData.waterBody.id)
                 else:
                     hruNum = 'PND {0}'.format(lsuData.waterBody.id)
@@ -4601,7 +4610,7 @@ class CreateHRUs(QObject):
     def writeSubbasinsAndLandscapeTables(self):
         """Write gis_subbasins and gis_lsus tables in project database, 
         make subs1.shp in shapes directory, 
-        copy subs1.shp and lsus2.shp as results templates to TablesOut directory,
+        copy subs1.shp and lsus2.shp as results templates to Results directory,
         and add fields to subs1.shp and lsus2.shp."""
         QSWATUtils.copyShapefile(self._gv.subbasinsFile, Parameters._SUBS1, self._gv.shapesDir)
         subs1File = QSWATUtils.join(self._gv.shapesDir, Parameters._SUBS1 + '.shp')
@@ -4883,7 +4892,132 @@ class CreateHRUs(QObject):
             subs1TreeLayer.setExpanded(False)
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
+            self.createAquifers(root)
+        # TODO: create aquifers for grid models
         return True
+    
+    def createAquifers(self, root):
+        """Creat aquifers shapefile."""
+        
+        def addNewField(layer, fileName, newFieldname, oldFieldname, fun):
+            """Add new integer field to shapefile; set field to fun applied to value in old integer field; remove other fields."""
+            fields = [QgsField(newFieldname, QVariant.Int)]
+            provider = layer.dataProvider()
+            provider.addAttributes(fields)
+            layer.updateFields()
+            oldIndex = self._gv.topo.getIndex(layer, oldFieldname)
+            newIndex = self._gv.topo.getIndex(layer, newFieldname)
+            request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([oldIndex, newIndex])
+            mmap = dict()
+            for f in provider.getFeatures(request):
+                oldVal = int(f[oldIndex])
+                mmap[f.id()] = {newIndex: fun(oldVal)}
+            if not provider.changeAttributeValues(mmap):
+                QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
+            QSWATTopology.removeFields(provider, [newFieldname], fileName, self._gv.isBatch)
+            
+        def runProcess(command):
+            """Run command"""
+            try:
+                subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+            except subprocess.CalledProcessError as e:
+                QSWATUtils.error("""Command {0} failed: 
+{1}; 
+{2}
+""".format(command, e.stdout, e.stderr), self._gv.isBatch)
+                
+        def findOutlet(basin, downBasins):
+            """downBasins maps basin to downstream basin or -1 if none.  Return final basin starting from basin."""
+            downBasin = downBasins.get(basin, -1)
+            if downBasin < 0:
+                return basin
+            else:
+                return findOutlet(downBasin, downBasins)
+                
+        subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
+        if not os.path.exists(subsFile):
+            return
+        aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
+        QSWATUtils.tryRemoveLayerAndFiles(aqFile, root)
+        if self._dlg.floodplainCombo.currentIndex() == 0:
+            # use subbasins shapefile as aquifers shapefile
+            QSWATUtils.copyShapefile(subsFile, Parameters._AQUIFERS, self._gv.resultsDir)
+            aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
+            addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
+        else:
+            # temporarily set to ignore geometry errors
+            settings = QSettings()
+            filter_invalid_geometries = settings.value('/Processing/Configuration/FILTER_INVALID_GEOMETRIES')
+            settings.setValue('/Processing/Configuration/FILTER_INVALID_GEOMETRIES', '0')
+            try:
+                # first convert floodplain to polygons
+                floodFile = self._dlg.floodplainCombo.currentText()
+                floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
+                floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(floodShapefile, root)
+                command = 'python3 -m gdal_polygonize {0} {1} -b 1 -f "ESRI Shapefile" flood DN'. \
+                        format(floodPath, floodShapefile)
+                runProcess(command)
+                
+                # upslope aquifers are subbasins minus the floodplain
+                upAqFile = QSWATUtils.join(self._gv.resultsDir, 'upaquifers.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(upAqFile, root)
+                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'OUTPUT': upAqFile})
+                # add Aquifer field and seto to 10 * subbasin + 2
+                upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
+                addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 2)
+                
+                # downslope aquifers are subbasins intersected with floodplain
+                downAqFile = QSWATUtils.join(self._gv.resultsDir, 'downaquifers.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(downAqFile, root)
+                processing.run("native:intersection", 
+                               {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile})
+                # add Aquifer field and seto to 10 * subbasin + 1
+                downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
+                addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 1)
+                
+                # don't dissove on aquifer field: can lose some shapes entirely, do don't need bothAqFile
+                # bothAqFile = QSWATUtils.join(self._gv.resultsDir, 'bothaquifers.shp')
+                # QSWATUtils.tryRemoveLayerAndFiles(bothAqFile, root)
+                # merge up and down aquifers
+                processing.run("native:mergevectorlayers", 
+                               {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': aqFile})
+                # processing.run("native:dissolve", 
+                #                {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile})
+                # merge adds some extra fields that we can lose
+                aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
+                aqProvider = aqLayer.dataProvider()
+                QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
+                QSWATUtils.tryRemoveFiles(upAqFile)
+                QSWATUtils.tryRemoveFiles(downAqFile)
+                # QSWATUtils.tryRemoveFiles(bothAqFile)
+                
+                # create deep aquifer file by dissolving subbasins file
+                # make map of subbasin to outlet subbasin in each watershed:
+                outletSubbasins = dict()
+                for basin in self._gv.topo.downSubbasins.keys():
+                    SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
+                    if SWATBasin > 0:
+                        outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[findOutlet(basin, self._gv.topo.downSubbasins)]
+                QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
+                deepAqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._DEEPAQUIFERS + '.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(deepAqFile, root)
+                QSWATUtils.copyShapefile(subsFile, 'deep_temp', self._gv.resultsDir)
+                tempDeepAqFile = QSWATUtils.join(self._gv.resultsDir, 'deep_temp.shp')
+                tempLayer = QgsVectorLayer(tempDeepAqFile, 'temp', 'ogr')
+                # add Aquifer field, set to number of outlet subbasin
+                addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
+                # dissolve on Aquifer field
+                processing.run("native:dissolve", 
+                               {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile})
+                # remove other fields
+                deepLayer = QgsVectorLayer(deepAqFile, 'Deep Aquifer', 'ogr')
+                deepProvider = deepLayer.dataProvider()
+                QSWATTopology.removeFields(deepProvider, [QSWATTopology._AQUIFER], deepAqFile, self._gv.isBatch)
+                QSWATUtils.tryRemoveFiles(tempDeepAqFile)
+            finally:
+                settings.setValue('/Processing/Configuration/FILTER_INVALID_GEOMETRIES', str(filter_invalid_geometries))
+            
 
     def generateBasinsFromShapefile(self, request, provider, polyIdx, subIdx):
         """Yield (feature id, basin, SWATBasin, basinData) tuples from subs1.shp."""
@@ -4916,12 +5050,15 @@ class CreateHRUs(QObject):
             curs.execute(self._db._WATERCREATESQL)
             # add lakes 
             for lakeId, lakeData in self._gv.topo.lakesData.items():
+                lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
                 lsuId = 0  # no LSU for a lake
+                (subbasin, _, _, _) = lakeData.outPoint
+                SWATBasin = self._gv.topo.subbasinToSWATBasin[subbasin]
                 areaHa = lakeData.area / 1E4
                 centroid = lakeData.centroid
                 centroidll = self._gv.topo.pointToLatLong(centroid)
                 elev = lakeData.elevation
-                curs.execute(self._db._WATERINSERTSQL, (lakeId, 'RES', lsuId, areaHa, centroid.x(), centroid.y(),
+                curs.execute(self._db._WATERINSERTSQL, (lakeId, lCat, lsuId, SWATBasin, areaHa, centroid.x(), centroid.y(),
                                                         centroidll.y(), centroidll.x(), elev))
             # add reservoirs and ponds
             floodscape = QSWATUtils._FLOODPLAIN if self._gv.useLandscapes else QSWATUtils._NOLANDSCAPE
@@ -4930,23 +5067,30 @@ class CreateHRUs(QObject):
                     SWATChannel = self._gv.topo.channelToSWATChannel.get(channel, -1)
                     for landscape, lsuData in channelData.items():
                         waterBody = lsuData.waterBody
-                        if waterBody is not None:
+                        if waterBody is not None and not waterBody.isUnknown():
                             if waterBody.cellCount == 0: 
-                                if waterBody.isInlet(): # user-defined reservoir
-                                    QSWATUtils.information('WARNING: reservoir on channel {0} has zero area'.format(SWATChannel), self._gv.isBatch)
+                                if waterBody.isInlet(): # user-defined water body
+                                    cat = 'reservoir' if waterBody.isReservoir() else 'pond'
+                                    QSWATUtils.information('WARNING: {0} on channel {1} has zero area'.format(cat, SWATChannel), self._gv.isBatch)
                                 else:
                                     continue # upper part of reservoir
                             # set id if necessary:
                             if waterBody.id == 0:
                                 self._gv.topo.waterBodyId += 1
                                 waterBody.id = self._gv.topo.waterBodyId
-                            if waterBody.isReservoir:
+                            if waterBody.isReservoir():
                                 self.propagateReservoirId(channel, waterBody.id, floodscape)
-                                wtype = 'RES'
+                                wCat = 'RES'
                             else:
-                                wtype = 'PND'
+                                wCat = 'PND'
                             channel = self._gv.topo.finalTarget(channel, self.mergedChannels)
                             lsuId = QSWATUtils.landscapeUnitId(self._gv.topo.channelToSWATChannel[channel], landscape)
+                            if self._gv.useGridModel:
+                                basin = self._gv.topo.chLinkToChBasin[channel]
+                            else:
+                                chBasin = self._gv.topo.chLinkToChBasin[channel]
+                                basin = self._gv.topo.chBasinToSubbasin[chBasin]
+                            SWATBasin = self._gv.topo.subbasinToSWATBasin[basin]
                             area = waterBody.area / 1E4 # area in ha
                             # avoid division by zero for zero-area reservoirs
                             if waterBody.cellCount == 0:
@@ -4959,9 +5103,9 @@ class CreateHRUs(QObject):
                                 meanElev = waterBody.totalElevation / waterBody.cellCount
                             pt = QgsPointXY(x, y)
                             centroidll = self._gv.topo.pointToLatLong(pt)
-                            curs.execute(self._db._WATERINSERTSQL, (waterBody.id, wtype, lsuId, area, x, y,
+                            curs.execute(self._db._WATERINSERTSQL, (waterBody.id, wCat, lsuId, SWATBasin, area, x, y,
                                                                        centroidll.y(), centroidll.x(), meanElev))
-                            if waterBody.isReservoir and not waterBody.isInlet():
+                            if waterBody.isReservoir() and not waterBody.isInlet():
                                 # place reservoir point at channel outlet
                                 channelData = self._gv.topo.channelsData[channel]
                                 self._gv.topo.pointId += 1
@@ -5032,7 +5176,7 @@ class CreateHRUs(QObject):
                         lsuData = channelData.get(floodscape, None)
                         if lsuData is not None:
                             waterBody = lsuData.waterBody
-                            if waterBody is not None and waterBody.isReservoir and waterBody.cellCount == 0 and waterBody.id == 0:
+                            if waterBody is not None and waterBody.isReservoir() and waterBody.cellCount == 0 and waterBody.id == 0:
                                 waterBody.id = rid
                                 self.propagateReservoirId(channel, rid, floodscape)
                         
@@ -5059,8 +5203,10 @@ class CreateHRUs(QObject):
         """
         Return maps of crop -> area in square metres across all subbasins.
         
-        If withHRUs, omit WATR and return updated and original values.
+        If withHRUs, return updated and original values.
         Otherise return the original values, and first map is None
+        
+        Ignore WATR if there is a pond or reservoir in the LSU
         
         """
         result1 = dict() if withHRUs else None
@@ -5157,7 +5303,7 @@ class CreateHRUs(QObject):
         for basinData in self.basins.values():
             for channelData in basinData.getLsus().values():
                 for lsuData in channelData.values():
-                    if lsuData.waterBody is not None:
+                    if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
                         result += lsuData.waterBody.originalArea
         return result
     
@@ -5166,7 +5312,7 @@ class CreateHRUs(QObject):
         result = 0
         for channelData in basinData.getLsus().values():
             for lsuData in channelData.values():
-                if lsuData.waterBody is not None:
+                if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
                     result += lsuData.waterBody.originalArea
         return result
     
@@ -5255,7 +5401,7 @@ class CreateHRUs(QObject):
         # if have original, add entries for originals that have been removed
         if original is not None:
             for (crop, areaM) in original.items():
-                if crop not in main and crop != self._db.waterLanduse:
+                if crop not in main:
                     landuseCode = self._db.getLanduseCode(crop)
                     originalArea = areaM / 10000
                     fw.write(landuseCode.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
@@ -5388,7 +5534,7 @@ class CreateHRUs(QObject):
         areaHa = area / 10000
         if total1 > 0:
             string0 = '{:.2F}'.format(areaHa).rjust(15)
-            fw.write('Water'.ljust(30) + string0)
+            fw.write('Reservoirs and ponds'.ljust(30) + string0)
             percent1 = (areaHa / total1) * 100
             just1 = 30 if withHRUs else 15
             string1 = '{:.2F}'.format(percent1).rjust(just1)
