@@ -362,9 +362,10 @@ cdef class LSUData:
             cssmap[slope] = self.hruMap[hru].area
         return cssmap
     
-    cpdef object getDominantHRU(self):
+    cpdef object getDominantHRU(self, waterLanduse, allowWater):
         '''Find the HRU with the largest area, 
-        and return its crop, soil and slope.
+        and return its crop, soil and slope.  
+        If allowWater is False, waterLanduse crop is ignored.
         '''
         cdef:
             double maxArea = 0
@@ -375,15 +376,16 @@ cdef class LSUData:
             double area
         
         for (crop, soilSlopeNumbers) in self.cropSoilSlopeNumbers.items():
-            for (soil, slopeNumbers) in soilSlopeNumbers.items():
-                for (slope, hru) in slopeNumbers.items():
-                    cellData = self.hruMap[hru]
-                    area = cellData.area
-                    if area > maxArea:
-                        maxArea = area
-                        maxCrop = crop
-                        maxSoil = soil
-                        maxSlope = slope
+            if crop != waterLanduse or allowWater:
+                for (soil, slopeNumbers) in soilSlopeNumbers.items():
+                    for (slope, hru) in slopeNumbers.items():
+                        cellData = self.hruMap[hru]
+                        area = cellData.area
+                        if area > maxArea:
+                            maxArea = area
+                            maxCrop = crop
+                            maxSoil = soil
+                            maxSlope = slope
         return (maxCrop, maxSoil, maxSlope)
             
     cpdef void redistribute(self, double factor):

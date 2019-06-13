@@ -2221,17 +2221,24 @@ class CreateHRUs(QObject):
                 self.progress('Writing landscape units shapes ...')
                 lsusLayer = self.createLSUShapefileFromWshed()
             if lsusLayer is not None and not self._gv.useGridModel:
-            # insert above subbasins
+                # insert above dem (or hillshade if exists) in legend, so subbasin still visible
                 legend = QSWATUtils._FULLLSUSLEGEND
                 proj = QgsProject.instance()
                 root = proj.layerTreeRoot()
                 layers = root.findLayers()
                 group = root.findGroup(QSWATUtils._WATERSHED_GROUP_NAME)
-                subsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._SUBBASINSLEGEND, layers)
-                if subsLayer is None:
+                demLayer = QSWATUtils.getLayerByFilename(layers, self._gv.demFile, FileTypes._DEM, None, None, None)[0]
+                hillshadeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HILLSHADELEGEND, layers)
+                if hillshadeLayer is not None:
+                    subLayer = hillshadeLayer
+                elif demLayer is not None:
+                    subLayer = root.findLayer(demLayer.id())
+                else:
+                    subLayer = None
+                if subLayer is None:
                     index: int = 0
                 else:
-                    index = QSWATUtils.groupIndex(group, subsLayer)
+                    index = QSWATUtils.groupIndex(group, subLayer)
                 QSWATUtils.removeLayerByLegend(legend, layers)
                 fullLSUsLayer = proj.addMapLayer(lsusLayer, False)
                 if group is not None:
@@ -2814,7 +2821,7 @@ class CreateHRUs(QObject):
                 return
             fields = layer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(self._gv.fullLSUsFile, root)
+            QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullLSUsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
@@ -3198,10 +3205,11 @@ class CreateHRUs(QObject):
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.getLsus().items():
                 for landscape, lsuData in channelData.items():
-                    (crop, soil, slope) = lsuData.getDominantHRU()
+                    allowWaterHRU = lsuData.waterBody is None or lsuData.waterBody.isUnknown()
+                    (crop, soil, slope) = lsuData.getDominantHRU(self._gv.db.waterLanduse, allowWaterHRU)
                     if crop < 0:
                         raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                    if lsuData.waterBody is None or lsuData.waterBody.isUnknown():
+                    if allowWaterHRU:
                         cellCount = lsuData.cellCount
                         area = lsuData.area
                     else:
@@ -3220,8 +3228,12 @@ class CreateHRUs(QObject):
         """Create in each landscape unit a single HRU with the dominant landuse, soil and slope."""
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.getLsus().items(): 
-                for landscape, lsuData in channelData.items():          
-                    crop, _ = BasinData.dominantKey(lsuData.originalCropAreas)
+                for landscape, lsuData in channelData.items():
+                    allowWaterHRU = lsuData.waterBody is None or lsuData.waterBody.isUnknown() 
+                    cropAreas =  lsuData.originalCropAreas
+                    if not allowWaterHRU:
+                        cropAreas.pop(self._gv.db.waterLanduse, None)       
+                    crop, _ = BasinData.dominantKey(cropAreas)
                     if crop < 0:
                         raise ValueError('No crop data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
                     soil, _ = BasinData.dominantKey(lsuData.originalSoilAreas)
@@ -3230,7 +3242,7 @@ class CreateHRUs(QObject):
                     slope, _ = BasinData.dominantKey(lsuData.originalSlopeAreas)
                     if slope < 0:
                         raise ValueError('No slope data for channel {2!s} landscape unit {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                    if lsuData.waterBody is None or lsuData.waterBody.isUnknown():
+                    if allowWaterHRU:
                         cellCount = lsuData.cellCount
                         area = lsuData.area
                     else:

@@ -62,6 +62,7 @@ class Visualise(QObject):
     _AREA = 'AREAkm2'
     _MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     _NORTHARROW = 'apps/qgis/svg/wind_roses/WindRose_01.svg'
+    _EFLOWTABLE = 'channel_sdmorph_day'
     
     def __init__(self, gv):
         """Initialise class variables."""
@@ -2735,6 +2736,7 @@ class Visualise(QObject):
                   'hru_': 'HRU',
                   'region_': 'Region',
                   'channel_sd_': 'Channel_SD',
+                  'channel_sdmorph_': 'Channel_SDMorph',
                   #'_sd': 'HRU-LTE',
                   'channel_': 'Channel',
                   'aquifer_': 'Aquifer',
@@ -3203,7 +3205,7 @@ class Visualise(QObject):
             return
         startDate = date(self.startYear, self.startMonth, self.startDay)
         finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
-        flowDataTable = 'channel_sd_day'
+        flowDataTable = Visualise._EFLOWTABLE
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return
@@ -3276,7 +3278,7 @@ class Visualise(QObject):
             return
         startDate = date(self.startYear, self.startMonth, self.startDay)
         finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
-        flowDataTable = 'channel_sd_day'
+        flowDataTable = Visualise._EFLOWTABLE
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return
@@ -3398,7 +3400,7 @@ class Visualise(QObject):
             return
         startDate = date(self.startYear, self.startMonth, self.startDay)
         finishDate = date(self.finishYear, self.finishMonth, self.finishDay)
-        flowDataTable = 'channel_sd_day'
+        flowDataTable = Visualise._EFLOWTABLE
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return

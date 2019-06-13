@@ -147,32 +147,48 @@
         <property name="title">
          <string>Soil data</string>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout">
-         <item>
-          <widget class="QRadioButton" name="usersoilButton">
-           <property name="text">
-            <string>usersoil</string>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="STATSGOButton">
-           <property name="text">
-            <string>STATSGO</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QRadioButton" name="SSURGOButton">
-           <property name="text">
-            <string>SSURGO/STATSGO2</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
+        <widget class="QRadioButton" name="usersoilButton">
+         <property name="geometry">
+          <rect>
+           <x>11</x>
+           <y>24</y>
+           <width>117</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>usersoil</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="STATSGOButton">
+         <property name="geometry">
+          <rect>
+           <x>134</x>
+           <y>24</y>
+           <width>116</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>STATSGO</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="SSURGOButton">
+         <property name="geometry">
+          <rect>
+           <x>256</x>
+           <y>24</y>
+           <width>118</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>SSURGO/STATSGO2</string>
+         </property>
+        </widget>
        </widget>
       </item>
       <item row="4" column="5">
