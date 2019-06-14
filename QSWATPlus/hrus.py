@@ -3212,11 +3212,15 @@ class CreateHRUs(QObject):
                     if allowWaterHRU:
                         cellCount = lsuData.cellCount
                         area = lsuData.area
+                        frac = 1
                     else:
-                        cellCount = lsuData.cellCount - lsuData.waterBody.cellCount
+                        # fraction of lsu that is HRU
+                        frac = 1.0 - lsuData.waterBody.originalArea / lsuData.area
+                        # water body cellCount may have been made zero, so reconstruct
+                        cellCount = int(lsuData.cellCount * frac + 0.5)
                         area = lsuData.area - lsuData.waterBody.originalArea
-                    cellData = CellData(cellCount, area, lsuData.totalElevation, lsuData.totalSlope,
-                                        lsuData.totalLongitude, lsuData.totalLatitude, crop)
+                    cellData = CellData(cellCount, area, lsuData.totalElevation * frac, lsuData.totalSlope * frac,
+                                        lsuData.totalLongitude * frac, lsuData.totalLatitude * frac, crop)
                     lsuData.hruMap = dict()
                     lsuData.hruMap[1] = cellData
                     lsuData.cropSoilSlopeNumbers = dict()
@@ -3245,11 +3249,15 @@ class CreateHRUs(QObject):
                     if allowWaterHRU:
                         cellCount = lsuData.cellCount
                         area = lsuData.area
+                        frac = 1
                     else:
-                        cellCount = lsuData.cellCount - lsuData.waterBody.cellCount
+                        # fraction of lsu that is HRU
+                        frac = 1.0 - lsuData.waterBody.originalArea / lsuData.area
+                        # water body cellCount may have been made zero, so reconstruct
+                        cellCount = int(lsuData.cellCount * frac + 0.5)
                         area = lsuData.area - lsuData.waterBody.originalArea
-                    cellData = CellData(cellCount, area, lsuData.totalElevation, lsuData.totalSlope,
-                                        lsuData.totalLongitude, lsuData.totalLatitude, crop)
+                    cellData = CellData(cellCount, area, lsuData.totalElevation * frac, lsuData.totalSlope * frac,
+                                        lsuData.totalLongitude * frac, lsuData.totalLatitude * frac, crop)
                     lsuData.hruMap = dict()
                     lsuData.hruMap[1] = cellData
                     lsuData.cropSoilSlopeNumbers = dict()
@@ -4227,9 +4235,17 @@ class CreateHRUs(QObject):
                         meanElevation = cellData.totalElevation * meanMultiplier
                         centroid = QgsPointXY(cellData.totalLongitude * meanMultiplier, cellData.totalLatitude * meanMultiplier)
                         centroidll = self._gv.topo.pointToLatLong(centroid)
+                        lat = centroidll.y()
+                        if math.isnan(lat):
+                            QSWATUtils.error('Cannot compue latitude for {0} on channel {1}'.format(cellData.totalLatitude * meanMultiplier, SWATChannel), self._gv.isBatch)
+                            lat = 0
+                        lon = centroidll.x()
+                        if math.isnan(lon):
+                            QSWATUtils.error('Cannot compue longitude for {0} on channel {1}'.format(cellData.totalLongitude * meanMultiplier, SWATChannel), self._gv.isBatch)
+                            lon = 0
                         curs.execute(DBUtils._HRUSINSERTSQL, 
                                      (self.HRUNum, lsuId, subHa, arlsuHa, luse, arluse, snam, arso, slp,
-                                      arslp, meanSlopePercent, centroidll.y(), centroidll.x(), meanElevation))
+                                      arslp, meanSlopePercent, lat, lon, meanElevation))
                         # route HRU
                         if landscape == QSWATUtils._NOLANDSCAPE or landscape == QSWATUtils._FLOODPLAIN or \
                             QSWATUtils._FLOODPLAIN not in channelData: # upslope with no floodplain; can happen in grid models

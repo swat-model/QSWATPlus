@@ -168,6 +168,15 @@ cdef class WaterBody:
         self.totalLatitude += wb.totalLatitude
         self.totalLongitude += wb.totalLongitude
         
+    cpdef void multiply(self, double factor):
+        """Multiply water body values by factor."""
+        self.cellCount = int(self.cellCount * factor + 0.5) 
+        self.area *= factor
+        self.originalArea *= factor
+        self.totalElevation *= factor
+        self.totalLatitude *= factor
+        self.totalLongitude *= factor
+        
     cpdef void setInlet(self):
         """Set  to inlet.  provents merging downstream"""
         self.channelRole = _INLET
@@ -399,8 +408,7 @@ cdef class LSUData:
             self.hruMap[hru] = cellData
         # keep area of water hrus and water body consistent
         if self.waterBody is not None:
-            self.waterBody.area *= factor
-            self.waterBody.originalArea *= factor
+            self.waterBody.multiply(factor)
             
     cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 
@@ -450,7 +458,7 @@ cdef class LSUData:
             if crop == waterLanduse:
                 for soil, slopeNumbers in list(soilSlopeNumbers.items()):
                     for slope, hru in list(slopeNumbers.items()):
-                        self.cropSoilSlopeArea =- self.hruMap[hru].area
+                        self.cropSoilSlopeArea -= self.hruMap[hru].area
                         self.removeHRU(hru, crop, soil, slope)
                   
     cpdef void setCropAreas(self, bint isOriginal):
