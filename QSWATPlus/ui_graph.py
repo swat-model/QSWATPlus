@@ -90,7 +90,7 @@ class Ui_GraphDlg(object):
         self.label.setText(_translate("GraphDlg", "Chart Type"))
         self.updateButton.setText(_translate("GraphDlg", "Update"))
 
-import resources_rc
+import resources_rc  # @UnresolvedImport
 
 if __name__ == "__main__":
     import sys

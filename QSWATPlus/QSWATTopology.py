@@ -3209,10 +3209,12 @@ Other possible outlet stream links are {2}.
         """
         Get the band 1 value at point in a grid layer.
         
-        Note that this can return None if the point is outside the extent as well as nodata.
         """
-        # use band 1
-        return layer.dataProvider().identify(point, QgsRaster.IdentifyFormatValue).results()[1]
+        val, ok =  layer.dataProvider().sample(point, 1)
+        if not ok:
+            return layer.dataProvider().sourceNoDataValue(1)
+        else:
+            return val
          
     def isUpstreamSubbasin(self, subbasin):
         """Return true if a subbasin is upstream from an inlet."""

@@ -4920,7 +4920,7 @@ class CreateHRUs(QObject):
             subs1TreeLayer.setExpanded(False)
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
-            self.createAquifers(root)
+            # self.createAquifers(root)
         # TODO: create aquifers for grid models
         return True
     

@@ -479,10 +479,9 @@ class Landscape(QObject):
         if floodLayer is None:
             QSWATUtils.error('Failed to load buffer floodplain {0}'.format(bufferRasterFile), self._gv.isBatch)
         
-    def calcFloodplain(self, useInversion):
+    def calcFloodplain(self, useInversion, root):
         """Generate floodplain raster using DEM inversion or branch length method."""
         self._dlg.setCursor(Qt.WaitCursor)
-        root = QgsProject.instance().layerTreeRoot()
         if useInversion:
             # generate inverted flow accumulation to get ridge flow directions and slopes
             time1 = time.process_time()
@@ -591,7 +590,7 @@ class Landscape(QObject):
                 self.calcFloodplainBuffer(root)
             else:
                 self.floodThresh = self._dlg.slopePositionSpinBox.value()
-                self.calcFloodplain(useInversion)
+                self.calcFloodplain(useInversion, root)
         if not self.demRaster is None:
             self.demRaster.close()
             

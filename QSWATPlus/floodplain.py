@@ -128,7 +128,7 @@ class Floodplain(QObject):
             # use inverted DEM method for ridges
             self.useInversion = True
             time1 = time.process_time()
-            if not self.calcRidgeHeightsByInversion(ridgep, ridges, mustRun):
+            if not self.calcRidgeHeightsByInversion(ridgep, ridges, root, mustRun):
                 return
             time2 = time.process_time()
             QSWATUtils.loginfo('Ridge heights by inversion took {0} seconds'.format(int(time2 - time1)))
@@ -145,7 +145,7 @@ class Floodplain(QObject):
         QSWATUtils.loginfo('Floodplain creation took {0} seconds'.format(int(time2 - time1)))
         self._progress('')
                     
-    def calcRidgeHeightsByInversion(self, ridgep, ridges, mustRun):
+    def calcRidgeHeightsByInversion(self, ridgep, ridges, root, mustRun):
         """
         Create the ridgeHeightsRaster with differences between the elevation at the point and 
         the elevation of the nearest ridge cell.
@@ -155,7 +155,6 @@ class Floodplain(QObject):
         self.ridgeHeightsFile = QSWATUtils.join(self._gv.demDir, 'invheights.tif')
         if mustRun or not QSWATUtils.isUpToDate(ridgep, self.ridgeHeightsFile) or not QSWATUtils.isUpToDate(ridges, self.ridgeHeightsFile):
             self._gv.clearOpenRasters()
-            root = QgsProject.instance().layerTreeRoot()
             completed = False
             while not completed:
                 try:

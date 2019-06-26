@@ -1090,6 +1090,10 @@ class fileWriter:
     """
     Class effectively extending writer with a writeLine method
     """
+    
+    # should be automatically changed for Windows, but isn't
+    _END_LINE = os.linesep # '\r\n' for Windows
+    
     def __init__(self, path):
         """Initialise class variables."""
         ## writer

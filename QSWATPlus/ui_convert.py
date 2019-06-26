@@ -49,4 +49,4 @@ class Ui_arcConvertChoice(object):
         self.existingButton.setText(_translate("arcConvertChoice", "Existing"))
         self.fullButton.setText(_translate("arcConvertChoice", "Full"))
 
-import resources_rc
+import resources_rc  # @UnresolvedImport
