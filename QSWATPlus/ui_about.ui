@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>About QSWAT</string>
+   <string>About QSWAT+</string>
   </property>
   <property name="windowIcon">
    <iconset resource="resources.qrc">

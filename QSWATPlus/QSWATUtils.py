@@ -31,6 +31,7 @@ import ntpath
 import glob
 import shutil
 import random
+import time
 import datetime
 import sys
 from osgeo import gdal, ogr
@@ -778,6 +779,32 @@ class QSWATUtils:
         except Exception:
             QSWATUtils.information(f"""Unable to make .prj file for {fileName}.  
             You may need to set this map's projection manually""", False)
+        
+    @staticmethod
+    def tempFolder():
+        """Make temporary QSWAT folder and return its absolute path."""
+        tempDir = QSWATUtils.join(str(QDir.tempPath()), 'QSWAT')
+        if not QDir(tempDir).exists():
+            QDir().mkpath(tempDir)
+        return tempDir
+    
+    @staticmethod
+    def tempFile(suffix):
+        """Make a new temporary file in tempFolder with suffix."""
+        base = 'tmp' + str(time.clock()).replace('.','')
+        folder = QSWATUtils.tempFolder()
+        fil = QSWATUtils.join(folder, base + suffix)
+        if os.path.exists(fil):
+            time.sleep(1)
+            return QSWATUtils.tempFile(suffix)
+        return fil
+        
+    @staticmethod
+    def deleteTempFolder():
+        """Delete the temporary folder and its contents."""
+        folder = QSWATUtils.tempFolder()
+        if QDir(folder).exists():
+            shutil.rmtree(folder, True)
         
     @staticmethod
     def makeCurrent(strng: str, combo: QComboBox) -> None:

@@ -4920,7 +4920,7 @@ class CreateHRUs(QObject):
             subs1TreeLayer.setExpanded(False)
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
-            # self.createAquifers(root)
+            self.createAquifers(root)
         # TODO: create aquifers for grid models
         return True
     
@@ -4961,7 +4961,7 @@ class CreateHRUs(QObject):
                 return basin
             else:
                 return findOutlet(downBasin, downBasins)
-                
+            
         subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
         if not os.path.exists(subsFile):
             return
@@ -4973,11 +4973,12 @@ class CreateHRUs(QObject):
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
         else:
-            # temporarily set to ignore geometry errors
-            settings = QSettings()
-            filter_invalid_geometries = settings.value('/Processing/Configuration/FILTER_INVALID_GEOMETRIES')
-            settings.setValue('/Processing/Configuration/FILTER_INVALID_GEOMETRIES', '0')
             try:
+                # create context to make processing turn off detection of what it claims are invalid shapes
+                # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
+                context = QgsProcessingContext()
+                context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+                QSWATUtils.loginfo('Context invalid geometry setting is {0}'.format(context.invalidGeometryCheck()))
                 # first convert floodplain to polygons
                 floodFile = self._dlg.floodplainCombo.currentText()
                 floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
@@ -4988,37 +4989,31 @@ class CreateHRUs(QObject):
                 runProcess(command)
                 
                 # upslope aquifers are subbasins minus the floodplain
-                upAqFile = QSWATUtils.join(self._gv.resultsDir, 'upaquifers.shp')
-                QSWATUtils.tryRemoveLayerAndFiles(upAqFile, root)
-                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'OUTPUT': upAqFile})
+                upAqFile = QSWATUtils.tempFile('.shp')
+                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'OUTPUT': upAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 2
                 upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
                 addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 2)
                 
                 # downslope aquifers are subbasins intersected with floodplain
-                downAqFile = QSWATUtils.join(self._gv.resultsDir, 'downaquifers.shp')
-                QSWATUtils.tryRemoveLayerAndFiles(downAqFile, root)
+                downAqFile = QSWATUtils.tempFile('.shp')
                 processing.run("native:intersection", 
-                               {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'INPUT_FIELDS': [], 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile})
+                               {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'INPUT_FIELDS': [], 
+                                'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 1
                 downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
                 addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 1)
                 
-                # don't dissove on aquifer field: can lose some shapes entirely, do don't need bothAqFile
-                # bothAqFile = QSWATUtils.join(self._gv.resultsDir, 'bothaquifers.shp')
-                # QSWATUtils.tryRemoveLayerAndFiles(bothAqFile, root)
+                bothAqFile = QSWATUtils.tempFile('.shp')
                 # merge up and down aquifers
                 processing.run("native:mergevectorlayers", 
-                               {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': aqFile})
-                # processing.run("native:dissolve", 
-                #                {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile})
+                               {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': bothAqFile}, context=context)
+                processing.run("native:dissolve", 
+                               {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile}, context=context)
                 # merge adds some extra fields that we can lose
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
                 aqProvider = aqLayer.dataProvider()
                 QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
-                QSWATUtils.tryRemoveFiles(upAqFile)
-                QSWATUtils.tryRemoveFiles(downAqFile)
-                # QSWATUtils.tryRemoveFiles(bothAqFile)
                 
                 # create deep aquifer file by dissolving subbasins file
                 # make map of subbasin to outlet subbasin in each watershed:
@@ -5037,15 +5032,15 @@ class CreateHRUs(QObject):
                 addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
                 # dissolve on Aquifer field
                 processing.run("native:dissolve", 
-                               {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile})
+                               {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile}, context=context)
                 # remove other fields
                 deepLayer = QgsVectorLayer(deepAqFile, 'Deep Aquifer', 'ogr')
                 deepProvider = deepLayer.dataProvider()
                 QSWATTopology.removeFields(deepProvider, [QSWATTopology._AQUIFER], deepAqFile, self._gv.isBatch)
                 QSWATUtils.tryRemoveFiles(tempDeepAqFile)
-            finally:
-                settings.setValue('/Processing/Configuration/FILTER_INVALID_GEOMETRIES', str(filter_invalid_geometries))
-            
+            except Exception as ex:
+                QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
+                                       .format(repr(ex)), self._gv.isBatch)
 
     def generateBasinsFromShapefile(self, request, provider, polyIdx, subIdx):
         """Yield (feature id, basin, SWATBasin, basinData) tuples from subs1.shp."""
