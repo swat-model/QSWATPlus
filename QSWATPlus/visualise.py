@@ -157,6 +157,10 @@ class Visualise(QObject):
         self.periodsUpToDate = False
         ## current streams results layer
         self.rivResultsLayer = None
+        ## current aquifers results layer
+        self.aquResultsLayer = None
+        ## current deep aquifers results layer
+        self.deepAquResultsLayer = None
         ## current subbasins results layer
         self.subResultsLayer = None
         ## current LSUs results layer
@@ -203,6 +207,8 @@ class Visualise(QObject):
         self.internalChangeToHRURenderer = False
         ## flag to indicate if aquifer renderer being changed by code
         self.internalChangeToAquRenderer = False
+        ## flag to indicate if deep aquifer renderer being changed by code
+        self.internalChangeToDeepAquRenderer = False
         ## flag to indicate if colours for rendering streams should be inherited from existing results layer
         self.keepRivColours = False
         ## flag to indicate if colours for rendering subbasins should be inherited from existing results layer
@@ -213,6 +219,8 @@ class Visualise(QObject):
         self.keepHRUColours = False
         ## flag to indicate if colours for rendering aquifers should be inherited from existing results layer
         self.keepAquColours = False
+        ## flag to indicate if colours for rendering deep aquifers should be inherited from existing results layer
+        self.keepDeepAquColours = False
         ## map sub -> LSU -> HRU numbers
         self.hruNums = dict()
         ## file with observed data for plotting
@@ -428,6 +436,7 @@ class Visualise(QObject):
                 self.addTablesByTerminator(tables, '_aa')
         for table in tables:
             self._dlg.outputCombo.addItem(table)
+        self.makeDeepAquiferTables()
         self._dlg.outputCombo.setCurrentIndex(0)
         self.table = ''
         self.plotSetUnit()
@@ -445,7 +454,27 @@ class Visualise(QObject):
             tip = self.getTableTip(self._dlg.outputCombo.itemText(row))
             if tip != '':
                 item.setToolTip(tip)
-                         
+                
+    def makeDeepAquiferTables(self):
+        """For every table aquifer_... in output tables, if there is no corresponding deep_aquifer
+        table, create it by removing deepe aquifer entries from first table."""
+        count = self._dlg.outputCombo.count()
+        # ignore first row since it is empty
+        row = 1
+        while row < count:
+            txt = self._dlg.outputCombo.itemText(row)
+            if txt.startswith('aquifer_'):
+                deeptxt = 'deep_' + txt
+                deepIndx = self._dlg.outputCombo.findText(deeptxt, Qt.MatchExactly)
+                if deepIndx < 0:
+                    sql1 = "CREATE TABLE {0} AS SELECT * FROM {1} WHERE name LIKE 'aqu_deep%'".format(deeptxt, txt)
+                    self.conn.execute(sql1)
+                    sql2 = "DELETE FROM {0} WHERE name LIKE 'squ_deep%'".format(txt)
+                    self.conn.execute(sql2)
+                    row += 1
+                    self._dlg.outputCombo.insertItem(row, deeptxt)
+                    count += 1
+            row += 1     
             
     def setConnection(self, scenario):
         """Set connection to scenario output database."""
@@ -1326,7 +1355,7 @@ class Visualise(QObject):
             direcUpUp = os.path.split(direcUp)[0]
             if QSWATUtils.samePath(direcUpUp, self._gv.scenariosDir):
                 base = os.path.splitext(resName)[0]
-                if base == Parameters._SUBS or base == Parameters._RIVS or base == Parameters._HRUS or base == Parameters._LSUS:
+                if base in {Parameters._SUBS, Parameters._RIVS, Parameters._HRUS, Parameters._LSUS, Parameters._AQUIFERS, Parameters._DEEPAQUIFERS}:
                     QSWATUtils.information('The file {0} should not be overwritten: please choose another file name.'.format(os.path.splitext(resultsFileName)[0] + '.shp'), self._gv.isBatch)
                     return
         elif direcName == Parameters._ANIMATION:
@@ -1357,6 +1386,10 @@ class Visualise(QObject):
         """Return base name of shapefile used for results according to table name and availability of actual hrus file"""
         if self.table.startswith('channel_'):
             return Parameters._RIVS
+        if self.table.startswith('aquifer_'):
+            return Parameters._AQUIFERS
+        if self.table.startswith('deep_aquifer_'):
+            return Parameters._DEEPAQUIFERS
         if self.table.startswith('lsunit_'):
             return Parameters._LSUS
         if self.table.startswith('hru_'):
@@ -1421,6 +1454,18 @@ class Visualise(QObject):
             self.internalChangeToHRURenderer = True
             self.keepHRUColours = False
             self.currentResultsLayer = self.hruResultsLayer
+        elif baseName == Parameters._AQUIFERS:
+            self.aquResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
+            self.aquResultsLayer.rendererChanged.connect(self.changeAquRenderer)
+            self.internalChangeToAquRenderer = True
+            self.keepAquColours = False
+            self.currentResultsLayer = self.aquResultsLayer
+        elif baseName == Parameters._DEEPAQUIFERS:
+            self.deepAquResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
+            self.deepAquResultsLayer.rendererChanged.connect(self.changeDeepAquRenderer)
+            self.internalChangeToDeepAquRenderer = True
+            self.keepDeepAquColours = False
+            self.currentResultsLayer = self.deepAquResultsLayer
         else:
             self.rivResultsLayer = QgsVectorLayer(self.resultsFile, legend, 'ogr')
             self.rivResultsLayer.rendererChanged.connect(self.changeRivRenderer)
@@ -1451,6 +1496,10 @@ class Visualise(QObject):
             self.internalChangeToLSURenderer = False
         elif baseName == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
+        elif baseName == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = False
+        elif baseName == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = False
         else:
             self.internalChangeToRivRenderer = False
         self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
@@ -1463,7 +1512,10 @@ class Visualise(QObject):
             return
         layer = self.subResultsLayer if base == Parameters._SUBS \
                 else self.lsuResultsLayer if base == Parameters._LSUS \
-                else self.hruResultsLayer if base == Parameters._HRUS else self.rivResultsLayer
+                else self.hruResultsLayer if base == Parameters._HRUS \
+                else self.aquResultsLayer if base == Parameters._AQUIFERS \
+                else self.deepAquResultsLayer if base == Parameters._DEEPAQUIFERS \
+                else self.rivResultsLayer
         varz = self.varList(False)
         varIndexes = dict()
 #         if self.hasAreas:
@@ -1484,6 +1536,8 @@ class Visualise(QObject):
                 unit = f[QSWATTopology._LSUID]
             elif base == Parameters._SUBS:
                 unit = f[QSWATTopology._SUBBASIN]
+            elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
+                unit = f[QSWATTopology._AQUIFER]
             else:
                 unit = f[QSWATTopology._CHANNEL]
 #             if self.hasAreas:
@@ -1513,6 +1567,10 @@ class Visualise(QObject):
                         ref = 'LSU {0!s}'.format(unit)
                     elif base == Parameters._SUBS:
                         ref = 'subbasin {0!s}'.format(unit)
+                    elif base == Parameters._AQUIFERS:
+                        ref = 'aquifer {0!s}'.format(unit)
+                    elif base == Parameters._DEEPAQUIFERS:
+                        ref = 'deep aquifer {0!s}'.format(unit)
                     else:
                         ref = 'channel {0!s}'.format(unit)
                     QSWATUtils.error('Cannot get data for variable {0} in {1}: have you run SWAT+ and saved data since running QSWAT+?'.format(var, ref), self._gv.isBatch)
@@ -1543,6 +1601,14 @@ class Visualise(QObject):
         elif base == Parameters._HRUS:
             layer = self.hruResultsLayer
             keepColours = self.keepHRUColours
+            symbol = QgsFillSymbol()
+        elif base == Parameters._AQUIFERS:
+            layer = self.aquResultsLayer
+            keepColours = self.keepAquColours
+            symbol = QgsFillSymbol()
+        elif base == Parameters._DEEPAQUIFERS:
+            layer = self.deepAquResultsLayer
+            keepColours = self.keepDeepAquColours
             symbol = QgsFillSymbol()
         else:
             layer = self.rivResultsLayer
@@ -1592,6 +1658,10 @@ class Visualise(QObject):
             self.internalChangeToLSURenderer = True
         elif base == Parameters._HRUS:
             self.internalChangeToHRURenderer = True
+        elif base == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = True
+        elif base == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = True
         else:
             self.internalChangeToRivRenderer = True
         layer.setRenderer(renderer)
@@ -1612,6 +1682,12 @@ class Visualise(QObject):
         elif base == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
             self.keepHRUColours = keepColours
+        elif base == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = False
+            self.keepAquColours = keepColours
+        elif base == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = False
+            self.keepDeepAquColours = keepColours
         else:
             self.internalChangeToRivRenderer = False
             self.keepRivColours = keepColours
@@ -1686,10 +1762,9 @@ class Visualise(QObject):
         # place layer at top of animation group if new,
         # else above current animation layer, and mark that for removal
         animationGroup = root.findGroup(QSWATUtils._ANIMATION_GROUP_NAME)
-        if self._dlg.newAnimation.isChecked():
-            layerToRemoveId = None
-            index = 0
-        else:
+        layerToRemoveId = None
+        index = 0
+        if self._dlg.currentAnimation.isChecked():
             animations = animationGroup.findLayers()
             if len(animations) == 1:
                 layerToRemoveId = animations[0].layerId()
@@ -1701,8 +1776,6 @@ class Visualise(QObject):
                         index = i 
                         layerToRemoveId = currentLayerId
                         break
-                layerToRemoveId = None
-                index = 0
         self.animateLayer = proj.addMapLayer(animateLayer, False)
         animationGroup.insertLayer(index, self.animateLayer)
         if layerToRemoveId is not None:
@@ -2022,6 +2095,12 @@ class Visualise(QObject):
                 elif fileName.startswith(Parameters._RIVS):
                     base = Parameters._RIVS
                     fieldName = QSWATTopology._CHANNEL
+                elif fileName.startswith(Parameters._AQUIFERS):
+                    base = Parameters._AQUIFERS
+                    fieldName = QSWATTopology._AQUIFER
+                elif fileName.startswith(Parameters._DEEPAQUIFERS):
+                    base = Parameters._DEEPAQUIFERS
+                    fieldName = QSWATTopology._AQUIFER
                 else:
                     return
                 animateIndex = self.animateIndexes[layerId]
@@ -2181,7 +2260,7 @@ class Visualise(QObject):
         wbPrecip = ['prec', 'snow', 'et', 'eplant', 'esoil', 'pet']
         style = QgsStyle().defaultStyle()
         if table.startswith('channel') and var not in chaWater or \
-            table.startswith('aquifer') and var not in aqWater or \
+            (table.startswith('aquifer') or table.startswith('deep_aquifer')) and var not in aqWater or \
             '_ls_' in table or \
             '_nb_' in table or \
             '_wb_' in table and var not in wbWater and var not in wbPrecip:
@@ -2190,7 +2269,7 @@ class Visualise(QObject):
             ramp.invert()
             return ramp
         elif table.startswith('channel') and var in chaWater or \
-            table.startswith('aquifer') and var in aqWater or \
+            (table.startswith('aquifer') or table.startswith('deep_aquifer')) and var in aqWater or \
             '_wb_' in table and var in wbWater:
             # water
             return style.colorRamp('YlGnBu')
@@ -2683,6 +2762,16 @@ class Visualise(QObject):
         """Flag change to summary method."""
         self.summaryChanged = True
         
+    def changeAquRenderer(self):
+        """If user changes the aquifer renderer, flag to retain colour scheme."""
+        if not self.internalChangeToAquRenderer:
+            self.keepAquColours = True
+        
+    def changeDeepAquRenderer(self):
+        """If user changes the deep aquifer renderer, flag to retain colour scheme."""
+        if not self.internalChangeToDeepAquRenderer:
+            self.keepDeepAquColours = True
+        
     def changeRivRenderer(self):
         """If user changes the stream renderer, flag to retain colour scheme."""
         if not self.internalChangeToRivRenderer:
@@ -2740,6 +2829,7 @@ class Visualise(QObject):
                   #'_sd': 'HRU-LTE',
                   'channel_': 'Channel',
                   'aquifer_': 'Aquifer',
+                  'deep_aquifer_': 'Deep aquifer',
                   'reservoir_': 'Reservoir',
                   'wetland_': 'Wetland',
                   'hydin_': 'Hydrograph in',

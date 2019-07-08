@@ -275,8 +275,6 @@ class QSWATUtils:
         regardless of suffix.
         """
         QSWATUtils.removeLayer(fileName, root)
-        # wait for layers to be removed
-        QApplication.processEvents()
         QSWATUtils.removeFiles(fileName)
       
     @staticmethod
@@ -285,8 +283,6 @@ class QSWATUtils:
         regardless of suffix, but allow deletions to fail.
         """
         QSWATUtils.removeLayer(fileName, root)
-        # wait for layers to be removed
-        QApplication.processEvents()
         QSWATUtils.tryRemoveFiles(fileName)
           
     @staticmethod  
@@ -368,6 +364,8 @@ class QSWATUtils:
         Delete all files with same root as fileName, 
         i.e. regardless of suffix.
         """
+        # wait for layers to be removed
+        QApplication.processEvents()
         pattern = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             os.remove(f)
@@ -378,6 +376,8 @@ class QSWATUtils:
         Delete all files with same root as fileName, 
         i.e. regardless of suffix, but allow deletions to fail.
         """
+        # wait for layers to be removed
+        QApplication.processEvents()
         pattern: str = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             try:
@@ -781,10 +781,10 @@ class QSWATUtils:
             You may need to set this map's projection manually""", False)
         
     @staticmethod
-    def tempFolder():
+    def tempFolder(create=True):
         """Make temporary QSWAT folder and return its absolute path."""
         tempDir = QSWATUtils.join(str(QDir.tempPath()), 'QSWAT')
-        if not QDir(tempDir).exists():
+        if create and not QDir(tempDir).exists():
             QDir().mkpath(tempDir)
         return tempDir
     
@@ -802,7 +802,7 @@ class QSWATUtils:
     @staticmethod
     def deleteTempFolder():
         """Delete the temporary folder and its contents."""
-        folder = QSWATUtils.tempFolder()
+        folder = QSWATUtils.tempFolder(create=False)
         if QDir(folder).exists():
             shutil.rmtree(folder, True)
         

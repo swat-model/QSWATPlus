@@ -762,6 +762,7 @@ class QSWATPlus(QObject):
     def finish(self):   
         """Close the database connections and subsidiary forms."""
         if QSWATUtils is not None:
+            QSWATUtils.deleteTempFolder()
             QSWATUtils.loginfo('Closing databases')
         try:
             self.delin = None
