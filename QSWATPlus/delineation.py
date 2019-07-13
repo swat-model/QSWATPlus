@@ -2077,10 +2077,10 @@ assumed that its crossing the lake boundary is an inaccuracy
                 drawOutletFile = QSWATUtils.join(self._gv.shapesDir, 'drawoutlets1.shp')
             if not Delineation.createOutletFile(drawOutletFile, self._gv.demFile, False, root, self._gv.isBatch):
                 return
-            self.drawOutletLayer, loaded = QSWATUtils.getLayerByFilename(root.findLayers(),
+            self.drawOutletLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(),
                                                                           drawOutletFile, FileTypes._OUTLETS, self._gv,
                                                                           None, QSWATUtils._WATERSHED_GROUP_NAME)
-            if not self.drawOutletLayer or not loaded:
+            if self.drawOutletLayer is None:
                 QSWATUtils.error('Unable to load shapefile {0}'.format(drawOutletFile), self._gv.isBatch)
                 return
             if not self._gv.iface.setActiveLayer(self.drawOutletLayer):

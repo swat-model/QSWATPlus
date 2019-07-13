@@ -1503,6 +1503,7 @@ class Visualise(QObject):
         else:
             self.internalChangeToRivRenderer = False
         self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
+        self.currentResultsLayer.willBeDeleted.connect(self.redoTitle)
         return True
         
     def updateResultsFile(self):
@@ -1573,7 +1574,8 @@ class Visualise(QObject):
                         ref = 'deep aquifer {0!s}'.format(unit)
                     else:
                         ref = 'channel {0!s}'.format(unit)
-                    QSWATUtils.error('Cannot get data for variable {0} in {1}: have you run SWAT+ and saved data since running QSWAT+?'.format(var, ref), self._gv.isBatch)
+                    QSWATUtils.error('Cannot get data for variable {0} in table {1} in {2}: have you run SWAT+ and saved data since running QSWAT+?'.
+                                     format(var, ref, self.db), self._gv.isBatch)
                     return
                 if not layer.changeAttributeValue(fid, varIndexes[var], float(data) if isinstance(data, numpy.float64) else data):
                     QSWATUtils.error('Could not set attribute {0} in results file {1}'.format(var, self.resultsFile), self._gv.isBatch)
@@ -1731,6 +1733,35 @@ class Visualise(QObject):
             return True
         except RuntimeError:
             return False
+        
+    def redoTitle(self):
+        """Run when current results layer is about to be deleted.
+        clears title if any and sets for next layer if any."""
+        if self.mapTitle  is None:
+            return
+        if self.mapTitle.layer != self.currentResultsLayer:
+            return
+        root = QgsProject.instance().layerTreeRoot()
+        animationLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=True)
+        if len(animationLayers) > 0:
+            # at least one visible animation layer above: leave its title to show
+            return
+        canvas = self._gv.iface.mapCanvas()
+        canvas.scene().removeItem(self.mapTitle)
+        canvas.update()
+        resultsLayers = QSWATUtils.getLayersInGroup(QSWATUtils._RESULTS_GROUP_NAME, root, visible=True)
+        for treeLayer in resultsLayers:
+            mapLayer = treeLayer.layer()
+            if mapLayer == self.currentResultsLayer:
+                continue
+            else:
+                # found a results layer to generate title for
+                self.currentResultsLayer = mapLayer
+                self.currentResultsLayer.willBeDeleted.connect(self.redoTitle)
+                self.mapTitle = MapTitle(canvas, self.title, mapLayer)
+                canvas.update()
+                return
+        
         
     def createAnimationLayer(self):
         """

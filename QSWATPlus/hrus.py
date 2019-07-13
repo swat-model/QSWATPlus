@@ -4944,8 +4944,9 @@ class CreateHRUs(QObject):
                 QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
             QSWATTopology.removeFields(provider, [newFieldname], fileName, self._gv.isBatch)
             
-        def runProcess(command):
-            """Run command"""
+        def runProcess(command, params):
+            """Run command on params"""
+            processing.run(command, params)
             try:
                 subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
             except subprocess.CalledProcessError as e:
@@ -4984,10 +4985,14 @@ class CreateHRUs(QObject):
                 floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
                 floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
                 QSWATUtils.tryRemoveLayerAndFiles(floodShapefile, root)
-                command = 'python3 -m gdal_polygonize {0} {1} -b 1 -f "ESRI Shapefile" flood DN'. \
-                        format(floodPath, floodShapefile)
-                runProcess(command)
-                
+                params = {'INPUT': floodPath,
+                          'BAND': 1,
+                          'FIELD': 'DN',
+                          'EIGHT_CONNECTEDNESS': False,
+                          'OUTPUT': floodShapefile}
+                processing.run('gdal:polygonize', params, context=context)
+                if not os.path.isfile(floodShapefile):
+                    raise Exception('Failed to polygonize floodplain raster')
                 # upslope aquifers are subbasins minus the floodplain
                 upAqFile = QSWATUtils.tempFile('.shp')
                 processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'OUTPUT': upAqFile}, context=context)
