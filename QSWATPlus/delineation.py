@@ -477,6 +477,9 @@ class Delineation(QObject):
                 lakesLayer.triggerRepaint()
                 self._gv.topo.addExistingLakes(lakesLayer, channelsLayer, demLayer, self._gv)
             else:
+                # make copy of subbasins shapefile before removing lakes
+                QSWATUtils.copyShapefile(self._gv.subbasinsFile, 'subsNoLakes', self._gv.shapesDir)
+                self._gv.subsNoLakesFile = QSWATUtils.join(self._gv.shapesDir, 'subsNoLakes.shp')
                 snapThreshold = int(self._dlg.snapThreshold.text())
                 self._gv.topo.addLakes(lakesLayer, subbasinsLayer, chBasinsLayer, streamsLayer, channelsLayer, 
                                        demLayer, snapThreshold, self._gv)
@@ -503,11 +506,15 @@ class Delineation(QObject):
             return False
         snapLayer = QgsVectorLayer(self._gv.snapFile, 'Snapped points', 'ogr')
         snapProvider = snapLayer.dataProvider()
+        # add ADDED field to define additional points
+        snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, QVariant.Int)])
+        snapLayer.updateFields()
         fields = snapProvider.fields()
         idIndex = fields.indexFromName(QSWATTopology._ID)
         resIndex = fields.indexFromName(QSWATTopology._RES)
         inletIndex = fields.indexFromName(QSWATTopology._INLET)
         srcIndex = fields.indexFromName(QSWATTopology._PTSOURCE)
+        addIndex = fields.indexFromName(QSWATTopology._ADDED)
         ds = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         transform = ds.GetGeoTransform()
         ds = None
@@ -633,6 +640,7 @@ the lake at its first crossing point.
                             point.setAttribute(resIndex, 0)
                             point.setAttribute(inletIndex, 0)
                             point.setAttribute(srcIndex, 0)
+                            point.setAttribute(addIndex, 1)
                             # check point not too close to channel end
                             # else this point will be ignored by TauDEM
                             crossingPointMoved = QSWATTopology.separatePoints(source, crossingPoint, transform)
@@ -671,6 +679,7 @@ that it flows out the lake at its last crossing point.
                             point.setAttribute(resIndex, res)
                             point.setAttribute(inletIndex, 0)
                             point.setAttribute(srcIndex, 0)
+                            point.setAttribute(addIndex, 1)
                             # check point not too close to channel end
                             # else this point will be ignored by TauDEM
                             crossingPointMoved = QSWATTopology.separatePoints(source, crossingPoint, transform)
@@ -709,6 +718,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                                            .format(lakeId, chLink, int(reachData.lowerX), int(reachData.lowerY)))
                     point.setAttribute(inletIndex, 0)
                     point.setAttribute(srcIndex, 0)
+                    point.setAttribute(addIndex, 1)
                     # check point not too close to channel end
                     # else this point will be ignored by TauDEM
                     crossingPoint = intersect.asPoint()
@@ -1522,6 +1532,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         subbasinsFile = shapesBase + 'subbasins.shp'
         self.createWatershedShapefile(wStreamFile, subbasinsFile, FileTypes._SUBBASINS, root)
         self._gv.subbasinsFile = subbasinsFile
+        self._gv.subsNoLakesFile = subbasinsFile
         if not self._gv.useGridModel:
             wshedFile = shapesBase + 'wshed.shp'
             self.createWatershedShapefile(wChannelFile, wshedFile, FileTypes._WATERSHED, root)
@@ -3711,6 +3722,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         # for flow-based analysis as we will run off the edge
         self.clipperFile = self._gv.subbasinsFile
         self._gv.subbasinsFile = gridFile
+        # make sure gridFile is used for making aquifers shapefile
+        self._gv.subsNoLakesFile = ''
         
     def writeGridStreamsShapefile(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, minDrainArea: float, maxDrainArea: float, 
                                   accTransform: Transform) -> int:
@@ -4510,6 +4523,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if not self._gv.useGridModel:
             proj.writeEntry(title, 'delin/channels', proj.writePath(self._gv.channelFile))
             proj.writeEntry(title, 'delin/wshed', proj.writePath(self._gv.wshedFile))
+        proj.writeEntry(title, 'delin/subsNoLakes', proj.writePath(self._gv.subsNoLakesFile))
         proj.writeEntry(title, 'delin/lakes', proj.writePath(self._gv.lakeFile))
         proj.writeEntry(title, 'delin/lakesDone', self.lakesDone)
         if self._gv.useGridModel:

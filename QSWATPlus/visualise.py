@@ -1345,7 +1345,7 @@ class Visualise(QObject):
         base = self.selectBase()
         if base is None:
             return
-        resultsFileName, _ = QFileDialog.getSaveFileName(None, base + 'results', path, QgsProject.instance().fileVectorFilters())
+        resultsFileName, _ = QFileDialog.getSaveFileName(None, base + 'results', path, QgsProviderRegistry.instance().fileVectorFilters())
         if resultsFileName == '':
             return
         direc, resName = os.path.split(resultsFileName)
@@ -2026,12 +2026,12 @@ class Visualise(QObject):
             self.animationLayout.initializeDefaults()
             self.animationLayout.setName(title)
             self.setDateInTemplate()
-            items = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())
+            items = self.animationLayout.loadFromTemplate(self.animationDOM, QgsReadWriteContext())  # @UnusedVariable
             ok = proj.layoutManager().addLayout(self.animationLayout)
             if not ok:
                 QSWATUtils.error('Failed to add animation layout to layout manager.  Try removing some.', self._gv.isBatch)
                 return
-            designer = self._gv.iface.openLayoutDesigner(layout=self.animationLayout)
+            designer = self._gv.iface.openLayoutDesigner(layout=self.animationLayout)  # @UnusedVariable
             self.animationTemplateDirty = True
                                            
     def rereadAnimationTemplate(self):
@@ -2498,12 +2498,12 @@ class Visualise(QObject):
         layout = QgsPrintLayout(proj)
         layout.initializeDefaults()
         layout.setName(title)
-        items = layout.loadFromTemplate(templateDoc, QgsReadWriteContext())
+        items = layout.loadFromTemplate(templateDoc, QgsReadWriteContext())  # @UnusedVariable
         ok = proj.layoutManager().addLayout(layout)
         if not ok:
             QSWATUtils.error('Failed to add layout to layout manager.  Try removing some.', self._gv.isBatch)
             return
-        designer = self._gv.iface.openLayoutDesigner(layout=layout)
+        designer = self._gv.iface.openLayoutDesigner(layout=layout)  # @UnusedVariable
         # if you quit from layout manager and then try to make another layout, 
         # the pointer gets reused and there is a 'destroyed by C==' error
         # This prevents the reuse.
@@ -2785,7 +2785,7 @@ class Visualise(QObject):
             QSWATUtils.information('No video file for {0} exists at present'.format(self.animateVar), self._gv.isBatch)
             return
         if os.name == 'nt': # Windows
-            os.startfile(self.videoFile)
+            os.startfile(self.videoFile)  # @UndefinedVariable since not defined in Linux
         elif os.name == 'posix': # Linux
             subprocess.call(('xdg-open', self.videoFile))
     
@@ -3330,7 +3330,7 @@ class Visualise(QObject):
         if not self._gv.db.hasDataConn(flowDataTable, self.conn):
             QSWATUtils.error('Table {0} is missing or empty'.format(flowDataTable), self._gv.isBatch)
             return
-        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
         selectString = '[mon], [day], [yr], [flo_out]'
         where = 'gis_id = {0!s}'.format(self.subbasinOutletChannels[int(self._dlg.QqSubbasin.currentText())])
         sql = self._gv.db.sqlSelect(flowDataTable, selectString, '', where)
@@ -3531,7 +3531,7 @@ class Visualise(QObject):
             return
         # data has structure yearIndex -> flow value list
         flowData = dict()
-        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10:[], 11:[], 12: []}
+        monthData = {1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: [], 11: [], 12: []}
         yearIndex = -1
         count = 0  # don't like using variable defined inside loop after completion, so define these here
         expectedLength = 0 

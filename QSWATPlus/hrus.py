@@ -4903,9 +4903,9 @@ class CreateHRUs(QObject):
                 QSWATUtils.error('Cannot write data to {0}'.format(lsus2File), self._gv.isBatch)
             else:
                 lsusProvider2.deleteFeatures(toDelete)
+        root = QgsProject.instance().layerTreeRoot()
         # add subs1 layer in place of watershed layer, unless using grid model
         if not self._gv.useGridModel:
-            root = QgsProject.instance().layerTreeRoot()
             subbasinsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.subbasinsFile, None, None, None, None)[0]
             if subbasinsLayer is not None:
                 subLayer = root.findLayer(subbasinsLayer.id())
@@ -4920,8 +4920,7 @@ class CreateHRUs(QObject):
             subs1TreeLayer.setExpanded(False)
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
-            self.createAquifers(root)
-        # TODO: create aquifers for grid models
+        self.createAquifers(root)
         return True
     
     def createAquifers(self, root):
@@ -4943,17 +4942,6 @@ class CreateHRUs(QObject):
             if not provider.changeAttributeValues(mmap):
                 QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
             QSWATTopology.removeFields(provider, [newFieldname], fileName, self._gv.isBatch)
-            
-        def runProcess(command, params):
-            """Run command on params"""
-            processing.run(command, params)
-            try:
-                subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
-            except subprocess.CalledProcessError as e:
-                QSWATUtils.error("""Command {0} failed: 
-{1}; 
-{2}
-""".format(command, e.stdout, e.stderr), self._gv.isBatch)
                 
         def findOutlet(basin, downBasins):
             """downBasins maps basin to downstream basin or -1 if none.  Return final basin starting from basin."""
@@ -4962,8 +4950,12 @@ class CreateHRUs(QObject):
                 return basin
             else:
                 return findOutlet(downBasin, downBasins)
-            
-        subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
+        
+        # start of createAquifers
+        if os.path.isfile(self._gv.subsNoLakesFile):
+            subsFile = self._gv.subsNoLakesFile
+        else:
+            subsFile = self._gv.subbasinsFile
         if not os.path.exists(subsFile):
             return
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
@@ -4993,9 +4985,15 @@ class CreateHRUs(QObject):
                 processing.run('gdal:polygonize', params, context=context)
                 if not os.path.isfile(floodShapefile):
                     raise Exception('Failed to polygonize floodplain raster')
+                # the flood plygon can cause errors in aclculating the difference and intersection, 
+                # so first try to fix its geometry
+                floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
+                params = {'INPUT': floodShapefile, 'OUTPUT': floodFixed}
+                processing.run('native:fixgeometries', params, context=context)
                 # upslope aquifers are subbasins minus the floodplain
                 upAqFile = QSWATUtils.tempFile('.shp')
-                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'OUTPUT': upAqFile}, context=context)
+                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 2
                 upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
                 addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 2)
@@ -5003,7 +5001,7 @@ class CreateHRUs(QObject):
                 # downslope aquifers are subbasins intersected with floodplain
                 downAqFile = QSWATUtils.tempFile('.shp')
                 processing.run("native:intersection", 
-                               {'INPUT': subsFile, 'OVERLAY': floodShapefile, 'INPUT_FIELDS': [], 
+                               {'INPUT': subsFile, 'OVERLAY': floodFixed, 'INPUT_FIELDS': [], 
                                 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 1
                 downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
@@ -5036,7 +5034,7 @@ class CreateHRUs(QObject):
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
                 if SWATBasin > 0:
                     outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[findOutlet(basin, self._gv.topo.downSubbasins)]
-            QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
+            # QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
             deepAqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._DEEPAQUIFERS + '.shp')
             QSWATUtils.tryRemoveLayerAndFiles(deepAqFile, root)
             QSWATUtils.copyShapefile(subsFile, 'deep_temp', self._gv.resultsDir)

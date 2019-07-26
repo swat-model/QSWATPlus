@@ -46,6 +46,7 @@ from QSWATTopology import QSWATTopology  # @UnresolvedImport
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
 from QSWATPlus import QSWATPlus
+from parameters import Parameters
 
 class ConvertFromArc(QObject):
     """Convert ArcSWAT projects to SWAT+"""
@@ -201,6 +202,8 @@ class ConvertFromArc(QObject):
             return
         self.createDbTables()
         if self.choice == ConvertFromArc._noGISChoice:
+            if not self.setCrs():
+                return 
             self.createGISTables()
         else:
             self.proj = QgsProject.instance()
@@ -230,21 +233,43 @@ class ConvertFromArc(QObject):
             self.createSoilTables()
             self.createLanduseTables()
             self.createProjectConfig()
-        # write fromArc flag to project file
-        self.proj.writeEntry(self.qProjName, 'fromArc', self.choice)
-        self.proj.write()
+        else:
+            # write fromArc flag to project file
+            self.proj.writeEntry(self.qProjName, 'fromArc', self.choice)
+            self.proj.write()
         print('Project converted')
-        ConvertFromArc.information('ArcSWAT project {0} converted to QSWAT+ project {1} in {2}'.
-                                  format(self.arcProjName, self.qProjName, self.qProjDir))
-        response = ConvertFromArc.question('Run QGIS on the QSWAT+ project?')
-        if response == QMessageBox.Yes:
-            osgeo4wroot = os.environ['OSGEO4W_ROOT']
-            # print('OSGEO4W_ROOT: {0}'.format(osgeo4wroot))
-            gisname = os.environ['GISNAME']
-            # print('GISNAME: {0}'.format(gisname))
-            command = '{0}/bin/{1}.bat --project "{2}"'.format(osgeo4wroot, gisname, qProjFile)
-            # print('Command: {0}'.format(command))
-            subprocess.call(command, shell=True)
+        if self.choice == ConvertFromArc._noGISChoice:
+            ConvertFromArc.information('ArcSWAT project {0} converted to SWAT+ project {1} in {2}'.
+                                       format(self.arcProjName, self.qProjName, self.qProjDir))
+            response = ConvertFromArc.question('Run SWAT+ Editor on the SWAT+ project?')
+            if response == QMessageBox.Yes:
+                editorDir = QSWATUtils.join(self.SWATPlusDir, Parameters._SWATEDITORDIR)
+                editor = QSWATUtils.join(editorDir, Parameters._SWATEDITOR)
+                if not os.path.isfile(editor):
+                    title = 'Cannot find SWAT+ Editor {0}.  Please select it.'.format(editor)
+                    editor, _ = QFileDialog.getOpenFileName(None, title, '', 'Executable files (*.exe)')
+                    if editor == '':
+                        return
+                qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
+                subprocess.run('"{0}" "{1}"'.format(editor, qProjDb), shell=True)
+        else:
+            ConvertFromArc.information('ArcSWAT project {0} converted to QSWAT+ project {1} in {2}'.
+                                       format(self.arcProjName, self.qProjName, self.qProjDir))
+            response = ConvertFromArc.question('Run QGIS on the QSWAT+ project?')
+            if response == QMessageBox.Yes:
+                osgeo4wroot = os.environ['OSGEO4W_ROOT']
+                # print('OSGEO4W_ROOT: {0}'.format(osgeo4wroot))
+                gisname = os.environ['GISNAME']
+                # print('GISNAME: {0}'.format(gisname))
+                batFile = '{0}/bin/{1}.bat'.format(osgeo4wroot, gisname)
+                if not os.path.exists(batFile):
+                    title = 'Cannot find QGIS start file {0}.  Please select it.'.format(batFile)
+                    batFile, _ = QFileDialog.getOpenFileName(None, title, '', 'Bat files (*.bat)')
+                    if batFile == '':
+                        return
+                command = '"{0}" --project "{1}"'.format(batFile, qProjFile)
+                # print('Command: {0}'.format(command))
+                subprocess.run(command, shell=True)
  
     def createSubDirectories(self):
         """Create subdirectories under QSWAT+ project's directory."""
@@ -297,10 +322,28 @@ class ConvertFromArc(QObject):
         """Set up project and reference databases."""
         projDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\QSWATPlusProj2018.sqlite')
         refDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\swatplus_datasets.sqlite')
-        projFileTemplate = os.path.join(self.ConvertFromArcDir, 'example.qgs')
+        projFileTemplate = os.path.join(self.SWATPlusDir, r'Databases\example.qgs')
         shutil.copy(projDbTemplate, os.path.join(self.qProjDir, self.qProjName + '.sqlite'))
         shutil.copy(refDbTemplate, self.qProjDir)
         shutil.copy(projFileTemplate, os.path.join(self.qProjDir, self.qProjName + '.qgs'))
+        
+    def setCrs(self):
+        """Set CRS from DEM and set transform to lat-long."""
+        """Copy ESRI DEM as GeoTiff into QSWAT project."""
+        inDEM = os.path.join(self.arcProjDir, r'Watershed\Grid\sourcedem\hdr.adf')
+        if not os.path.exists(inDEM):
+            ConvertFromArc.error('Cannot find DEM {0}'.format(inDEM))
+            return False
+        demLayer = QgsRasterLayer(inDEM, 'DEM')
+        self.crs = demLayer.crs()
+        crsLatLong = QgsCoordinateReferenceSystem()
+        if not crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
+            QSWATUtils.error('Failed to create lat-long coordinate reference system')
+            return False
+        self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
+        # self.transformToLatLong = QgsCoordinateTransform(self.crsProject, self.crsLatLong, QgsProject.instance())
+        return True
+        
     
     def copyDEM(self):
         """Copy ESRI DEM as GeoTiff into QSWAT project."""
@@ -992,9 +1035,9 @@ class ConvertFromArc(QObject):
             reportFile = os.path.join(self.qProjDir, '{0}_map_percentages.txt'.format(landuseOrSoil))
             with open(reportFile, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([b'Value', b'Percent'])
+                writer.writerow(['Value', 'Percent'])
                 for percent, val in values:
-                    writer.writerow([b'{0!s}, {1:.2F}'.format(val, percent)])
+                    writer.writerow(['{0!s}, {1:.2F}'.format(val, percent)])
             ConvertFromArc.error("""
             There are {0!s} {2}s reported in {3} but {1!s} values found in the {2} raster: cannot generate {2} lookup csv file.
             Percentages from raster reported in {4}"""
@@ -1005,9 +1048,9 @@ class ConvertFromArc(QObject):
         with open(csvFile, 'w', newline='') as f:
             writer = csv.writer(f)
             if landuseOrSoil == 'landuse':
-                writer.writerow([b'LANDUSE_ID', b'SWAT_CODE'])
+                writer.writerow(['LANDUSE_ID', 'SWAT_CODE'])
             else:
-                writer.writerow([b'SOIL_ID', b'SNAM'])
+                writer.writerow(['SOIL_ID', 'SNAM'])
             closeWarn = False
             underOneCount = 0
             for i in range(numValues):
@@ -1131,7 +1174,7 @@ class ConvertFromArc(QObject):
             self.createTillTable(cursor, refCsvDir)
             self.createUrbanTable(cursor, refCsvDir)
             if self.soilOption == 'name':
-                self.creatUsersoilTable(cursor, refCsvDir)
+                self.createUsersoilTable(cursor, refCsvDir)
             qConn.commit()
             
     def createPlantTable(self, cursor, refCsvDir):
@@ -1244,7 +1287,7 @@ class ConvertFromArc(QObject):
         table = 'arc_usersoil'
         cursor.execute('DROP TABLE IF EXISTS {0}'.format(table))
         cursor.execute('CREATE TABLE ' + table + DBUtils._USERSOILTABLE)
-        sql = 'INSERT INTO usersoil VALUES(' + ','.join(['?']*152) + ')'
+        sql = 'INSERT INTO arc_usersoil VALUES(' + ','.join(['?']*152) + ')'
         with open(usersoilFile, 'r', newline='') as f:
             reader = csv.reader(f)
             next(reader)  # skip headers
@@ -1492,20 +1535,20 @@ class ConvertFromArc(QObject):
                     if stationName not in stationNames:
                         stationNames.add(stationName)
                         stationId += 1
-                        fields = wgnFile.readline().split()
-                        latitude = float(fields[2])
-                        longitude = float(fields[5])
-                        fields = wgnFile.readline().split()
-                        elev = float(fields[3])
-                        fields = wgnFile.readline().split()
-                        rainYears = int(float(fields[2]))
+                        latLong = wgnFile.readline()
+                        latitude = float(latLong[12:19])
+                        longitude = float(latLong[31:])
+                        elev = float(wgnFile.readline()[12:])
+                        rainYears = int(float(wgnFile.readline()[12:]))
                         cursor.execute(ConvertFromArc._INSERTWGN, 
                                        (stationId, stationName, latitude, longitude, elev, rainYears))
                         self.wgnStations[stationId] = (latitude, longitude)
                         arr = numpy.empty([14, 12], dtype=float)
                         for row in range(14):
-                            vals = wgnFile.readline().split()
-                            arr[row,:] = tuple(vals)
+                            line = wgnFile.readline()
+                            for col in range(12):
+                                i = col*6
+                                arr[row,col] = float(line[i:i+6])
                         for col in range(12):
                             monId += 1
                             cursor.execute(ConvertFromArc._INSERTWGNMON, 
@@ -1729,33 +1772,35 @@ class ConvertFromArc(QObject):
             inletToSubbasin = dict()
             ptsrcToSubbasin = dict()
             ptNum = 0
-            with open(os.path.join(self.qProjDir, r'csv\Project\MonitoringPoint.csv'), 'r', newline='') as f:
-                reader = csv.reader(f)
-                next(reader)  # skip header
-                for row in reader:
-                    ptNum += 1
-                    subbasin = int(row[11])
-                    arcType = row[10]
-                    if arcType in ['L', 'T', 'O']:
-                        qType = 'O'
-                        subbasinToOutlet[subbasin] = ptNum
-                    elif arcType in ['W', 'I']:
-                        qType = 'I'
-                        inletToSubbasin[ptNum] = subbasin
-                    elif arcType in ['D', 'P']:
-                        qType = 'P'
-                        ptsrcToSubbasin[ptNum] = subbasin
-                    elif arcType == 'R':
-                        qType = 'R'
-                        reservoirSubbasins.add(subbasin)
-                    else:
-                        # weather gauge: not included in gis_points
-                        continue
-                    elev = row[8]
-                    if elev == '': # avoid null: arcSWAT only gives elevations to weather gauges
-                        elev = 0
-                    cursor.execute(ConvertFromArc._INSERTPOINTS, 
-                                   (ptNum, subbasin, qType) + tuple(row[4:8]) + (elev,))
+            monitoringPoints = os.path.join(self.qProjDir, r'csv\Project\MonitoringPoint.csv')
+            if os.path.isfile(monitoringPoints):
+                with open(monitoringPoints, 'r', newline='') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # skip header
+                    for row in reader:
+                        ptNum += 1
+                        subbasin = int(row[11])
+                        arcType = row[10]
+                        if arcType in ['L', 'T', 'O']:
+                            qType = 'O'
+                            subbasinToOutlet[subbasin] = ptNum
+                        elif arcType in ['W', 'I']:
+                            qType = 'I'
+                            inletToSubbasin[ptNum] = subbasin
+                        elif arcType in ['D', 'P']:
+                            qType = 'P'
+                            ptsrcToSubbasin[ptNum] = subbasin
+                        elif arcType == 'R':
+                            qType = 'R'
+                            reservoirSubbasins.add(subbasin)
+                        else:
+                            # weather gauge: not included in gis_points
+                            continue
+                        elev = row[8]
+                        if elev == '': # avoid null: arcSWAT only gives elevations to weather gauges
+                            elev = 0
+                        cursor.execute(ConvertFromArc._INSERTPOINTS, 
+                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elev,))
             # gis_hrus and _water
             cursor.execute('DROP TABLE IF EXISTS gis_hrus')
             cursor.execute('DROP TABLE IF EXISTS gis_water')
@@ -1872,9 +1917,15 @@ class ConvertFromArc(QObject):
                                 (hruNum, 'HRU', channel, 'CH', 100))
             # checkRouting assumes sqlite3.Row used for row_factory
             conn.row_factory = sqlite3.Row
-            msg = DBUtils.checkRouting(conn)
-            if msg != '':
-                ConvertFromArc.error(msg)
+            errors, warnings = DBUtils.checkRouting(conn)
+            OK = True
+            for error in errors:
+                ConvertFromArc.error(error)
+                OK = False
+            if not OK:
+                return 
+            for warning in warnings:
+                ConvertFromArc.information(warning)
             print('gis_ tables written')
             conn.commit()
     
@@ -2351,7 +2402,7 @@ class ConvertFromArc(QObject):
                   NOT NULL,
     wtype TEXT,
     lsu   INTEGER,
-    subbasin: INTEGER,
+    subbasin INTEGER,
     area  REAL,
     xpr   REAL,
     ypr   REAL,

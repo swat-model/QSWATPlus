@@ -1,0 +1,8 @@
+21/7/2019  #1
+layer.fieldNameIndex -> layer.dataProvider().fieldnameIndex
+QSWATTopology line 520
+
+26/7/2019  #2
+wgn files need to be read as fixed length, not with split
+convertFromArc.py
+

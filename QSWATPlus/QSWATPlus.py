@@ -35,15 +35,15 @@ import traceback
 try:
     from .resources_rc import * # @UnusedWildImport
 except:
-    from resources_rc import *  # for convertFromArc @UnresolvedImport
+    from resources_rc import *  # for convertFromArc @UnresolvedImport @UnusedWildImport
 # Import the code for the dialog
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
+    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport
 except:
     # for convertFromArc
-    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
 try:
     txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
@@ -384,7 +384,7 @@ class QSWATPlus(QObject):
             QSWATUtils.error('Cannot find report {0}'.format(report))
             return
         if Parameters._ISWIN : # Windows
-            os.startfile(report)
+            os.startfile(report)  # @UndefinedVariable since not defined in Linux
         elif os.name == 'posix': # Linux
             subprocess.call(('xdg-open', report))
         self._odlg.reportsBox.setCurrentIndex(0)
@@ -553,6 +553,9 @@ class QSWATPlus(QObject):
             QSWATUtils.loginfo('demProcessed failed: no subbasins layer')
             return False
         self._gv.subbasinsFile = subbasinsFile
+        self._gv.subsNoLakesFile, _ = proj.readEntry(title, 'delin/subsNoLakes', '')
+        if self._gv.subsNoLakesFile != '':
+            self._gv.subsNoLakesFile = proj.readPath(self._gv.subsNoLakesFile)
         if not self._gv.useGridModel:
             wshedFile, found = proj.readEntry(title, 'delin/wshed', '')
             if not found or wshedFile == '':

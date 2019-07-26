@@ -274,7 +274,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQG
         TauDEMDir = TauDEMUtils.findTauDEMDir(settings, False)
         if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
-            os.startfile(taudemHelpFile)
+            os.startfile(taudemHelpFile)  # @UndefinedVariable since not defined in Linux
         else:
             webbrowser.open(Parameters._TAUDEMDOCS)
         

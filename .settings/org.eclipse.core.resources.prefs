@@ -24,6 +24,7 @@ encoding//QSWATPlus/graphdialog.py=utf-8
 encoding//QSWATPlus/graphdialog1.py=utf-8
 encoding//QSWATPlus/hrus.py=utf-8
 encoding//QSWATPlus/hrusdialog.py=utf-8
+encoding//QSWATPlus/imageio/__init__.py=utf-8
 encoding//QSWATPlus/imageio/core/findlib.py=utf-8
 encoding//QSWATPlus/imageio/plugins/ffmpeg.py=utf-8
 encoding//QSWATPlus/jenks.pyx=utf-8

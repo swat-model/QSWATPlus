@@ -160,7 +160,7 @@ class Parameters:
                 ## flag showing if batch run
                 self.isBatch = self._gv.isBatch
             except Exception:
-               self.isBatch = False 
+                self.isBatch = False 
         else:
             self.isBatch = False
         

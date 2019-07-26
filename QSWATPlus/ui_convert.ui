@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>545</width>
-    <height>303</height>
+    <width>463</width>
+    <height>295</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,80 +20,59 @@
    <iconset resource="resources.qrc">
     <normaloff>:/plugins/QSWATPlus/swatplus.ico</normaloff>:/plugins/QSWATPlus/swatplus.ico</iconset>
   </property>
-  <widget class="QDialogButtonBox" name="buttonBox">
-   <property name="geometry">
-    <rect>
-     <x>190</x>
-     <y>260</y>
-     <width>341</width>
-     <height>32</height>
-    </rect>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Horizontal</enum>
-   </property>
-   <property name="standardButtons">
-    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label">
-   <property name="geometry">
-    <rect>
-     <x>20</x>
-     <y>10</y>
-     <width>511</width>
-     <height>201</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;There are three options available for converting an ArcSWAT project to QSWAT+.&lt;/p&gt;&lt;p&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;Full &lt;/span&gt;if you want to create a QSWAT+ project from scratch using your DEM, landuse and soil maps, and other data, starting with watershed delineation. You will be able to set thresholds, define landscape units, a floodplain, and HRUs, as well as edit your inputs before running SWAT+.&lt;/p&gt;&lt;p&gt;Choose&lt;span style=&quot; font-weight:600;&quot;&gt; Existing &lt;/span&gt;if you want to keep your existing watershed and subbasin boundaries and move straight to overlaying your landuse and soil maps and defining your HRUs. This avoids the risk that watershed delineation using QGIS and TauDEM will differ from watershed delineation using ArcGIS.  You will not be able to define landscape units. You will be able to define a floodplain and HRUs, and edit your inputs before running SWAT+.&lt;/p&gt;&lt;p&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;No GIS&lt;/span&gt; if you want to run SWAT+ using your existing SWAT inputs. You will not be using GIS, will not be able to change your watershed, subbasins or HRUs, nor be able to create landscape units or a floodplain. You will be able to edit your inputs before running SWAT+.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-   </property>
-   <property name="wordWrap">
-    <bool>true</bool>
-   </property>
-  </widget>
-  <widget class="QRadioButton" name="noGISButton">
-   <property name="geometry">
-    <rect>
-     <x>320</x>
-     <y>230</y>
-     <width>82</width>
-     <height>17</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>No GIS</string>
-   </property>
-  </widget>
-  <widget class="QRadioButton" name="existingButton">
-   <property name="geometry">
-    <rect>
-     <x>190</x>
-     <y>230</y>
-     <width>82</width>
-     <height>17</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Existing</string>
-   </property>
-  </widget>
-  <widget class="QRadioButton" name="fullButton">
-   <property name="geometry">
-    <rect>
-     <x>60</x>
-     <y>230</y>
-     <width>82</width>
-     <height>17</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Full</string>
-   </property>
-   <property name="checked">
-    <bool>true</bool>
-   </property>
-  </widget>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0" colspan="3">
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;There are three options available for converting an ArcSWAT project to QSWAT+.&lt;/p&gt;
+&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;Full &lt;/span&gt;if you want to create a QSWAT+ project from scratch using your DEM, landuse and soil maps, and other data, starting with watershed delineation. You will be able to set stream and channel thresholds, define landscape units, a floodplain, and HRUs, as well as edit your inputs before running SWAT+.&lt;/p&gt;
+&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Choose&lt;span style=&quot; font-weight:600;&quot;&gt; Existing &lt;/span&gt;if you want to keep your existing watershed and subbasin boundaries and move straight to overlaying your landuse and soil maps and defining your HRUs. This avoids the risk that watershed delineation using QGIS and TauDEM will differ from watershed delineation using ArcGIS. You will not be able to define landscape units. You will be able to define a floodplain and HRUs, and edit your inputs before running SWAT+.&lt;/p&gt;
+&lt;p style=&quot; margin-top:12px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Choose &lt;span style=&quot; font-weight:600;&quot;&gt;No GIS&lt;/span&gt; if you want to run SWAT+ using your existing SWAT inputs. You will not be using GIS, will not be able to change your watershed, subbasins or HRUs, nor be able to create landscape units or a floodplain. You will be able to edit your inputs before running SWAT+.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
+    <widget class="QRadioButton" name="fullButton">
+     <property name="text">
+      <string>Full</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="1">
+    <widget class="QRadioButton" name="existingButton">
+     <property name="text">
+      <string>Existing</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="2">
+    <widget class="QRadioButton" name="noGISButton">
+     <property name="text">
+      <string>No GIS</string>
+     </property>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
  </widget>
  <resources>
   <include location="resources.qrc"/>

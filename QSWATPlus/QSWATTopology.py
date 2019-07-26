@@ -91,6 +91,7 @@ class QSWATTopology:
     _INLET = 'INLET'
     _RES = 'RES'
     _PTSOURCE = 'PTSOURCE'
+    _ADDED = 'ADDED'
     _POLYGONID = 'PolygonId'
     _DOWNID = 'DownId'
     _STREAMLINK = 'StreamLink'
@@ -398,6 +399,8 @@ class QSWATTopology:
             if resIndex < 0:
                 QSWATUtils.loginfo('No RES field in outlets layer')
                 return False
+            # ADDED field only used with lakes: may be missing
+            addIndex = self.getIndex(outletLayer, QSWATTopology._ADDED, ignoreMissing=True)
         self.demNodata = demLayer.dataProvider().sourceNoDataValue(1)
         if not useGridModel:
             # upstream array will get very big for grid
@@ -494,18 +497,25 @@ class QSWATTopology:
                     chLink = dsNodeToLink[dsNode]
                 doneNodes.add(dsNode)
                 if chLink >= 0:
-                    isInlet = point[inletIndex] == 1
-                    isPtSource = point[ptSourceIndex] == 1
+                    if point[inletIndex] == 1:
+                        if point[ptSourceIndex] == 1:
+                            isPtSource = True
+                            isInlet = False
+                        else:
+                            isPtSource = False
+                            isInlet = True
+                    else:
+                        isPtSource = False
+                        isInlet = False
                     isReservoir = point[resIndex] == 1
                     isPond = point[resIndex] == 2
-                    if lakesLayer is not None: 
+                    isAdded = addIndex >= 0 and point[addIndex] == 1
+                    if not isAdded and lakesLayer is not None: 
                         # check if point is inside lake
-                        inLake = False
                         for lake in lakesLayer.getFeatures():
                             lakeGeom = lake.geometry()
                             lakeRect = lakeGeom.boundingBox()
                             if QSWATTopology.polyContains(point.geometry().asPoint(), lakeGeom, lakeRect):
-                                inLake = True
                                 if isInlet:
                                     typ = 'Inlet'
                                 elif isPtSource:
@@ -517,11 +527,10 @@ class QSWATTopology:
                                 else:
                                     # main outlets allowed within lakes
                                     break
-                                lakeIdIndex = lakesLayer.fieldNameIndex(QSWATTopology._LAKEID)
-                                QSWATUtils.information('{0} {1} is inside lake {2}.  Will be ignored.'.format(typ, point.id(), lake[lakeIdIndex]), self.isBatch)
+                                lakeIdIndex = lakesLayer.dataProvider().fieldNameIndex(QSWATTopology._LAKEID)
+                                lakeId = lake[lakeIdIndex]
+                                QSWATUtils.information('{0} {1} is inside lake {2}.  Will be ignored.'.format(typ, dsNode, lakeId), self.isBatch)
                                 break
-                        if inLake:
-                            continue
                     if isInlet:
                         if isPtSource:
                             pt = point.geometry().asPoint()
@@ -620,6 +629,22 @@ class QSWATTopology:
                 SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
                 subbasinsLayer.changeAttributeValue(feature.id(), subbasinIndex, SWATBasin)
             subbasinsLayer.commitChanges()
+            # put SWAT Basin numbers in subbasin field of subsNoLakes shapefile if exists
+            if os.path.isfile(gv.subsNoLakesFile):
+                subsNoLakesLayer = QgsVectorLayer(gv.subsNoLakesFile, 'subsNoLakes', 'ogr')
+                subbasinIndex = self.getIndex(subsNoLakesLayer, QSWATTopology._SUBBASIN, ignoreMissing=True)
+                subsNoLakesLayer.startEditing()
+                if subbasinIndex < 0:
+                    # need to add subbasin field
+                    subsNoLakesLayer.dataProvider().addAttributes([QgsField(QSWATTopology._SUBBASIN, QVariant.Int)])
+                    subsNoLakesLayer.updateFields()
+                    subbasinIndex = subsNoLakesLayer.fields().indexOf(QSWATTopology._SUBBASIN)
+                request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex])
+                for feature in subsNoLakesLayer.getFeatures(request):
+                    subbasin = feature[polyIndex]
+                    SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
+                    subsNoLakesLayer.changeAttributeValue(feature.id(), subbasinIndex, SWATBasin)
+                subsNoLakesLayer.commitChanges()
         time6 = time.process_time()
         QSWATUtils.loginfo('Topology setting SWATBasin numbers took {0} seconds'.format(int(time6 - time5)))
         subbasinsLayer.setLabelsEnabled(True)
@@ -1356,7 +1381,7 @@ Other possible outlet stream links are {2}.
                 for lakeRow in curs.execute(lakeSql).fetchall():
                     lakeId = lakeRow['id']
                     self.waterBodyId = max(self.waterBodyId, lakeId)
-                    self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy'], lakeRow['role']))
+                    self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy']), lakeRow['role'])
                     outChLink = lakeRow['outlink']
                     self.lakesData[lakeId].outChLink = outChLink
                     self.chLinkFromLake[outChLink] = lakeId
