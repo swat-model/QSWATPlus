@@ -1116,10 +1116,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     (basin INTEGER PRIMARY KEY UNIQUE NOT NULL, 
     farDistance REAL, 
     minElevation REAL, 
-    maxElevation REAL)
+    maxElevation REAL,
+    waterId INTEGER)
     """
     
-    _BASINSDATAINSERTSQL = 'INSERT INTO BASINSDATA VALUES(?,?,?,?)'
+    _BASINSDATAINSERTSQL = 'INSERT INTO BASINSDATA VALUES(?,?,?,?,?)'
     
     _LSUSDATA = 'LSUSDATA'
     _LSUSDATATABLE = \
@@ -1582,7 +1583,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """Write data for one basin in BASINSDATA, LSUSDATA, HRUSDATA and WATERDATA tables in project database.""" 
         try:
             curs.execute(DBUtils._BASINSDATAINSERTSQL, (basin, float(data.farDistance), 
-                                                        float(data.minElevation), float(data.maxElevation)))
+                                                        float(data.minElevation), float(data.maxElevation), int(data.waterId)))
         except Exception:
             QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._BASINSDATA, self.dbFile), self.isBatch)
             return False
@@ -1714,10 +1715,21 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             with self.conn as conn:
                 cur = conn.cursor()
                 try:
+                    # waterId was added after first release: check it is there
+                    sql = 'PRAGMA TABLE_INFO({0})'.format(self._BASINSDATA)
+                    found = False
+                    for row in cur.execute(sql):
+                        if row[1].strip() == 'waterId':
+                            found = True
+                            break
+                    if not found:
+                        QSWATUtils.information('The database is not up to date.  You need to read from maps.', self.isBatch)
+                        # avoid returning None for basins as it will cause problems when reading maps
+                        return (basins, False)
                     # first read basins to get domain of basins map fixed
                     for brow in cur.execute(self.sqlSelect(self._BASINSDATA, '*', '', '')):
                         basin = brow['basin']
-                        bd = BasinData(self.waterLanduse, brow['farDistance'])
+                        bd = BasinData(self.waterLanduse, brow['farDistance'], brow['waterId'])
                         bd.minElevation = brow['minElevation']
                         bd.maxElevation = brow['maxElevation']
                         basins[basin] = bd
@@ -2727,11 +2739,12 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             lon      REAL,
             elev     REAL,
             elevmin  REAL,
-            elevmax  REAL
+            elevmax  REAL,
+            waterid INTEGER
         );
         """
         
-    _SUBBASINSINSERTSQL = 'INSERT INTO gis_subbasins VALUES(?,?,?,?,?,?,?,?,?,?)'
+    _SUBBASINSINSERTSQL = 'INSERT INTO gis_subbasins VALUES(?,?,?,?,?,?,?,?,?,?,?)'
         
     _WATERCREATESQL = \
         """

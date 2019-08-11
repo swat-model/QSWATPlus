@@ -791,7 +791,7 @@ class QSWATUtils:
     @staticmethod
     def tempFile(suffix):
         """Make a new temporary file in tempFolder with suffix."""
-        base = 'tmp' + str(time.clock()).replace('.','')
+        base = 'tmp' + str(time.process_time()).replace('.','')
         folder = QSWATUtils.tempFolder()
         fil = QSWATUtils.join(folder, base + suffix)
         if os.path.exists(fil):

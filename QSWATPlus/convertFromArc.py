@@ -228,6 +228,7 @@ class ConvertFromArc(QObject):
         self.createWgnTables()
         self.createWeatherData()
         self.createRefTables()
+        self.createDataFiles()
         self.setupTime()
         if self.choice == ConvertFromArc._noGISChoice:
             self.createSoilTables()
@@ -1089,6 +1090,7 @@ class ConvertFromArc(QObject):
         creates MonitoringPoint.csv,
         and reads MasterProgress table to set number of landuse classes and soil option.
         Also reads Reach, hrus and Watershed if no GIS option selected.
+        Also reads SubHmd, SubSlr and SubWnd if they exist for their weather stations.
         
         This is a 64-bit program for which there is no Access driver.
         Instead use the AccessToCSV program to write csv files which are then read."""
@@ -1096,7 +1098,7 @@ class ConvertFromArc(QObject):
         arcProjDb = os.path.join(self.arcProjDir, self.arcProjName + '.mdb')
         # extract csv files 
         toolPath = os.path.join(self.ConvertFromArcDir, 'AccessToCSV.exe')
-        args = [toolPath, arcProjDb, 'LuExempt', 'SplitHrus', 'ElevationBand', 'MasterProgress', 'MonitoringPoint']
+        args = [toolPath, arcProjDb, 'LuExempt', 'SplitHrus', 'ElevationBand', 'MasterProgress', 'MonitoringPoint', 'SubHmd', 'SubSlr', 'SubWnd']
         if self.choice == ConvertFromArc._noGISChoice:
             args.extend(['Reach', 'hrus', 'Watershed'])
         subprocess.run(args, cwd=projCsvDir)
@@ -1453,7 +1455,7 @@ class ConvertFromArc(QObject):
         else:
             cursor.execute(insert, (sid, name) +  row[6:])
         layerRows = readCursor.execute(sqlLayer, (row[0],)).fetchall()
-        if layerRows is None:
+        if layerRows is None or len(layerRows) == 0:
             ConvertFromArc.error('Failed to find soil layers in table {0} with soil_id {1}'.
                              format(layerTable, row[0]))
             return lid
@@ -1559,37 +1561,57 @@ class ConvertFromArc(QObject):
         """Create weather tables and files from ArcSWAT TxtInOut weather files."""
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
         arcTxtInOutDir = os.path.join(self.arcProjDir, r'Scenarios\Default\TxtInOut')
+        if not os.path.isdir(arcTxtInOutDir):
+            return
         qTextInOutDir = os.path.join(self.qProjDir, r'Scenarios\Default\TxtInOut')
-        pcpFile = os.path.join(arcTxtInOutDir, 'pcp1.pcp')
-        tmpFile = os.path.join(arcTxtInOutDir, 'tmp1.tmp')
-        slrFile = os.path.join(arcTxtInOutDir, 'slr1.slr')
-        hmdFile = os.path.join(arcTxtInOutDir, 'hmd1.hmd')
-        wndFile = os.path.join(arcTxtInOutDir, 'wnd1.wnd')
+        hmdSlrWndTables = dict()
+        # each table maps a position in a hmd, slr or wnd data file to a (station name, pcp or tmp position)
+        hmdSlrWndTables['hmd'] = dict()
+        hmdSlrWndTables['slr'] = dict()
+        hmdSlrWndTables['wnd'] = dict()
+        self.populateWeatherTables(hmdSlrWndTables)
         with sqlite3.connect(qProjDb) as qConn:
             cursor = qConn.cursor()
             cursor.execute('DROP TABLE IF EXISTS weather_file')
             cursor.execute(ConvertFromArc._CREATEWEATHERFILE)
             cursor.execute('DROP TABLE IF EXISTS weather_sta_cli')
             cursor.execute(ConvertFromArc._CREATEWEATHERSTATION)
-            stationId = 0
-            if os.path.isfile(pcpFile):
-                stationId = self.createWeatherTypeData(stationId, 'pcp', 'precipitation', arcTxtInOutDir, qTextInOutDir, cursor)
-            if os.path.isfile(tmpFile):
-                stationId = self.createWeatherTypeData(stationId, 'tmp', 'temperature', arcTxtInOutDir, qTextInOutDir, cursor)
-            if os.path.isfile(slrFile):
-                stationId = self.createWeatherTypeData(stationId, 'slr', 'solar radiation', arcTxtInOutDir, qTextInOutDir, cursor)
-            if os.path.isfile(hmdFile):
-                stationId = self.createWeatherTypeData(stationId, 'hmd', 'relative humidity', arcTxtInOutDir, qTextInOutDir, cursor)
-            if os.path.isfile(wndFile):
-                stationId = self.createWeatherTypeData(stationId, 'wnd', 'wind speed', arcTxtInOutDir, qTextInOutDir, cursor)
+            stations = dict()
+            # note pcp and tmp must be run before other three, since they use pcp or tmp weather station data
+            self.createWeatherTypeData(stations, 'pcp', 'precipitation', None, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData(stations, 'tmp', 'temperature', None, arcTxtInOutDir, qTextInOutDir)
+            hmdTable = hmdSlrWndTables['hmd']
+            if len(hmdTable) > 0:
+                self.createWeatherTypeData(stations, 'hmd', 'relative humidity', hmdTable, arcTxtInOutDir, qTextInOutDir)
+            slrTable = hmdSlrWndTables['slr']
+            if len(slrTable) > 0:
+                self.createWeatherTypeData(stations, 'slr', 'solar radiation', slrTable, arcTxtInOutDir, qTextInOutDir)
+            wndTable = hmdSlrWndTables['wnd']
+            if len(wndTable) > 0:
+                self.createWeatherTypeData(stations, 'wnd', 'wind speed', wndTable, arcTxtInOutDir, qTextInOutDir)
+            # write stations to project database
+            self.writeWeatherStations(stations, cursor)
             qConn.commit()
             
-    def createWeatherTypeData(self, lastId, typ, descr, arcTxtInOutDir, qTxtInOutDir, cursor):
-        """Create typ data files files from ArcSWAT TxtInOut files.  Return last stationId used."""
+    def populateWeatherTables(self, hmdSlrWndTables):
+        """Fill stations, orders tables from Subtyp tables."""
+        projCsvDir = os.path.join(self.qProjDir, r'csv\Project')
+        for typ, data in hmdSlrWndTables.items():
+            csvFile = os.path.join(projCsvDir, 'Sub{0}.csv'.format(typ.capitalize()))
+            if os.path.exists(csvFile):
+                with open(csvFile, 'r', newline='') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # skip header row
+                    for row in reader:
+                        order = int(row[3])
+                        if order not in data:
+                            data[order] = (row[4], int(row[5]))
+            
+    def createWeatherTypeData(self, stations, typ, descr, hmdSlrWndTable, arcTxtInOutDir, qTxtInOutDir):
+        """Create typ data files files from ArcSWAT TxtInOut files."""
         print('Writing {0} data ...'.format(descr))
-        stations = dict()
+        stations[typ] = []
         infileNum = 0
-        stationCount = 0
         now = datetime.datetime.now()
         timeNow = now.strftime("%Y-%m-%d %H:%M")
         staFile = os.path.join(qTxtInOutDir, '{0}.cli'.format(typ))
@@ -1597,41 +1619,70 @@ class ConvertFromArc(QObject):
             staF.write('{0}.cli : {1} file names - file written by ConvertFromArc {2}\n'.format(typ, descr, timeNow))
             staF.write('filename\n')
             stationNamesToSort = []
-            while True:
-                infileNum += 1
-                inFile = os.path.join(arcTxtInOutDir, '{1}{0!s}.{1}'.format(infileNum, typ))
-                if not os.path.isfile(inFile):
-                    break
+            finished = False
+            while not finished:
+                if typ == 'pcp' or typ == 'tmp':
+                    infileNum += 1
+                    inFile = os.path.join(arcTxtInOutDir, '{1}{0!s}.{1}'.format(infileNum, typ))
+                    if not os.path.isfile(inFile):
+                        break
+                else:
+                    inFile = os.path.join(arcTxtInOutDir, '{0}.{0}'.format(typ))
+                    if not os.path.isfile(inFile):
+                        break
+                    finished = True  # at most one tmp, slr or wnd file
+                # order is one more than number of stations added for this typ
+                order = 1
                 with open(inFile, 'r') as f:
-                    stationNames = f.readline()[8:].split(',') # skip 'Station ' at start of header
-                    for name in stationNames:
-                        name = name.strip()
-                        if name != '': # there is a trailing comma in header, so last station is empty
-                            # make new list of stripped names (so can be properly sorted later: may have leading blanks)
-                            stationNamesToSort.append(name)
-                            stationCount += 1
-                            station = ConvertFromArc.WeatherStation(name, typ)
-                            stations[stationCount] = station
-                    if typ == 'tmp':
-                        width = 10
-                        numWidth = 5
+                    if typ == 'pcp' or typ == 'tmp':
+                        stationNames = f.readline()[8:].split(',') # skip 'Station ' at start of header
+                        for name in stationNames:
+                            name = name.strip()
+                            if name != '': # there is a trailing comma in header, so last station is empty
+                                # make new list of stripped names (so can be properly sorted later: may have leading blanks)
+                                stationNamesToSort.append(name)
+                                station = ConvertFromArc.WeatherStation(name, order)
+                                stations[typ].append(station)
+                                order += 1
+                        if typ == 'tmp':
+                            width = 10
+                            numWidth = 5
+                        else:
+                            width = 5
+                        latitudes = f.readline()
+                        for i in range(order-1):
+                            start = 7 + width * i
+                            stations[typ][i].latitude = float(latitudes[start:start+width])
+                        longitudes = f.readline()
+                        for i in range(order-1):
+                            start = 7 + width * i
+                            stations[typ][i].longitude = float(longitudes[start:start+width])
+                        elevations = f.readline()
+                        for i in range(order-1):
+                            start = 7 + width * i
+                            stations[typ][i].elevation = float(elevations[start:start+width])
                     else:
-                        width = 5
-                    latitudes = f.readline()
-                    for i in range(stationCount):
-                        start = 7 + width * i
-                        stations[i+1].latitude = float(latitudes[start:start+width])
-                    longitudes = f.readline()
-                    for i in range(stationCount):
-                        start = 7 + width * i
-                        stations[i+1].longitude = float(longitudes[start:start+width])
-                    elevations = f.readline()
-                    for i in range(stationCount):
-                        start = 7 + width * i
-                        stations[i+1].elevation = float(elevations[start:start+width])
-                    # write stations to project database
-                    for stationId, station in stations.items():
-                        self.writeWeatherStation(lastId+stationId, station, cursor)
+                        # skip comment first line
+                        f.readline()
+                        # for hmd, slr, wnd station details come from corresponding pcp or tmp station
+                        if typ == 'slr':  # use tmp station details
+                            stationList = stations['tmp']
+                        else:
+                            stationList = stations['pcp']
+                        for pos, (name, fndOrder) in hmdSlrWndTable.items():
+                            for station in stationList:
+                                if station.order == fndOrder:
+                                    name = name.strip()
+                                    stationNamesToSort.append(name)
+                                    station2 = ConvertFromArc.WeatherStation(name, pos)
+                                    station2.latitude = station.latitude
+                                    station2.longitude = station.longitude
+                                    station2.elevation = station.elevation
+                                    stations[typ].append(station2)
+                                    break
+                            order = max(order, pos)
+                        order += 1
+                        width = 8            
                     # collect data in arrays
                     dates = []
                     data = []
@@ -1643,14 +1694,13 @@ class ConvertFromArc(QObject):
                         if typ == 'tmp':
                             nextData = [(float(line[start:start+numWidth]),
                                          float(line[start+numWidth:start+width])) 
-                                         for start in [7+width*i for i in range(stationCount)]]
+                                         for start in [7+width*i for i in range(order-1)]]
                         else:
-                            nextData = [float(line[start:start+width]) for start in [7+width*i for i in range(stationCount)]]
+                            nextData = [float(line[start:start+width]) for start in [7+width*i for i in range(order-1)]]
                         data.append(nextData)
                     # write files
-                    for i in range(stationCount):
-                        stationId = i+1
-                        station = stations[stationId]
+                    for station in stations[typ]:
+                        pos = station.order - 1
                         fileName = '{0}.{1}'.format(station.name, typ)
                         outFile = os.path.join(qTxtInOutDir, fileName)
                         with open(outFile, 'w') as f:
@@ -1670,29 +1720,34 @@ class ConvertFromArc(QObject):
                                 f.write(date[:4])
                                 f.write(str(int(date[4:])).rjust(5))
                                 if typ == 'tmp':
-                                    maxx, minn = data[row][i]
+                                    maxx, minn = data[row][pos]
                                     f.write('{0:.1F}'.format(maxx).rjust(10))
                                     f.write('{0:.1F}\n'.format(minn).rjust(10))
+                                elif typ == 'pcp':
+                                    f.write('{0:.1F}\n'.format(data[row][pos]).rjust(9))
                                 else:
-                                    f.write('{0:.1F}\n'.format(data[row][i]).rjust(9))
+                                    f.write('{0:.3F}\n'.format(data[row][pos]).rjust(11))
                                 row += 1
             # write weather station file names in staFile, in sorted order
             for name in sorted(stationNamesToSort):
                 staF.write('{0}.{1}\n'.format(name, typ))
-            return lastId + stationCount
                             
-    def writeWeatherStation(self, staId, station, cursor):
-        """Wtite entries for station in weather_file and weather_sta_cli. """
-        fileName = '{0}.{1}'.format(station.name, station.typ)
-        cursor.execute(ConvertFromArc._INSERTWEATHERFILE, 
-                       (staId, fileName, station.typ,
-                        station.latitude, station.longitude))
-        indx = ['pcp', 'tmp', 'slr', 'hmd', 'wnd'].index(station.typ)
-        files = ['sim', 'sim', 'sim', 'sim', 'sim', 'sim', 'sim']
-        files[indx] = fileName
-        wgnId = self.nearestWgn(station.latitude, station.longitude)
-        cursor.execute(ConvertFromArc._INSERTWEATHERSTATION, 
-                       (staId, station.name, wgnId) + tuple(files) + (station.latitude, station.longitude))
+    def writeWeatherStations(self, stations, cursor):
+        """Wtite entries for stations in weather_file and weather_sta_cli. """
+        staId = 0
+        for typ, stationList in stations.items():
+            for station in stationList:
+                staId += 1
+                fileName = '{0}.{1}'.format(station.name, typ)
+                cursor.execute(ConvertFromArc._INSERTWEATHERFILE, 
+                               (staId, fileName, typ,
+                                station.latitude, station.longitude))
+                indx = ['pcp', 'tmp', 'slr', 'hmd', 'wnd'].index(typ)
+                files = ['sim', 'sim', 'sim', 'sim', 'sim', 'sim', 'sim']
+                files[indx] = fileName
+                wgnId = self.nearestWgn(station.latitude, station.longitude)
+                cursor.execute(ConvertFromArc._INSERTWEATHERSTATION, 
+                               (staId, station.name, wgnId) + tuple(files) + (station.latitude, station.longitude))
                             
     def nearestWgn(self, lat, lon):
         """Return nearest wgn station id, or -1 if none.
@@ -1760,10 +1815,11 @@ class ConvertFromArc(QObject):
                     lonlat = QgsPointXY(float(lon), float(lat))
                     xy = self.transformFromDeg.transform(lonlat)
                     subbasinLatLonElev[subbasin] = (xy.x(), xy.y(), lat, lon, elev)
+                    waterId = 0
                     cursor.execute(ConvertFromArc._INSERTLSUS, 
                                    (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, csl, wid1, dep1, lat, lon, elev))
                     cursor.execute(ConvertFromArc._INSERTSUBBASINS, 
-                                   (subbasin, area, slo1, len1, sll, lat, lon, elev, elevmin, elevmax))
+                                   (subbasin, area, slo1, len1, sll, lat, lon, elev, elevmin, elevmax, waterId))
             # gis_points
             cursor.execute('DROP TABLE IF EXISTS gis_points')
             cursor.execute(ConvertFromArc._CREATEPOINTS)
@@ -1928,6 +1984,97 @@ class ConvertFromArc(QObject):
                 ConvertFromArc.information(warning)
             print('gis_ tables written')
             conn.commit()
+            
+    def createDataFiles(self):
+        """Create csv files from REC files identified in fig.fig file in each scenario."""
+        scensPattern = self.arcProjDir + '/Scenarios/*'
+        for arcScenDir in glob.iglob(scensPattern):
+            scenario = os.path.split(arcScenDir)[1]
+            self.createScenarioDataFiles(scenario)
+        
+    def createScenarioDataFiles(self, scenario):
+        """Create csv files from REC files identified in fig.fig file."""
+        arcTxtInOutDir = os.path.join(self.arcProjDir, r'Scenarios\{0}\TxtInOut'.format(scenario))
+        qTextInOutDir = os.path.join(self.qProjDir, r'Scenarios\{0}\TxtInOut'.format(scenario))
+        if not os.path.isdir(arcTxtInOutDir):
+            return
+        figFile = os.path.join(arcTxtInOutDir, 'fig.fig')
+        if not os.path.isfile(figFile):
+            return
+        recConst = []
+        recYear = []
+        recOther = []
+        with open(figFile) as f:
+            while True:
+                line = f.readline()
+                if line == '':
+                    break
+                try:
+                    # go one place too far to right so that eg '    10 ' distinguished from '0000100' appearing in a file name
+                    command = int(line[10:17])
+                except:
+                    continue
+                if command == 11:  # reccnst
+                    line = f.readline()
+                    recConst.append(line[10:23].strip())
+                elif command == 8:  # recyear
+                    line = f.readline()
+                    recYear.append(line[10:23].strip())
+                elif command in {7, 10}:  # recmon or recday
+                    line = f.readline()
+                    recOther.append(line[10:23].strip())
+        if len(recConst) > 0:
+            qConstFile = os.path.join(qTextInOutDir, 'rec_const.csv')
+            qConst = open(qConstFile, 'w')
+            qConst.write('name,flo,sed,ptl_n,ptl_p,no3_n,sol_p,chla,nh3_n,no2_n,cbn_bod,oxy,sand,silt,clay,sm_agg,lg_agg,gravel,tmp\n')
+            for datFile in recConst:
+                with open(os.path.join(arcTxtInOutDir, datFile)) as f:
+                    # skip 6 lines
+                    for _ in range(6):
+                        _ = f.readline()
+                    fName = os.path.splitext(datFile)[0]
+                    if fName.endswith('p'):
+                        name = 'pt' + fName[:-1]
+                    elif fName.endswith('i'):
+                        name = 'in' + fName[:-1]
+                    else:
+                        name = 'x' + fName  # just ensure starts with a letter
+                    vals = f.readline().split()
+                    qConst.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},0,0,0,0,0,0,0\n'
+                                     .format(name, vals[0], vals[1], vals[2], vals[3], vals[4], vals[7], vals[10], vals[5], vals[6], vals[8], vals[9]))
+            print('{0} written'.format(qConstFile))
+        for datFile in recYear:
+            qFile = os.path.join(qTextInOutDir, os.path.splitext(datFile)[0] + '.csv')
+            with open(os.path.join(arcTxtInOutDir, datFile)) as f:
+                # skip 6 lines
+                for _ in range(6):
+                    _ = f.readline()
+                with open(qFile, 'w') as q:
+                    q.write('yr,t_step,flo,sed,ptl_n,ptl_p,no3_n,sol_p,chla,nh3_n,no2_n,cbn_bod,oxy,sand,silt,clay,sm_agg,lg_agg,gravel,tmp\n')
+                    year = 0
+                    while True:
+                        vals = f.readline().split()
+                        if len(vals) == 0:
+                            break
+                        year += 1
+                        q.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},0,0,0,0,0,0,0\n'
+                                .format(vals[0], str(year), vals[1], vals[2], vals[3], vals[4], vals[5], vals[8], vals[11], vals[6], vals[7], vals[9], vals[10]))
+            print('{0} written'.format(qFile)) 
+        for datFile in recOther:
+            qFile = os.path.join(qTextInOutDir, os.path.splitext(datFile)[0] + '.csv')
+            with open(os.path.join(arcTxtInOutDir, datFile)) as f:
+                # skip 6 lines
+                for _ in range(6):
+                    _ = f.readline()
+                with open(qFile, 'w') as q:
+                    q.write('yr,t_step,flo,sed,ptl_n,ptl_p,no3_n,sol_p,chla,nh3_n,no2_n,cbn_bod,oxy,sand,silt,clay,sm_agg,lg_agg,gravel,tmp\n')
+                    while True:
+                        vals = f.readline().split()
+                        if len(vals) == 0:
+                            break
+                        q.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},0,0,0,0,0,0,0\n'
+                                .format(vals[1], vals[0], vals[2], vals[3], vals[4], vals[5], vals[6], vals[9], vals[12], vals[7], vals[8], vals[10], vals[11]))
+            print('{0} written'.format(qFile))
     
     def setupTime(self):
         """Read file.cio to setup start/finsh dates and nyskip."""
@@ -1963,9 +2110,6 @@ class ConvertFromArc(QObject):
             cursor.execute(ConvertFromArc._INSERTTIMESIM, (1, idaf, iyr, idal, iyr + nbyr - 1, idt))
             cursor.execute(ConvertFromArc._INSERTPRINTPRT, (1, nyskip, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0))
             qConn.commit()
-            
-                
-            
                                  
     @staticmethod 
     def mapToOrderedPairs(mapping):
@@ -2388,11 +2532,12 @@ class ConvertFromArc(QObject):
     lon     REAL,
     elev    REAL,
     elevmin REAL,
-    elevmax REAL
+    elevmax REAL,
+    waterid INTEGER
     )
     """
     
-    _INSERTSUBBASINS = 'INSERT INTO gis_subbasins VALUES(?,?,?,?,?,?,?,?,?,?)'
+    _INSERTSUBBASINS = 'INSERT INTO gis_subbasins VALUES(?,?,?,?,?,?,?,?,?,?,?)'
     
     _CREATEWATER = \
     """
@@ -2415,13 +2560,13 @@ class ConvertFromArc(QObject):
     _INSERTWATER = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?,?)'
     
     class WeatherStation():
-        """Name, lat, long, ect for weather station."""
-        def __init__(self, name, typ):
+        """Name, lat, long, etc for weather station."""
+        def __init__(self, name, order):
             """Constructor."""
             ## name
             self.name = name
-            ## type
-            self.typ = typ
+            ## order in data file
+            self.order = order
             ## latitude
             self.latitude = 0
             ## longitude

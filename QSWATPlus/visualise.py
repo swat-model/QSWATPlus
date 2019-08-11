@@ -1574,8 +1574,8 @@ class Visualise(QObject):
                         ref = 'deep aquifer {0!s}'.format(unit)
                     else:
                         ref = 'channel {0!s}'.format(unit)
-                    QSWATUtils.error('Cannot get data for variable {0} in table {1} in {2}: have you run SWAT+ and saved data since running QSWAT+?'.
-                                     format(var, ref, self.db), self._gv.isBatch)
+                    QSWATUtils.error('Cannot get data for variable {0} for {1} in table {2} in {3}: have you run SWAT+ and saved data since running QSWAT+?'.
+                                     format(var, ref, self.table, self.db), self._gv.isBatch)
                     return
                 if not layer.changeAttributeValue(fid, varIndexes[var], float(data) if isinstance(data, numpy.float64) else data):
                     QSWATUtils.error('Could not set attribute {0} in results file {1}'.format(var, self.resultsFile), self._gv.isBatch)

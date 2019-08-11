@@ -34,6 +34,7 @@ import numpy
 import glob
 import subprocess
 import processing  # @UnresolvedImport
+from processing.core.Processing import Processing
 
 # Import the code for the dialog
 from .hrusdialog import HrusDialog
@@ -411,7 +412,7 @@ class HRUs(QObject):
                     if treeLayer is not None:
                         actHRUsLayer = treeLayer.layer()
                         actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
-                        QSWATUtils.removeLayerAndFiles(actHRUsFile, root)
+                        QSWATUtils.tryRemoveLayerAndFiles(actHRUsFile, root)
             time1 = time.process_time()
             OK = self.CreateHRUs.generateBasins(self._dlg.progressBar, root)
             time2 = time.process_time()
@@ -1743,10 +1744,20 @@ class CreateHRUs(QObject):
                 fivePercent = len(self._gv.topo.subbasinToSWATBasin) // 20
                 gridCount = 0
                 for chLink, chBasin in self._gv.topo.chLinkToChBasin.items():
-                    if chLink in self._gv.topo.chLinkInsideLake or chLink in self._gv.topo.chLinkFromLake:
+                    if chLink in self._gv.topo.chLinkInsideLake:
                         continue
                     # since this is for grid models
                     subbasin = chBasin
+                    # Set waterId to lake id if this basin is an exit from a lake.
+                    # We need to preserve such cells in the basins map even though they are part of lakes
+                    # since their subbasin references appear as the subbasins of the outflowing channels
+                    # and, for the main outlet, as the subbasin of the water point.
+                    # The positive waterId field identifies them as part of the lake.
+                    waterId = self._gv.topo.chLinkFromLake.get(chLink, 0)
+                    if waterId > 0:
+                        data = BasinData(self._db.waterLanduse, 0, waterId)
+                        self.basins[subbasin] = data
+                        continue
                     SWATBasin = self._gv.topo.subbasinToSWATBasin.get(chBasin, 0)
                     if SWATBasin == 0:
                         continue
@@ -1778,7 +1789,7 @@ class CreateHRUs(QObject):
                         # last grid row or column may be short
                         rowRange = range(elevationTopRow, min(centreRow + (n + 1) // 2, elevationNumberRows))
                         colRange = range(centreCol - (n - 1) // 2, min(centreCol + (n + 1) // 2, elevationNumberCols))
-                    data = BasinData(self._db.waterLanduse, -1)
+                    data = BasinData(self._db.waterLanduse, -1, 0)
                     # read data if necessary
                     if elevationTopRow != elevationCurrentRow:
                         if self._gv.useLandscapes:
@@ -2138,7 +2149,7 @@ class CreateHRUs(QObject):
                                 else:
                                     # set initially negative so even the smallest actual distance will exceed it
                                     farDistance = -1
-                                data = BasinData(self._db.waterLanduse, farDistance)
+                                data = BasinData(self._db.waterLanduse, farDistance, 0)
                                 self.basins[subbasin] = data
                             data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elevation, slopeValue, distSt, distCh, x, y, self._gv)
                             self.basins[subbasin] = data
@@ -4697,6 +4708,7 @@ class CreateHRUs(QObject):
             subFields.append(QgsField('Elev', QVariant.Double, len=20, prec=2))
             subFields.append(QgsField('ElevMin', QVariant.Double, len=20, prec=2))
             subFields.append(QgsField('ElevMax', QVariant.Double, len=20, prec=2))
+            subFields.append(QgsField('WaterId', QVariant.Int))
             subs1Layer = QgsVectorLayer(subs1File, 'Subbasins ({0})'.format(Parameters._SUBS1), 'ogr')
             subsProvider1 = subs1Layer.dataProvider()
             subsProvider1.addAttributes(subFields)
@@ -4712,6 +4724,7 @@ class CreateHRUs(QObject):
             elevsubIdx = self._gv.topo.getIndex(subs1Layer, 'Elev')
             elevMinsubIdx = self._gv.topo.getIndex(subs1Layer, 'ElevMin')
             elevMaxsubIdx = self._gv.topo.getIndex(subs1Layer, 'ElevMax')
+            waterIdIdx = self._gv.topo.getIndex(subs1Layer, 'WaterId')
             subMap = dict()
             # add fields from gis_lsus table to lsus2
             lsuFields = []
@@ -4788,8 +4801,9 @@ class CreateHRUs(QObject):
                 areaKm = basinData.subbasinArea() / 1E6  # area in square km.
                 areaHa = areaKm * 100
                 cellCount = basinData.subbasinCellCount()
-                assert cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
-                meanSlope = (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
+                waterId = basinData.waterId
+                assert waterId > 0 or cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
+                meanSlope = 0 if waterId > 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                 meanSlopePercent = meanSlope * 100
                 farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
                 slsubbsn = QSWATUtils.getSlsubbsn(meanSlope)
@@ -4797,9 +4811,9 @@ class CreateHRUs(QObject):
                 centroidll = self._gv.topo.pointToLatLong(QgsPointXY(centreX, centreY))
                 lat = centroidll.y()
                 lon = centroidll.x()
-                meanElevation = basinData.totalElevation() / cellCount
-                elevMin = basinData.minElevation
-                elevMax = basinData.maxElevation
+                meanElevation = 0 if waterId > 0 else basinData.totalElevation() / cellCount
+                elevMin = 0 if waterId > 0 else basinData.minElevation
+                elevMax = 0 if waterId > 0 else basinData.maxElevation
                 if addToSubs1:
                     subMap[fid] = dict()
                     amap = subMap[fid]
@@ -4812,10 +4826,11 @@ class CreateHRUs(QObject):
                     amap[lonsubIdx] = lon
                     amap[elevMinsubIdx] = elevMin 
                     amap[elevMaxsubIdx] = elevMax
+                    amap[waterIdIdx] = waterId
                 curs.execute(DBUtils._SUBBASINSINSERTSQL, 
                              (SWATBasin, areaHa, meanSlopePercent, 
                               farDistance, slsubbsn,
-                              lat, lon, meanElevation, elevMin, elevMax))
+                              lat, lon, meanElevation, elevMin, elevMax, waterId))
                 for channel, channelData in basinData.getLsus().items():
                     SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                     floodDrop = 0
@@ -4958,6 +4973,17 @@ class CreateHRUs(QObject):
             subsFile = self._gv.subbasinsFile
         if not os.path.exists(subsFile):
             return
+        # remove features with 0 subbasin value (subbasins upstream from inlets)
+        subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
+        subsProvider = subsLayer.dataProvider()
+        exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
+        idsToDelete = []
+        for feature in subsProvider.getFeatures(QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry)):
+            idsToDelete.append(feature.id())
+        OK = subsProvider.deleteFeatures(idsToDelete)
+        if not OK:
+            QSWATUtils.error('Cannot edit subbasins shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch)
+            return
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
         QSWATUtils.tryRemoveLayerAndFiles(aqFile, root)
         # create context to make processing turn off detection of what it claims are invalid shapes
@@ -5014,18 +5040,17 @@ class CreateHRUs(QObject):
 #                                {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': bothAqFile}, context=context)
 #                 QgsProject.instance().addMapLayer( QgsVectorLayer(bothAqFile, 'BothAquifers', 'ogr'))
 #                 processing.run("native:dissolve", 
-#                               {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile}, context=context)
+#                               {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile}, context=context):
                 processing.run("native:mergevectorlayers", 
                                {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': aqFile}, context=context) 
                 # QgsProject.instance().addMapLayer( QgsVectorLayer(aqFile, 'Aquifers', 'ogr'))
-                # merge adds some extra fields that we can lose
+                # merge adds some extra fields that we can lose:
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
                 aqProvider = aqLayer.dataProvider()
                 QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
                                        .format(repr(ex)), self._gv.isBatch)
-                
         try:
             # create deep aquifer file by dissolving subbasins file
             # make map of subbasin to outlet subbasin in each watershed:
@@ -5033,8 +5058,10 @@ class CreateHRUs(QObject):
             for basin in self._gv.topo.downSubbasins.keys():
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
                 if SWATBasin > 0:
-                    outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[findOutlet(basin, self._gv.topo.downSubbasins)]
-            # QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
+                    outBasin = findOutlet(basin, self._gv.topo.downSubbasins)
+                    outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[outBasin]
+            #QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
+            #QSWATUtils.loginfo('Down subbasins: {0!s}'.format(self._gv.topo.downSubbasins))
             deepAqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._DEEPAQUIFERS + '.shp')
             QSWATUtils.tryRemoveLayerAndFiles(deepAqFile, root)
             QSWATUtils.copyShapefile(subsFile, 'deep_temp', self._gv.resultsDir)
@@ -5045,10 +5072,14 @@ class CreateHRUs(QObject):
             # dissolve on Aquifer field
             processing.run("native:dissolve", 
                            {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile}, context=context)
-            # remove other fields
-            deepLayer = QgsVectorLayer(deepAqFile, 'Deep Aquifer', 'ogr')
-            deepProvider = deepLayer.dataProvider()
-            QSWATTopology.removeFields(deepProvider, [QSWATTopology._AQUIFER], deepAqFile, self._gv.isBatch)
+#             # try using SAGA dissolve
+#             params = {'POLYGONS': tempDeepAqFile,
+#                       'FIELD_1': QSWATTopology._AQUIFER,
+#                       'FIELD_2': None,
+#                       'FIELD_3': None,
+#                       'BND_KEEP': False,
+#                       'DISSOLVED': deepAqFile}
+#             processing.run("saga:polygondissolvebyattribute", params, context=context)
             QSWATUtils.tryRemoveFiles(tempDeepAqFile)
         except Exception as ex:
             QSWATUtils.information('Failed to generate deep aquifers shapefile: deep aquifer result visualisation will not be possible: {0}'

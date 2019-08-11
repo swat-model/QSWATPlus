@@ -153,7 +153,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.channelFile = ''
         ## Path of subbasins shapefile or grid file when using grids
         self.subbasinsFile = ''
-G        ## Path of watershed shapefile: shows channel basins.  Not used with grid models.
+        ## Path of subbasins shapefile before lakes removed.  Not used with grid models.
+        self.subsNoLakesFile = ''
+        ## Path of watershed shapefile: shows channel basins.  Not used with grid models.
         self.wshedFile = ''
         ## Path of file like D8 contributing area but with heightened values at subbasin outlets
         self.hd8File = ''

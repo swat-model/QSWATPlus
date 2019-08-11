@@ -342,6 +342,11 @@ class QSWATPlus(QObject):
             if choice == 2:  # NB value from convertFromArc.py
                 self._odlg.editLabel.setEnabled(True)
                 self._odlg.editButton.setEnabled(True)
+        # also assume editor can be run if there are stream and hrus shapefiles in the results directory
+        if os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._RIVS + '.shp')) and \
+            os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._SUBS + '.shp')):
+                self._odlg.editLabel.setEnabled(True)
+                self._odlg.editButton.setEnabled(True)
         if self.demProcessed():
             self._demIsProcessed = True
             self.allowCreateHRU()

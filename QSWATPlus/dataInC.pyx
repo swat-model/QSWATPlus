@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# cython: language_level=3
 '''
 /***************************************************************************
  QSWATPlus
@@ -22,7 +23,6 @@
  Cython version of parts of hrus
 '''
 
-# cython: language_level=3
 
 # Import the PyQt and QGIS libraries
 from PyQt5.QtCore import *  # @UnusedWildImport
@@ -723,8 +723,9 @@ cdef class BasinData:
         public double minElevation
         public double maxElevation
         public int waterLanduse
+        public int waterId
     
-    def __init__(self, waterLanduse, farDistance):
+    def __init__(self, waterLanduse, farDistance, waterId):
         """Initialise class variables."""
         ## Map channel -> landscape category -> LSUData
         self.lsus = dict()
@@ -740,6 +741,8 @@ cdef class BasinData:
         self.farDistance = farDistance
         ## landuse (crop) value for WATR
         self.waterLanduse = waterLanduse
+        ## waterId used with grid models to indicate cells that are part of lakes but need to be recorded in gis_subbasins
+        self.waterId = waterId
         
     cpdef dict getLsus(self):
         """Return mergedLsus if it exists, else lsus."""

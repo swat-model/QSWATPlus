@@ -2066,13 +2066,7 @@ Other possible outlet stream links are {2}.
                 # outlet from lake
                 subbasin, pointId, pt, elev = lake.outPoint
                 chLink = lake.outChLink
-                if useGridModel:
-                    # subbasin for outlet will be inside lake and addPoint will fail
-                    # since there will be no SWAT basin.  Use one downstream if there is one
-                    downChLink = self.downChannels[chLink]
-                    if downChLink >= 0:
-                        subbasin = self.chLinkToChBasin[downChLink]
-                elif chLink == -1:
+                if not useGridModel and chLink == -1:
                     # main outlet was moved inside lake, but reservoir point will still be routed to it
                     # so add its definition
                     (outletId, outPt, _) = self.outlets[subbasin]
@@ -2452,6 +2446,15 @@ Other possible outlet stream links are {2}.
         rivFile = QSWATUtils.join(gv.resultsDir, Parameters._RIVS + '.shp')
         rivLayer = QgsVectorLayer(rivFile, 'Channels', 'ogr')
         provider = rivLayer.dataProvider()
+        # remove channels that are reservoirs or ponds
+        exp = QgsExpression('"{0}" > 0 OR "{1}" > 0'.format(QSWATTopology._RESERVOIR, QSWATTopology._POND))
+        idsToDelete = []
+        for feature in provider.getFeatures(QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry)):
+            idsToDelete.append(feature.id())
+        OK = provider.deleteFeatures(idsToDelete)
+        if not OK:
+            QSWATUtils.error('Cannot edit streams results template {1}.'.format(rivFile), self._gv.isBatch)
+            return None
         # leave only the Channel, ChannelR and Subbasin attributes
         self.removeFields(provider, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
         # add PenWidth field to stream results template
