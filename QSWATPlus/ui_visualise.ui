@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>457</width>
-    <height>634</height>
+    <width>470</width>
+    <height>630</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -113,29 +113,25 @@
                <property name="title">
                 <string>Choose results shapefile</string>
                </property>
-               <widget class="QLineEdit" name="resultsFileEdit">
-                <property name="geometry">
-                 <rect>
-                  <x>11</x>
-                  <y>26</y>
-                  <width>301</width>
-                  <height>20</height>
-                 </rect>
-                </property>
-               </widget>
-               <widget class="QPushButton" name="resultsFileButton">
-                <property name="geometry">
-                 <rect>
-                  <x>319</x>
-                  <y>24</y>
-                  <width>51</width>
-                  <height>25</height>
-                 </rect>
-                </property>
-                <property name="text">
-                 <string>...</string>
-                </property>
-               </widget>
+               <layout class="QGridLayout" name="gridLayout_8">
+                <item row="0" column="0">
+                 <widget class="QLineEdit" name="resultsFileEdit">
+                  <property name="minimumSize">
+                   <size>
+                    <width>0</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QPushButton" name="resultsFileButton">
+                  <property name="text">
+                   <string>...</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </widget>
              </item>
              <item row="1" column="0" rowspan="3">

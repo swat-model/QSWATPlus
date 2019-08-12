@@ -135,6 +135,6 @@ class TestDBUtils(unittest.TestCase):
         #                 'Different hashes for urban tables')
            
 if __name__ == '__main__':
-    import monkeytype
-    with monkeytype.trace():
-        unittest.main()
+#    import monkeytype
+#    with monkeytype.trace():
+    unittest.main()
