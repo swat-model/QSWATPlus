@@ -3,6 +3,21 @@ Version 1.2.4   6 September 2019
 
 Fixed problems with lakes in grid models
 
+Mostly type checked with mypy
+
+Fixed drainage input from table
+
+Allow single channel through lake
+
+Checks on routing table: 
+- all source items defined in gis_ tables
+- all non-X sinks are sources
+- no circularities
+- percents total 100 
+
+Projection check on all maps after DEM
+
+Paletted renderers for landuse and soil maps
 
 Version 1.2.3   8 August 2019
 ---------------------------
