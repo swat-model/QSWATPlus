@@ -20,9 +20,9 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from PyQt5.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
+from PyQt5.QtGui import QTextCursor, QDoubleValidator, QIntValidator
+from PyQt5.QtWidgets import QMessageBox, QFileDialog
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 import os.path
@@ -32,9 +32,8 @@ import math
 import time
 import numpy
 import glob
-import subprocess
 import processing  # @UnresolvedImport
-from processing.core.Processing import Processing
+from processing.core.Processing import Processing  # @UnresolvedImport
 
 # Import the code for the dialog
 from .hrusdialog import HrusDialog
@@ -566,6 +565,7 @@ class HRUs(QObject):
                     self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)
                     if self._gv.isBatch:
                         print(msg)
+            self._gv.db.checkRoutingTable()
         except Exception:
             QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch)
         finally:
@@ -2840,7 +2840,7 @@ class CreateHRUs(QObject):
             fields.append(QgsField(QSWATTopology._LANDSCAPE, QVariant.String, len=20))
             fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
             fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
-            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -2882,7 +2882,7 @@ class CreateHRUs(QObject):
             fields.append(QgsField(Parameters._PERCENTLSU, QVariant.Double, len=20, prec=1))
             fields.append(QgsField(QSWATTopology._HRUS, QVariant.String, len=20))
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
-            writer = QgsVectorFileWriter(self._gv.fullHRUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(self._gv.fullHRUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch)
                 return False
@@ -4168,31 +4168,25 @@ class CreateHRUs(QObject):
                     if downLsuData.cropSoilSlopeArea == downLsuData.waterBody.originalArea:
                         downAllWater = True
                         wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', wid, wCat, 100))
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, 100)
                     else:
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', downLsuId, 'LSU', 100))
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', 100)
                 else:
-                    curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                 (lsuId, 'LSU', downLsuId, 'LSU', 100))
+                    self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', 100)
             else:
                 if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
                     if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
                         wid = lsuData.waterBody.id
                         wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', wid, wCat, 100))
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, 100)
                 else:
                     lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                     if lake > 0:
                         lakeData = self._gv.topo.lakesData[lake]
                         lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', lake, lCat, 100))
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, 100)
                     else: 
-                        curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                     (lsuId, 'LSU', SWATChannel, 'CH', 100))
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', 100)
             if self._gv.useLandscapes:
                 landscapeName = QSWATUtils.landscapeName(landscape, self._gv.useLeftRight)
                 fw.writeLine('{0} (LSU {1!s}):'.format(landscapeName, lsuId))
@@ -4260,18 +4254,14 @@ class CreateHRUs(QObject):
                         # route HRU
                         if landscape == QSWATUtils._NOLANDSCAPE or landscape == QSWATUtils._FLOODPLAIN or \
                             QSWATUtils._FLOODPLAIN not in channelData: # upslope with no floodplain; can happen in grid models
-                            curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                          (self.HRUNum, 'HRU', floodTarget, floodCat, 100))
+                            self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, 100)
                         else:
                             if downAllWater:
-                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                              (self.HRUNum, 'HRU', floodTarget, floodCat, 100))
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, 100)
                             else:
-                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                             (self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain))
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain)
                                 floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
-                                curs.execute(DBUtils._ROUTINGINSERTSQL, 
-                                              (self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain))
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain)
         waterBody = lsuData.waterBody                    
         if waterBody is not None and routeWaterAsWaterBody:
             # water area is original - prior to merging of reservoirs
@@ -4541,7 +4531,7 @@ class CreateHRUs(QObject):
     
     def mergeLSUs(self, root):
         """Merge LSUs in lsus shapefile according to channel merges, making lsus2.  Return true if successful."""
-        if not os.path.exists(self._gv.fullLSUsFile):
+        if not os.path.exists(self._gv.fullLSUsFile): 
             return False
         legend = QSWATUtils._ACTLSUSLEGEND
         QSWATUtils.removeLayerByLegend(legend, root.findLayers())
@@ -4656,6 +4646,9 @@ class CreateHRUs(QObject):
         subs1Layer = QgsVectorLayer(subs1File, 'Subbasins ({0})'.format(Parameters._SUBS1), 'ogr')
         subsProvider1 = subs1Layer.dataProvider()
         lsus2File = QSWATUtils.join(self._gv.shapesDir, Parameters._LSUS2 + '.shp')
+        if not os.path.isfile(lsus2File):
+            QSWATUtils.error('No actual LSUs file, so gis_subbasins and gis_lsus tables not written', self._gv.isBatch)
+            return
         # remove features with 0 subbasin value
         exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
 #         context = QgsExpressionContext()
@@ -4831,6 +4824,7 @@ class CreateHRUs(QObject):
                              (SWATBasin, areaHa, meanSlopePercent, 
                               farDistance, slsubbsn,
                               lat, lon, meanElevation, elevMin, elevMax, waterId))
+                self._gv.db.addKey(subtable, SWATBasin)
                 for channel, channelData in basinData.getLsus().items():
                     SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                     floodDrop = 0
@@ -4882,6 +4876,7 @@ class CreateHRUs(QObject):
                         meanElev = lsuData.totalElevation / lsuData.cellCount
                         curs.execute(DBUtils._LSUSINSERTSQL, (lsuId, landscape, SWATChannel, areaHa, meanSlopePercent, 
                                            tribDistance, tribSlopePercent, tribWidth, tribDepth, lat, lon, meanElev))
+                        self._gv.db.addKey(lsutable, lsuId)
                         if addToSubs1:
                             # save LSU data for adding to lsus2 shapefile (saves searching it for each item)
                             saveLSUMap[lsuId] = dict()
@@ -4975,6 +4970,12 @@ class CreateHRUs(QObject):
             return
         # remove features with 0 subbasin value (subbasins upstream from inlets)
         subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
+        if self._gv.useGridModel:
+            numGridCells = subsLayer.featureCount()
+            if numGridCells > Parameters._RIVS1SUBS1MAX:
+                # aquifers layer will take time to computs and would be too detailed for useful display
+                QSWATUtils.loginfo('Too many grid cells ({0}) to generate aquifers shapefiles'.format(numGridCells))
+                return
         subsProvider = subsLayer.dataProvider()
         exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
         idsToDelete = []
@@ -5126,6 +5127,7 @@ class CreateHRUs(QObject):
                 elev = lakeData.elevation
                 curs.execute(self._db._WATERINSERTSQL, (lakeId, lCat, lsuId, SWATBasin, areaHa, centroid.x(), centroid.y(),
                                                         centroidll.y(), centroidll.x(), elev))
+                self._gv.db.addKey('gis_water', lakeId)
             # add reservoirs and ponds
             floodscape = QSWATUtils._FLOODPLAIN if self._gv.useLandscapes else QSWATUtils._NOLANDSCAPE
             for basinData in self.basins.values():
@@ -5171,6 +5173,8 @@ class CreateHRUs(QObject):
                             centroidll = self._gv.topo.pointToLatLong(pt)
                             curs.execute(self._db._WATERINSERTSQL, (waterBody.id, wCat, lsuId, SWATBasin, area, x, y,
                                                                        centroidll.y(), centroidll.x(), meanElev))
+                            
+                            self._gv.db.addKey('gis_water', waterBody.id)
                             if waterBody.isReservoir() and not waterBody.isInlet():
                                 # place reservoir point at channel outlet
                                 channelData = self._gv.topo.channelsData[channel]

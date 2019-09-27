@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from PyQt5.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication
+from PyQt5.QtGui import QFontDatabase, QIcon, QFont
+from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
 from qgis.core import * # @UnusedWildImport
 import os
 import subprocess
@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '1.2.3'
+    __version__ = '1.2.4'
 
     def __init__(self, iface):
         """Constructor."""
@@ -683,7 +683,7 @@ class QSWATPlus(QObject):
             ad8Layer = None
         else:
             ad8Layer = QgsRasterLayer(self._gv.ad8File, 'Accumulation')
-        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv.verticalFactor, self._gv.useGridModel):
+        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv):
             return False
         basinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._POLYGONID)
         if basinIndex < 0:

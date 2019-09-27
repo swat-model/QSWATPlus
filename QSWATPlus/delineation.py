@@ -18,10 +18,10 @@
  *                                                                         *
  ***************************************************************************/
 """
-# Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+# Import the PyQt and QGIS libraries 
+from PyQt5.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant
+from PyQt5.QtGui import QColor, QDoubleValidator, QIntValidator
+from PyQt5.QtWidgets import QMessageBox
 from qgis.core import * # @UnusedWildImport 
 from qgis.gui import * # @UnusedWildImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
@@ -31,23 +31,26 @@ import shutil
 import math
 import subprocess
 import time
-from osgeo import gdal, ogr
-from osgeo._gdalconst import GA_Update, GA_ReadOnly
+from osgeo import gdal, ogr  # type: ignore
+from osgeo._gdalconst import GA_Update, GA_ReadOnly  # type: ignore
 import csv
 import traceback
-from typing import Optional, Tuple, Dict, Set
+from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast
 
 # Import the code for the dialog
-from .delineationdialog import DelineationDialog
-from .TauDEMUtils import TauDEMUtils
-from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns
-from .QSWATTopology import QSWATTopology
-from .globals import GlobalVars
-from .landscape import Landscape
-from .outletsdialog import OutletsDialog
-from .selectsubs import SelectSubbasins
-from .parameters import Parameters
-from .polygonizeInC2 import Polygonize  # @UnresolvedImport
+from .delineationdialog import DelineationDialog  # type: ignore
+from .TauDEMUtils import TauDEMUtils  # type: ignore
+from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns  # type: ignore
+from .QSWATTopology import QSWATTopology  # type: ignore
+from .globals import GlobalVars  # type: ignore
+from .landscape import Landscape  # type: ignore
+from .outletsdialog import OutletsDialog  # type: ignore
+from .selectsubs import SelectSubbasins  # type: ignore
+from .parameters import Parameters  # type: ignore
+from .polygonizeInC2 import Polygonize  # type: ignore  @UnresolvedImport
+
+if TYPE_CHECKING:
+    from globals import GlobalVars  # @UnresolvedImport
 
 ## type for geotransform
 Transform = Dict[int, float]
@@ -88,7 +91,7 @@ class Points:
     _POINTSOURCE = 4
     
     @staticmethod
-    def toString(point):
+    def toString(point: int) -> str:
         """String for each point."""
         if point == Points._OUTLET:
             return 'outlet'
@@ -102,7 +105,7 @@ class Points:
             return 'point source'
     
 # noinspection PySimplifyBooleanCheck,PyCallByClass,PyArgumentList
-class Delineation(QObject):
+class Delineation(QObject): 
     
     """Do watershed delineation."""
     
@@ -119,7 +122,7 @@ class Delineation(QObject):
         self._odlg.setWindowFlags(self._odlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         self._odlg.move(self._gv.outletsPos)
         ## Qgs vector layer for drawing inlet/outlet points
-        self.drawOutletLayer = None
+        self.drawOutletLayer: Optional[QgsVectorLayer] = None
         ## depends on DEM height and width and also on choice of area units
         self.areaOfCell = 0.0
         ## Width of DEM as number of cells
@@ -128,7 +131,7 @@ class Delineation(QObject):
         self.demHeight = 0
         ## flag to prevent infinite recursion between number of cells and area
         self.changing = False
-        ## inlet/outlet points, stored as map from inlet/outlet file id to QGSPoint: 
+        ## inlet/outlet points, stored as map from inlet/outlet file id to QgsPoint: 
         ## used in grid model only
         self.inletOutletPoints: Dict[int, Tuple[int, QgsPointXY]] = dict()
         ## flag to show basic delineation is done, so removing subbasins, 
@@ -142,7 +145,7 @@ class Delineation(QObject):
         ## flag to show finishDelineation has been run
         self.finishHasRun = False
         ## mapTool used for drawing outlets etc
-        self.mapTool = None
+        self.mapTool: Optional[QgsMapTool] = None
         ## flag to show if drainage for existing grid defined by attribute in grid (when true), else by streams shapefile or drainage table
         self.gridDrainage = False
         ## flag to show if drainage for existing grid defined by streams shapefile (when true) or by drainage table
@@ -150,7 +153,7 @@ class Delineation(QObject):
         ## drainage table csv file
         self.drainageTable = ''
         ## landscape object
-        self.L = None
+        self.L: Optional[Landscape] = None
         ## copy of subbasins file, set when making grids before grid file overwrites it
         # while it is the empty string the subbasins file may be used
         self.clipperFile = ''
@@ -363,10 +366,6 @@ class Delineation(QObject):
             return
         if not self._gv.useGridModel and self._gv.basinFile == '':
             # must have merged some subbasins: recreate the subbasins raster
-            demLayer = QSWATUtils.getLayerByFilename(layers, self._gv.demFile, FileTypes._DEM, None, None, None)[0]
-            if not demLayer:
-                QSWATUtils.error('Cannot find DEM layer for file {0}'.format(self._gv.demFile), self._gv.isBatch)
-                return
             self._gv.basinFile = self.createBasinFile(self._gv.subbasinsFile, demLayer, 'wStream', root)
             # QSWATUtils.loginfo('Recreated watershed grid as {0}'.format(self._gv.basinFile))
         self.saveProj()
@@ -374,13 +373,13 @@ class Delineation(QObject):
             recalculate = self._gv.existingWshed and self._dlg.recalcButton.isChecked()
             self.progress('Constructing topology ...')
             if self._gv.outletFile == '':
-                outletLayer = None
+                outletLayer: Optional[QgsVectorLayer] = None
             elif not self._gv.existingWshed and os.path.exists(self._gv.snapFile):
                 outletLayer = QgsVectorLayer(self._gv.snapFile, 'Snapped inlets/outlets', 'ogr')
             else:
                 outletLayer = QSWATUtils.getLayerByFilename(layers, self._gv.outletFile, FileTypes._OUTLETS, None, None, None)[0]
             if os.path.exists(self._gv.lakeFile):
-                lakesLayer = QSWATUtils.getLayerByFilename(layers, self._gv.lakeFile, FileTypes._LAKES, None, None, None)[0]
+                lakesLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.lakeFile, FileTypes._LAKES, None, None, None)[0]
             else:
                 lakesLayer = None
             if self._gv.topo.setUp(demLayer, channelLayer, subbasinsLayer, outletLayer, lakesLayer,
@@ -388,7 +387,7 @@ class Delineation(QObject):
                                    self._gv.useGridModel, self.streamDrainage, True):
                 if len(self._gv.topo.inlets) == 0:
                     # no inlets, so no need to expand subbasins layer legend
-                    basinsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._SUBBASINSLEGEND, root.findLayers())
+                    basinsLayer: Optional[QgsLayerTreeLayer] = QSWATUtils.getLayerByLegend(QSWATUtils._SUBBASINSLEGEND, root.findLayers())
                     if basinsLayer is not None:
                         basinsLayer.setExpanded(False)
                 self.makeDistancesToOutlets()
@@ -411,23 +410,24 @@ class Delineation(QObject):
             return
         root = QgsProject.instance().layerTreeRoot()
         layers = root.findLayers()
-        lakesLayer = QSWATUtils.getLayerByFilename(layers, self._gv.lakeFile, FileTypes._LAKES, None, None, None)[0]
+        lakesLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.lakeFile, FileTypes._LAKES, None, None, None)[0]
         if lakesLayer is None:
             QSWATUtils.error('Lakes layer not found.', self._gv.isBatch)
             return
         if self._gv.useGridModel:
-            channelsLayer = None
+            channelsLayer: Optional[QgsVectorLayer] = None
         else:
             channelsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.channelFile, FileTypes._CHANNELS, None, None, None)[0]
             if channelsLayer is None:
                 QSWATUtils.error('Channels layer not found.', self._gv.isBatch)
                 return
-        demLayer = QSWATUtils.getLayerByFilename(layers, self._gv.demFile, FileTypes._DEM, None, None, None)[0]
+        demLayer: Optional[QgsRasterLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.demFile, FileTypes._DEM, None, None, None)[0]
         if demLayer is None:
             QSWATUtils.error('DEM layer not found.', self._gv.isBatch)
             return
         if not self._gv.useGridModel and not self.lakePointsAdded and not self._gv.existingWshed:
             self.progress('Splitting lake channels ...')
+            assert channelsLayer is not None  # since not grid model
             if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer):
                 QSWATUtils.error('Failed to split lake channels', self._gv.isBatch)
                 return
@@ -440,23 +440,24 @@ class Delineation(QObject):
                 return
         if self._gv.useGridModel or not self._gv.existingWshed:
             ft = FileTypes._GRID if self._gv.useGridModel else FileTypes._SUBBASINS
-            subbasinsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
+            subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
             if subbasinsLayer is None:
                 QSWATUtils.error('Subbasins layer not found: have you run TauDEM?', self._gv.isBatch)
                 return
             ft = FileTypes._GRIDSTREAMS if self._gv.useGridModel else FileTypes._STREAMS
-            streamsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.streamFile, ft, None, None, None)[0]
+            streamsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.streamFile, ft, None, None, None)[0]
             if streamsLayer is None: 
                 QSWATUtils.error('Streams layer not found.', self._gv.isBatch)
                 return
         if self._gv.useGridModel or self._gv.existingWshed:
-            chBasinsLayer = None
+            chBasinsLayer: Optional[QgsVectorLayer] = None
         else:
             chBasinsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.wshedFile, FileTypes._LSUS, None, None, None)[0]
             if chBasinsLayer is None:
                 chBasinsLayer = QgsVectorLayer(self._gv.wshedFile, 'chBasins', 'ogr')
         if self._gv.useGridModel and not self.gridLakesAdded:
             self.progress('Making grid lakes ...')
+            assert subbasinsLayer is not None
             self.makeGridLakes(lakesLayer, subbasinsLayer)
             self.progress('')
             if lakesLayer is None:
@@ -489,18 +490,64 @@ class Delineation(QObject):
         self._dlg.setCursor(Qt.ArrowCursor)
         self._gv.iface.mapCanvas().refresh()
         
-    def splitChannelsByLakes(self, lakesLayer, channelsLayer, demLayer):
+    def splitChannelsByLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer) -> bool:
         """Split channels crossing lake boundaries into two, entering/leaving and within.  
         Then rerun channel basins calculation to split into areas draining to channels and areas draining to lakes.
         
         Not used with grid models or existing watersheds."""
+        
+        def makeNewPoint(points: List[QgsPointXY], source: QgsPointXY, outlet: QgsPointXY, newPoints: List[QgsFeature], currentPointId: int,
+                         res: int, chLink: int, lakeId: int, fields: QgsFields, transform: Dict[int, float]) -> int:
+            """Select from points the nearest to source (if res is zero) or outlet and add a new point with the same geometry to newPoints.
+            Return next point id used."""
+            if QSWATTopology.withinPixels(1, source, outlet, transform):
+                QSWATUtils.error("""Channel with LINKNO {0} crosses the boundary of lake {1} 
+but is too short to allow the creation of a crossing point.  You need to rerun delineation with a different channel threshold,
+either larger to lengthen the stream or smaller to remove it.."""
+                                .format(chLink, lakeId), self._gv.isBatch)
+                return currentPointId
+            minMeasure = float('inf')
+            crossingPoint = None
+            # select endpoint as source or outlet
+            endPoint = source if res == 0 else outlet
+            for pt in points:
+                measure = QSWATTopology.distanceMeasure(endPoint, pt)
+                if measure < minMeasure:
+                    crossingPoint = pt
+                    minMeasure = measure
+            if crossingPoint is None:
+                QSWATUtils.error('Cannot find crossing point for channel with LINKNO {0} and lake {1}'
+                                 .format(chLink, lakeId), self._gv.isBatch)
+                return currentPointId
+            point = QgsFeature(fields)
+            currentPointId += 1
+            point.setAttribute(idIndex, currentPointId)
+            point.setAttribute(resIndex, res)
+            point.setAttribute(inletIndex, 0)
+            point.setAttribute(srcIndex, 0)
+            point.setAttribute(addIndex, 1)
+            # check point not too close to (in same dem pixel as) source or outlet
+            # else this point will be ignored by TauDEM
+            crossingPointMoved1 = QSWATTopology.separatePoints(source, crossingPoint, transform)
+            crossingPointMoved2 = QSWATTopology.separatePoints(outlet, crossingPointMoved1, transform)
+            point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved2))
+            newPoints.append(point)
+            if res == 0:
+                self._gv.topo.lakeInlets[lakeId].add(currentPointId)
+            else:
+                self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
+                QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
+                                   .format(lakeId, chLink, int(crossingPoint.x()), int(crossingPoint.y())))
+            return currentPointId
         
         lakeIdIndex = self.identifyLakes(lakesLayer)
         lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
         if lakeIdIndex < 0:
             return False
         if not self._dlg.useOutlets.isChecked():
-            return False  #TODO: create outlets file 
+            QSWATUtils.error("""Since adding lakes involves adding new outlet points you must have an inlets/outlets file 
+            with at least a watershed outlet marked, or one of the new outlets will become a watershed outlet.""", self._gv.isBatch)
+            return False
         if self._gv.snapFile == '' or not os.path.exists(self._gv.snapFile):
             QSWATUtils.error('Cannot find snapped inlets/outlets file {0}'.format(self._gv.snapFile), self._gv.isBatch)
             return False
@@ -520,7 +567,6 @@ class Delineation(QObject):
         ds = None
         self._gv.topo.lakeInlets = dict()
         self._gv.topo.lakeOutlets = dict()
-        newPoints = []
         currentPointId = 0
         # calculate current maximum id in snap file
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([idIndex])
@@ -531,8 +577,12 @@ class Delineation(QObject):
         # This assumes that dissolving has been done to get as much as possible of lake into
         # one part, so remaining pieces are insignificant, and islands are also insignificant
         lakeProvider = lakesLayer.dataProvider()
-        geoMap = dict()
+        channelProvider = channelsLayer.dataProvider()
+        channelLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._LINKNO)
+        geoMap: Dict[int, QgsGeometry] = dict()
+        lakesToRemove: List[int] = []
         for lake in lakeProvider.getFeatures():
+            newPoints: List[QgsFeature] = []
             lakeId = lake[lakeIdIndex]
             geom = lake.geometry()
             if geom.type() != QgsWkbTypes.PolygonGeometry:
@@ -540,8 +590,8 @@ class Delineation(QObject):
                 return False
             if geom.isMultipart():
                 # find the part with largest area to use as the lake
-                maxArea = 0 
-                secondArea = 0
+                maxArea = 0.0 
+                secondArea = 0.0
                 maxPart = None
                 secondPart = None
                 polys = geom.asMultiPolygon()
@@ -579,15 +629,17 @@ class Delineation(QObject):
 #             return False
         for lake in lakeProvider.getFeatures():
             lakeId = lake[lakeIdIndex]
-            res = 1 if lakeResIndex >= 0 and lake[lakeResIndex] > 0 else 2  # default to pond
+            res = 2 if lakeResIndex >= 0 and lake[lakeResIndex] == 2 else 1  # default to reservoir
             geom = geoMap[lake.id()]
             self._gv.topo.lakeInlets[lakeId] = set()
             self._gv.topo.lakeOutlets[lakeId] = set()
             box = geom.boundingBox()
             # geometry was made single in first pass
             perim = QgsGeometry.fromPolylineXY(geom.asPolygon()[0])
-            channelProvider = channelsLayer.dataProvider()
-            channelLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._LINKNO)
+            # channels which enter and leave the lake, with their crossing points
+            # if just one of these and no other outlet will make inflowing and outflowing pair,
+            # else assumed not to interact with lake
+            crossingChannels: List[QgsFeature, List[QgsFeature]] = []
             for channel in channelProvider.getFeatures():
                 chLink = channel[channelLinkIndex]
                 line = channel.geometry()
@@ -621,36 +673,7 @@ the lake it will be assumed that its extra crossings of the lake
 boundary are an inaccuaracy of delineation and that it enters 
 the lake at its first crossing point.
 """.format(chLink, lakeId), self._gv.isBatch)
-                            # find nearest point to source
-                            # convenient measure to start
-                            minMeasure = QSWATTopology.distanceMeasure(source, outlet)
-                            crossingPoint = None
-                            for point in points:
-                                measure = QSWATTopology.distanceMeasure(source, point)
-                                if measure < minMeasure:
-                                    crossingPoint = point
-                                    minMeasure = measure
-                            if crossingPoint is None:
-                                QSWATUtils.error('Cannot find first crossing point for channel with LINKNO {0} into lake {1}'
-                                                 .format(chLink, lakeId), self._gv.isBatch)
-                                continue
-                            point = QgsFeature(fields)
-                            currentPointId += 1
-                            point.setAttribute(idIndex, currentPointId)
-                            point.setAttribute(resIndex, 0)
-                            point.setAttribute(inletIndex, 0)
-                            point.setAttribute(srcIndex, 0)
-                            point.setAttribute(addIndex, 1)
-                            # check point not too close to channel end
-                            # else this point will be ignored by TauDEM
-                            crossingPointMoved = QSWATTopology.separatePoints(source, crossingPoint, transform)
-                            if crossingPointMoved == crossingPoint:
-                                # check other end
-                                crossingPointMoved = QSWATTopology.separatePoints(outlet, crossingPoint, transform)
-                            crossingPointMoved = QSWATTopology.separatePoints(outlet, crossingPoint, transform)
-                            point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved))
-                            newPoints.append(point)
-                            self._gv.topo.lakeInlets[lakeId].add(currentPointId)
+                            currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                     else:
                         if QSWATTopology.polyContains(source, geom, box):
                             QSWATUtils.information(
@@ -660,78 +683,79 @@ outside it will be assumed that its multiple crossings
 of the lake boundary are an inaccuaracy of delineation and 
 that it flows out the lake at its last crossing point.
 """.format(chLink, lakeId), self._gv.isBatch)
-                            # find nearest point to outlet
-                            # convenient measure to start
-                            minMeasure = QSWATTopology.distanceMeasure(source, outlet)
-                            crossingPoint = None
-                            for point in points:
-                                measure = QSWATTopology.distanceMeasure(outlet, point)
-                                if measure < minMeasure:
-                                    crossingPoint = point
-                                    minMeasure = measure
-                            if crossingPoint is None:
-                                QSWATUtils.error('Cannot find last crossing point for channel with LINKNO {0} out of lake {1}'
-                                                 .format(chLink, lakeId), self._gv.isBatch)
-                                continue
-                            point = QgsFeature(fields)
-                            currentPointId += 1
-                            point.setAttribute(idIndex, currentPointId)
-                            point.setAttribute(resIndex, res)
-                            point.setAttribute(inletIndex, 0)
-                            point.setAttribute(srcIndex, 0)
-                            point.setAttribute(addIndex, 1)
-                            # check point not too close to channel end
-                            # else this point will be ignored by TauDEM
-                            crossingPointMoved = QSWATTopology.separatePoints(source, crossingPoint, transform)
-                            if crossingPointMoved == crossingPoint:
-                                # check other end
-                                crossingPointMoved = QSWATTopology.separatePoints(outlet, crossingPoint, transform)
-                            point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved))
-                            newPoints.append(point)
-                            self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
-                            QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
-                                               .format(lakeId, chLink, 
-                                                       int(crossingPoint.x()), int(crossingPoint.y())))
+                            currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
                         else:
-                            QSWATUtils.information(
-"""Channel with LINKNO {0} enters and then leaves lake {1}.  
-Since it starts and terminates outside the lake it will be 
-assumed that its crossing the lake boundary is an inaccuracy 
-""".format(chLink, lakeId), self._gv.isBatch)
-                        continue
+                            crossingChannels.append((channel, points))
                 elif intersectType == QgsWkbTypes.Point:
-                    # enters or leaves lake: add split point 
-                    point = QgsFeature(fields)
-                    currentPointId += 1
-                    point.setAttribute(idIndex, currentPointId)
-                    # select between inlet and outlet according to whether stream outlet is in lake
+                    # enters or leaves lake: add split point
                     reachData = self._gv.topo.getReachData(line, None)
                     outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     source = QgsPointXY(reachData.upperX, reachData.upperY)
+                    # select between source and outlet according to whether channel outlet is in lake
                     if QSWATTopology.polyContains(outlet, geom, box):
-                        point.setAttribute(resIndex, 0)
-                        self._gv.topo.lakeInlets[lakeId].add(currentPointId)
+                        res1 = 0
                     else:
-                        point.setAttribute(resIndex, res)
-                        self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
-                        QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
-                                           .format(lakeId, chLink, int(reachData.lowerX), int(reachData.lowerY)))
-                    point.setAttribute(inletIndex, 0)
-                    point.setAttribute(srcIndex, 0)
-                    point.setAttribute(addIndex, 1)
-                    # check point not too close to channel end
-                    # else this point will be ignored by TauDEM
-                    crossingPoint = intersect.asPoint()
-                    crossingPointMoved = QSWATTopology.separatePoints(source, crossingPoint, transform)
-                    if crossingPointMoved == crossingPoint:
-                        # check other end
-                        crossingPointMoved = QSWATTopology.separatePoints(outlet, crossingPoint, transform)
-                    point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved))
-                    newPoints.append(point)
-        QSWATUtils.loginfo('Lake {0} has {1} outlets'.format(lakeId, len(self._gv.topo.lakeOutlets[lakeId])))
+                        res1 = res
+                    currentPointId = makeNewPoint([intersect.asPoint()], source, outlet, newPoints, currentPointId, res1, chLink, lakeId, fields, transform)
+            # check for channels which cross lake if no other outlets
+            numOutlets = len(self._gv.topo.lakeOutlets[lakeId])
+            if numOutlets == 0 and len(crossingChannels) > 0:
+                # arbtirarily select first such stream to generate the outlet
+                # users told to mark stream with a reservoir or pond point if this gives undesirable choice
+                channel, points = crossingChannels.pop(0)
+                reachData = self._gv.topo.getReachData(channel.geometry(), None)
+                outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                source = QgsPointXY(reachData.upperX, reachData.upperY)
+                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
+                # justy to be safe, make sure we cannot choose same point again
+                points.remove(newPoints[-1].geometry().asPoint())
+                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
+                numOutlets += 1
+            for channel, points in crossingChannels:
+                QSWATUtils.information(
+"""Channel with LINKNO {0} enters and then leaves lake {1}.  
+Since it starts and terminates outside the lake it will be 
+assumed that its crossing the lake boundary is an inaccuracy. 
+""".format(chLink, lakeId), self._gv.isBatch)
+            QSWATUtils.loginfo('Lake {0} has {1} outlets'.format(lakeId, numOutlets))
+            if numOutlets == 0:
+                # last chance to include lake - check if it has a watershed outlet inside it
+                channelDsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
+                for (pointId, pt, _) in self._gv.topo.outlets.values():
+                    if QSWATTopology.isWatershedOutlet(pointId, channelProvider, channelDsLinkIndex) and \
+                        QSWATTopology.polyContains(pt, geom, box):  
+                        numOutlets = 1
+            if numOutlets == 0: 
+                self._gv.iface.setActiveLayer(lakesLayer)
+                lakesLayer.select(lake.id())
+                self._gv.iface.actionZoomToSelected().trigger()
+                msgBox = QMessageBox()
+                msgBox.move(self._gv.selectOutletPos)
+                msgBox.setWindowTitle('Remove lake?')
+                text = """
+    Failed to find any outlet points for lake {0}.
+    It appears not to be on any channels.  Do you want to remove it?
+    If you choose no you can try rerunning delineation with a smaller 
+    channel threshold to get a channel to reach the lake, or you could
+    try editing the lake boundary if it is already close to a channel.
+    """.format(lakeId)
+                msgBox.setText(QSWATUtils.trans(text))
+                msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+                msgBox.setWindowModality(Qt.NonModal)
+                self._dlg.showMinimized()
+                msgBox.show()
+                result = msgBox.exec_()
+                self._dlg.showNormal()
+                if result == QMessageBox.Yes:
+                    lakesToRemove.append(lake.id())
+                lakesLayer.deselect(lake.id())
+                continue
         if not snapProvider.addFeatures(newPoints):
-            QSWATUtils.error('Failed to add lake {0} inlets and outlet to {1}'.format(lakeId, self._gv.snapFile), self._gv.isBatch)
+            QSWATUtils.error('Failed to add lake inlets and outlets to {0}'.format(self._gv.snapFile), self._gv.isBatch)
             return False
+        if len(lakesToRemove) > 0:
+            lakeProvider.deleteFeatures(lakesToRemove)
+            lakesLayer.triggerRepaint()
         # rerun TauDEM to get new channel basins
         root = QgsProject.instance().layerTreeRoot()
         numProcesses = self._dlg.numProcesses.value()
@@ -789,20 +813,20 @@ assumed that its crossing the lake boundary is an inaccuracy
         self.lakePointsAdded = True
         return True
     
-    def identifyLakes(self, lakesLayer):
+    def identifyLakes(self, lakesLayer: QgsVectorLayer) -> int:
         """If necessary add an id attribute to the lakes shapefile.  Number lakes with water body ids.
         label lakes with the id value.  Add lake ids to lake ids combo.  Return the index to the id attribute."""
         lakeProvider = lakesLayer.dataProvider()
         # label lakes with water body numbers
         lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([lakeIdIndex])
-        lakeIds = []
+        lakeIds: List[int] = []
         if lakeIdIndex < 0:
             if not lakeProvider.addAttributes([QgsField(QSWATTopology._LAKEID, QVariant.Int)]):
                 QSWATUtils.error('Unable to edit lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
                 return -1
             lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
-            attMap = dict()
+            attMap: Dict[int, Dict[int, Any]] = dict()
             self._gv.topo.waterBodyId = self.getMaxWaterId()
             for lake in lakeProvider.getFeatures(request):
                 self._gv.topo.waterBodyId += 1
@@ -834,7 +858,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             lakesLayer.triggerRepaint()
         return lakeIdIndex
     
-    def getMaxWaterId(self):
+    def getMaxWaterId(self) -> int:
         """Return maximum of 0 and reservoir or pond id values in inlets/outlets file if any."""
         result = 0
         if self._dlg.useOutlets.isChecked() and os.path.isfile(self._gv.outletFile):
@@ -850,7 +874,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                 
             
     
-    def populateLakeIdCombo(self, lakesLayer):
+    def populateLakeIdCombo(self, lakesLayer: QgsVectorLayer) -> None:
         """Put LakeId values into lakeIdCombo."""
         lakeIdIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._LAKEID)
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([lakeIdIndex])
@@ -861,7 +885,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         self._dlg.lakeIdCombo.addItems([str(i) for i in sorted(lakeIds)])
         
     
-    def makeGridLakes(self, lakesLayer, gridLayer):
+    def makeGridLakes(self, lakesLayer: QgsVectorLayer, gridLayer: QgsVectorLayer) -> None:
         """Convert lakes into collections of grid cells and mark the cells with the lake id and RES value."""
         if self.gridLakesAdded:
             return
@@ -883,10 +907,10 @@ assumed that its crossing the lake boundary is an inaccuracy
             gridLayer.updateFields()
             gridResIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._RES)
         # list of ids of lakes already added to grid
-        done = []
-        mmap = dict()
+        done: List[int] = []
+        mmap: Dict[int, Dict[int, Any]] = dict()
         for lake in lakesLayer.getFeatures():
-            lakeId = lake[lakeIdIndex]
+            lakeId: int = lake[lakeIdIndex]
             if lakeResIndex < 0:
                 waterRole = QSWATTopology._RESTYPE
             else:
@@ -896,11 +920,14 @@ assumed that its crossing the lake boundary is an inaccuracy
             for cell in gridLayer.getFeatures():
                 cellGeom = cell.geometry()
                 cellBox = cellGeom.boundingBox()
-                cellArea = cell[areaIndex] * 1E4  # convert to square metres
-                currentLakeId = cell[gridLakeIdIndex]
+                cellArea = float(cell[areaIndex]) * 1E4  # convert to square metres
                 # ensure we remove old lake ids, but not lake ids already added
-                if currentLakeId != NULL and currentLakeId not in done:
-                    mmap[cell.id()] = {gridLakeIdIndex: NULL} 
+                try:
+                    currentLakeId = int(cell[gridLakeIdIndex])
+                    if currentLakeId not in done:
+                        mmap[cell.id()] = {gridLakeIdIndex: NULL} # type: ignore
+                except:
+                    pass
                 if QSWATTopology.disjointBoxes(lakeBox, cellBox):
                     continue
                 lakePart = cellGeom.intersection(lakeGeom)
@@ -916,7 +943,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         self.gridLakesAdded = True
         return
             
-    def makeDistancesToOutlets(self):
+    def makeDistancesToOutlets(self) -> None:
         """Create two raster files of distances to subbasin outlets and distances to channels, 
         unless they already exist or using existing watershed."""
         if not self._gv.existingWshed:
@@ -989,11 +1016,11 @@ assumed that its crossing the lake boundary is an inaccuracy
         or  subbasinsFile is newer than DEM.
         """
         if self._gv.existingWshed:
-            return self._gv.useGridModel or QSWATUtils.isUpToDate(self._gv.subbasinsFile, self._gv.basinFile)
+            return cast(bool, self._gv.useGridModel or QSWATUtils.isUpToDate(self._gv.subbasinsFile, self._gv.basinFile))
         if self._gv.useGridModel:
-            return QSWATUtils.isUpToDate(self._gv.slopeFile, self._gv.subbasinsFile)
+            return cast(bool, QSWATUtils.isUpToDate(self._gv.slopeFile, self._gv.subbasinsFile))
         else:
-            return QSWATUtils.isUpToDate(self._gv.demFile, self._gv.subbasinsFile)
+            return cast(bool, QSWATUtils.isUpToDate(self._gv.demFile, self._gv.subbasinsFile))
         
     def btnSetDEM(self) -> None:
         """Open and load DEM; set default threshold."""
@@ -1406,7 +1433,8 @@ assumed that its crossing the lake boundary is an inaccuracy
             self.cleanUp(-1)
             return
         if self._dlg.useOutlets.isChecked():
-            outletBase = os.path.splitext(outletFile)[0]
+            assert outletFile is not None
+            outletBase = os.path.splitext(outletFile)[0]  
             snapFile = outletBase + '_snap.shp'
             outletLayer, loaded = QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._OUTLETS,
                                                                 self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
@@ -1550,7 +1578,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             chanLayer = channelLayer
         snapLayer = QgsVectorLayer(self._gv.snapFile, 'Snapped inlets/outlets', 'ogr') if self._dlg.useOutlets.isChecked() else None
         ad8Layer = QgsRasterLayer(self._gv.ad8File, 'Accumulation')
-        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv.verticalFactor, self._gv.useGridModel):
+        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv):
             self.cleanUp(-1)
             return
         self.isDelineated = True
@@ -1558,7 +1586,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         self.saveProj()
         self.cleanUp(-1)
         
-    def runExisting(self):
+    def runExisting(self) -> None:
         """Do delineation from existing streams, channels, subbasins and watershed."""
         self.delineationFinishedOK = False
         self.lakesDone = False
@@ -1729,7 +1757,7 @@ assumed that its crossing the lake boundary is an inaccuracy
             self._gv.wshedFile = wshedFile
             self._gv.channelFile = channelFile
         self._gv.outletFile = outletFile
-        if self._gv.topo.setUp0(demLayer, channelLayer, outletLayer, None, self._gv.verticalFactor, self._gv.useGridModel):
+        if self._gv.topo.setUp0(demLayer, channelLayer, outletLayer, None, self._gv):
             self.isDelineated = True
             self.setMergeResGroups()
             self.saveProj()
@@ -1767,7 +1795,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         """
         # can fail if demLayer is None or not projected
         try:
-            self._gv.topo.setCrs(demLayer)
+            self._gv.topo.setCrs(demLayer, self._gv)
             units = demLayer.crs().mapUnits()
         except Exception:
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(traceback.format_exc()))
@@ -2045,7 +2073,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         or a new one.
         """
         self._odlg.widget.setEnabled(True)
-        canvas = self._gv.iface.mapCanvas()
+        canvas: QgsMapCanvas = self._gv.iface.mapCanvas()
         self.mapTool = QgsMapToolEmitPoint(canvas)  # @UndefinedVariable
         self.mapTool.canvasClicked.connect(self.getPoint)
         canvas.setMapTool(self.mapTool)
@@ -2080,6 +2108,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                 QSWATUtils.error('Could not make inlets/outlets layer active', self._gv.isBatch)
                 return
             self.drawOutletLayer = outletLayer
+            assert self.drawOutletLayer is not None
             self.drawOutletLayer.startEditing()
         else:
             drawOutletFile = QSWATUtils.join(self._gv.shapesDir, 'drawoutlets.shp')
@@ -2131,7 +2160,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         canvas.setMapTool(self.mapTool)
 
     # noinspection PyCallByClass,PyCallByClass
-    def getPoint(self, point: QgsPointXY, button) -> None:  # @UnusedVariable button
+    def getPoint(self, point: QgsPointXY, button: Any) -> None:  # @UnusedVariable button
         """Add point to drawOutletLayer."""
         isInlet = self._odlg.inletButton.isChecked() or self._odlg.ptsourceButton.isChecked()
         # can't use feature count as they can't be counted until adding is confirmed
@@ -2146,6 +2175,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         resIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._RES)
         ptsourceIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._PTSOURCE)
         feature = QgsFeature()
+        assert self.drawOutletLayer is not None
         fields = self.drawOutletLayer.dataProvider().fields()
         feature.setFields(fields)
         feature.setAttribute(idIndex, pid)
@@ -2161,6 +2191,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         
     def fixPointIds(self) -> None:
         """Give suitable point ids to drawn points."""
+        assert self.drawOutletLayer is not None
         # need to commit first or appear to be no features
         self.drawOutletLayer.commitChanges()
         # then start editing again
@@ -2213,7 +2244,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         or "Cancel" to abandon the selection.
         """
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Cancel)
+        msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Cancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.lower()
         msgBox.show()
@@ -2265,7 +2296,7 @@ assumed that its crossing the lake boundary is an inaccuracy
         self._gv.snapFile = ''
         self._dlg.snappedLabel.setText('')
 
-    def addLakesMap(self):
+    def addLakesMap(self) -> None:
         """Allow user to select lakes shapefile."""
         root = QgsProject.instance().layerTreeRoot()
         # place above channels layer
@@ -2296,7 +2327,7 @@ assumed that its crossing the lake boundary is an inaccuracy
                 self.makeGridLakes(lakesLayer, gridLayer)
                 self.progress('')
                 
-    def removeLakeCells(self):
+    def removeLakeCells(self) -> None:
         """Allow user to remove cells from lake."""
         root = QgsProject.instance().layerTreeRoot()
         layers = root.findLayers()
@@ -2329,7 +2360,7 @@ the selection and do nothing.
 You can repeat the selection and change as many times as you like.  
 If you want to start again from scratch, reload the lakes shapefile."""
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.showMinimized()
         msgBox.show()
@@ -2340,7 +2371,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             lakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
             mmap = dict()
             for cell in gridLayer.selectedFeatures():
-                mmap[cell.id()] = {lakeIdIndex: NULL}
+                mmap[cell.id()] = {lakeIdIndex: NULL}  # type: ignore
             if not gridLayer.dataProvider().changeAttributeValues(mmap):
                 QSWATUtils.error('Failed to edit grid layer', self._gv.isBatch)
         gridLayer.removeSelection()
@@ -2355,7 +2386,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             return
         self._gv.topo.addGridLakes(gridLayer, streamsLayer, demLayer, self._gv)
             
-    def addLakeCells(self):
+    def addLakeCells(self) -> None:
         """Allow user to add cells to lake."""
         root = QgsProject.instance().layerTreeRoot()
         layers = root.findLayers()
@@ -2391,7 +2422,7 @@ the selection and do nothing.
 You can repeat the selection and change as many times as you like.  
 If you want to start again from scratch, reload the lakes shapefile."""
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.showMinimized()
         msgBox.show()
@@ -2724,8 +2755,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
             # reachD may be zero length, with no corresponding subbasin, so search downstream if necessary to find subbasinD
             # at the same time collect zero-length reaches for later disposal
             subbasinD = None
-            nextReach = reachD
-            zeroReaches: List[int] = []
+            nextReach: QgsFeature = reachD
+            zeroReaches: List[QgsFeature] = []
             while not subbasinD:
                 polygonidD = nextReach[wsnoField]
                 subbasinD = QSWATUtils.getFeatureByValue(subbasinsLayer, polygonidField, polygonidD)
@@ -2752,7 +2783,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             linknoD = reachD[linknoField]
             zeroLinks = [reach[linknoField] for reach in zeroReaches]
             if inletUpFromA:
-                DLinks = [linknoD].extend(zeroLinks) if zeroLinks else [linknoD]
+                DLinks = [linknoD]
+                if zeroLinks:
+                    DLinks.extend(zeroLinks)
                 reachBs = [reach for reach in streamLayer.getFeatures() if reach[dslinknoField] in DLinks and reach.id() != reachA.id()]
                 if reachBs != []:
                     QSWATUtils.information('Subbasin with {0} value {1!s} has an upstream inlet and the downstream one has another upstream subbasin: cannot merge.'.format(QSWATTopology._POLYGONID, polygonidA), self._gv.isBatch)
@@ -3119,7 +3152,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             else:
                 fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
             writer = QgsVectorFileWriter(subbasinsFile, 'CP1250', fields, 
-                                         QgsWkbTypes.MultiPolygon, self._gv.topo.crsProject, 'ESRI Shapefile')
+                                         QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create watershed shapefile {0}: {1}'. \
                                  format(subbasinsFile, writer.errorMessage()), self._gv.isBatch)
@@ -3198,7 +3231,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     def createBasinFile(self, basinsShapefile: str, demLayer: QgsRasterLayer, nameCode: str, root: QgsLayerTree) -> str:
         """Create basin file from subbasins or watershed basins shapefile."""
         demPath = QSWATUtils.layerFileInfo(demLayer).canonicalFilePath()
-        wFile = os.path.splitext(demPath)[0] + nameCode + '.tif'
+        wFile: str = os.path.splitext(demPath)[0] + nameCode + '.tif'
         shapeBase = os.path.splitext(basinsShapefile)[0]
         # if basename of wFile is used rasterize fails
         baseName = os.path.basename(shapeBase)
@@ -3225,6 +3258,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         time3 = time.process_time()
         QSWATUtils.loginfo('Storing grid data took {0} seconds'.format(int(time3 - time2)))
         if storeGrid is not None:
+            assert accTransform is not None
             if self.addDownstreamData(storeGrid, pFile, accTransform):
                 time4 = time.process_time()
                 QSWATUtils.loginfo('Adding downstream data took {0} seconds'.format(int(time4 - time3)))
@@ -3247,9 +3281,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
         # if there are inlets, make a new ad8File with areas upstream from inlets set to no data
         inAsOutFile, hasInlet = self.hasInlets()
         if hasInlet:
-            ad8File = self.reduceAccumulationFile(ad8File, inAsOutFile)
-            if ad8File is None:
+            assert inAsOutFile is not None
+            ad8File1 = self.reduceAccumulationFile(ad8File, inAsOutFile)
+            if ad8File1 is None:
                 return None, None, 0, 0
+            ad8File = ad8File1
         # mask accFile with basinFile to exclude small outflowing watersheds
         ad8Layer = QgsRasterLayer(ad8File, 'P')
         entry1 = QgsRasterCalculatorEntry()
@@ -3348,27 +3384,27 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     cols = storeGrid.get(row, None)
                     if cols is not None:
                         col = gridCol + j
-                        data = cols.get(col, None)
-                        if data is not None:
-                            if data.dsNodeId >= 0:
+                        storeData = cols.get(col, None)
+                        if storeData is not None:
+                            if storeData.dsNodeId >= 0:
                                 # cell already has a point added, and there can only be one 
                                 # as only one stream link per cell
                                 # TODO: should this be an error?
                                 # prefer inlets as these shape the watershed
                                 if point == Points._INLET:
-                                    lost = data.dsNodeId
-                                    data.dsNodeId = ioId
+                                    lost = storeData.dsNodeId
+                                    storeData.dsNodeId = ioId
                                     QSWATUtils.loginfo('Could not retain point with id {0} in grid cell {1}:  {2} with id {3} placed there.'
-                                                       .format(lost, data.num, Points.toString(point), data.dsNodeId))
+                                                       .format(lost, storeData.num, Points.toString(point), storeData.dsNodeId))
                                 else:
                                     lost = ioId
                                     QSWATUtils.loginfo('Could not place {0} with id {1} in grid cell {2}: point {3} already placed there.'
-                                                       .format(Points.toString(point), lost, data.num, data.dsNodeId))
+                                                       .format(Points.toString(point), lost, storeData.num, storeData.dsNodeId))
                                 self._gv.topo.lostDsNodeIds.add(lost)
                             else:
-                                data.dsNodeId = ioId
+                                storeData.dsNodeId = ioId
                                 QSWATUtils.loginfo('Placed {0} with id {1} at {2!s} in grid cell {3}.'
-                                                   .format(Points.toString(point), data.dsNodeId, pt, data.num))
+                                                   .format(Points.toString(point), storeData.dsNodeId, pt, storeData.num))
                             found = True
                             break
                 if found:
@@ -3381,7 +3417,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         return storeGrid, accTransform, minDrainArea, maxDrainArea
         
     @property
-    def reduceToInletsOutlets(self) -> None:
+    def reduceToInletsOutlets(self) -> Optional[str]:
         """Reduce inlets/outlets file to inlets and outlets only to delineate subbasins. Return reduced file."""
         if not self._dlg.useOutlets.isChecked():
             return None
@@ -3398,14 +3434,14 @@ If you want to start again from scratch, reload the lakes shapefile."""
         for f in glob.iglob(pattern):
             fext = os.path.splitext(f)[1]
             shutil.copyfile(f, ioBase + fext)
-        iOutlets = ioBase + '.shp'
+        iOutlets: str = ioBase + '.shp'
         ioLayer = QgsVectorLayer(iOutlets, 'inlets outlets only', 'ogr')
         inletIndex = self._gv.topo.getIndex(ioLayer, QSWATTopology._INLET)
         resIndex = self._gv.topo.getIndex(ioLayer, QSWATTopology._RES)
         ptsourceIndex = self._gv.topo.getIndex(ioLayer, QSWATTopology._PTSOURCE)
         if inletIndex < 0 or resIndex < 0 or ptsourceIndex < 0:
             return None
-        others = []
+        others: List[int] = []
         for f in ioLayer.getFeatures():
             if f[inletIndex] == 0:
                 if f[resIndex] > 0:
@@ -3417,9 +3453,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
             provider.deleteFeatures(others)
             return iOutlets
         else:
-            ioLayer = None
             QSWATUtils.tryRemoveFiles(iOutlets)
-            return self._gv.snapFile
+            return cast(str, self._gv.snapFile)
     
     def hasInlets(self) -> Tuple[Optional[str], bool]:
         """
@@ -3478,7 +3513,6 @@ If you want to start again from scratch, reload the lakes shapefile."""
             provider.deleteFeatures(others)
             return iToOutlets, True
         else:
-            iToOLayer = None
             QSWATUtils.tryRemoveFiles(iToOutlets)
             return None, False
     
@@ -3608,7 +3642,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                         currentData = cols.get(currentGridCol, None)
                         if currentData is not None:
                             if currentData.maxAcc < gridData.maxAcc:
-                                QSWATUtils.loginfo("WARNING: while calculating stream drainage, target grid cell {0} has lower maximum accumlation {1} than source grid cell {2}'s accumulation {3}"  \
+                                QSWATUtils.loginfo("WARNING: while calculating stream drainage, target grid cell {0} has lower maximum accumulation {1} than source grid cell {2}'s accumulation {3}"  \
                                                    .format(currentData.num, currentData.maxAcc, gridData.num, gridData.maxAcc))
                             gridData.downNum = currentData.num
                             gridData.downRow = currentGridRow
@@ -3656,7 +3690,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(Parameters._AREA, QVariant.Double))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LAKEID, QVariant.Int))
-            writer = QgsVectorFileWriter(gridFile, 'CP1250', fields,  QgsWkbTypes.Polygon, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(gridFile, 'CP1250', fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid shapefile {0}: {1}'.format(gridFile, writer.errorMessage()), self._gv.isBatch)
                 return
@@ -3675,10 +3709,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
         self._gv.topo.basinCentroids = dict()
         for gridRow, gridCols in storeGrid.items():
             # grids can be big so we'll add one row at a time
+            centreY = (gridRow + 0.5) * self._gv.gridSize * y_size + ul_y
             features = list()
             for gridCol, gridData in gridCols.items():
                 centreX = (gridCol + 0.5) * self._gv.gridSize * x_size + ul_x
-                centreY = (gridRow + 0.5) * self._gv.gridSize * y_size + ul_y
                 # this is strictly not the centroid for incomplete grid squares on the edges,
                 # but will make little difference.  
                 # Needs to be centre of grid for correct identification of landuse, soil and slope rows
@@ -3740,7 +3774,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 gridStreamsLayer = QgsVectorLayer(gridStreamsFile, '{0} ({1})'.format(legend, QFileInfo(gridStreamsFile).baseName()), 'ogr')
             if not QSWATUtils.removeAllFeatures(gridStreamsLayer):
                 QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(gridStreamsFile), self._gv.isBatch)
-                return
+                return -1
             fields = gridStreamsLayer.fields()
         else:
             QSWATUtils.removeLayerAndFiles(gridStreamsFile, root)
@@ -3751,7 +3785,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DRAINAGE, QVariant.Double))
             fields.append(QgsField(QSWATTopology._PENWIDTH, QVariant.Double))
-            writer = QgsVectorFileWriter(gridStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(gridStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create streams shapefile {0}: {1}'.format(gridStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return -1
@@ -3828,6 +3862,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         gridStreamsLayer.triggerRepaint()
         treeModel = QgsLayerTreeModel(root)
         gridStreamsTreeLayer = root.findLayer(gridStreamsLayer.id())
+        assert gridStreamsTreeLayer is not None
         treeModel.refreshLayerLegend(gridStreamsTreeLayer)
         self._gv.streamFile = gridStreamsFile
         self.streamDrainage = True
@@ -3877,7 +3912,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return None
         self.progress('Writing drainage grid streams ...')
         time1 = time.process_time()
-        drainStreamsFile = QSWATUtils.join(self._gv.shapesDir, 'drainstreams.shp')
+        drainStreamsFile: str = QSWATUtils.join(self._gv.shapesDir, 'drainstreams.shp')
         ft = FileTypes._DRAINSTREAMS
         legend = FileTypes.legend(ft)
         if QSWATUtils.shapefileExists(drainStreamsFile):
@@ -3887,7 +3922,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 drainStreamsLayer = QgsVectorLayer(drainStreamsFile, '{0} ({1})'.format(legend, QFileInfo(drainStreamsFile).baseName()), 'ogr')
             if not QSWATUtils.removeAllFeatures(drainStreamsLayer):
                 QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(drainStreamsFile), self._gv.isBatch)
-                return
+                return None
             fields = drainStreamsLayer.fields()
         else:
             QSWATUtils.removeLayerAndFiles(drainStreamsFile, root)
@@ -3896,7 +3931,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSNODEID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
-            writer = QgsVectorFileWriter(drainStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.topo.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(drainStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid streams shapefile {0}: {1}'.format(drainStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -3913,14 +3948,13 @@ If you want to start again from scratch, reload the lakes shapefile."""
         basinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._POLYGONID)
         if basinIndex < 0:
             return None
-        if self.gridDrainage:
-            downBasinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._DOWNID)
-            if downBasinIndex < 0:
-                return None
+        downBasinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._DOWNID)
+        if downBasinIndex < 0:
+            return None
         features = list()
         self._gv.topo.basinCentroids.clear()
         if self.gridDrainage:
-            centroids = dict()
+            centroids: Dict[int, Tuple[int, QgsPointXY, Tuple[float, float], Tuple[float, float]]] = dict()
             for cell in subbasinsLayer.getFeatures():
                 basin = cell[basinIndex]
                 downBasin = cell[downBasinIndex]
@@ -3933,7 +3967,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 else:
                     down = centroids.get(downBasin, None)
                     if down is None:
-                        QSWATUtils.error('Failed to find target grid cell in {0} for drain from {1} to {2}',format(subbasinsFile, basin, downBasin), self._gv.isBatch)
+                        QSWATUtils.error('Failed to find target grid cell in {0} for drain from {1} to {2}'.format(subbasinsFile, basin, downBasin), self._gv.isBatch)
                         return None
                     else:
                         target = down[1]
@@ -3957,15 +3991,14 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 feature.setGeometry(geometry)
                 features.append(feature)        
         else:
-            basinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._SUBBASIN)
             if basinIndex < 0:
                 return None
             centroids = dict()
             for cell in subbasinsLayer.getFeatures():
                 basin = cell[basinIndex]
-                SWATBasin = cell[basinIndex]
+                downBasin = cell[downBasinIndex]
                 centroid, (xmin, xmax), (ymin, ymax) = QSWATUtils.centreGridCell(cell)
-                centroids[SWATBasin] = (basin, centroid, (xmin, xmax), (ymin, ymax))
+                centroids[basin] = (downBasin, centroid, (xmin, xmax), (ymin, ymax))
                 self._gv.topo.basinCentroids[basin] = centroid
             with open(self.drainageTable, 'r', newline='') as csvFile:
                 dialect = csv.Sniffer().sniff(csvFile.read(1000))  # sample size 1000 bytes is arbitrary
@@ -3974,18 +4007,18 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 # skip header
                 next(drainage)
                 for row in drainage:
-                    SWATBasin = int(row[0])
-                    downSWATBasin = int(row[1])
-                    assert SWATBasin != downSWATBasin, 'Drainage has {0} down from itself'.format(SWATBasin)
-                    (basin, source, (xmin, xmax), (ymin, ymax)) = centroids.get(SWATBasin, (None, None, None, None))
+                    basin = int(row[0])
+                    downBasin = int(row[1])
+                    assert basin != downBasin, 'Drainage has {0} downstream from itself'.format(basin)
+                    # we ignore down basins data in centroids map since the drainage is determined by the table
+                    (_, source, (xmin, xmax), (ymin, ymax)) = centroids.get(basin, (None, None, None, None))  # type: ignore
                     if source is None:
-                        QSWATUtils.error('Failed to find source grid cell in {2} for drain from {0} to {1}'.format(SWATBasin, downSWATBasin, subbasinsFile), self._gv.isBatch)
+                        QSWATUtils.error('Failed to find source grid cell in {2} for drain from {0} to {1}'.format(basin, downBasin, subbasinsFile), self._gv.isBatch)
                         return None
-                    if downSWATBasin < 0:
+                    if downBasin < 0:
                         target = QSWATUtils.nearestPoint(source, outlets)
-                        downBasin = -1
                     else:
-                        (downBasin, target, _, _) = centroids.get(downSWATBasin, (None, None, None, None))
+                        (_, target, _, _) = centroids.get(downBasin, (None, None, None, None))
                         if target is None:
                             QSWATUtils.error('Failed to find target grid cell in {2} for drain from {0} to {1}'.format(basin, downBasin, subbasinsFile), self._gv.isBatch)
                             return None
@@ -3993,7 +4026,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     for nodeId, (point, pt) in self.inletOutletPoints.items():
                         if xmin <= pt.x() < xmax and ymin <= pt.y() < ymax:
                             QSWATUtils.loginfo('Placed {0} with id {1} at {2!s} in grid cell {3}'
-                                               .format(Points.toString(point), nodeId, pt, SWATBasin))
+                                               .format(Points.toString(point), nodeId, pt, basin))
                             dsnode = nodeId
                             break
                     if dsnode >= 0: # avoid any danger of adding point twice (and speed up for future cells)
@@ -4062,8 +4095,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     return
                 self._gv.pFile = pFile
             channelraster = base + 'srcChannel' + suffix
-            demLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.demFile, FileTypes._DEM,
-                                                    self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
+            demLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.demFile, FileTypes._DEM,
+                                                        self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
             self.streamToRaster(demLayer, self._gv.channelFile, channelraster, root)
             self._gv.srcChannelFile = channelraster
         self.makeDistancesToOutlets()
@@ -4194,7 +4227,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             outletLayer = QSWATUtils.getLayerByFilename(root.findLayers(), filePath, ft, None, None, None)[0]
             if outletLayer is None:
                 outletLayer = QgsVectorLayer(filePath, FileTypes.legend(ft), 'ogr')
-            return QSWATUtils.removeAllFeatures(outletLayer)
+            return cast(bool, QSWATUtils.removeAllFeatures(outletLayer))
         else:
             QSWATUtils.removeLayerAndFiles(filePath, root)
             fields = QgsFields()

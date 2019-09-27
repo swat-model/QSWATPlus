@@ -20,20 +20,29 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from PyQt5.QtCore import *  # @UnusedWildImport
+from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport 
+from PyQt5.QtWidgets import QComboBox
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem  # @UnusedImport
 from qgis.gui import QgisInterface  # @UnresolvedImport
 import os.path
 # import xml.etree.ElementTree as ET
-from typing import Dict, List, Set  # @UnusedImport
+from typing import Dict, List, Set, Optional, TYPE_CHECKING  # @UnusedImport
 
-from .QSWATTopology import QSWATTopology
-from .QSWATUtils import QSWATUtils
-from .DBUtils import DBUtils
-from .TauDEMUtils import TauDEMUtils
-from .parameters import Parameters
-from .raster import Raster  # @UnusedImport
+from .QSWATTopology import QSWATTopology  # type: ignore
+from .QSWATUtils import QSWATUtils  # type: ignore
+from .DBUtils import DBUtils  # type: ignore
+from .TauDEMUtils import TauDEMUtils  # type: ignore
+from .parameters import Parameters  # type: ignore
+from .raster import Raster  # type: ignore  @UnusedImport
+
+if TYPE_CHECKING:
+    from QSWATTopology import QSWATTopology  # @UnresolvedImport
+    from QSWATUtils import QSWATUtils  # @UnresolvedImport
+    from DBUtils import DBUtils  # @UnresolvedImport
+    from TauDEMUtils import TauDEMUtils  # @UnresolvedImport
+    from parameters import Parameters  # @UnresolvedImport
+    from delineation import Delineation  # @UnresolvedImport
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
@@ -66,32 +75,34 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)
         ## Path of mpiexec
         self.mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
-        proj = QgsProject.instance()
+        proj: QgsProject = QgsProject.instance()
         title = proj.title()
         ## QGIS interface
         self.iface = iface
+        ## project projection (set from DEM)
+        self.crsProject: Optional[QgsCoordinateReferenceSystem] = None
         ## Stream burn-in depth
-        self.burninDepth = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
+        self.burninDepth: int = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
         ## Channel width multiplier
-        self.channelWidthMultiplier = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
+        self.channelWidthMultiplier: float = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
         ## Channel width exponent
-        self.channelWidthExponent = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
+        self.channelWidthExponent: float = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
         ## Channel depth multiplier
-        self.channelDepthMultiplier = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
+        self.channelDepthMultiplier: float = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
         ## Channel depth exponent
-        self.channelDepthExponent = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
+        self.channelDepthExponent: float = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
         ## reach slope multiplier
-        self.reachSlopeMultiplier = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.reachSlopeMultiplier: float = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## tributary slope multiplier
-        self.tributarySlopeMultiplier = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.tributarySlopeMultiplier: float = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## mean slope multiplier
-        self.meanSlopeMultiplier = proj.readDoubleEntry(title, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.meanSlopeMultiplier: float = proj.readDoubleEntry(title, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## main length multiplier
-        self.mainLengthMultiplier = proj.readDoubleEntry(title, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
+        self.mainLengthMultiplier: float = proj.readDoubleEntry(title, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
         ## tributary length multiplier
-        self.tributaryLengthMultiplier = proj.readDoubleEntry(title, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
+        self.tributaryLengthMultiplier: float = proj.readDoubleEntry(title, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
         ## upslope HRU drain percent
-        self.upslopeHRUDrain = proj.readNumEntry(title, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
+        self.upslopeHRUDrain: int = proj.readNumEntry(title, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
         ## Index of slope group in Layers panel
         self.slopeGroupIndex = -1
         ## Index of landuse group in Layers panel
@@ -210,9 +221,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Number of elevation bands
         self.numElevBands = 0
         ## Topology object
-        self.topo = QSWATTopology(isBatch)
-        projFile = proj.fileName()
-        projPath = QFileInfo(projFile).canonicalFilePath()
+        self.topo: QSWATTopology = QSWATTopology(isBatch)
+        projFile: str = proj.fileName()
+        projPath: str = QFileInfo(projFile).canonicalFilePath()
         pdir, base = os.path.split(projPath)
         ## Project name
         self.projName = os.path.splitext(base)[0]
@@ -258,7 +269,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Flag to show if running in batch mode
         self.isBatch = isBatch
         ## Path of project database
-        self.db = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isBatch)
+        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isBatch)
         ## multiplier to turn elevations to metres
         self.verticalFactor = 1
         ## vertical units
@@ -303,7 +314,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         # NB These values are defined in convertFromArc.py
         self.fromArcChoice = -1
         
-    def createSubDirectories(self):
+    def createSubDirectories(self) -> None:
         """Create subdirectories under project file's directory."""
         if not os.path.exists(self.projDir):
             os.makedirs(self.projDir)
@@ -356,7 +367,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         if not os.path.exists(self.shapesDir):
             os.makedirs(self.shapesDir)
             
-    def setVerticalFactor(self):
+    def setVerticalFactor(self) -> None:
         """Set vertical conversion factor according to vertical units."""
         if self.verticalUnits == Parameters._METRES:
             self.verticalFactor = 1
@@ -371,11 +382,11 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         elif self.verticalUnits == Parameters._YARDS:
             self.verticalFactor = Parameters._YARDSTOMETRES
      
-    def isExempt(self, landuseId):
+    def isExempt(self, landuseId: int) -> bool:
         """Return true if landuse is exempt 
         or is part of a split of an exempt landuse.
         """
-        landuse = self.db.getLanduseCode(landuseId)
+        landuse: str = self.db.getLanduseCode(landuseId)
         if landuse in self.exemptLanduses:
             return True
         for landuse1, subs in self.splitLanduses.items():
@@ -383,7 +394,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                 return True
         return False
     
-    def saveExemptSplit(self):
+    def saveExemptSplit(self) -> bool:
         """Save landuse exempt and split details in project database."""
         exemptTable = 'gis_landexempt'
         splitTable = 'gis_splithrus'
@@ -406,7 +417,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
             self.db.hashDbTable(conn, splitTable)
         return True
         
-    def getExemptSplit(self):
+    def getExemptSplit(self) -> None:
         """Get landuse exempt and split details from project database."""
         # in case called twice
         self.exemptLanduses = []
@@ -429,12 +440,12 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                         self.splitLanduses[landuse] = dict()
                     self.splitLanduses[landuse][row['sublanduse']] = int(row['percent'])
                 
-    def populateSplitLanduses(self, combo):
+    def populateSplitLanduses(self, combo: QComboBox) -> None:
         """Put currently split landuse codes into combo."""
         for landuse in self.splitLanduses.keys():
             combo.addItem(landuse)
                
-    def writeProjectConfig(self, doneDelin, doneHRUs):
+    def writeProjectConfig(self, doneDelin: int, doneHRUs: int) -> None:
         """
         Write information to project_config table.
          
@@ -485,7 +496,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                             None, 0, 0))
             conn.commit()
   
-    def isDelinDone(self):
+    def isDelinDone(self) -> bool:
         """Return true if delineation done according to project_config table."""
         with self.db.conn as conn:
             if not conn:
@@ -500,7 +511,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
             else:
                 return int(row['delineation_done']) == 1
                     
-    def isHRUsDone(self):
+    def isHRUsDone(self) -> bool:
         """Return true if HRU creation is done according to project_config table."""
         with self.db.conn as conn:
             if not conn:
@@ -515,16 +526,16 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
             else:
                 return int(row['hrus_done']) == 1
             
-    def findSWATPlusEditor(self):
+    def findSWATPlusEditor(self) -> Optional[str]:
         """Return path to SWAT+ editor, looking first in current setting, then according to registry settings, then in user's home directory."""
         editorDir1 = QSWATUtils.join(self.SWATPlusDir, Parameters._SWATEDITORDIR)
-        editor1 = QSWATUtils.join(editorDir1, Parameters._SWATEDITOR)
+        editor1: str = QSWATUtils.join(editorDir1, Parameters._SWATEDITOR)
         if os.path.exists(editor1):
             return editor1
         settings = QSettings()
         SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
         editorDir2 = QSWATUtils.join(SWATPlusDir, Parameters._SWATEDITORDIR)
-        editor2 = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
+        editor2: str = QSWATUtils.join(editorDir2, Parameters._SWATEDITOR)
         if os.path.exists(editor2):
             return editor2
         if Parameters._ISWIN:
@@ -562,7 +573,7 @@ Have you installed SWATPlus?'''
 #                 item.set('value', self.SWATEditorDir + '/')
 #         tree.write(path)
         
-    def closeOpenRasters(self):
+    def closeOpenRasters(self) -> None:
         """Close open rasters (to enable them to be reopened with new chunk size)."""
         for raster in self.openRasters.copy():
             try:
@@ -571,6 +582,6 @@ Have you installed SWATPlus?'''
             except Exception:
                 pass  
 
-    def clearOpenRasters(self):
+    def clearOpenRasters(self) -> None:
         """Clear list of open rasters."""
         self.openRasters.clear()

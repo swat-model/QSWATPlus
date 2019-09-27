@@ -20,17 +20,19 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
+from PyQt5.QtCore import *  #  @UnusedWildImport
+from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
+import os.path
+from typing import Any
+    
 try:
-    from .parametersdialog import ParametersDialog
-    from .QSWATUtils import QSWATUtils
+    from .parametersdialog import ParametersDialog  # type: ignore
+    from .QSWATUtils import QSWATUtils  # type: ignore
 except:
     pass  # not needed by convertFromArc
-import os.path
 
 class Parameters:
     
@@ -141,7 +143,7 @@ class Parameters:
     _MULTIPLIER = 1.0
     
     
-    def __init__(self, gv):
+    def __init__(self, gv: Any) -> None:
         """Initialise class variables."""
         
         settings = QSettings()
@@ -164,7 +166,7 @@ class Parameters:
         else:
             self.isBatch = False
         
-    def run(self):
+    def run(self) -> None:
         """Run the form."""
         self._dlg.checkUseMPI.stateChanged.connect(self.changeUseMPI)
         if os.path.isdir(self.mpiexecDir):
@@ -190,7 +192,7 @@ class Parameters:
         if self._gv:
             self._gv.parametersPos = self._dlg.pos()
         
-    def changeUseMPI(self):
+    def changeUseMPI(self) -> None:
         """Enable form to allow MPI setting."""
         if self._dlg.checkUseMPI.isChecked():
             self._dlg.MPIBox.setEnabled(True)
@@ -201,7 +203,7 @@ class Parameters:
             self._dlg.MPIButton.setEnabled(False)
             self._dlg.MPILabel.setEnabled(False)
         
-    def save(self):
+    def save(self) -> None:
         """Save parameters and close form."""
         SWATPlusDir = self._dlg.SWATPlusBox.text()
         if SWATPlusDir == '' or not os.path.isdir(SWATPlusDir):
@@ -259,7 +261,7 @@ class Parameters:
             settings.setValue('/QSWATPlus/FontSize', str(pointSize))    
         self._dlg.close()
             
-    def chooseSWATPlusDir(self):
+    def chooseSWATPlusDir(self) -> None:
         """Choose SWATPlus directory."""
         title = QSWATUtils.trans('Select SWATPlus directory')
         if self._dlg.SWATPlusBox.text() != '':
@@ -278,7 +280,7 @@ class Parameters:
             self._dlg.SWATPlusBox.setText(SWATPlusDir)
             self.SWATPlusDir = SWATPlusDir
             
-    def chooseMPIDir(self):
+    def chooseMPIDir(self) -> None:
         """Choose MPI directory."""
         title = QSWATUtils.trans('Select MPI bin directory')
         if self._dlg.MPIBox.text() != '':
@@ -297,7 +299,7 @@ class Parameters:
             self._dlg.MPIBox.setText(mpiexecDir)
             self.mpiexecDir = mpiexecDir
             
-    def changeFontSize(self):
+    def changeFontSize(self) -> None:
         """Change font size of this form.  Will also change font size of all QSWATPlus forms when parameters form saved."""
         ufont = QFont("Ubuntu", self._dlg.pointSizeBox.value(), 1)
         self._dlg.setFont(ufont)
@@ -312,7 +314,7 @@ class Parameters:
         self._dlg.pointSizeLabel.setFont(ufont)
         self._dlg.pointSizeLabel.repaint()
             
-    def readProj(self):
+    def readProj(self) -> None:
         """Read parameter data from project file."""
         proj = QgsProject.instance()
         title = proj.title()
@@ -344,7 +346,7 @@ class Parameters:
         else:
             self._dlg.pointSizeBox.setValue(10)
 
-    def saveProj(self):
+    def saveProj(self) -> None:
         """Write parameter data to project file."""
         proj = QgsProject.instance()
         title = proj.title()

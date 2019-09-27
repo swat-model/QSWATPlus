@@ -6,3 +6,17 @@ QSWATTopology line 520
 wgn files need to be read as fixed length, not with split
 convertFromArc.py
 
+26/8/2019  #3
+Another instance of #1!!
+
+28/8/2019  #4
+getLayerByFilename returns a pair.  type check would find.
+delineation.py
+
+30/8/2019  #5
+removeFields is case sensitive on field names: use casefold to avoid
+QSWATTopology.py
+
+2/9/2019  #6
+demNoData set after grid lakes set up.  Moved from SetUp to SetUp0.
+QSWATTopology.py

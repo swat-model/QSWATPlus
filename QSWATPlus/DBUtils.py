@@ -20,8 +20,8 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
+from PyQt5.QtCore import *  # @UnusedWildImport
+from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 import os.path
@@ -33,15 +33,16 @@ import time
 import filecmp
 import re
 import traceback
+from typing import Set, Any, List, Dict, Iterable, Optional, Tuple  # @UnusedImport @Reimport
 
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes
-    from .dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
-    from .parameters import Parameters
+    from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
+    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore
+    from .parameters import Parameters  # type: ignore
 except:
     # used by convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
-    from dataInC import BasinData, CellData, LSUData, WaterBody  # @UnresolvedImport
+    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport
     from parameters import Parameters  # @UnresolvedImport
 
 class DBUtils:
@@ -53,7 +54,7 @@ class DBUtils:
     _MUIDPLUSNAMEPATTERN = r'^[A-Z]{2}[0-9]{3}\+[A-Z]+$'
     _S5IDPATTERN = r'^[A-Z]{2}[0-9]{4}$' 
     
-    def __init__(self, projDir, projName, dbProjTemplate, dbRefTemplate, isBatch):
+    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isBatch: bool) -> None:
         """Initialise class variables."""
         ## Flag showing if batch run
         self.isBatch = isBatch
@@ -91,7 +92,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbRefTemplate, self.dbRefFile)
         ## sqlite3 connection to project database
-        self.conn = sqlite3.connect(self.dbFile)
+        self.conn: Any = sqlite3.connect(self.dbFile)
         if self.conn is None:
             QSWATUtils.error('Failed to connect to project database {0}'.format(self.dbFile), self.isBatch)
         else:
@@ -101,20 +102,20 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             sql = 'PRAGMA journal_mode=OFF'
             self.conn.execute(sql)
         ## sqlite3 connection to reference database
-        self.connRef = sqlite3.connect(self.dbRefFile)
+        self.connRef: Any = sqlite3.connect(self.dbRefFile)
         if self.connRef is None:
             QSWATUtils.error('Failed to connect to reference database {0}'.format(self.dbRefFile), self.isBatch)
         else:
             #self.connRef.isolation_level = None # means autocommit
             self.connRef.row_factory = sqlite3.Row
         ## Tables in project database containing 'landuse'
-        self.landuseTableNames = []
+        self.landuseTableNames: List[str] = []
         ## Tables in project database containing 'soil'
-        self.soilTableNames = []
+        self.soilTableNames: List[str] = []
         ## all tables names in project database
-        self._allTableNames = []
+        self._allTableNames: List[str] = []
         ## map of landuse category to SWAT landuse code
-        self.landuseCodes = dict()
+        self.landuseCodes: Dict[int, str] = dict()
         ## Landuse categories may not translate 1-1 into SWAT codes.
         #
         # This map is used to map category ids into equivalent ids.
@@ -124,27 +125,27 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # contribute to the same HRUs.
         # There is an invariant that the domains of landuseCodes and _landuseTranslate are disjoint,
         # and that the range of _landuseTranslate is a subset of the domain of landuseCodes.
-        self._landuseTranslate = dict()
+        self._landuseTranslate: Dict[int, int] = dict()
         ## Map of landuse category to SWAT plant ids (as found in plant table,
         # or 0 for urban)
         #
         # There is an invariant that the domains of landuseCodes and landuseIds are identical.
-        self.landuseIds = dict()
-        ## Set of undefined landuse categories.  Retained so each is only reported once as an error in each run.
-        self._undefinedLanduseIds = []
+        self.landuseIds: Dict[int, int] = dict()
+        ## List of undefined landuse categories.  Retained so each is only reported once as an error in each run.
+        self._undefinedLanduseIds: List[int] = []
         ## Map of landuse category to SWAT urban ids 
         # There is an invariant that the domain of urbanIds is a subset of 
         # the domain of landuseIds, corresponding to those whose plant id is 0
-        self.urbanIds = dict()
+        self.urbanIds: Dict[int, int] = dict()
         ## Set of values occurring in landuse map
-        self.landuseVals = set()
+        self.landuseVals: Set[int] = set()
         ## Default landuse
         ## Set to 0 landuse value (if any) else first landuse in lookup table and used to replace landuse nodata when using grid model
         self.defaultLanduse = -1
         ## code used for WATR, or -1 if WATR not in landuse table
         self.waterLanduse = -1
         ## Map of soil id  to soil name
-        self.soilNames = dict()
+        self.soilNames: Dict[int, str] = dict()
         ## Soil categories may not translate 1-1 into soils.
         #
         # This map is used to map category ids into equivalent ids.
@@ -154,13 +155,13 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # contribute to the same HRUs.
         # There is an invariant that the domains of soilNames and soilTranslate are disjoint,
         # and that the range of soilTranslate is a subset of the domain of soilNames.
-        self.soilTranslate = dict()
-        ## Set of undefined soil identifiers.  Retained so each is only reported once as an error in each run.
-        self._undefinedSoilIds = []
+        self.soilTranslate: Dict[int, int] = dict()
+        ## List of undefined soil identifiers.  Retained so each is only reported once as an error in each run.
+        self._undefinedSoilIds: List[int] = []
         ## Copy of soilNames for those soils actually found
-        self.usedSoilNames = dict()
+        self.usedSoilNames: Dict[int, str] = dict()
         ## ssurgo soil numbers actually found
-        self.ssurgoSoils = set()
+        self.ssurgoSoils: Set[int] = set()
         ## Default soil
         ## Set to 0 soild value (if any) else first soil in lookup table and used to replace soil nodata when using grid model
         self.defaultSoil = -1
@@ -168,7 +169,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         #
         # A list [a,b] means slopes are in ranges [slopeMin,a), [a,b), [b,slopeMax] 
         # and these ranges would be indexed by slopes 0, 1 and 2.
-        self.slopeLimits = []
+        self.slopeLimits: List[float] = []
         ## flag indicating STATSGO soil data is being used
         self.useSTATSGO = False
         ## flag indicating SSURGO or STATSGO2 soil data is being used
@@ -192,11 +193,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         ## flag to show if landuse and soil database has been selected by user, or defined in project file
         self.plantSoilDatabaseSelected = False
         ## table names in landuse and soil database containing 'plant'
-        self.plantTableNames = []
+        self.plantTableNames: List[str] = []
         ## table names in landuse and soil database containing 'urban'
-        self.urbanTableNames = []
+        self.urbanTableNames: List[str] = []
         ## table names in landuse and soil database containing 'usersoil'
-        self.usersoilTableNames = []
+        self.usersoilTableNames: List[str] = []
+        ## collections of keys for each gis_ table: used for checking routing entries exist
+        self.gis_keys: Dict[str, Set[int]] = dict()
+        ## routing sources
+        self.routingSources: Set[Tuple[int, str]] = set()
+        ## routing targets
+        self.routingSinks: Set[Tuple[int, str]] = set()
       
 # 32-bit version only - uses Access  
 #     def connect(self, readonly=False):
@@ -262,7 +269,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
 #         return None
 
 
-    def createRoutingTable(self):
+    def createRoutingTable(self) -> bool:
         """Create gis_routing table.
         """
         try:
@@ -275,7 +282,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         except Exception:
             return False
     
-    def hasData(self, table):
+    def hasData(self, table: str) -> bool:
         """Return true if table exists in project database and has data."""
         try:
             with self.conn as conn:
@@ -285,7 +292,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         except Exception:
             return False
         
-    def hasTable(self, db, table):
+    def hasTable(self, db: str, table: str) -> bool:
         """Returns true if db has table."""
         # avoid opening proj or ref db again (and closing it!)
         isProjDb = filecmp.cmp(db, self.dbFile)
@@ -306,7 +313,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             if not (isProjDb or isRefDb):
                 conn.close()
                 
-    def hasTableConn(self, conn, table):
+    def hasTableConn(self, conn: Any, table: str) -> bool:
         """Uses existing connection conn to return true if table exists."""
         try:
             sql = 'SELECT name FROM sqlite_master WHERE TYPE="table"'
@@ -317,7 +324,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         except Exception:
             return False
     
-    def hasDataConn(self, table, conn):
+    def hasDataConn(self, table: str, conn: Any) -> bool:
         """Return true if table exists in existing connection and has data."""
         try:
             sql = self.sqlSelect(table, '*', '', '')
@@ -326,7 +333,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         except Exception:
             return False
                     
-    def clearTable(self, table):
+    def clearTable(self, table: str) -> None:
         
         """Clear table of data."""
         
@@ -337,9 +344,64 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # since purpose is to make sure any data in table is not accessible
             # ignore problems such as table not existing
             pass
+        
+    def addKey(self, table, key):
+        """Add key to table entry in gis_keys."""
+        keys = self.gis_keys.setdefault(table, set())
+        keys.add(key)
+        
+    def checkKeyInTable(self, table: str, key: int) -> None:
+        """Generate error message if key not in gis_keys for this table."""
+        keys = self.gis_keys.get(table, set())
+        if key not in keys:
+            QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
+            
+    def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, percent: float):
+        """Check that source is defined in the relevant table, and add to routing table.
+        
+        Does not check sink since there is a separate check that all non-exit sinks are sources."""
+        if sourceCategory == 'PT': table = 'gis_points'
+        elif sourceCategory == 'CH': table = 'gis_channels'
+        elif sourceCategory == 'HRU': table = None  # 'gis_hrus' no need for this because of code structure
+        elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
+        elif sourceCategory == 'SUB': table = None  # gis_subbasins defined after routing
+        elif sourceCategory == 'RES' or sourceCategory == 'PND': table = 'gis_water'
+        else: table = None
+        if table is not None:
+            self.checkKeyInTable(table, sourceId)
+        self.routingSources.add((sourceId, sourceCategory))
+        self.routingSinks.add((sinkId, sinkCategory))
+        cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, sinkId, sinkCategory, percent))
+        
+    def checkRoutedSubbasinsAndLSUsDefined(self):
+        for (sourceId, sourceCategory) in self.routingSources:
+            if sourceCategory == 'LSU':
+                self.checkKeyInTable('gis_lsus', sourceId)
+            elif sourceCategory == 'SUB':
+                self.checkKeyInTable('gis_subbasins', sourceId)
+        
+    def checkRoutingTable(self):
+        """Checks that all non-exit sinks are sources.  Also checks all LSU and subbasin sources defined in gis_ table.
+        Finally checks for circularities in gis_routing. """
+        for sink in self.routingSinks:
+            if sink[1] != 'X' and sink not in self.routingSources:
+                QSWATUtils.error('Internal error: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1]))
+        self.checkRoutedSubbasinsAndLSUsDefined()
+        # check routing table for circularities
+        errors, warnings = self.checkRouting(self.conn)
+        for error in errors:
+            QSWATUtils.error(error, self.isBatch)
+        if len(warnings) > 5:
+            QSWATUtils.information('See QSWAT+ log for {0} warnings about circularities in routing'.
+                                   format(len(warnings)), self.isBatch)
+            for warning in warnings:
+                QSWATUtils.loginfo(warning)
+        else:
+            for warning in warnings:
+                QSWATUtils.information(warning, self.isBatch)
     
     @staticmethod
-    def sqlSelect(table, selection, order, where):
+    def sqlSelect(table: str, selection: str, order: str, where: str) -> str:
         
         """Create SQL select statement."""
 
@@ -347,7 +409,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         select = 'SELECT ' + selection + ' FROM ' + table + where
         return select if order == '' else select + ' ORDER BY ' + order
     
-    def populateTableNames(self):
+    def populateTableNames(self) -> None:
         
         """Collect table names from project database."""
         
@@ -368,17 +430,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 QSWATUtils.exceptionError('Could not read tables in project database {0}'.format(self.dbFile), self.isBatch)
                 return
             
-    def collectPlantSoilTableNames(self, tableName, comboBox):
+    def collectPlantSoilTableNames(self, tableName: str, comboBox: QComboBox) -> List[str]:
         """
         Collect table names containing tableName from landuse and soil database, place in comboBox and return.
         """
         # avoid opening proj or ref db again (and closing it!)
         if not os.path.exists(self.plantSoilDatabase):
             QSWATUtils.error('Cannot find landuse and soil database {0}'.format(self.plantSoilDatabase), self.isBatch)
-            return
+            return []
         isProjDb = filecmp.cmp(self.plantSoilDatabase, self.dbFile)
         isRefDb = filecmp.cmp(self.plantSoilDatabase, self.dbRefFile)
-        ignoreList = []
+        ignoreList: List[str] = []
         if isProjDb:
             conn = self.conn
         elif isRefDb:
@@ -391,7 +453,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         if conn is None:
             return [] # assume error reported elsewhere
         comboBox.clear()
-        tableNames = []
+        tableNames: List[str] = []
         sql = 'SELECT name FROM sqlite_master WHERE TYPE="table"'
         try:
             for row in conn.execute(sql):
@@ -408,7 +470,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             if not (isProjDb or isRefDb):
                 conn.close()
             
-    def populateLanduseCodes(self, landuseTable):
+    def populateLanduseCodes(self, landuseTable: str) -> bool:
         """Collect landuse codes from landuseTable and create lookup tables."""
         OK = True
         self.landuseCodes.clear()
@@ -444,21 +506,21 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 return False
         return OK    
                 
-    def storeLanduseTranslate(self, lid, equiv):
+    def storeLanduseTranslate(self, lid: int, equiv: int) -> None:
         """Make key lid equivalent to key equiv, 
         where equiv is a key in landuseCodes.
         """
         if not lid in self._landuseTranslate:
             self._landuseTranslate[lid] = equiv
             
-    def translateLanduse(self, lid):
+    def translateLanduse(self, lid: int) -> int:
         """Translate a landuse id to its equivalent lid 
         in landuseCodes, if any.
         """
         self.landuseVals.add(lid)
         return self._landuseTranslate.get(lid, lid)
     
-    def storeLanduseCode(self, landuseCat, landuseCode):
+    def storeLanduseCode(self, landuseCat: int, landuseCode: str) -> bool:
         """Store landuse codes in lookup tables."""
         landuseId = 0
         urbanId = 0
@@ -510,7 +572,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             if not (isProjDb or isRefDb):
                 conn.close()
     
-    def getLanduseCode(self, lid):
+    def getLanduseCode(self, lid: int) -> str:
         """Return landuse code of landuse category lid."""
         lid1 = self.translateLanduse(lid)
         code = self.landuseCodes.get(lid1, None)
@@ -524,7 +586,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             QSWATUtils.error('Unknown landuse value {0}'.format(string), self.isBatch)
             return string
         
-    def getLanduseCat(self, landuseCode):
+    def getLanduseCat(self, landuseCode: str) -> int:
         """Return landuse category (value in landuse map) for code, 
         adding to lookup tables if necessary.
         """
@@ -541,7 +603,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.storeLanduseCode(cat, landuseCode)
         return cat
     
-    def populateSoilNames(self, soilTable):
+    def populateSoilNames(self, soilTable: str) -> bool:
         """Store names for soil categories."""
         self.soilNames.clear()
         self.soilTranslate.clear()
@@ -557,7 +619,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 idIndex = columns.index('SOIL_ID')
             except ValueError:
                 QSWATUtils.error('No column SOIL_ID in soil lookup table {0}'.format(soilTable))
-                return
+                return False
             if idIndex == 0:
                 nameHead = columns[1]
             else:
@@ -590,7 +652,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         else:
                             QSWATUtils.error('Cannot recognise {0} as an muid, muid+seqn, or s5id'.
                                              format(soilName), self.isBatch)
-                            return
+                            return False
                     # check if code already defined
                     equiv = nxt
                     for (key, name) in self.soilNames.items():
@@ -615,7 +677,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #     return re.match(pattern, name)
     #===========================================================================
                     
-    def getSoilName(self, sid):
+    def getSoilName(self, sid: int) -> str:
         """Return name for soil id sid."""
         if self.useSSURGO:
             self.ssurgoSoils.add(sid)
@@ -760,7 +822,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     _URBAN_URB_NAME = 'urban_urb'
     
     @staticmethod
-    def countCols(table, conn):
+    def countCols(table: str, conn: Any) -> int:
         """Count the columns in table in database currently connected to conn."""
         
         # get the sql to create the database
@@ -771,7 +833,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # column definitions are separated by commas
         return len(row[0].split(','))
                 
-    def writeSoilsTable(self):
+    def writeSoilsTable(self) -> bool:
         """Write the soils_sol and soils_sol_layer tables in the project database."""
         if self.useSTATSGO or self.useSSURGO:
             database = self.soilDatabase
@@ -842,14 +904,14 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         return False
                     sid += 1
                     if hasSeparateLayerTable:
-                        lid = self.writeUsedSoilRowSeparate(sid, lid, ssurgoId, row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
+                        lid = self.writeUsedSoilRowSeparate(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
                     else:
-                        lid = self.writeUsedSoilRow(sid, lid, ssurgoId, row, writeCursor, insert, insertLayer)
+                        lid = self.writeUsedSoilRow(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer)
             else: 
                 for name in self.usedSoilNames.values():
                     if self.useSTATSGO:
                         if self.useS5id:
-                            args = (name,)
+                            args: Any = (name,)
                         elif self.addSeqn or self.addName:
                             args = (name[:5], name[6:]) # note the plus sign must be skipped
                         else:
@@ -860,7 +922,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     if not row:
                         QSWATUtils.error('Soil name {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
                                          format(name, self.usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
-                        return
+                        return False
                     sid += 1
                     if hasSeparateLayerTable:
                         lid = self.writeUsedSoilRowSeparate(sid, lid, name, row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
@@ -881,7 +943,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 conn.close()
                 
-    def writeUsedSoilRow(self, sid, lid, name, row, cursor, insert, insertLayer):
+    def writeUsedSoilRow(self, sid: int, lid: int, name: str, row: Any, cursor: Any, insert: str, insertLayer: str) -> int:
         """Write data from one row of usersoil table to soils_sol and soils_sol_layer tables in project database."""
         cursor.execute(insert, (sid, name) + row[7:12] + (None,))
         startLayer1 = 12 # index of SOL_Z1
@@ -894,7 +956,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             cursor.execute(insertLayer, (lid, sid, i+1) +  row[startLayer:startLayer+layerWidth] +  (row[startCal+i], row[startPh+i]))
         return lid 
                 
-    def writeUsedSoilRowSeparate(self, sid, lid, name, row, cursor, insert, insertLayer, readCursor, sqlLayer):
+    def writeUsedSoilRowSeparate(self, sid: int, lid: int, name: str, row: Any, cursor: Any, insert: str, insertLayer: str, 
+                                 readCursor: Any, sqlLayer: str) -> int:
         """Write data from one row of usersoil table plus separate layer table 
         to soils_sol and soils_sol_layer tables.
         """
@@ -913,20 +976,20 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             cursor.execute(insertLayer, (lid, sid) + ro[2:])
         return lid
           
-    def storeSoilTranslate(self, sid, equiv):
+    def storeSoilTranslate(self, sid: int, equiv: int) -> None:
         """Make key sid equivalent to key equiv, 
         where equiv is a key in soilNames.
         """
         if sid not in self.soilTranslate:
             self.soilTranslate[sid] = equiv
         
-    def translateSoil(self, sid):
+    def translateSoil(self, sid: int) -> int:
         """Translate a soil id to its equivalent id in soilNames."""
         if self.useSSURGO:
             return sid
         return self.soilTranslate.get(sid, sid)
     
-    def writeLanduseTables(self):
+    def writeLanduseTables(self) -> bool:
         """Write the plants_plt and urban_urb tables in the project database."""
         isProjDb = filecmp.cmp(self.plantSoilDatabase, self.dbFile)
         isRefDb = filecmp.cmp(self.plantSoilDatabase, self.dbRefFile)
@@ -1012,7 +1075,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 conn.close()
         
-    def populateAllLanduses(self, listBox, includeWATR=True):
+    def populateAllLanduses(self, listBox: QListWidget, includeWATR: bool=True) -> None:
         """Make list of all landuses in listBox."""
         isProjDb = filecmp.cmp(self.plantSoilDatabase, self.dbFile)
         isRefDb = filecmp.cmp(self.plantSoilDatabase, self.dbRefFile)
@@ -1055,7 +1118,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             return
         listBox.sortItems(Qt.AscendingOrder)
         
-    def getLanduseDescriptions(self, crops):
+    def getLanduseDescriptions(self, crops: Iterable[int]) -> Dict[int, Tuple[str, str]]:
         """Return map of crop -> (code, description) for list or iterable of crop values.
         
         Uses a list to avoid repeated opeining of database connections."""
@@ -1071,7 +1134,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         cursor = conn.cursor()
         plantSql = self.sqlSelect(self.plantTable, 'description', '', 'name=? COLLATE NOCASE')
         urbanSql = self.sqlSelect(self.urbanTable, 'description', '', 'name=? COLLATE NOCASE')
-        result = dict()
+        result: Dict[int, Tuple[str, str]] = dict()
         for crop in crops:
             landuseCode = self.getLanduseCode(crop)
             # try plant table first
@@ -1085,7 +1148,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 result[crop] = (landuseCode, row['description'])
         return result  
    
-    def populateMapLanduses(self, vals, combo, includeWATR=True):
+    def populateMapLanduses(self, vals: List[int], combo: QComboBox, includeWATR: bool=True) -> None:
         """Put all landuse codes except WATR from landuse values vals in combo box."""
         for i in vals:
             code = self.getLanduseCode(i)
@@ -1095,7 +1158,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if combo.findText(code) < 0:
                     combo.addItem(code)
         
-    def slopeIndex(self, slopePercent):
+    def slopeIndex(self, slopePercent: float) -> int:
         """Return index of slopePerecent from slope limits list."""
         n = len(self.slopeLimits)
         for index in range(n):
@@ -1103,7 +1166,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 return index
         return n
     
-    def slopeRange(self, slopeIndex):
+    def slopeRange(self, slopeIndex: int) -> str:
         """Return the slope range for an index."""
         assert 0 <= slopeIndex <= len(self.slopeLimits), 'Slope index {0} out of range'.format(slopeIndex)
         minimum = 0 if slopeIndex == 0 else self.slopeLimits[slopeIndex - 1]
@@ -1487,7 +1550,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     
     _URBANTABLE = _URBAN_URB_TABLE
     
-    def createBasinsDataTables(self, cursor):
+    def createBasinsDataTables(self, cursor: Any) -> bool:
         """Create BASINSDATA, LUSDATA, WATERDATA and HRUSDATA in project database.""" 
         # remove old table completely, for backward compatibility, in case structure changed
         tableBasins = self._BASINSDATA
@@ -1564,7 +1627,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             return False
         return True
                         
-    def writeBasinsData(self, basins, cursor):
+    def writeBasinsData(self, basins: Dict[int, BasinData], cursor: Any) -> None:
         """Write BASINSDATA, LSUSDATA, HRUSDATA and WATERDATA tables in project database.""" 
         time1 = time.process_time()
         for basin, data in basins.items():
@@ -1579,7 +1642,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.hashDbTable(self.conn, self._HRUSDATA)
         self.hashDbTable(self.conn, self._WATERDATA)
         
-    def writeBasinsDataItem(self, basin, data, curs):
+    def writeBasinsDataItem(self, basin: int, data: BasinData, curs: Any) -> bool:
         """Write data for one basin in BASINSDATA, LSUSDATA, HRUSDATA and WATERDATA tables in project database.""" 
         try:
             curs.execute(DBUtils._BASINSDATAINSERTSQL, (basin, float(data.farDistance), 
@@ -1706,10 +1769,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #         return (None, False) 
     #===========================================================================
         
-    def regenerateBasins(self, ignoreerrors=False): 
+    def regenerateBasins(self, ignoreerrors: bool=False) -> Tuple[Optional[Dict[int, BasinData]], bool]: 
         """Recreate basins data from BASINSDATA, LSUSDATA, WATERDATA and HRUSDATA tables in project database."""
         try:
-            basins = dict()
+            basins: Dict[int, BasinData] = dict()
             # map lsuid -> (basin, channel, landscape) to enable non-search reads of all tables
             lsuMap = dict()
             with self.conn as conn:
@@ -1799,7 +1862,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 QSWATUtils.exceptionError('Failed to reconstruct basin data from database', self.isBatch)
             return (None, False) 
         
-    def changeReachSlopes(self, multiplier, oldMultiplier, shapesDir):
+    def changeReachSlopes(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
         """
         Apply multiplier in place of oldMultiplier to all reach slopes 
         in gis_channels table (if any) in project database.
@@ -1825,7 +1888,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if slo2Idx < 0:
                     QSWATUtils.loginfo('Slo2 field in {0} not found'.format(rivs1File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([slo2Idx])
                 for feature in provider.getFeatures(request):
                     mmap[feature.id()] = {slo2Idx: float(feature[slo2Idx]) * factor}
@@ -1836,7 +1899,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # table may not exist yet
             return
             
-    def changeTributarySlopes(self, multiplier, oldMultiplier, shapesDir):
+    def changeTributarySlopes(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
         """
         Apply multiplier in place of oldMultiplier to all tributary slopes 
         in subbasins and lsus tables (if any) in project database.
@@ -1864,7 +1927,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if cslIdx < 0:
                     QSWATUtils.loginfo('Csl field in {0} not found'.format(lsus2File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([cslIdx])
                 for feature in provider.getFeatures(request):
                     mmap[feature.id()] = {cslIdx: float(feature[cslIdx]) * factor}
@@ -1875,7 +1938,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # table may not exist yet
             return   
         
-    def changeMeanSlopes(self, multiplier, oldMultiplier, shapesDir):
+    def changeMeanSlopes(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
         """
         Apply multiplier in place of oldMultiplier to all mean slopes 
         in gis_subbasins, gis_lsus and gis_hrus tables (if any) in project database.
@@ -1915,7 +1978,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if slopeIdx < 0:
                     QSWATUtils.loginfo('Slope field in {0} not found'.format(lsus2File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([slopeIdx])
                 for feature in provider.getFeatures(request):
                     mmap[feature.id()] = {slopeIdx: float(feature[slopeIdx]) * factor}
@@ -1949,7 +2012,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # table may not exist yet
             return    
         
-    def changeMainLengths(self, multiplier, oldMultiplier, shapesDir):
+    def changeMainLengths(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
         """
         Apply multiplier in place of oldMultiplier to all main channel lengths
         in gis_channels table (if any) in project database, and consequently also change
@@ -1980,7 +2043,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if slo2Idx < 0:
                     QSWATUtils.loginfo('Slo2 field in {0} not found'.format(rivs1File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([len2Idx, slo2Idx])
                 for feature in provider.getFeatures(request):
                     mmap[feature.id()] = {len2Idx: float(feature[len2Idx]) * factor, slo2Idx: float(feature[slo2Idx]) / factor}
@@ -1991,7 +2054,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # table may not exist yet
             return
             
-    def changeTributaryLengths(self, multiplier, oldMultiplier, shapesDir):
+    def changeTributaryLengths(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
         """
         Apply multiplier in place of oldMultiplier to all tributary lengths 
         (longest flow path) in subbasins tables (if any) in project database, 
@@ -2023,7 +2086,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if len1Idx < 0:
                     QSWATUtils.loginfo('Len1 field in {0} not found'.format(subs1File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([len1Idx])
                 for feature in provider.getFeatures(request):
                     mmap[feature.id()] = {len1Idx: float(feature[len1Idx]) * factor}
@@ -2055,7 +2118,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # table may not exist yet
             return   
         
-    def changeChannelWidthAndDepth(self, widthMult, widthExp, depthMult, depthExp, shapesDir):
+    def changeChannelWidthAndDepth(self, widthMult: float, widthExp: float, depthMult: float, depthExp: float, shapesDir: str) -> None:
         """Change main and tributary channel widths and depths in gis_channels and gis_lsus tables."""
         with self.conn as conn:
             if conn is None:
@@ -2091,7 +2154,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 if dep2Idx < 0:
                     QSWATUtils.loginfo('Dep2 field in {0} not found'.format(rivs1File))
                     return
-                mmap = dict()
+                mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([areaIdx, wid2Idx, dep2Idx])
                 for feature in provider.getFeatures(request):
                     drainAreaKm = float(feature[areaIdx]) / 100 # areac in ha
@@ -2143,7 +2206,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 # table may not exist
                 return
         
-    def changeUpslopeHRUDrain(self, percent):
+    def changeUpslopeHRUDrain(self, percent: float) -> None:
         """Change upslope HRU drainage to percent into channel or reservoir, rest to downslope LSU."""
         with self.conn as conn:
             if conn is None:
@@ -2178,7 +2241,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 conn.row_factory = sqlite3.Row   
         
         
-    def writeElevationBands(self, basinElevBands, numElevBands):
+    def writeElevationBands(self, basinElevBands: Dict[int, Optional[List[Tuple[float, float]]]], numElevBands: int) -> None:
         """Write gis_elevationbands table."""
         with self.conn as conn:
             if not conn:
@@ -2236,27 +2299,27 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     
     _SOILLOOKUPTABLE = '(SOIL_ID INTEGER, NAME TEXT)'
     
-    def readLanduseCsv(self):
+    def readLanduseCsv(self) -> str:
         """Read landuse csv file."""
         return self.readCsv('landuse', self.landuseTableNames)
     
-    def readSoilCsv(self):
+    def readSoilCsv(self) -> str:
         """Read soil csv file."""
         return self.readCsv('soil', self.soilTableNames)
     
-    def readPlantCsv(self):
+    def readPlantCsv(self) -> str:
         """Read plant csv file."""
         return self.readCsv('plant', self.plantTableNames)
     
-    def readUrbanCsv(self):
+    def readUrbanCsv(self) -> str:
         """Read urban csv file."""
         return self.readCsv('urban', self.urbanTableNames)
     
-    def readUsersoilCsv(self):
+    def readUsersoilCsv(self) -> str:
         """Read usersoil csv file."""
         return self.readCsv('usersoil', self.usersoilTableNames)
     
-    def readCsv(self, typ, names):
+    def readCsv(self, typ: str, names: List[str]) -> str:
         """Invite reader to choose csv file and read it."""
         settings = QSettings()
         if settings.contains('/QSWATPlus/LastInputPath'):
@@ -2276,7 +2339,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         else:
             return '';
         
-    def readCsvFile(self, csvFile, typ, names):
+    def readCsvFile(self, csvFile: str, typ: str, names: List[str]) -> str:
         """Read csv file into table.
         
         The database used is the landuse and soil database if typ is usersoil, plant, or urban
@@ -2306,7 +2369,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 i = i+1
             return self.importCsv(table, typ, csvFile)
     
-    def importCsv(self, table, typ, fil):
+    def importCsv(self, table: str, typ: str, fil: str) -> str:
         """
         Write table of typ either soil or landuse in project database, 
         or usersoil in landuse and soil database, using csv file fil.
@@ -2403,7 +2466,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # if we have a header we have already skipped it.  Otherwise return to start.
             # Probably not a good idea to do a seek on file while reading with csv, so recreate reader
             if not hasHeader:
-                reader = None
+                reader = None  # type: ignore
                 csvFile.seek(0)
                 reader = csv.reader(csvFile, dialect)
             for line in reader:
@@ -2456,15 +2519,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #                     lsus[lsuId] = hruNums
     #     return topology
     #===========================================================================
-        
-    def createTopology(self):
+    HRUMap = Dict[int, Dict[int, Dict[int, Set[int]]]]
+    WaterMap = Dict[int, Dict[int, Dict[int, int]]]
+    def createTopology(self) -> Tuple[HRUMap, WaterMap, WaterMap]:  # @UndefinedVariable
         """Create HRU map SWATBasin -> SWATChannel -> LSUId -> hruNum-set,
         reservoir map SWATBasin -> SWATChannel -> LSUId -> reservoir number,
         and pond map SWATBasin -> SWATChannel -> LSUId -> pond number 
         from gis_channels, gis_lsus, gis_hrus and gis_water."""
         with self.conn.cursor() as cursor:
-            resLSUs = dict()
-            pndLSUs = dict()
+            resLSUs: Dict[int, int] = dict()
+            pndLSUs: Dict[int, int] = dict()
             sql0 = self.sqlSelect('gis_water', 'id, wtype, lsu', '', '')
             for row0 in cursor.execute(sql0):
                 lsuId = row0['lsu']
@@ -2472,7 +2536,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     resLSUs[lsuId] = row0['id']
                 else:
                     pndLSUs[lsuId] = row0['id']
-            lsus = dict()
+            lsus: Dict[int, Set[int]] = dict()
             sql1 = self.sqlSelect('gis_hrus', 'id, lsu', '', '')
             for row1 in cursor.execute(sql1):
                 hruNum = row1['id']
@@ -2480,9 +2544,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 hruNums = lsus.get(lsuId, set())
                 hruNums.add(hruNum)
                 lsus[lsuId] = hruNums
-            channels = dict()
-            resChannels = dict()
-            pndChannels = dict()
+            channels: Dict[int, Dict[int, Set[int]]] = dict()
+            resChannels: Dict[int, Dict[int, int]] = dict()
+            pndChannels: Dict[int, Dict[int, int]] = dict()
             sql2 = self.sqlSelect('gis_lsus', 'id, channel', '', '')
             for row2 in cursor.execute(sql2):
                 lsuId = row2['id']
@@ -2491,16 +2555,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 lsus2.update({lsuId : lsus.pop(lsuId)})
                 channels[SWATChannel] = lsus2
                 if lsuId in resLSUs:
-                    resLSUs2 = resChannels.get(SWATChannel, dict)
+                    resLSUs2 = resChannels.get(SWATChannel, dict())
                     resLSUs2.update({lsuId: resLSUs.pop(lsuId)})
                     resChannels[SWATChannel] = resLSUs2
                 if lsuId in pndLSUs:
-                    pndLSUs2 = pndChannels.get(SWATChannel, dict)
+                    pndLSUs2 = pndChannels.get(SWATChannel, dict())
                     pndLSUs2.update({lsuId: pndLSUs.pop(lsuId)})
                     pndChannels[SWATChannel] = pndLSUs2
-            topology = dict()
-            reservoirs = dict()
-            ponds = dict()
+            topology: Dict[int, Dict[int, Dict[int, Set[int]]]] = dict()
+            reservoirs: Dict[int, Dict[int, Dict[int, int]]] = dict()
+            ponds: Dict[int, Dict[int, Dict[int, int]]] = dict()
             sql3 = self.sqlSelect('gis_channels', 'id, subbasin', '', '')
             for row3 in cursor.execute(sql3):
                 SWATChannel = row3['id']
@@ -2519,7 +2583,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         return topology, reservoirs, ponds        
           
     ## Return an md5 hash value for a database table.  Used in testing.
-    def hashDbTable(self, conn, table):
+    def hashDbTable(self, conn: Any, table: str) -> str:
         # Only calculate and store table hashes when testing, as this is their purpose
         if 'test' in self.projName:
             # suspend row_factory setting
@@ -2537,24 +2601,25 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # restore row_factory
             conn.row_factory = sqlite3.Row
             return result
-        return None
+        return ''
     
     @staticmethod
-    def checkRouting(conn):
+    def checkRouting(conn: Any) -> Tuple[List[str], List[str]]:
         """Check every source in gis_routing table drains ultimately to an outlet, i.e. there are no loops
-        and everything not a final outlet has a sink which drains.  Also check routing for each
-        source totals 100%.  Return lists of error messages and warning messages. ."""
-        errors = []
-        warnings = []
+        and everything not a final outlet has a sink appearing as a source in gis_routing.  Also check routing for each
+        source totals 100%.  Return lists of error messages (loops; percents not totalling 100) and 
+        warning messages (loops but with a zero percent somwehere)."""
+        errors: List[str] = []
+        warnings: List[str] = []
         table = 'gis_routing'
         # mapping category -> id-set showing sources that are known to drain to an outlet
         # to save tracking every source all the way
-        done = dict()
+        done: Dict[int, Set[int]] = dict()
         # mapping category -> id-set showing sources currently under investigation
         # (so all can be marked as done if the chain terminates)
-        pending = dict()
+        pending: Dict[int, Set[int]] = dict()
         # mapping category -> id -> percent used to check sources with multiple sinks have 100% accounted for
-        percentages = dict()
+        percentages: Dict[int, Dict[int, float]] = dict()
         nextSql = DBUtils.sqlSelect(table, '*', '', '')
         findSql = DBUtils.sqlSelect(table, 'sinkid, sinkcat, percent', '', 'sourceid=? AND sourcecat=?')
         # Might be tempted to use pending to detect loops, but note below we don't
