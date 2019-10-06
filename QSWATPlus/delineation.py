@@ -639,7 +639,7 @@ either larger to lengthen the stream or smaller to remove it.."""
             # channels which enter and leave the lake, with their crossing points
             # if just one of these and no other outlet will make inflowing and outflowing pair,
             # else assumed not to interact with lake
-            crossingChannels: List[QgsFeature, List[QgsFeature]] = []
+            crossingChannels: List[Tuple[QgsFeature, List[QgsPointXY]]] = []
             for channel in channelProvider.getFeatures():
                 chLink = channel[channelLinkIndex]
                 line = channel.geometry()

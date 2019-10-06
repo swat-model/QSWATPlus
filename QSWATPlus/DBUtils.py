@@ -345,7 +345,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # ignore problems such as table not existing
             pass
         
-    def addKey(self, table, key):
+    def addKey(self, table: str, key: int) -> None:
         """Add key to table entry in gis_keys."""
         keys = self.gis_keys.setdefault(table, set())
         keys.add(key)
@@ -356,11 +356,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         if key not in keys:
             QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
             
-    def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, percent: float):
+    def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, percent: float) -> None:
         """Check that source is defined in the relevant table, and add to routing table.
         
         Does not check sink since there is a separate check that all non-exit sinks are sources."""
-        if sourceCategory == 'PT': table = 'gis_points'
+        if sourceCategory == 'PT': table: Optional[str] = 'gis_points'
         elif sourceCategory == 'CH': table = 'gis_channels'
         elif sourceCategory == 'HRU': table = None  # 'gis_hrus' no need for this because of code structure
         elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
@@ -371,16 +371,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             self.checkKeyInTable(table, sourceId)
         self.routingSources.add((sourceId, sourceCategory))
         self.routingSinks.add((sinkId, sinkCategory))
-        cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, sinkId, sinkCategory, percent))
+        cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, sinkId, sinkCategory, percent))  #type: ignore
         
-    def checkRoutedSubbasinsAndLSUsDefined(self):
+    def checkRoutedSubbasinsAndLSUsDefined(self) -> None:
         for (sourceId, sourceCategory) in self.routingSources:
             if sourceCategory == 'LSU':
                 self.checkKeyInTable('gis_lsus', sourceId)
             elif sourceCategory == 'SUB':
                 self.checkKeyInTable('gis_subbasins', sourceId)
         
-    def checkRoutingTable(self):
+    def checkRoutingTable(self) -> None:
         """Checks that all non-exit sinks are sources.  Also checks all LSU and subbasin sources defined in gis_ table.
         Finally checks for circularities in gis_routing. """
         for sink in self.routingSinks:

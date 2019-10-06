@@ -626,7 +626,7 @@ class QSWATTopology:
                 subbasinsProvider.addAttributes([QgsField(QSWATTopology._SUBBASIN, QVariant.Int)])
                 subbasinsLayer.updateFields()
                 subbasinIndex = subbasinsProvider.fieldNameIndex(QSWATTopology._SUBBASIN)
-            mmap: Dict[int. Dict[int, int]] = dict()
+            mmap: Dict[int, Dict[int, int]] = dict()
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex])
             for feature in subbasinsProvider.getFeatures(request):
                 subbasin = feature[polyIndex]
@@ -816,8 +816,8 @@ class QSWATTopology:
                 if dsNode > 0:
                     if dsNode in self.lakeInlets[lakeId]:
                         inflowData = self.getReachData(channel.geometry(), demLayer)
-                        elev = inflowData.lowerZ
                         assert inflowData is not None
+                        elev = inflowData.lowerZ
                         lakeData.inChLinks[link] = (dsNode, QgsPointXY(inflowData.lowerX, inflowData.lowerY), elev)
                         if dsLink >= 0:
                             lakeData.lakeChLinks.add(dsLink)
@@ -1697,8 +1697,8 @@ class QSWATTopology:
                     link = dsLink
             numRings = len(rings)
             if numRings > 0:
-                channelMap: Dict[int, int] = dict()
-                polyMap: Dict[int, int] = dict()
+                channelMap: Dict[int, Dict[int, int]] = dict()
+                polyMap: Dict[int, Dict[int, int]] = dict()
                 channelProvider = channelLayer.dataProvider()
                 dsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
                 subProvider = subbasinsLayer.dataProvider()
@@ -1912,8 +1912,8 @@ class QSWATTopology:
         pStart = firstLine[0]
         pFinish = lastLine[-1]
         if demLayer is None:
-            startVal = 0.0
-            finishVal = 0.0
+            startVal: Optional[float] = 0.0
+            finishVal: Optional[float] = 0.0
         else:
             startVal = QSWATTopology.valueAtPoint(pStart, demLayer)
             finishVal = QSWATTopology.valueAtPoint(pFinish, demLayer)
@@ -1922,6 +1922,8 @@ class QSWATTopology:
                 startVal = 0.0
             if finishVal is None:
                 finishVal = 0.0
+        assert startVal is not None
+        assert finishVal is not None
         if self.outletAtStart:
             maxElev = finishVal * self.verticalFactor
             minElev = startVal * self.verticalFactor
@@ -2247,6 +2249,7 @@ class QSWATTopology:
             for lake in self.lakesData.values():
                 # outlet from lake
                 subbasin, pointId, pt, elev = lake.outPoint
+                assert elev is not None
                 chLink = lake.outChLink
                 if not useGridModel and chLink == -1:
                     # main outlet was moved inside lake, but reservoir point will still be routed to it
@@ -2260,6 +2263,7 @@ class QSWATTopology:
                     for chLink, (pointId, pt, elev) in lake.inChLinks.items():
                         chBasin = self.chLinkToChBasin[chLink]
                         subbasin = self.chBasinToSubbasin[chBasin]
+                        assert elev is not None
                         self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
             for chLink, (pointId, pt, _) in self.chLinkToWater.items():
                 # reservoir points at lake outlets can appear here 
@@ -2326,6 +2330,7 @@ class QSWATTopology:
         try:
             cursor.execute(sql, (pointId, SWATBasin, typ,
                            pt.x(), pt.y(), ptll.y(), ptll.x(), elev))
+            assert isinstance(self.db, DBUtils)
             self.db.addKey(table, pointId)
         except:
             QSWATUtils.exceptionError('Internal error: unable to add point {0} type {1}'.format(pointId, typ), self.isBatch)
