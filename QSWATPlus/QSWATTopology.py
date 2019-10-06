@@ -590,11 +590,11 @@ class QSWATTopology:
             gridCellArea = self.dx * self.dy * gv.gridSize * gv.gridSize
             # try to use Drainage field from grid channels shapefile
             if streamDrainage:
-                ok = self.setGridDrainageFromChannels(channelLayer, maxChLink)
+                ok = self.setGridDrainageFromChannels(channelLayer, subbasinsLayer, maxChLink)
             else:
                 ok = False
             if not ok:
-                self.setGridDrainageAreas(maxChLink, gridCellArea)
+                self.setGridDrainageAreas(channelLayer, subbasinsLayer, maxChLink, gridCellArea)
         else:
             # can use drain areas from TauDEM if we have them
             if drainAreaIndex >= 0:
@@ -1092,6 +1092,9 @@ class QSWATTopology:
                 else:
                     # exit channel
                     polysFromLake[poly] = sourceLake
+                    if targetLake is not None:
+                        # also entry channel
+                        polysIntoLake[poly] = targetLake
             elif targetLake is not None:
                 polysIntoLake[poly] = targetLake
         totalElevation: Dict[int, float] = dict()
@@ -1124,7 +1127,8 @@ class QSWATTopology:
                     elev = 0
                 self.lakesData[lakeIdInto].inChLinks[chLink] = (pointId, point, elev)
                 totalElevation[lakeIdInto] += elev
-                continue
+                # if different lake cells abut, channel can be into one and from the other 
+                # continue
             lakeIdFrom = polysFromLake.get(wsno, 0)
             if lakeIdFrom > 0:
                 # allow for no drainage field
@@ -1150,7 +1154,7 @@ class QSWATTopology:
         if needDrainage:
             self.drainAreas = zeros((maxChLink + 1), dtype=float)
             gridCellArea = self.dx * self.dy * gv.gridSize * gv.gridSize
-            self.setGridDrainageAreas(maxChLink, gridCellArea)
+            self.setGridDrainageAreas(channelsLayer, gridLayer, maxChLink, gridCellArea)
         # count lakes with multiple outlets 
         multipleOutletCount = 0
         for data in exitData.values():
@@ -1619,7 +1623,7 @@ class QSWATTopology:
             channelLink = reach[self.channelIndex]
             self.drainAreas[channelLink] = reach[drainAreaIndex]
                     
-    def setGridDrainageFromChannels(self, channelLayer: QgsVectorLayer, maxChLink: int) -> bool: 
+    def setGridDrainageFromChannels(self, channelLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, maxChLink: int) -> bool: 
         """Get drain areas from channelLayer file's Drainage attribute.  Return True if successful."""
         channelIndex = self.getIndex(channelLayer, QSWATTopology._LINKNO, ignoreMissing=True)
         drainageIndex = self.getIndex(channelLayer, QSWATTopology._DRAINAGE, ignoreMissing=True)
@@ -1630,10 +1634,10 @@ class QSWATTopology:
         for reach in channelLayer.getFeatures(request):
             channel = reach[channelIndex]
             self.drainAreas[channel] = reach[drainageIndex] * 1E6 # drainage attribute is in sq km
-        self.checkDrainage(maxChLink, False)
+        self.checkDrainage(channelLayer, subbasinsLayer, maxChLink, False)
         return True
                
-    def setGridDrainageAreas(self, maxChLink: int, gridCellArea: float) -> None:
+    def setGridDrainageAreas(self, channelLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, maxChLink: int, gridCellArea: float) -> None:
         """Calculate and save grid drain areas in sq km."""
         # check to see if drain areas already calculated - may have been done with lakes
         if self.drainAreas is None:
@@ -1642,14 +1646,14 @@ class QSWATTopology:
             if self.drainAreas[link] > gridCellArea:
                 return
         self.drainAreas.fill(gridCellArea)
-        self.checkDrainage(maxChLink, True)
+        self.checkDrainage(channelLayer, subbasinsLayer, maxChLink, True)
         
-    def checkDrainage(self, maxChLink: int, needDrainage: bool) -> None:
+    def checkDrainage(self, channelLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, maxChLink: int, needDrainage: bool) -> None:
         """Check drainage as defined by downChannels map is not circular: attempt to fix if so.  Also calculate drainage in 
         self.drainAreas if nedDrainage is true.  If so, assume it is initialised with area of grid cell.
         
         Only used in grid models.
-        Note this does not change the channel or the grid shapefiles, only the downChannels and downSubbasins mappings."""
+        Changes the channel and the grid shapefiles, plus the downChannels and downSubbasins mappings."""
         # number of incoming links for each link
         incount: ndarray[int] = zeros((maxChLink + 1), dtype=int)
         for dsLink in self.downChannels.values():
@@ -1693,6 +1697,12 @@ class QSWATTopology:
                     link = dsLink
             numRings = len(rings)
             if numRings > 0:
+                channelMap: Dict[int, int] = dict()
+                polyMap: Dict[int, int] = dict()
+                channelProvider = channelLayer.dataProvider()
+                dsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
+                subProvider = subbasinsLayer.dataProvider()
+                dsPolyIndex = subProvider.fieldNameIndex(QSWATTopology._DOWNID)
                 QSWATUtils.information('Drainage areas incomplete.  There are {0} circularities.  Will try to remove them.  See the QSWAT+ log for details'.
                                  format(numRings), self.isBatch)
                 for ring in rings:
@@ -1709,14 +1719,24 @@ class QSWATTopology:
                         QSWATUtils.error('Failed to find link with largest drainage in circle {0!s}'.format(ring), self.isBatch)
                     else:
                         self.downChannels[maxLink] = -1
+                        linkExpr = QgsExpression('"{0}" = {1}'.format(QSWATTopology._LINKNO, maxLink))
+                        linkRequest = QgsFeatureRequest(linkExpr).setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([])
+                        for feature in channelProvider.getFeatures(linkRequest):
+                            channelMap[feature.id()] = {dsLinkIndex: -1}
                         # also need to fix downSubbasins map
                         # subbasin same as chBasin since grid model
                         basin = self.chLinkToChBasin[maxLink]
                         self.downSubbasins[basin] = -1
+                        polyExpr = QgsExpression('"{0}" = {1}'.format(QSWATTopology._WSNO, basin))
+                        polyRequest = QgsFeatureRequest(polyExpr).setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([])
+                        for feature in subProvider.getFeatures(polyRequest):
+                            polyMap[feature.id()] = {dsPolyIndex: -1}
                         QSWATUtils.loginfo('Link {0} and polygon {1} made into an exit'.format(maxLink, basin))
                         # if there is a lake with the exit link internal to it we should make it the lake outlet
-                        for lakeId, lakeData in self.lakesData.items():
-                            if maxLink in lakeData.lakeChLinks and lakeData.outChLink >= 0:
+                        lakeId = self.chLinkInsideLake.get(maxLink, -1)
+                        if lakeId > 0:
+                            lakeData = self.lakesData[lakeId]
+                            if lakeData.outChLink >= 0:
                                 # add old outlet to other outlets
                                 oldOutLink = lakeData.outChLink
                                 lakeData.otherOutChLinks.add(oldOutLink)
@@ -1727,9 +1747,14 @@ class QSWATTopology:
                                                    format(lakeId, oldOutLink, maxLink))
                                 self.chLinkFromLake[maxLink] = lakeId
                                 del self.chLinkInsideLake[maxLink]
-                                # cannot be in any other lakes, so stop search through lakes
-                                break
-                                
+                        # and if the channel flows into a lake we should remove it from the lake's inlets
+                        lakeId = self.chLinkIntoLake.get(maxLink, -1)
+                        if lakeId > 0:
+                            lakeData = self.lakesData[lakeId]
+                            del lakeData.inChLinks[maxLink]
+                            del self.chLinkIntoLake[maxLink]
+                channelProvider.changeAttributeValues(channelMap)
+                subProvider.changeAttributeValues(polyMap)
             
     def setDrainageAreas(self, us: Dict[int, List[int]]) -> None:
         """

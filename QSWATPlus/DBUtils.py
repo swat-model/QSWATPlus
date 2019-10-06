@@ -385,7 +385,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         Finally checks for circularities in gis_routing. """
         for sink in self.routingSinks:
             if sink[1] != 'X' and sink not in self.routingSources:
-                QSWATUtils.error('Internal error: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1]))
+                QSWATUtils.error('Internal error: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1]),
+                                 self.isBatch)
         self.checkRoutedSubbasinsAndLSUsDefined()
         # check routing table for circularities
         errors, warnings = self.checkRouting(self.conn)
@@ -2610,16 +2611,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         source totals 100%.  Return lists of error messages (loops; percents not totalling 100) and 
         warning messages (loops but with a zero percent somwehere)."""
         errors: List[str] = []
+        erroneous: Dict[str, Set[int]]
         warnings: List[str] = []
         table = 'gis_routing'
         # mapping category -> id-set showing sources that are known to drain to an outlet
         # to save tracking every source all the way
-        done: Dict[int, Set[int]] = dict()
+        done: Dict[str, Set[int]] = dict()
         # mapping category -> id-set showing sources currently under investigation
         # (so all can be marked as done if the chain terminates)
-        pending: Dict[int, Set[int]] = dict()
+        pending: Dict[str, Set[int]] = dict()
         # mapping category -> id -> percent used to check sources with multiple sinks have 100% accounted for
-        percentages: Dict[int, Dict[int, float]] = dict()
+        percentages: Dict[str, Dict[int, float]] = dict()
         nextSql = DBUtils.sqlSelect(table, '*', '', '')
         findSql = DBUtils.sqlSelect(table, 'sinkid, sinkcat, percent', '', 'sourceid=? AND sourcecat=?')
         # Might be tempted to use pending to detect loops, but note below we don't
@@ -2689,7 +2691,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     break  # from while loop
                 findRow = conn.execute(findSql, (tid, tcat)).fetchone()
                 if findRow is None:
-                    errors.append('Cannot find id {1} category {2} as a source in the {0} table'.format(table, tid, tcat))
+                    # unnecessary to report as done in checkRoutingTable
+#                     report = False
+#                     if tcat not in erroneous:
+#                         report = True
+#                         erroneous[tcat] = {tid}
+#                     elif tid not in erroneous[tcat]:
+#                         erroneous[tcat].add(tid)
+#                         report = True
+#                     if report:
+#                         errors.append('Cannot find id {1} category {2} as a source in the {0} table'.format(table, tid, tcat))
                     break  # from while loop
                 sid = tid
                 scat = tcat
@@ -2931,7 +2942,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     _CREATELAKELINKS = \
     """
     CREATE TABLE LAKELINKS (
-    linkno    INTEGER PRIMARY KEY,
+    linkno    INTEGER,
     lakeid    INTEGER REFERENCES LAKESDATA (id),
     inlet     BOOLEAN,
     inside    BOOLEAN,

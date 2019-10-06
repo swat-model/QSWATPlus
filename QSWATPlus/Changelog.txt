@@ -1,3 +1,12 @@
+Version 1.2.5   6 October 2019
+------------------------------
+
+Automatic removal of circularities in grid models
+
+LAKELINKS table allows channel with two roles (inlet and other outlet)
+
+Degenerate grid cells removed when using grid drainage (to support clipping into aquifers)
+
 Version 1.2.4   6 September 2019
 --------------------------------
 

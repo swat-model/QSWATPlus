@@ -920,7 +920,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             for cell in gridLayer.getFeatures():
                 cellGeom = cell.geometry()
                 cellBox = cellGeom.boundingBox()
-                cellArea = float(cell[areaIndex]) * 1E4  # convert to square metres
+                cellAreaThreshold = 0.5 * float(cell[areaIndex]) * 1E4  # convert to square metres
                 # ensure we remove old lake ids, but not lake ids already added
                 try:
                     currentLakeId = int(cell[gridLakeIdIndex])
@@ -933,7 +933,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 lakePart = cellGeom.intersection(lakeGeom)
                 if lakePart.isEmpty():
                     continue
-                if lakePart.area() < 0.5 * cellArea:
+                if lakePart.area() < cellAreaThreshold:
                     continue
                 mmap[cell.id()] = {gridLakeIdIndex: lakeId, gridResIndex: waterRole}
             done.append(lakeId)
@@ -3953,14 +3953,25 @@ If you want to start again from scratch, reload the lakes shapefile."""
             return None
         features = list()
         self._gv.topo.basinCentroids.clear()
+        toRemove: List[int] = list()
         if self.gridDrainage:
             centroids: Dict[int, Tuple[int, QgsPointXY, Tuple[float, float], Tuple[float, float]]] = dict()
             for cell in subbasinsLayer.getFeatures():
                 basin = cell[basinIndex]
+                area = int(cell.geometry().area())
+                if area == 0:
+                    # grid cells collected by clipping with aquifers can be degenerate ones at edge with close to zero area:
+                    # remove them
+                    toRemove.append(cell.id())
+                    QSWATUtils.loginfo('Zero area grid cell {0} removed'.format(basin))
+                    continue
                 downBasin = cell[downBasinIndex]
                 centroid, (xmin, xmax), (ymin, ymax) = QSWATUtils.centreGridCell(cell)
                 centroids[basin] = (downBasin, centroid, (xmin, xmax), (ymin, ymax))
                 self._gv.topo.basinCentroids[basin] = centroid
+            if len(toRemove) > 0:
+                subProvider = subbasinsLayer.dataProvider()
+                subProvider.deleteFeatures(toRemove)
             for basin, (downBasin, source, (xmin, xmax), (ymin, ymax)) in centroids.items():
                 if downBasin < 0:
                     target = QSWATUtils.nearestPoint(source, outlets)
