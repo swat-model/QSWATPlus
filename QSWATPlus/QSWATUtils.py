@@ -411,9 +411,14 @@ class QSWATUtils:
         Delete all files with same root as fileName, 
         i.e. regardless of suffix, but allow deletions to fail.
         """
+        pattern: str = os.path.splitext(fileName)[0] + '.*'
+        QSWATUtils.tryRemoveFilePattern(pattern)
+            
+    @staticmethod
+    def tryRemoveFilePattern(pattern: str) -> None:
+        """Delete all files matching pattern, allowing deletions to fail."""
         # wait for layers to be removed
         QApplication.processEvents()
-        pattern: str = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             try:
                 os.remove(f)

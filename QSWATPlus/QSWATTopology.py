@@ -1107,8 +1107,9 @@ class QSWATTopology:
             totalElevation[lakeId] = 0
             exitData[lakeId] = dict()
         # convert wsnos to links and complete LakesData
-        # get maximum chLink and create downChannels map in case drainage needs calculating
+        # get maximum chLink and create downChannels map and link to basin map in case drainage needs calculating
         self.downChannels = dict()
+        self.chLinkToChBasin = dict()
         maxChLink = 0
         for channel in channelsProvider.getFeatures():
             chLink: int = channel[channelLinkIndex]
@@ -1116,6 +1117,7 @@ class QSWATTopology:
             dsChLink = channel[channelDsLinkIndex]
             self.downChannels[chLink] = dsChLink
             wsno = channel[channelWSNOIndex]
+            self.chLinkToChBasin[chLink] = wsno
             lakeIdInto = polysIntoLake.get(wsno, 0)
             if lakeIdInto > 0:
                 self.chLinkIntoLake[chLink] = lakeIdInto

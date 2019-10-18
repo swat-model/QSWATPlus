@@ -34,6 +34,7 @@ import numpy
 import glob
 import processing  # @UnresolvedImport
 from processing.core.Processing import Processing  # @UnresolvedImport
+from operator import itemgetter
 
 # Import the code for the dialog
 from .hrusdialog import HrusDialog
@@ -4937,7 +4938,8 @@ class CreateHRUs(QObject):
         """Creat aquifers shapefile."""
         
         def addNewField(layer, fileName, newFieldname, oldFieldname, fun):
-            """Add new integer field to shapefile; set field to fun applied to value in old integer field; remove other fields."""
+            """Add new integer field to shapefile; set field to fun applied to value in old integer field.
+            Return the new field's index."""
             fields = [QgsField(newFieldname, QVariant.Int)]
             provider = layer.dataProvider()
             provider.addAttributes(fields)
@@ -4951,7 +4953,7 @@ class CreateHRUs(QObject):
                 mmap[f.id()] = {newIndex: fun(oldVal)}
             if not provider.changeAttributeValues(mmap):
                 QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
-            QSWATTopology.removeFields(provider, [newFieldname], fileName, self._gv.isBatch)
+            return newIndex
                 
         def findOutlet(basin, downBasins):
             """downBasins maps basin to downstream basin or -1 if none.  Return final basin starting from basin."""
@@ -4970,12 +4972,12 @@ class CreateHRUs(QObject):
             return
         # remove features with 0 subbasin value (subbasins upstream from inlets)
         subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
-        if self._gv.useGridModel:
-            numGridCells = subsLayer.featureCount()
-            if numGridCells > Parameters._RIVS1SUBS1MAX:
-                # aquifers layer will take time to computs and would be too detailed for useful display
-                QSWATUtils.loginfo('Too many grid cells ({0}) to generate aquifers shapefiles'.format(numGridCells))
-                return
+#         if self._gv.useGridModel:
+#             numGridCells = subsLayer.featureCount()
+#             if numGridCells > Parameters._RIVS1SUBS1MAX:
+#                 # aquifers layer will take time to computs and would be too detailed for useful display
+#                 QSWATUtils.loginfo('Too many grid cells ({0}) to generate aquifers shapefiles'.format(numGridCells))
+#                 return
         subsProvider = subsLayer.dataProvider()
         exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
         idsToDelete = []
@@ -4997,6 +4999,7 @@ class CreateHRUs(QObject):
             QSWATUtils.copyShapefile(subsFile, Parameters._AQUIFERS, self._gv.resultsDir)
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
+            QSWATTopology.removeFields(aqLayer.dataProvider(), [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
                 # first convert floodplain to polygons
@@ -5056,10 +5059,12 @@ class CreateHRUs(QObject):
             # create deep aquifer file by dissolving subbasins file
             # make map of subbasin to outlet subbasin in each watershed:
             outletSubbasins = dict()
-            for basin in self._gv.topo.downSubbasins.keys():
+            outlets = set()
+            for basin in self._gv.topo.downSubbasins:
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
                 if SWATBasin > 0:
                     outBasin = findOutlet(basin, self._gv.topo.downSubbasins)
+                    outlets.add(outBasin)
                     outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[outBasin]
             #QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
             #QSWATUtils.loginfo('Down subbasins: {0!s}'.format(self._gv.topo.downSubbasins))
@@ -5070,6 +5075,8 @@ class CreateHRUs(QObject):
             tempLayer = QgsVectorLayer(tempDeepAqFile, 'temp', 'ogr')
             # add Aquifer field, set to number of outlet subbasin
             addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
+            QSWATTopology.removeFields(tempLayer.dataProvider(), [QSWATTopology._AQUIFER], tempDeepAqFile, self._gv.isBatch)
+            aqIndex = 0   # only field left
             # dissolve on Aquifer field
             processing.run("native:dissolve", 
                            {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile}, context=context)
@@ -5082,9 +5089,70 @@ class CreateHRUs(QObject):
 #                       'DISSOLVED': deepAqFile}
 #             processing.run("saga:polygondissolvebyattribute", params, context=context)
             QSWATUtils.tryRemoveFiles(tempDeepAqFile)
+            # if we have a multiple catchment grid model with over _GRIDCELLSMAX cells, create partition into catchments
+            # only do this if not an existing watershed, when user presumed to know what they want.
+            if self._gv.useGridModel and not self._gv.existingWshed and len(outlets) > 1 and subsProvider.featureCount() > Parameters._GRIDCELLSMAX:
+                # add Aquifer field to grid shapefile
+                gridAqIndex = addNewField(subsLayer, subsFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
+                self.partition(deepAqFile, aqIndex, subsProvider, gridAqIndex, subsFile)
         except Exception as ex:
             QSWATUtils.information('Failed to generate deep aquifers shapefile: deep aquifer result visualisation will not be possible: {0}'
                                    .format(repr(ex)), self._gv.isBatch)
+            
+    def partition(self, catchmentsFile, catchmentIndex, gridProvider, gridCatchmentIndex, gridFile):
+        """ Create a partition of the grid shapefile into a collection of files
+            the first containing the grid cells in the largest catchment and subsequent ones 
+            the grid cells forming a collection of catchments with total area at most the largest catchment."""
+        # create a list of catchment ids and areas sorted by area
+        gridBase = os.path.splitext(gridFile)[0]
+        # remove existing partitions
+        pattern = gridBase + '[1-9]*.*'
+        QSWATUtils.tryRemoveFilePattern(pattern)
+        gridFields = gridProvider.fields()
+        catchmentAreasList = []
+        catchmentsLayer = QgsVectorLayer(catchmentsFile, 'catchments', 'ogr')
+        for catchment in catchmentsLayer.getFeatures():
+            area = catchment.geometry().area()
+            catchmentNum = catchment[catchmentIndex]
+            catchmentAreasList.append((catchmentNum, area))
+        # sort in order of decreaing area
+        catchmentAreasList.sort(key=itemgetter(1), reverse=True)
+        minArea = Parameters._GRIDCELLSMAX * self._gv.topo.dx * self._gv.topo.dy * self._gv.gridSize * self._gv.gridSize
+        # aim at files size of largest aquifer, or minimum area, whichever is larger
+        # minimum area condition prevents splitting more than we need to
+        targetArea = max(catchmentAreasList[0][1], minArea)
+        partNum = 0
+        while len(catchmentAreasList) > 0:
+            # prepare next partition
+            # add as many catchments as possible, searching largest to smallest
+            # storing catchment numbers in nextPart
+            remainingArea = targetArea
+            i = 0
+            nextPart = []
+            while i < len(catchmentAreasList):
+                catchmentNum, area = catchmentAreasList[i]
+                if area <= remainingArea:
+                    remainingArea -= area
+                    nextPart.append(catchmentNum)
+                    del catchmentAreasList[i]
+                else:
+                    i += 1
+            partNum += 1
+            nextPartFile = gridBase + str(partNum) + '.shp'
+            writer = QgsVectorFileWriter(nextPartFile, 'CP1250', gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
+            if writer.hasError() != QgsVectorFileWriter.NoError:
+                QSWATUtils.error('Cannot create partition shapefile {0}: {1}'.format(nextPartFile, writer.errorMessage()), self._gv.isBatch)
+                return
+            # delete the writer to flush
+            writer.flushBuffer()
+            del writer
+            QSWATUtils.copyPrj(gridFile, nextPartFile)
+            nextPartLayer = QgsVectorLayer(nextPartFile, 'partition {0}'.format(partNum), 'ogr')
+            nextPartProvider = nextPartLayer.dataProvider()
+            nextPartProvider.addAttributes(gridFields)
+            nextPartLayer.updateFields()
+            partCells = [cell for cell in gridProvider.getFeatures() if cell[gridCatchmentIndex] in nextPart]
+            nextPartProvider.addFeatures(partCells)
 
     def generateBasinsFromShapefile(self, request, provider, polyIdx, subIdx):
         """Yield (feature id, basin, SWATBasin, basinData) tuples from subs1.shp."""

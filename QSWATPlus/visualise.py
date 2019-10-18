@@ -587,11 +587,11 @@ class Visualise(QObject):
         
     def changeVariableCombo(self):
         """Set tool tip according to selection."""
-        var = self.variableCombo.currentText()
+        var = self._dlg.variableCombo.currentText()
         if var == '':
-            self.variableCombo.setToolTip('Select variable to be added to list')
+            self._dlg.variableCombo.setToolTip('Select variable to be added to list')
         else:
-            self.variableCombo.setToolTip(self.getVarTip(var))
+            self._dlg.variableCombo.setToolTip(self.getVarTip(var))
         
     def setVarComboTips(self, combo, initTip):
         """Set tool tips for each variable in combo."""

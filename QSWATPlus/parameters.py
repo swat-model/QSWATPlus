@@ -117,6 +117,9 @@ class Parameters:
     ## maximum number of features for adding data to rivs1 and subs1 files
     _RIVS1SUBS1MAX = 100000
     
+    # threshold grid cell count for splitting grids into catchments
+    _GRIDCELLSMAX = 10000
+    
     ## nearness threshold: proportion of size of DEM cell used to determine if two stream points should be considered to join
     # too large a threshold and very short stream segments can apparently be circular
     # too small and connected stream segments can appear to be disconnected
@@ -140,6 +143,7 @@ class Parameters:
     # minimum percentage of the drain area of a lake outlet channel to the lake area for it not to be absorbed into the lake
     _LAKEOUTLETCHANNELAREA = 1  #TODO: add to parameters form
     
+    # default multiplier: used if not specified in project file
     _MULTIPLIER = 1.0
     
     

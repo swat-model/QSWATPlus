@@ -1718,7 +1718,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                             self._gv.gridSize = xGridSize
                             QSWATUtils.loginfo('Grid size set to {0}'.format(self._gv.gridSize))
                         else:
-                            QSWATUtils.error('Horizontal ({0})and vertical ({1}) estimates of grid size are different.  Is your watershed shapefile a grid?'.
+                            QSWATUtils.error('Horizontal ({0}) and vertical ({1}) estimates of grid size are different.  Is your watershed shapefile a grid?'.
                                              format(xGridSize, yGridSize), self._gv.isBatch)
                             return
             # check grid size is set
@@ -1733,7 +1733,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     self._gv.gridSize = xGridSize
                     QSWATUtils.loginfo('Grid size set to {0}'.format(self._gv.gridSize))
                 else:
-                    QSWATUtils.error('Horizontal ({0})and vertical ({1}) estimates of grid size are different.  Is your watershed shapefile a grid?'.
+                    QSWATUtils.error('Horizontal ({0}) and vertical ({1}) estimates of grid size are different.  Is your watershed shapefile a grid?'.
                                      format(xGridSize, yGridSize), self._gv.isBatch)
                     return
         else:

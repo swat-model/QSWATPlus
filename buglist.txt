@@ -20,3 +20,7 @@ QSWATTopology.py
 2/9/2019  #6
 demNoData set after grid lakes set up.  Moved from SetUp to SetUp0.
 QSWATTopology.py
+
+9/10/2019  #7
+self.variableCombo -> self._dlg.variableCombo (3 times)
+visualise.py
