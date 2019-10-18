@@ -360,7 +360,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """Check that source is defined in the relevant table, and add to routing table.
         
         Does not check sink since there is a separate check that all non-exit sinks are sources."""
-        if sourceCategory == 'PT': table: Optional[str] = 'gis_points'
+        if sourceCategory == 'PT': table: Optional[str] = None  # outlet points of channels into lakes defined after routing
         elif sourceCategory == 'CH': table = 'gis_channels'
         elif sourceCategory == 'HRU': table = None  # 'gis_hrus' no need for this because of code structure
         elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
@@ -373,9 +373,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.routingSinks.add((sinkId, sinkCategory))
         cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, sinkId, sinkCategory, percent))  #type: ignore
         
-    def checkRoutedSubbasinsAndLSUsDefined(self) -> None:
+    def checkRoutedPointsSubbasinsAndLSUsDefined(self) -> None:
         for (sourceId, sourceCategory) in self.routingSources:
-            if sourceCategory == 'LSU':
+            if sourceCategory == 'PT':
+                self.checkKeyInTable('gis_points', sourceId)
+            elif sourceCategory == 'LSU':
                 self.checkKeyInTable('gis_lsus', sourceId)
             elif sourceCategory == 'SUB':
                 self.checkKeyInTable('gis_subbasins', sourceId)
@@ -387,7 +389,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             if sink[1] != 'X' and sink not in self.routingSources:
                 QSWATUtils.error('Internal error: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1]),
                                  self.isBatch)
-        self.checkRoutedSubbasinsAndLSUsDefined()
+        self.checkRoutedPointsSubbasinsAndLSUsDefined()
         # check routing table for circularities
         errors, warnings = self.checkRouting(self.conn)
         for error in errors:

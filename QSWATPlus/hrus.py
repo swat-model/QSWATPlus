@@ -5149,8 +5149,6 @@ class CreateHRUs(QObject):
             QSWATUtils.copyPrj(gridFile, nextPartFile)
             nextPartLayer = QgsVectorLayer(nextPartFile, 'partition {0}'.format(partNum), 'ogr')
             nextPartProvider = nextPartLayer.dataProvider()
-            nextPartProvider.addAttributes(gridFields)
-            nextPartLayer.updateFields()
             partCells = [cell for cell in gridProvider.getFeatures() if cell[gridCatchmentIndex] in nextPart]
             nextPartProvider.addFeatures(partCells)
 
