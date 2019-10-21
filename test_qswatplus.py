@@ -36,7 +36,7 @@ import shutil
 import filecmp
 import unittest
 import atexit 
-from processing.core.Processing import Processing
+from processing.core.Processing import Processing  # @UnresolvedImport
 
 from QSWATPlus import QSWATPlus
 from QSWATPlus.delineation import Delineation

@@ -37,12 +37,13 @@ from .parameters import Parameters  # type: ignore
 from .raster import Raster  # type: ignore  @UnusedImport
 
 if TYPE_CHECKING:
-    from QSWATTopology import QSWATTopology  # @UnresolvedImport
-    from QSWATUtils import QSWATUtils  # @UnresolvedImport
-    from DBUtils import DBUtils  # @UnresolvedImport
-    from TauDEMUtils import TauDEMUtils  # @UnresolvedImport
-    from parameters import Parameters  # @UnresolvedImport
-    from delineation import Delineation  # @UnresolvedImport
+    from QSWATTopology import QSWATTopology  # @UnresolvedImport @Reimport
+    from QSWATUtils import QSWATUtils  # @UnresolvedImport @Reimport
+    from DBUtils import DBUtils  # @UnresolvedImport @Reimport
+    from TauDEMUtils import TauDEMUtils  # @UnresolvedImport @Reimport
+    from parameters import Parameters  # @UnresolvedImport @Reimport
+    from delineation import Delineation  # @UnresolvedImport @UnusedImport
+    from hrus import HRUs, CreateHRUs  # @UnresolvedImport @UnusedImport
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
@@ -209,7 +210,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Area of DEM cell in square metres
         self.cellArea = 0.0
         ## channel threshold in square metres
-        self.channelThresholdArea = 10000000 # 1000 hectares default
+        self.channelThresholdArea = 10000000.0 # 1000 hectares default
         ## gridSize as count of DEM cells per side (grid model only)
         self.gridSize = 0
         ## list of landuses exempt from HRU removal

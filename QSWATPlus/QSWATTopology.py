@@ -3009,8 +3009,8 @@ class QSWATTopology:
                                 # is included in outputs
                                 self.pointId += 1
                                 extraPoints.append((channel, self.pointId))
-                                wCat = resCat if roleDown == 1 else pondCat
                                 self.db.addToRouting(curs, SWATChannel, chCat, self.pointId, ptCat, 100)
+                                wCat = resCat if roleDown == 1 else pondCat
                                 self.db.addToRouting(curs, self.pointId, ptCat, widDown, wCat, 100)
                                 routedPoints.append(self.pointId)
                             else:

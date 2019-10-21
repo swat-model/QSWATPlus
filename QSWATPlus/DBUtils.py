@@ -37,7 +37,7 @@ from typing import Set, Any, List, Dict, Iterable, Optional, Tuple  # @UnusedImp
 
 try:
     from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
-    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore
+    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore @UnresolvedImport
     from .parameters import Parameters  # type: ignore
 except:
     # used by convertFromArc

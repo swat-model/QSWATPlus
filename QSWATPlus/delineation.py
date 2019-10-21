@@ -42,7 +42,7 @@ from .delineationdialog import DelineationDialog  # type: ignore
 from .TauDEMUtils import TauDEMUtils  # type: ignore
 from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns  # type: ignore
 from .QSWATTopology import QSWATTopology  # type: ignore
-from .globals import GlobalVars  # type: ignore
+from .globals import GlobalVars  # type: ignore @UnusedImport
 from .landscape import Landscape  # type: ignore
 from .outletsdialog import OutletsDialog  # type: ignore
 from .selectsubs import SelectSubbasins  # type: ignore
@@ -50,7 +50,7 @@ from .parameters import Parameters  # type: ignore
 from .polygonizeInC2 import Polygonize  # type: ignore  @UnresolvedImport
 
 if TYPE_CHECKING:
-    from globals import GlobalVars  # @UnresolvedImport
+    from globals import GlobalVars  # @UnresolvedImport @Reimport
 
 ## type for geotransform
 Transform = Dict[int, float]
