@@ -19,6 +19,7 @@
 # On Windows this makefile needs to be made using mingw32-make
 # (since eg pyuic4 is a .bat script not recognised an an executable by a Unix-style make)
 # On windows the command to generate .pyd from .pyx may have to be run in the 32-bit OSGeo4W shell
+# For Linux the Makefile assumes it is being run in a 64-bit machine, with special code for 32-bit
 
 #################################################
 # Edit the following to match your sources lists
@@ -50,7 +51,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	METADATA = metadata3_32.txt
 	PLUGINNAME = QSWATPlus3_32
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
-	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win32.pyd)
 	QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	COMPILER = unix
@@ -58,6 +59,13 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-x86_64-linux-gnu.so)
+	QGISDIR=.local/share/QGIS/QGIS3/profiles/default
+else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
+	COMPILER = unix
+	METADATA = metadatalinux3_32.txt
+	PLUGINNAME = QSWATPlusLinux3_32
+	DOXYGEN = doxygen
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-linux-gnu.so)
 	QGISDIR=.local/share/QGIS/QGIS3/profiles/default
 endif
 
@@ -131,7 +139,7 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
-%.pyd : %.pyx
+%.cp37-win32.pyd : %.pyx
 	@echo
 	@echo "------"
 	@echo "Cython"
@@ -140,6 +148,14 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 
 %.cpython-36m-x86_64-linux-gnu.so : %.pyx
 	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
+
+# 32 bit Linux
+# this is a hack to mimic what distutils.setup can do
+%.cpython-36m-i386-linux-gnu.so : %.pyx
+	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
+	mkdir -p build/temp.linux-i386-3.6
+	i686-linux-gnu-gcc-7 -pthread -DNDEBUG -g -fwrapv -O2 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.6m -c $*.c -o build/temp.linux-i386-3.6/$*.o	
+	i686-linux-gnu-gcc-7 -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -Wdate-time -D_FORTIFY_SOURCE=2 build/temp.linux-i386-3.6/$*.o -o $@
 
 %_rc.py : %.qrc
 	pyrcc5 -o $*_rc.py  $<
@@ -333,4 +349,5 @@ archclean:
 	@echo "Removing object files"
 	@echo "---------------------"
 	rm -f $(OBJ_FILES)
+	rm -f $(C_FILES)
 

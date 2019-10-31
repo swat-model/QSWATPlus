@@ -2956,6 +2956,9 @@ class CreateHRUs(QObject):
                         cellData = lsuData.hruMap[landscape_hru]
                         cellData.actHRUNum = self.HRUNum
                         luse = self._db.getLanduseCode(crop)
+                        # replace WATR with WETN
+                        if luse == 'WATR':
+                            luse = 'WETN'
                         snam = self._db.getSoilName(soil)
                         slp = self._db.slopeRange(slope)
                         cropSoilSlope = luse + '/' + snam + '/' + slp
@@ -3690,12 +3693,15 @@ class CreateHRUs(QObject):
         def addNewField(layer: QgsVectorLayer, fileName: str, newFieldname: str, oldFieldname: str, fun: Callable[[int], Any]) -> int:
             """Add new integer field to shapefile; set field to fun applied to value in old integer field.
             Return the new field's index."""
-            fields = [QgsField(newFieldname, QVariant.Int)]
             provider = layer.dataProvider()
-            provider.addAttributes(fields)
-            layer.updateFields()
+            # new field may already be present
+            newIndex: int = self._gv.topo.getIndex(layer, newFieldname, ignoreMissing=True)
+            if newIndex < 0:
+                fields = [QgsField(newFieldname, QVariant.Int)]
+                provider.addAttributes(fields)
+                layer.updateFields()
+                newIndex = self._gv.topo.getIndex(layer, newFieldname)
             oldIndex = self._gv.topo.getIndex(layer, oldFieldname)
-            newIndex: int = self._gv.topo.getIndex(layer, newFieldname)
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([oldIndex, newIndex])
             mmap: Dict[int, Dict[int, Any]] = dict()
             for f in provider.getFeatures(request):

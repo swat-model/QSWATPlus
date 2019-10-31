@@ -1729,7 +1729,7 @@ class QSWATTopology:
                         # subbasin same as chBasin since grid model
                         basin = self.chLinkToChBasin[maxLink]
                         self.downSubbasins[basin] = -1
-                        polyExpr = QgsExpression('"{0}" = {1}'.format(QSWATTopology._WSNO, basin))
+                        polyExpr = QgsExpression('"{0}" = {1}'.format(QSWATTopology._POLYGONID, basin))
                         polyRequest = QgsFeatureRequest(polyExpr).setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([])
                         for feature in subProvider.getFeatures(polyRequest):
                             polyMap[feature.id()] = {dsPolyIndex: -1}
@@ -2144,7 +2144,7 @@ class QSWATTopology:
             self.setChannelFlowLength(chLink, length, channelFlowLengths)
             
     def setChannelFlowLength(self, chLink: int, length: float, channelFlowLengths: Dict[int, float]) -> None:
-        """Add eentry for chLink to channelFlowLengths map.  Also update maxFlowLengths for chLink's subbasin.
+        """Add entry for chLink to channelFlowLengths map.  Also update maxFlowLengths for chLink's subbasin.
         
         post: chLink in channelFlowLengths
         """
