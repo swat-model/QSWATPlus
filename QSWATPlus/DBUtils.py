@@ -528,6 +528,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         landuseId = 0
         urbanId = 0
         OK = True
+        # make sure no extra spaces
+        landuseCode = landuseCode.strip()
         database = self.plantSoilDatabase
         isProjDb = filecmp.cmp(database, self.dbFile)
         isRefDb = filecmp.cmp(database, self.dbRefFile)
@@ -1204,6 +1206,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     farDistance REAL, 
     farPointX REAL, 
     farPointY REAL, 
+    midPointX REAL, 
+    midPointY REAL,  
     totalElevation REAL, 
     totalSlope REAL, 
     totalLatitude REAL, 
@@ -1212,7 +1216,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     lastHru INTEGER)
     """
     
-    _LSUSDATAINSERTSQL = 'INSERT INTO LSUSDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    _LSUSDATAINSERTSQL = 'INSERT INTO LSUSDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     
     _HRUSDATA = 'HRUSDATA'
     _HRUSDATATABLE = \
@@ -1662,6 +1666,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                                           float(lsuData.sourceElevation), float(lsuData.channelLength),
                                           float(lsuData.farElevation), float(lsuData.farDistance),
                                           float(lsuData.farPointX), float(lsuData.farPointY), 
+                                          float(lsuData.midPointX), float(lsuData.midPointY), 
                                           float(lsuData.totalElevation), 
                                           float(lsuData.totalSlope), float(lsuData.totalLatitude),
                                           float(lsuData.totalLongitude), float(lsuData.cropSoilSlopeArea), lsuData.lastHru))
@@ -1772,7 +1777,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #         return (None, False) 
     #===========================================================================
         
-    def regenerateBasins(self, ignoreerrors: bool=False) -> Tuple[Optional[Dict[int, BasinData]], bool]: 
+    def regenerateBasins(self, gv: Any, ignoreerrors: bool=False) -> Tuple[Optional[Dict[int, BasinData]], bool]: 
         """Recreate basins data from BASINSDATA, LSUSDATA, WATERDATA and HRUSDATA tables in project database."""
         try:
             basins: Dict[int, BasinData] = dict()
@@ -1815,6 +1820,14 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         lsuData.farDistance = lrow['farDistance']
                         lsuData.farPointX = lrow['farPointX']
                         lsuData.farPointY = lrow['farPointY']
+                        # mid points added so allow not to exist in older project
+                        try:
+                            lsuData.midPointX = lrow['midPointX']
+                            lsuData.midPointY = lrow['midPointY']
+                        except:
+                            channelData = gv.topo.channelsData[channel]
+                            lsuData.midPointX = (channelData.lowerX + channelData.upperX) / 2
+                            lsuData.midPointY = (channelData.lowerY + channelData.upperY) / 2
                         lsuData.totalElevation = lrow['totalElevation']
                         lsuData.totalSlope = lrow['totalSlope']
                         lsuData.totalLatitude = lrow['totalLatitude']
@@ -2799,7 +2812,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             wid2     REAL,
             dep2     REAL,
             elevmin  REAL,
-            elevmax  REAL
+            elevmax  REAL,
+            midlat   REAL,
+            midlon   REAL
         );
         """
         

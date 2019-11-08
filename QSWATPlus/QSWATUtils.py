@@ -230,8 +230,8 @@ class QSWATUtils:
         
     @staticmethod
     def samePath(p1: str, p2: str)-> bool:
-        """Return true if absolute paths of the two paths are the same."""
-        return os.path.abspath(p1) == os.path.abspath(p2)
+        """Return true if paths both represent the same file or directory."""
+        return os.path.samefile(p1, p2)
     
     @staticmethod
     def copyPrj(inFile: str, outFile: str) -> None:
@@ -438,24 +438,26 @@ class QSWATUtils:
             inDirName: str = inInfo.dir().dirName()
             savePath: str = QSWATUtils.join(saveDir, inDirName)
             # guard against trying to copy to itself
-            inPath = os.path.normcase(os.path.abspath(inPath))
-            savePath = os.path.normcase(os.path.abspath(savePath))
-            if inPath != savePath:
+            if not QSWATUtils.samePath(inPath, savePath):
                 if os.path.exists(savePath):
                     shutil.rmtree(savePath)
                 shutil.copytree(inPath, savePath, True, None)
-        else:
+        elif not QSWATUtils.samePath(inPath, saveDir):
             pattern: str = QSWATUtils.join(inPath, inInfo.baseName()) + '.*'
             for f in glob.iglob(pattern):
                 shutil.copy(f, saveDir)
                 
     @staticmethod
-    def copyShapefile(infile: str, outbase: str, outdir: str) -> None:
+    def copyShapefile(inFile: str, outBase: str, outDir: str) -> None:
         """Copy files with same basename as infile to outdir, setting basename to outbase."""
-        pattern: str = os.path.splitext(infile)[0] + '.*'
+        inDir, inName = os.path.split(inFile)
+        if QSWATUtils.samePath(inDir, outDir) and os.path.splitext(inName)[0] == outBase:
+            # avoid copying to same file
+            return
+        pattern: str = os.path.splitext(inFile)[0] + '.*'
         for f in glob.iglob(pattern):
             suffix: str = os.path.splitext(f)[1]
-            outfile: str = QSWATUtils.join(outdir, outbase + suffix)
+            outfile: str = QSWATUtils.join(outDir, outBase + suffix)
             shutil.copy(f, outfile)
             
     @staticmethod

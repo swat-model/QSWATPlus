@@ -2559,7 +2559,7 @@ class QSWATTopology:
             time1 = time.process_time()
             wid2Data = dict()
             floodscape = QSWATUtils._FLOODPLAIN if gv.useLandscapes else QSWATUtils._NOLANDSCAPE 
-            sql = "INSERT INTO " + table + " VALUES(?,?,?,?,?,?,?,?,?)"
+            sql = "INSERT INTO " + table + " VALUES(?,?,?,?,?,?,?,?,?,?,?)"
             if addToRiv1:
                 # iterate over channels in rivs1 shapefile
                 request =  QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([linkIdx, chIdx])
@@ -2599,17 +2599,30 @@ class QSWATTopology:
                 # possible for channel to be so short it has no pixels draining to it
                 # also no LSU data when channel is outlet from lake in grid model
                 basinData = basins.get(subbasin, None)
-                lsuData = None if basinData is None else basinData.getLsus().get(channel, None)
+                channelData = None if basinData is None else basinData.getLsus().get(channel, None)
+                lsuData = None if channelData is None else channelData.get(floodscape, None)
                 drainAreaKm = float(drainAreaHa) / 100 
                 channelWidth = float(gv.channelWidthMultiplier * (drainAreaKm ** gv.channelWidthExponent))
                 wid2Data[SWATChannel] = channelWidth
                 channelDepth = float(gv.channelDepthMultiplier * (drainAreaKm ** gv.channelDepthExponent))
-                rid = 0 if lsuData is None else self.getReservoirId(lsuData, floodscape)
-                pid = 0 if lsuData is None else self.getPondId(lsuData, floodscape)
+                if lsuData is None:
+                    rid = 0
+                    pid = 0
+                    channelData = self.channelsData[channel]
+                    midPointX = (channelData.lowerX + channelData.upperX) / 2
+                    midPointY = (channelData.lowerY + channelData.upperY) / 2
+                else:
+                    rid = self.getReservoirId(lsuData)
+                    pid = self.getPondId(lsuData)
+                    midPointX = lsuData.midPointX
+                    midPointY = lsuData.midPointY
+                midll = self.pointToLatLong(QgsPointXY(midPointX, midPointY))
+                midLat = midll.y()
+                midLong = midll.x()
                 if rid == 0 and pid == 0:
                     # omit from gis_channels channels which have become reservoirs or ponds
                     curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, length, slopePercent, 
-                                       channelWidth, channelDepth, minEl, maxEl))
+                                       channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
                     self.db.addKey(table, SWATChannel)
                 if addToRiv1:
                     lakeInId = self.chLinkIntoLake.get(channel, 0)
@@ -2708,17 +2721,15 @@ class QSWATTopology:
                 QSWATUtils.setLayerVisibility(streamLayer, False, root)
                 
         
-    def getReservoirId(self, channelData: Dict[int, LSUData], floodscape: int) -> int:
+    def getReservoirId(self, lsuData: LSUData) -> int:
         """Return reservoir id, if any, else 0."""
-        lsuData = channelData.get(floodscape, None)
-        if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isReservoir():
+        if lsuData.waterBody is not None and lsuData.waterBody.isReservoir():
             return cast(int, lsuData.waterBody.id)
         return 0
     
-    def getPondId(self, channelData: Dict[int, LSUData], floodscape: int) -> int:
+    def getPondId(self, lsuData: LSUData) -> int:
         """Return pond id, if any, else 0."""
-        lsuData = channelData.get(floodscape, None)
-        if lsuData is not None and lsuData.waterBody is not None and lsuData.waterBody.isPond():
+        if lsuData.waterBody is not None and lsuData.waterBody.isPond():
             return cast(int, lsuData.waterBody.id)
         return 0
         

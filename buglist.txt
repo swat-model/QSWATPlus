@@ -24,3 +24,8 @@ QSWATTopology.py
 9/10/2019  #7
 self.variableCombo -> self._dlg.variableCombo (3 times)
 visualise.py
+
+8/11/2019  #8
+water body category could be 'unknown'
+hrus.py
+

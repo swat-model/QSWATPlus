@@ -97,10 +97,10 @@ QCoreApplication.setApplicationName('QGIS3')
 #===============================================================================
 
 HashTable1 = dict()
-HashTable1['gis_channels'] = '3ba8ba06fcf681df31614baa59abd86e'
+HashTable1['gis_channels'] = '1c040706947973487d65ee07199c5248'
 HashTable1['gis_points'] = '6a8773238af3410a0a2260bf62285811'
 HashTable1['BASINSDATA'] = '64fe9b6ed9272914603daef10988e8e0'
-HashTable1['LSUSDATA'] = 'd1589e86aa8c5e03f1790b0d9a1309e7'
+HashTable1['LSUSDATA'] = 'd417f85ced59bc07de49fd185d69f203'
 HashTable1['HRUSDATA'] = '77ffe23b464becc0c9e5fe34e4e6e62a'
 HashTable1['WATERDATA'] = 'f9fb42dbd1ccf65df4c9185e6cb67868'
 HashTable1['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
@@ -112,10 +112,9 @@ HashTable1['gis_hrus'] = 'c147f10e91ebaba9afae7bb8a56396e7'
 HashTable1['gis_routing'] = '23dfe05b851fd4566588340e8a02f74b'
 HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
 HashTable1['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
-
 # tables after adjusting parameters
 HashTable1a = dict()
-HashTable1a['gis_channels'] = '3052842790e2a6a214dd690948244026'
+HashTable1a['gis_channels'] = '075c21afe3b75eab0d998ac4c99ac24e'
 HashTable1a['gis_points'] = HashTable1['gis_points']
 HashTable1a['BASINSDATA'] = HashTable1['BASINSDATA']
 HashTable1a['LSUSDATA'] = HashTable1['LSUSDATA']
@@ -146,10 +145,10 @@ HashTable1a['soils_sol_layer'] = HashTable1['soils_sol_layer']
 #===============================================================================
 
 HashTable2 = dict()
-HashTable2['gis_channels'] = 'd235c3b52c32e500e50c7e424ad32573'
+HashTable2['gis_channels'] = '199f31c57ff2f50cdd65f43a1f60e2c0'
 HashTable2['gis_points'] = '3dd84f1659a508d2058e08c616832845'
 HashTable2['BASINSDATA'] = 'e99dbf8ce6dcec169bf7164838d522b9'
-HashTable2['LSUSDATA'] = '6a9764d54a9cd3bcad76ede3584c34af'
+HashTable2['LSUSDATA'] = 'dc5a9a8222ab12ca5cb60f544a08dc12'
 HashTable2['HRUSDATA'] = 'c8f70c75bb49d2ab22c4a6b2398bc766'
 HashTable2['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable2['gis_elevationbands'] = 'e28ea4b5a684d867dc6c949393312a79'
@@ -158,7 +157,7 @@ HashTable2['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable2['gis_subbasins'] = '48537a2d50bff349d4857b3a157dad27'
 HashTable2['gis_lsus'] = 'a79585cc3a4885a2d501170f8d5b9fd4'
 HashTable2['gis_hrus'] = '64a578e488d58587f6821ef8737e9aa7'
-HashTable2['gis_routing'] = '0ca171e77cad803e5833464bdfb6eb0a'
+HashTable2['gis_routing'] = '6d361730581cfb7c31d7a6745d8766c7'
 HashTable2['soils_sol'] = 'e6a7ef3e63d6fc82468a367a33edde66'
 HashTable2['soils_sol_layer'] = 'c5c1f8179ca7054fe29165f9015b8e64'
 
@@ -179,7 +178,7 @@ HashTable3 = dict()
 # HashTable3['gis_channels'] = '5265c40eb6e13d298a4dae6adb7f8809'  # unreliable
 # HashTable3['gis_points'] = '74f4adad3f70a25c503db31af93e9ae9'
 HashTable3['BASINSDATA'] = '0959c4d9bdf4324560d65a7c5f09b846'
-HashTable3['LSUSDATA'] = '3f2fed6e41d2518a9706928c007f0dac'
+HashTable3['LSUSDATA'] = 'ff6877f19ea96fd40a936ca264994ec3'
 HashTable3['HRUSDATA'] = '98d9b88d2259b0e2111c3c0d1deea81e'
 HashTable3['WATERDATA'] = '806ae46da6ec916fe1dc294d63ce439c'
 HashTable3['gis_elevationbands'] = '7cb4deff34d859f54f9167b411613eeb'
@@ -205,10 +204,10 @@ HashTable3['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
 #===============================================================================
 
 HashTable4 = dict()
-HashTable4['gis_channels'] = 'e71991edc172ef6e387b382bb8cac0c0'
+HashTable4['gis_channels'] = '6e68f109cc35ee1e577b1d997f3760d1'
 HashTable4['gis_points'] = '8cdbd48802bc4a00c088f4a753522f59'
 HashTable4['BASINSDATA'] = '73184ab8f497da5a8c8538b3c5c67dae'
-HashTable4['LSUSDATA'] = '5bed558f3b58ae0346a64c2b4e86d7fd'
+HashTable4['LSUSDATA'] = 'b315d9fd2f98a199a6de9c7a6089c2de'
 HashTable4['HRUSDATA'] = 'db6aaee185f97dd37023d2d2c96b55a8'
 HashTable4['WATERDATA'] = '8004dee65fef9d05b704f408277e0c99'
 HashTable4['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
@@ -235,7 +234,7 @@ HashTable5 = dict()
 # HashTable5['gis_channels'] = 'd9c1689f457b9f5c65840b9365a16ce7'  # unreliable
 # HashTable5['gis_points'] = '333172d7cef8aebc7321c448d7fbf87e'
 HashTable5['BASINSDATA'] = '21cc9d4542fdfd063be39dec2dce7d53'
-HashTable5['LSUSDATA'] = '1408a449f668e9c50fb099020ab4eb23'
+HashTable5['LSUSDATA'] = '46ac2d534e697b839463cf16f1805245'
 HashTable5['HRUSDATA'] = 'd2938d60afcb861b2b947b5ba1cac024'
 HashTable5['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable5['gis_elevationbands'] = 'd0eb386ed677c19696a7eadbe8bc4b3a'
@@ -261,10 +260,10 @@ HashTable5['soils_sol_layer'] = 'f953ad6d6eb0d465eafd0a1db572b10d'
 #===============================================================================
 
 HashTable6 = dict()
-HashTable6['gis_channels'] = 'e1ff3bbaf1f695d9c65401318842ec30'
+HashTable6['gis_channels'] = '08338104ee665405ec5d3e731403028c'
 HashTable6['gis_points'] = '01e87111da52f8565dc6443947139557'
 HashTable6['BASINSDATA'] = 'f3372dc8d572fbad502bff676f73c81d'
-HashTable6['LSUSDATA'] = '8001a3bd6b44bee5d731c84d6261fbba'
+HashTable6['LSUSDATA'] = 'dc433f5a22f858bbb7bf1bafddc920a6'
 HashTable6['HRUSDATA'] = '276ad563cbe5a0b3619e95baa589aaed'
 HashTable6['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['gis_elevationbands'] = 'dda5bc5d2accf787c577a8b00c392ce7'
@@ -289,10 +288,10 @@ HashTable6['soils_sol_layer'] = 'f953ad6d6eb0d465eafd0a1db572b10d'
 #===============================================================================
 
 HashTable7 = dict()
-HashTable7['gis_channels'] = '5a69e4f816c3d79f6e273b9ed71dadba'
+HashTable7['gis_channels'] = 'cf4369040aeb3581e2a1d443fa87da65'
 HashTable7['gis_points'] = '5fcd32b1bdfa6dd5769a2e6531eeab95'
 HashTable7['BASINSDATA'] = '0606c7097d128699daa1aa5f84ff1991'
-HashTable7['LSUSDATA'] = '42ce0947cd46ec3b5f2ba6abc1e1ba5f'
+HashTable7['LSUSDATA'] = 'fe87027b26e76d5f2e7bb1350e630c83'
 HashTable7['HRUSDATA'] = 'af386478e427b41279b6f04765303c7a'
 HashTable7['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable7['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -301,7 +300,7 @@ HashTable7['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable7['gis_subbasins'] = '650ccfaf996cbbb1a4c191cb29631856'
 HashTable7['gis_lsus'] = '00fe79ad358ef0789950f49dc6327a4a'
 HashTable7['gis_hrus'] = 'bbf9ec5e2f06dd117b9585dcd866b971'
-HashTable7['gis_routing'] = 'd74e52c2959eb96900dec4876e267e1c'
+HashTable7['gis_routing'] = '644577e0359f12c11140f6f56be7eaa6'
 HashTable7['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
 HashTable7['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 
@@ -317,10 +316,10 @@ HashTable7['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 #===============================================================================
 
 HashTable8 = dict()
-HashTable8['gis_channels'] = 'caad28e20227914c51a8a130a6a13169'
+HashTable8['gis_channels'] = 'f5a1287d3a5dec77afaf087543bd3cc0'
 HashTable8['gis_points'] = '3728417c73c135183dd8a5c42a948246'
 HashTable8['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable8['LSUSDATA'] = '092b5c2a5deff442ac06e9fe4338eb03'
+HashTable8['LSUSDATA'] = 'c22a82075598be7ceb4fc073373fad2f'
 HashTable8['HRUSDATA'] = '879e3c9afb91687b5417a9063669193e'
 HashTable8['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable8['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -345,10 +344,10 @@ HashTable8['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 #===============================================================================
 
 HashTable9 = dict()
-HashTable9['gis_channels'] = '7fe360c950933ddd659c3e4762ed51ae'
+HashTable9['gis_channels'] = '2c387d9e51f8287d7538a37301ae467d'
 HashTable9['gis_points'] = 'd285f350762b7292482bf12aaaa72f25'
 HashTable9['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable9['LSUSDATA'] = '427b0f33645c4bb4548ba22854df55f6'
+HashTable9['LSUSDATA'] = '4529524bcbe96e7767f7d18213a7b855'
 HashTable9['HRUSDATA'] = '879e3c9afb91687b5417a9063669193e'
 HashTable9['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable9['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -357,7 +356,7 @@ HashTable9['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable9['gis_subbasins'] = '414a1f8ba4f5667a1cfa68fca060eb8a'
 HashTable9['gis_lsus'] = '89d452b1997dc7abb011909bef7dcedc'
 HashTable9['gis_hrus'] = '78c206e34feb3d0b6d17138c2c32d427'
-HashTable9['gis_routing'] = '0afeb70c0579fe3873958902465a39d4'
+HashTable9['gis_routing'] = '0a36102b6b3ad224893b76f308a6363d'
 HashTable9['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
 HashTable9['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 
@@ -373,10 +372,10 @@ HashTable9['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 #===============================================================================
 
 HashTable10 = dict()
-HashTable10['gis_channels'] = 'a7981760ad9d262177dcc2f4af677c40'
+HashTable10['gis_channels'] = '1c9023a1c317c6a8634a126156107f97'
 HashTable10['gis_points'] = '31415258eb37e06c8d71b2c5a3c3ccdf'
 HashTable10['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable10['LSUSDATA'] = '0a2ea78f40d40149c012ce1c5fd6c944'
+HashTable10['LSUSDATA'] = 'f741e090adfebd5e22b3158784d73ce9'
 HashTable10['HRUSDATA'] = '31e0a408a06b6a3b7f37b292b95702b6'
 HashTable10['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -385,11 +384,12 @@ HashTable10['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_subbasins'] = '414a1f8ba4f5667a1cfa68fca060eb8a'
 HashTable10['gis_lsus'] = '37f9529763ecde9c241a8418211ebc60'
 HashTable10['gis_hrus'] = '3e9e44ef6ecaba95ce0f771468612447'
-HashTable10['gis_routing'] = '1e6a2ba58ccd39351978bf3af702e347'
+HashTable10['gis_routing'] = '89e5e819d79e51f1fb2b45293d62541f'
 HashTable10['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
 HashTable10['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
 HashTable10['plants_plt'] = 'a1833b4bd3476c69e37842a37c178f24'
 HashTable10['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
+
 #===============================================================================
 # Test 11:
 # This test is very unreliable with 16 processes.  Changed to 6
@@ -403,10 +403,10 @@ HashTable10['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 #===============================================================================
 
 HashTable11 = dict()
-HashTable11['gis_channels'] = 'ffe74a9ef57f7c49e90fd1790e842d69'
+HashTable11['gis_channels'] = '53a386c6c733ed8ada74c9a145695610'
 HashTable11['gis_points'] = 'd11993c0ca769b9a0bf45755c2135f99'
 HashTable11['BASINSDATA'] = '189866165b3890ab06af6e3ecc3732e8'
-HashTable11['LSUSDATA'] = '8fa32e814cbf05580246d58f1e1a8776'
+HashTable11['LSUSDATA'] = '3a25deac8c3ff6aff90d5d443593e58f'
 HashTable11['HRUSDATA'] = 'ccbda9ddb46efa5468875ca580172096'
 HashTable11['WATERDATA'] = '5ab564771e1c72b25966197fd7a754a8'
 HashTable11['LAKEBASINS'] = 'df2bdae9a7aefc1273406bc55f96e7c1'
@@ -435,10 +435,10 @@ HashTable11['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 #===============================================================================
 
 HashTable12 = dict()
-HashTable12['gis_channels'] = '5d6a1a8e64cc8dc517444e096ae5ec3a'
+HashTable12['gis_channels'] = '75f1c89f35e5ec6feb3f64ce645e4e1e'
 HashTable12['gis_points'] = '2de34e7bd261688707c2a57f709971a1'
 HashTable12['BASINSDATA'] = '1d3d581fe0af032035596098d13a346e'
-HashTable12['LSUSDATA'] = 'a3b233560de4f77909c293a48f3b773b'
+HashTable12['LSUSDATA'] = 'd6e2b24488e605aadd113590d03c28fd'
 HashTable12['HRUSDATA'] = '5ee86c0ba77bee95790d2e1dba8b8529'
 HashTable12['WATERDATA'] = '28e52b7e4fa21576e4e120e745c49c98'
 HashTable12['LAKEBASINS'] = 'e7688062747109e112d2222049e80839'
@@ -469,10 +469,10 @@ HashTable12['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 #===============================================================================
 
 HashTable13 = dict()
-HashTable13['gis_channels'] = '07150baec1ebef83435fdbbb2e004f15'
+HashTable13['gis_channels'] = 'e940cea5e8d9d78bd2def07c500ced7d'
 HashTable13['gis_points'] = '40fafe6fd3f639163f85f18810ada9e7'
 HashTable13['BASINSDATA'] = '8bbf7fc105ef7636aefb4db1b98a81d2'
-HashTable13['LSUSDATA'] = 'fd91466c440de19d3181b55fe022926c'
+HashTable13['LSUSDATA'] = 'f07364db9fc5afe921a5a41a5a9d9eff'
 HashTable13['HRUSDATA'] = '016c7dd1e4cb85bd6cf6cd3b6a8bdb52'
 HashTable13['WATERDATA'] = '94938c0f5dd92178216d68943f96bc07'
 HashTable13['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -501,10 +501,10 @@ HashTable13['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 #===============================================================================
 
 HashTable14 = dict()
-HashTable14['gis_channels'] = 'fe3cf1b18b5ac4a907987ff856a3802e'
+HashTable14['gis_channels'] = 'd8db46064879c5fe0bac6bcf2b1afafa'
 HashTable14['gis_points'] = '422827f2eb517024d4adf708aaa830c8'
 HashTable14['BASINSDATA'] = 'ecd89b8d77d9922c445d9e22cc669042'
-HashTable14['LSUSDATA'] = '5fb02d30120e27bdfb2c2d00b23a8ea4'
+HashTable14['LSUSDATA'] = '096cfb6b947f1618eb35a0a6f5ef4e0a'
 HashTable14['HRUSDATA'] = '373b5cf4a0d1d2ffe95c0f629385a6b7'
 HashTable14['WATERDATA'] = 'f0c5ea422de917ca8aff54a5b4d58db3'
 HashTable14['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -522,27 +522,7 @@ HashTable14['soils_sol'] = '1c13df70d2d40f74b03c7d9434bc1832'
 HashTable14['soils_sol_layer'] = 'ffdf99f5cc1e3617e5666c479041fa7d'
 HashTable14['plants_plt'] = 'a1833b4bd3476c69e37842a37c178f24'
 HashTable14['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
-# gis_channels: 27c22ef263f56bea815cee9b91988382
-# gis_points: 860511579ef45d2a4ee765bf4ff5b3dc
-# BASINSDATA: c4b4c7cd3ae6fe01b6bc8e4bc2f02a2d
-# LSUSDATA: af58535f62140a36e0582dc8fb9935a2
-# HRUSDATA: e6053b5cae15e51b11d71f8ac537ad60
-# WATERDATA: 4baf818a470ea748c1318d6b91270353
-# LAKEBASINS: d41d8cd98f00b204e9800998ecf8427e
-# LAKELINKS: a24ae262c2975f3403d6fe4456f0f5cd
-# LAKESDATA: 67b4c92bbb22fe3588054fcb364458e7
-# gis_elevationbands: d41d8cd98f00b204e9800998ecf8427e
-# gis_landexempt: d41d8cd98f00b204e9800998ecf8427e
-# gis_splithrus: d41d8cd98f00b204e9800998ecf8427e
-# gis_subbasins: 812f3e2db9f8093a78befef5ff92a863
-# gis_lsus: dc7007cbc188b7e0f64448a1735d7437
-# gis_hrus: 7255a8a66ea4976cc8a6d407816513a4
-# gis_routing: 6fd81c8d9b33e209daec1b9f71f28983
-# gis_water: 6ccb12e34a3f57065bc41b35f01a5d01
-# soils_sol: 1c13df70d2d40f74b03c7d9434bc1832
-# soils_sol_layer: ffdf99f5cc1e3617e5666c479041fa7d
-# plants_plt: d41d8cd98f00b204e9800998ecf8427e
-# urban_urb: d41d8cd98f00b204e9800998ecf8427e
+
 # listen to the QGIS message log
 message_log = {}
 def log(message, tag, level):

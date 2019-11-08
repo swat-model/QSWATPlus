@@ -95,7 +95,7 @@ QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate
 
 # BAT_FILES = runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat runtestn.sh
 
-EXTRAS = Changelog.txt SWATPlus32.png
+EXTRAS = Changelog.txt swatplus32.png
 
 EXTRA_DIRS =
 

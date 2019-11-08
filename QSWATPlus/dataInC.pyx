@@ -237,6 +237,8 @@ cdef class LSUData:
         public double farDistance
         public double farPointX
         public double farPointY
+        public double midPointX
+        public double midPointY
         public double totalElevation
         public double totalSlope
         public double totalLatitude
@@ -281,6 +283,10 @@ cdef class LSUData:
         self.farPointX = 0
         ## latitude (in projected units) of point with longest flow distance
         self.farPointY = 0
+        ## longitude (in projected units) of channel's mid point
+        self.midPointX = 0
+        ## latitude (in projected units) of channel's mid point
+        self.midPointY = 0
         ## Total of elevation values (to compute mean)
         self.totalElevation = 0
         ## total of latitudes (in projected units) (to compute centroid)
@@ -579,6 +585,8 @@ cdef class LSUData:
         result.farDistance = self.farDistance
         result.farPointX = self.farPointX
         result.farPointY = self.farPointY
+        result.midPointX = self.midPointX
+        result.midPointY = self.midPointY
         result.totalElevation = self.totalElevation
         result.totalSlope = self.totalSlope
         result.totalLatitude = self.totalLatitude
@@ -664,6 +672,8 @@ cdef class LSUData:
             self.farPointX = lsuData.farPointX
             self.farPointY = lsuData.farPointY
             self.farDistance = lsuData.farDistance + self.channelLength
+        self.midPointX = (self.midPointX + lsuData.midPointX) / 2
+        self.midPointY = (self.midPointY + lsuData.midPointY) / 2
         self.channelLength += lsuData.channelLength
         self.totalElevation += lsuData.totalElevation
         self.totalSlope += lsuData.totalSlope
@@ -770,6 +780,9 @@ cdef class BasinData:
             reachData = _gv.topo.channelsData[channel]
             lsuData.outletElevation = reachData.lowerZ
             lsuData.sourceElevation = reachData.upperZ
+            # mid point of channel is a notional point midway between ends
+            lsuData.midPointX = (reachData.lowerX + reachData.upperX) / 2
+            lsuData.midPointY = (reachData.lowerY + reachData.upperY) / 2
             lsuData.channelLength = _gv.topo.channelLengths[channel]
             if _gv.existingWshed:
                 lsuData.farDistance = lsuData.channelLength

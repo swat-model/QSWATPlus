@@ -2943,6 +2943,8 @@ class CreateHRUs(QObject):
         if lake > 0:
             lakeData = self._gv.topo.lakesData[lake]
             lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+        if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+            wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
         floodTarget, floodCat = (lake, lCat) if lake > 0 else (wid, wCat) if wid > 0 else (SWATChannel, 'CH')
         arlsuHa = float(lsuData.area) / 1E4
         routeWaterAsWaterBody = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
@@ -4760,7 +4762,7 @@ class HRUs(QObject):
             # read from database
             self.progress('Reading basin data from database ...')
             time1 = time.process_time()
-            (self.CreateHRUs.basins, OK) = self._db.regenerateBasins()
+            (self.CreateHRUs.basins, OK) = self._db.regenerateBasins(self._gv)
             time2 = time.process_time()
             QSWATUtils.loginfo('Reading from previous took {0} seconds'.format(int(time2 - time1)))
             self.progress('')
