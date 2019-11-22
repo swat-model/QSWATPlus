@@ -42,7 +42,7 @@ import traceback
 
 # Import the code for the dialog
 from .visualisedialog import VisualiseDialog
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils, FileTypes
 from .QSWATTopology import QSWATTopology
 from .swatgraph import SWATGraph
 from .parameters import Parameters
@@ -292,6 +292,7 @@ class Visualise(QObject):
         self.animateTimer.timeout.connect(self.doStep)
         self.setupTable()
         self._dlg.unitPlot.activated.connect(self.plotSetUnit)
+        self._dlg.unitPlot.highlighted.connect(self.plotSelectUnit)
         self._dlg.unitEdit.textEdited.connect(self.plotEditUnit)
         self._dlg.unitEdit.returnPressed.connect(self.plotEditUnit)
         self._dlg.variablePlot.activated.connect(self.plotSetVar)
@@ -363,7 +364,8 @@ class Visualise(QObject):
             self._dlg.finishDay.addItem(str(i+1))
             
     def setBackgroundLayers(self, root):
-        """Reduce visible layers to channels, actual LSUs and subbasins by making all others not visible.
+        """Reduce visible layers to channels, LSUs, HRUs, aquifers and subbasins by making all others not visible,
+        loading LSUs, HRUs, aquifers if necessary.
         Leave Results group in case we already have some layers there."""
         slopeGroup = root.findGroup(QSWATUtils._SLOPE_GROUP_NAME)
         if slopeGroup is not None:
@@ -374,16 +376,47 @@ class Visualise(QObject):
         landuseGroup = root.findGroup(QSWATUtils._LANDUSE_GROUP_NAME)
         if landuseGroup is not None:
             landuseGroup.setItemVisibilityCheckedRecursive(False)
+        # laod HRUS, LSUS and Aquifers layers if necessary
+        hrusLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
+        hrusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.shp')
+        hasHRUs = os.path.isfile(hrusFile)
+        lsusLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLLSUSLEGEND, root.findLayers())
+        aquifersLayer = QSWATUtils.getLayerByLegend(QSWATUtils._AQUIFERSLEGEND, root.findLayers())
+        if (hrusLayer is None and hasHRUs) or lsusLayer is None or aquifersLayer is None:
+            # set sublayer as hillshade or DEM
+            hillshadeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HILLSHADELEGEND, root.findLayers())
+            demLayer = QSWATUtils.getLayerByLegend(QSWATUtils._DEMLEGEND, root.findLayers())
+            subLayer = None
+            if hillshadeLayer is not None:
+                subLayer = hillshadeLayer
+            elif demLayer is not None:
+                subLayer = demLayer
+            if hrusLayer is None and hasHRUs:
+                hrusLayer = QSWATUtils.getLayerByFilename(root.findLayers(), hrusFile, FileTypes._HRUS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
+            if lsusLayer is None:
+                lsusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.shp')
+                lsusLayer = QSWATUtils.getLayerByFilename(root.findLayers(), lsusFile, FileTypes._LSUS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
+            if aquifersLayer is None:
+                aquifersFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
+                aquifersLayer = QSWATUtils.getLayerByFilename(root.findLayers(), aquifersFile, FileTypes._AQUIFERS, 
+                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
         watershedLayers = QSWATUtils.getLayersInGroup(QSWATUtils._WATERSHED_GROUP_NAME, root)
+        # make subbasins, channels, LSUs, HRUs and aquifers visible
         if self._gv.useGridModel:
-            # make grid and grid streams visible
             keepVisible = lambda n: n.startswith(QSWATUtils._GRIDSTREAMSLEGEND) or \
-                                    n.startswith(QSWATUtils._GRIDLEGEND)
+                                    n.startswith(QSWATUtils._DRAINSTREAMSLEGEND) or \
+                                    n.startswith(QSWATUtils._GRIDLEGEND) or \
+                                    n.startswith(QSWATUtils._AQUIFERSLEGEND) or \
+                                    n.startswith(QSWATUtils._LSUSLEGEND) or \
+                                    n.startswith(QSWATUtils._HRUSLEGEND)
         else:  
-            # make subbasins, channels and actual LSUs visible
             keepVisible = lambda n: n.startswith(QSWATUtils._SUBBASINSLEGEND) or \
-                                    n.startswith(QSWATUtils._CHANNELSLEGEND) or \
-                                    n.startswith(QSWATUtils._ACTLSUSLEGEND)
+                                    n.startswith(QSWATUtils._CHANNELREACHESLEGEND) or \
+                                    n.startswith(QSWATUtils._ACTLSUSLEGEND) or \
+                                    n.startswith(QSWATUtils._ACTHRUSLEGEND) or \
+                                    n.startswith(QSWATUtils._AQUIFERSLEGEND)
         for layer in watershedLayers:
             layer.setItemVisibilityChecked(keepVisible(layer.name()))
     
@@ -862,6 +895,75 @@ class Visualise(QObject):
         unitStr = self._dlg.unitPlot.currentText()
         self._dlg.unitEdit.setText(unitStr)
         self.updateCurrentPlotRow(2)
+        
+    def plotSelectUnit(self, index):
+        """Load file for showing unit as a selection if necessary.  Select chosen unt."""
+        if index < 1 or self.conn is None or self.table == '':
+            return
+        QSWATUtils.loginfo('Index is {0}'.format(index))
+        root = QgsProject.instance().layerTreeRoot()
+        if self.table.startswith('channel'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDSTREAMSLEGEND, root.findLayers())
+                if treeLayer is None:
+                    treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._DRAINSTREAMSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+                field = QSWATTopology._LINKNO
+            else:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._CHANNELREACHESLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+                field = QSWATTopology._CHANNEL
+        elif self.table.startswith('lsunit'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._LSUSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+            else:
+                lsuFile = QSWATUtils.join(self._gv.shapesDir, 'lsus2.shp')
+                if not os.path.isfile(lsuFile):
+                    lsuFile = QSWATUtils.join(self._gv.shapesDir, 'lsus1.shp')
+                layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), lsuFile, FileTypes._LSUS, 
+                                                                  None, None, None)
+            field = QSWATTopology._LSUID
+        elif self.table.startswith('aquifer'):
+            aquFile = QSWATUtils.join(self._gv.resultsDir, 'aquifers.shp')
+            layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), aquFile, FileTypes._AQUIFERS, 
+                                                     None, None, None)
+            field = QSWATTopology._AQUIFER
+        elif self.table.startswith('hru'):
+            if self._gv.useGridModel:
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HRUSLEGEND, root.findLayers())
+                layer = None if treeLayer is None else treeLayer.layer()
+            else:
+                hruFile = QSWATUtils.join(self._gv.shapesDir, 'hrus2.shp')
+                if not os.path.isfile(hruFile):
+                    hruFile = QSWATUtils.join(self._gv.shapesDir, 'hrus1.shp')
+                    if not os.path.isfile(hruFile):
+                        return
+                layer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), hruFile, FileTypes._HRUS, 
+                                                         None, None, None)
+            field = QSWATTopology._HRUS
+        else:
+            return
+        if layer is None:
+            return
+        QSWATUtils.loginfo('Layer is {0!s}'.format(layer))
+        val = self._dlg.unitPlot.itemText(index)
+        QSWATUtils.loginfo('Value is {0}'.format(val))
+        QSWATUtils.setLayerVisibility(layer, True, root)
+        layer.removeSelection()
+        QSWATUtils.loginfo('Selection removed')
+        if field == QSWATTopology._HRUS:
+            # need to match n or n1, n2 or n1, n2, n3
+            strng = '"{0}" = {1} OR "{0}" LIKE \'{1},%\' OR  "{0}" LIKE \'%, {1}\' OR  "{0}"  LIKE \'%, {1},%\''.format(field, val)
+        else:
+            strng = '"{0}" = {1}'.format(field, val)
+        expr = QgsExpression(strng)
+        request = QgsFeatureRequest(expr).setFlags(QgsFeatureRequest.NoGeometry)
+        featureId = None
+        for targetFeature in layer.getFeatures(request):
+            featureId = targetFeature.id()
+            QSWATUtils.loginfo('Feature id is {0!s}'.format(featureId))
+            layer.select(featureId)
         
     def plotEditUnit(self):
         """If the unitEdit contains a string in the unitPlot combo box, 

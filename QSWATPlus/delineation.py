@@ -545,9 +545,69 @@ either larger to lengthen the stream or smaller to remove it.."""
         if lakeIdIndex < 0:
             return False
         if not self._dlg.useOutlets.isChecked():
-            QSWATUtils.error("""Since adding lakes involves adding new outlet points you must have an inlets/outlets file 
-            with at least a watershed outlet marked, or one of the new outlets will become a watershed outlet.""", self._gv.isBatch)
-            return False
+            # create an inlets/outlets file
+            outletsFile = QSWATUtils.join(self._gv.shapesDir, 'madeoutlets.shp')
+            root = QgsProject.instance().layerTreeRoot()
+            if not Delineation.createOutletFile(outletsFile, self._gv.demFile, False, root, self._gv.isBatch):
+                return False
+            outletsLayer = QgsVectorLayer(outletsFile, 'Outlets', 'ogr')
+            outletsProvider = outletsLayer.dataProvider()
+            fields = outletsProvider.fields()
+            idIndex = fields.lookupField(QSWATTopology._ID)
+            inletIndex = fields.lookupField(QSWATTopology._INLET)
+            resIndex = fields.lookupField(QSWATTopology._RES)
+            ptsourceIndex = fields.lookupField(QSWATTopology._PTSOURCE)
+            ptIdIndex = fields.lookupField(QSWATTopology._POINTID)
+            channelsProvider = channelsLayer.dataProvider()
+            dsLinkIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._DSLINKNO, ignoreMissing=False)
+            # basin numbers should have been added to channels file by now
+            basinIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._BASINNO, ignoreMissing=False)
+            dsNodeIdAdded = False
+            dsNodeIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._DSNODEID, ignoreMissing=True)
+            if dsNodeIndex < 0:
+                channelsProvider.addAttributes([QgsField(QSWATTopology._DSNODEID, QVariant.Int)])
+                channelsLayer.updateFields()
+                dsNodeIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID)
+                dsNodeIdAdded = True
+            chMap: Dict[int, Dict[int, int]] = dict()
+            outlets: List[QgsFeature] = []
+            for channel in channelsLayer.getFeatures():
+                subbasin = channel[basinIndex]
+                if subbasin < 0 or channel[dsLinkIndex] >= 0:  # outside watershed or zero length channel or not an outlet
+                    if dsNodeIdAdded:
+                        # need to set new field
+                        chMap[channel.id()] = {dsNodeIndex: -1}
+                    continue
+                # self._gv.topo.outlets should already be populated
+                outletId, outletPt, _ = self._gv.topo.outlets[subbasin]
+                chMap[channel.id()] = {dsNodeIndex: outletId}
+                outletF = QgsFeature()
+                outletF.setFields(fields)
+                outletF.setAttribute(idIndex, outletId)
+                outletF.setAttribute(inletIndex, 0)
+                outletF.setAttribute(resIndex, 0)
+                outletF.setAttribute(ptsourceIndex, 0)
+                outletF.setAttribute(ptIdIndex, outletId)
+                outletF.setGeometry(QgsGeometry.fromPointXY(outletPt))
+                outlets.append(outletF)
+            if not outletsProvider.addFeatures(outlets):
+                QSWATUtils.error('Cannot add features to snapped outlets file {0}'.format(outletsFile), self._gv.isBatch)
+                return False
+            if not channelsProvider.changeAttributeValues(chMap):
+                channelsFile = QSWATUtils.layerFilename(channelsLayer)
+                QSWATUtils.error('Failed to set DSNODEIDs in channels file {0}'.format(channelsFile), self._gv.isBatch)
+                return False 
+            snapFile = QSWATUtils.join(self._gv.shapesDir, 'madeoutlets_snap.shp')
+            # since we used channel end points for outlets snap file will be identical to outlets file
+            QSWATUtils.removeLayerAndFiles(snapFile, root)
+            QSWATUtils.copyShapefile(outletsFile, 'madeoutlets_snap', self._gv.shapesDir)
+            self._gv.outletFile = outletsFile
+            self._gv.snapFile = snapFile
+            self._dlg.useOutlets.setChecked(True)
+            self._dlg.selectOutlets.setText(self._gv.outletFile)
+#             QSWATUtils.error("""Since adding lakes involves adding new outlet points you must have an inlets/outlets file 
+#             with at least a watershed outlet marked, or one of the new outlets will become a watershed outlet.""", self._gv.isBatch)
+#             return False
         if self._gv.snapFile == '' or not os.path.exists(self._gv.snapFile):
             QSWATUtils.error('Cannot find snapped inlets/outlets file {0}'.format(self._gv.snapFile), self._gv.isBatch)
             return False
@@ -561,6 +621,7 @@ either larger to lengthen the stream or smaller to remove it.."""
         resIndex = fields.indexFromName(QSWATTopology._RES)
         inletIndex = fields.indexFromName(QSWATTopology._INLET)
         srcIndex = fields.indexFromName(QSWATTopology._PTSOURCE)
+        ptIdIndex = fields.indexFromName(QSWATTopology._POINTID)
         addIndex = fields.indexFromName(QSWATTopology._ADDED)
         ds = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         transform = ds.GetGeoTransform()
@@ -569,9 +630,9 @@ either larger to lengthen the stream or smaller to remove it.."""
         self._gv.topo.lakeOutlets = dict()
         currentPointId = 0
         # calculate current maximum id in snap file
-        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([idIndex])
+        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([ptIdIndex])
         for point in snapProvider.getFeatures(request):
-            currentPointId = max(currentPointId, point[idIndex])
+            currentPointId = max(currentPointId, point[ptIdIndex])
         # First pass: replace any multipart lake geometries with a single part.  
         # Also eliminate any islands to prevent accidental crossings of channels with islands
         # This assumes that dissolving has been done to get as much as possible of lake into
@@ -712,6 +773,7 @@ that it flows out the lake at its last crossing point.
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                 numOutlets += 1
             for channel, points in crossingChannels:
+                chLink = channel[channelLinkIndex]
                 QSWATUtils.information(
 """Channel with LINKNO {0} enters and then leaves lake {1}.  
 Since it starts and terminates outside the lake it will be 
@@ -2197,6 +2259,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # then start editing again
         self.drawOutletLayer.startEditing()
         idIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._ID)
+        ptIdIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._POINTID)
         # find maximum existing feature id
         maxId = 0
         for feature in self.drawOutletLayer.getFeatures():
@@ -2207,6 +2270,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if pid < 0:
                 maxId += 1
                 self.drawOutletLayer.changeAttributeValue(feature.id(), idIndex, maxId)
+                self.drawOutletLayer.changeAttributeValue(feature.id(), ptIdIndex, maxId)
         self.drawOutletLayer.commitChanges()
                 
     def selectOutlets(self) -> None:
@@ -4175,11 +4239,24 @@ If you want to start again from scratch, reload the lakes shapefile."""
         inletIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._INLET)
         resIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._RES)
         ptsourceIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._PTSOURCE)
+        ptIdIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._POINTID, ignoreMissing=True)
+        if ptIdIndex < 0:
+            ptIdIndex = QSWATTopology.makePositiveOutletIds(outletLayer)
+            if ptIdIndex < 0:
+                QSWATUtils.error('Failed to add PointId field to inlets/outlets file {0}'.format(QSWATUtils.layerFilename(outletLayer)), self._gv.isBatch)
+                return False
         idSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._ID)
         inletSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._INLET)
         resSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._RES)
         ptsourceSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._PTSOURCE)
-        fields = snapLayer.dataProvider().fields()
+        # with conversion from QSWAT, snap layer may lack PointId field
+        ptIdSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._POINTID, ignoreMissing=True)
+        snapProvider = snapLayer.dataProvider()
+        if ptIdSnapIndex < 0:
+            snapProvider.addAttributes([QgsField(QSWATTopology._POINTID, QVariant.Int)])
+            outletLayer.updateFields()
+            ptIdSnapIndex = snapProvider.fieldNameIndex(QSWATTopology._POINTID)
+        fields = snapProvider.fields()
         ds = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         transform = ds.GetGeoTransform()
         count = 0
@@ -4190,6 +4267,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             inlet = feature[inletIndex]
             res = feature[resIndex]
             ptsource = feature[ptsourceIndex]
+            ptId = feature[ptIdIndex]
             inletOrOutlet = res == 0 if inlet == 0 else ptsource == 0
             reachLayer = streamLayer if inletOrOutlet else channelLayer
             point = feature.geometry().asPoint()
@@ -4206,8 +4284,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
             feature1.setAttribute(inletSnapIndex, inlet)
             feature1.setAttribute(resSnapIndex, res)
             feature1.setAttribute(ptsourceSnapIndex, ptsource)
+            feature1.setAttribute(ptIdSnapIndex, ptId)
             feature1.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(point1.x(), point1.y())))
-            snapLayer.dataProvider().addFeatures([feature1])
+            snapProvider.addFeatures([feature1])
             count += 1
         failMessage = '' if errorCount == 0 else ': {0!s} failed'.format(errorCount)
         self._dlg.snappedLabel.setText('{0!s} snapped{1}'.format(count, failMessage))
@@ -4246,6 +4325,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))
             fields.append(QgsField(QSWATTopology._RES, QVariant.Int))
             fields.append(QgsField(QSWATTopology._PTSOURCE, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
             if basinWanted:
                 fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             writer = QgsVectorFileWriter(filePath, 'CP1250', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')

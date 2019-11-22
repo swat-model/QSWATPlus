@@ -84,6 +84,7 @@ class QSWATUtils:
     _RESULTS_GROUP_NAME: str = 'Results'
     _ANIMATION_GROUP_NAME: str = 'Animations'
     
+    _DEMLEGEND: str = 'DEM'
     _SNAPPEDLEGEND: str = 'Snapped inlets/outlets'
     _SELECTEDLEGEND: str = 'Selected inlets/outlets'
     _DRAWNLEGEND: str = 'Drawn inlets/outlets'
@@ -95,6 +96,7 @@ class QSWATUtils:
     _HILLSHADELEGEND: str = 'Hillshade'
     _STREAMSLEGEND: str = 'Streams'
     _CHANNELSLEGEND: str = 'Channels'
+    _CHANNELREACHESLEGEND = 'Channel reaches'
     _SUBBASINSLEGEND: str = 'Subbasins'
     _WATERSHEDLEGEND: str = 'Watershed'
     _GRIDLEGEND: str = 'Watershed grid'
@@ -106,11 +108,16 @@ class QSWATUtils:
     _FULLLSUSLEGEND: str = 'Full LSUs'
     _ACTLSUSLEGEND: str = 'Actual LSUs'
     _EXTRAPTSRCANDRESLEGEND: str = 'Pt sources and reservoirs'
+    _LSUSLEGEND: str = 'LSUs'
+    _HRUSLEGEND: str = 'HRUs'
+    _AQUIFERSLEGEND: str = 'Aquifers'
+    
     ## x-offsets for TauDEM D8 flow directions, which run 1-8, so we use dir - 1 as index
     _dX: List[int] = [1, 1, 0, -1, -1, -1, 0, 1]
     ## y-offsets for TauDEM D8 flow directions, which run 1-8, so we use dir - 1 as index
     _dY: List[int] = [0, -1, -1, -1, 0, 1, 1, 1]
     
+    ## changing these will change code for LSU ids and aquifer ids
     _NOLANDSCAPE: int = 0
     _FLOODPLAIN: int = 1
     _UPSLOPE: int = 2
@@ -231,6 +238,9 @@ class QSWATUtils:
     @staticmethod
     def samePath(p1: str, p2: str)-> bool:
         """Return true if paths both represent the same file or directory."""
+        # guard against source or target path not yet existing
+        if not (os.path.exists(p1) and os.path.exists(p2)):
+            return False
         return os.path.samefile(p1, p2)
     
     @staticmethod
@@ -337,6 +347,9 @@ class QSWATUtils:
     @staticmethod
     def removeLayerByLegend(legend: str, treeLayers: List[QgsLayerTreeLayer]) -> None:
         """Remove any tree layers whose legend name starts with the legend."""
+        # empty legend would remove all layers
+        if legend == '':
+            return
         lIds: List[str] = []
         for treeLayer in treeLayers:
             name: str = treeLayer.name()
@@ -582,6 +595,10 @@ class QSWATUtils:
         for treeLayer in treeLayers:
             mLayer = treeLayer.layer()
             if mLayer is not None and QSWATUtils.layerFileInfo(mLayer) == fileInfo:
+                if isinstance(mLayer, QgsVectorLayer) and mLayer.mapTipTemplate() == '':
+                    mapTip = FileTypes.mapTip(ft)
+                    if mapTip != '':
+                        mLayer.setMapTipTemplate(mapTip)
                 return (mLayer, False)
         # not found: load layer if requested
         if groupName is not None:
@@ -618,9 +635,12 @@ class QSWATUtils:
                 layer: QgsMapLayer = QgsRasterLayer(fileName, '{0} ({1})'.format(legend, baseName))
                 if clipToDEM:
                     layer = QSWATUtils.clipLayerToDEM(treeLayers, cast(QgsRasterLayer, layer), fileName, legend, gv)
+                mapTip = ''  # so we can check later if the file is araster
             else: 
                 ogr.RegisterAll()
                 layer = QgsVectorLayer(fileName, '{0} ({1})'.format(legend, baseName), 'ogr')
+                mapTip = FileTypes.mapTip(ft)
+                # map tip is destryed by laodNamedStyle, so set it later
             mapLayer: QgsMapLayer = proj.addMapLayer(layer, False)
             if mapLayer is not None and group is not None:
                 group.insertLayer(index, mapLayer)
@@ -640,6 +660,9 @@ class QSWATUtils:
                     msg, OK = mapLayer.saveNamedStyle(qmlFile)
                     if not OK:
                         QSWATUtils.error('Failed to create dem.qml: {0}'.format(msg), gv.isBatch)
+                # now can set map tip if there is one
+                if mapTip != '':
+                    mapLayer.setMapTipTemplate(mapTip)
                 return (mapLayer, True)
             else:
                 if mapLayer is not None:
@@ -1238,6 +1261,7 @@ class FileTypes:
     _LAKES = 27
     _EXTRAPTSRCANDRES = 28
     _HRUS = 29
+    _AQUIFERS = 30
     _OTHER = 99
     
     @staticmethod
@@ -1254,7 +1278,7 @@ class FileTypes:
                     ft == FileTypes._EXISTINGSUBBASINS or ft == FileTypes._EXISTINGWATERSHED or \
                     ft == FileTypes._GRID or ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS or \
                     ft == FileTypes._BUFFERSHAPE or ft == FileTypes._CHANNELS or ft == FileTypes._LAKES or \
-                    ft == FileTypes._EXTRAPTSRCANDRES:
+                    ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS:
             return QgsProviderRegistry.instance().fileVectorFilters()
         elif ft == FileTypes._CSV:
             return 'CSV files (*.csv);;All files (*)'
@@ -1276,7 +1300,7 @@ class FileTypes:
     def legend(ft: int) -> str:
         """Legend entry string for file type ft."""
         if ft == FileTypes._DEM:
-            return 'DEM'
+            return QSWATUtils._DEMLEGEND
         elif ft == FileTypes._MASK:
             return 'Mask'
         elif ft == FileTypes._BURN:
@@ -1296,7 +1320,7 @@ class FileTypes:
         elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED:
             return QSWATUtils._WATERSHEDLEGEND
         elif ft == FileTypes._CHANNELREACHES:
-            return 'Channel reaches'
+            return QSWATUtils._CHANNELREACHESLEGEND
         elif ft == FileTypes._STREAMREACHES:
             return 'Stream reaches'
         elif ft == FileTypes._HILLSHADE:
@@ -1319,6 +1343,12 @@ class FileTypes:
             return QSWATUtils._LAKESLEGEND
         elif ft == FileTypes._EXTRAPTSRCANDRES:
             return QSWATUtils._EXTRAPTSRCANDRESLEGEND
+        elif ft == FileTypes._HRUS:
+            return QSWATUtils._HRUSLEGEND
+        elif ft == FileTypes._LSUS:
+            return QSWATUtils._LSUSLEGEND
+        elif ft == FileTypes._AQUIFERS:
+            return QSWATUtils._AQUIFERSLEGEND
         else:
             return ''
         
@@ -1343,7 +1373,7 @@ class FileTypes:
             return 'wshed.qml'
         elif ft == FileTypes._EXISTINGSUBBASINS:
             return 'existingwshed.qml'
-        elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED:
+        elif ft == FileTypes._WATERSHED or ft == FileTypes._EXISTINGWATERSHED or ft == FileTypes._LSUS:
             return 'lsus.qml'
         elif ft == FileTypes._GRID:
             return 'grid.qml'
@@ -1363,6 +1393,8 @@ class FileTypes:
             return 'flood.qml'
         elif ft == FileTypes._LAKES:
             return 'lakes.qml'
+        elif ft == FileTypes._AQUIFERS or ft == FileTypes._HRUS:
+            return 'polygons.qml'
         else:
             return None
 
@@ -1400,6 +1432,27 @@ class FileTypes:
             return 'Select channel basins raster'
         elif ft ==FileTypes._LAKES:
             return 'Select lakes shapefile'
+        else:
+            return ''
+        
+    @staticmethod
+    def mapTip(ft: int) -> str:
+        if ft == FileTypes._OUTLETS or ft == FileTypes._EXTRAPTSRCANDRES:
+            return '<b>Point id:</b> [% "PointId" %]'
+        elif ft == FileTypes._CHANNELREACHES:
+            return '<b>Channel:</b> [% "Channel" %]'
+        elif ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS:
+            return '<b>Channel:</b> [% "LINKNO" %]'
+        elif ft == FileTypes._LSUS:
+            return '<b>LSU:</b> [% "LSUID" %]'
+        elif ft == FileTypes._HRUS:
+            return '<b>HRU(s):</b> [% "HRUS" %]'
+        elif ft == FileTypes._SUBBASINS or ft == FileTypes._EXISTINGSUBBASINS:
+            return '<b>Subbasin:</b> [% "Subbasin" %]'
+        elif ft == FileTypes._LAKES:
+            return '<b>Lake:</b> [% "LakeId" %]'
+        elif ft == FileTypes._AQUIFERS:
+            return '<b>Aquifer:</b> [% "Aquifer" %]'
         else:
             return ''
         

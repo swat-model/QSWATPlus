@@ -356,7 +356,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         if key not in keys:
             QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
             
-    def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, percent: float) -> None:
+    def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, hydTyp: str, percent: float) -> None:
         """Check that source is defined in the relevant table, and add to routing table.
         
         Does not check sink since there is a separate check that all non-exit sinks are sources."""
@@ -365,15 +365,18 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         elif sourceCategory == 'HRU': table = None  # 'gis_hrus' no need for this because of code structure
         elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
         elif sourceCategory == 'SUB': table = None  # gis_subbasins defined after routing
+        elif sourceCategory == 'AQU': table = None  # gis_aquifers no need for this because of code structure
+        elif sourceCategory == 'DAQ': table = None  # gis_deep_no need for this because of code structure
         elif sourceCategory == 'RES' or sourceCategory == 'PND': table = 'gis_water'
         else: table = None
         if table is not None:
             self.checkKeyInTable(table, sourceId)
         self.routingSources.add((sourceId, sourceCategory))
         self.routingSinks.add((sinkId, sinkCategory))
-        cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, sinkId, sinkCategory, percent))  #type: ignore
+        cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, hydTyp, sinkId, sinkCategory, percent))  #type: ignore
         
     def checkRoutedPointsSubbasinsAndLSUsDefined(self) -> None:
+        """Checks categories PT, LSU, SUB sources are defined in gis_table."""
         for (sourceId, sourceCategory) in self.routingSources:
             if sourceCategory == 'PT':
                 self.checkKeyInTable('gis_points', sourceId)
@@ -2635,10 +2638,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # mapping category -> id-set showing sources currently under investigation
         # (so all can be marked as done if the chain terminates)
         pending: Dict[str, Set[int]] = dict()
-        # mapping category -> id -> percent used to check sources with multiple sinks have 100% accounted for
-        percentages: Dict[str, Dict[int, float]] = dict()
+        # mapping category -> id -> hyd_typ -> percent used to check sources with multiple sinks have 100% accounted for
+        percentages: Dict[str, Dict[int, Dict[str, float]]] = dict()
         nextSql = DBUtils.sqlSelect(table, '*', '', '')
-        findSql = DBUtils.sqlSelect(table, 'sinkid, sinkcat, percent', '', 'sourceid=? AND sourcecat=?')
+        findSql = DBUtils.sqlSelect(table, 'hyd_typ, sinkid, sinkcat, percent', '', 'sourceid=? AND sourcecat=?')
         # Might be tempted to use pending to detect loops, but note below we don't
         # add to pending for multiple sinks, so then e.g. A -> A 90% would just loop.
         # So we prefer a count.
@@ -2646,6 +2649,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         for row in conn.execute(nextSql):
             sid = int(row['sourceid'])
             scat = row['sourcecat']
+            hydTyp = row['hyd_typ']
             tid = int(row['sinkid'])
             tcat = row['sinkcat']
             percent = float(row['percent'])
@@ -2665,12 +2669,13 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     # add percent to percentages for this source
                     sourcePercentages = percentages.get(scat, None)
                     if sourcePercentages is None:
-                        percentages[scat] = {sid: percent}
+                        percentages[scat] = {sid: {hydTyp: percent}}
                     else:
-                        if sid in sourcePercentages:
-                            sourcePercentages[sid] += percent
+                        hydTypPercentages = sourcePercentages.get(sid, None)
+                        if hydTypPercentages is None:
+                            hydTypPercentages = {hydTyp: percent}
                         else:
-                            sourcePercentages[sid] = percent
+                            hydTypPercentages[hydTyp] += percent
                 else:
                     # Only include source in pending (which should become done) 
                     # if there is only one sink for it, else other sinks will be ignored.
@@ -2692,10 +2697,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 count -= 1
                 if count == 0:
                     if hasZero:
-                        warnings.append('WARNING: There is a loop in the {0} table involving id {1} and category {2} but with a zero percentage' \
-                                .format(table, sid, scat))
+                        warnings.append('WARNING: There is a loop in the {0} table involving id {1}, category {2}, flow type {3} but with a zero percentage' \
+                                .format(table, sid, scat, hydTyp))
                     else:
-                        errors.append('There is a loop in the {0} table involving id {1} and category {2}'.format(table, sid, scat))
+                        errors.append('There is a loop in the {0} table involving id {1}, category {2}, flow type {3}'.format(table, sid, scat, hydTyp))
                     # move pending to done
                     for pcat, pids  in pending.items():
                         if pcat in done:
@@ -2719,6 +2724,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     break  # from while loop
                 sid = tid
                 scat = tcat
+                hydTyp = findRow['hyd_typ']
                 tid = int(findRow['sinkid'])
                 tcat = findRow['sinkcat']
                 percent = findRow['percent']
@@ -2726,15 +2732,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             #end of while loop
         # end of for loop
         # check all percentages are approximately 100
-        for scat, data in percentages.items():
-            for sid, percent in data.items():
-                if int(percent + 0.5) != 100:
-                    if percent == 0 and scat in {'RES', 'PND'}:
-                        # an unused lake exit: ignore
-                        pass
-                    else:
-                        errors.append('The percentages for id {1} and category {2} in the {0} table sum to {3} rather than 100' \
-                                      .format(table, sid, scat, int(percent + 0.5)))
+        for scat, sourceDdata in percentages.items():
+            for sid, data in sourceDdata.items():
+                for hydTyp, percent in data.items():
+                    if int(percent + 0.5) != 100:
+                        if percent == 0 and scat in {'RES', 'PND'}:
+                            # an unused lake exit: ignore
+                            pass
+                        else:
+                            errors.append('The percentages for id {1}, category {2}, flow type {3} in the {0} table sum to {4} rather than 100' \
+                                          .format(table, sid, scat, hydTyp, int(percent + 0.5)))
         return errors, warnings
     
     _HRUSCREATESQL = \
@@ -2864,6 +2871,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         CREATE TABLE gis_routing (
             sourceid  INTEGER,
             sourcecat TEXT,
+            hyd_typ   TEXT,
             sinkid    INTEGER,
             sinkcat   TEXT,
             percent   REAL
@@ -2878,7 +2886,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     );
     """
         
-    _ROUTINGINSERTSQL = 'INSERT INTO gis_routing VALUES(?,?,?,?,?)' 
+    _ROUTINGINSERTSQL = 'INSERT INTO gis_routing VALUES(?,?,?,?,?,?)' 
     
     _LANDEXEMPTCREATESQL = \
     """
@@ -2980,5 +2988,38 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     )
     """
     _INSERTLAKEBASINS = 'INSERT INTO LAKEBASINS VALUES(?,?)'
+    
+    _CREATEAQUIFERS = \
+    """
+    CREATE TABLE gis_aquifers (
+    id         INTEGER PRIMARY KEY,
+    category   INTEGER,
+    subbasin   INTEGER,
+    deep_aquifer INTEGER,
+    area       REAK,
+    lat        REAL,
+    lon        REAL,
+    elev       REAL
+    );
+    """
+    
+    _INSERTAQUIFERS = 'INSERT INTO gis_aquifers VALUES(?,?,?,?,?,?,?,?)'
+    
+    _CREATEADEEPQUIFERS = \
+    """
+    CREATE TABLE gis_deep_aquifers (
+    id         INTEGER PRIMARY KEY,
+    subbasin   INTEGER,
+    area       REAK,
+    lat        REAL,
+    lon        REAL,
+    elev       REAL
+    );
+    """
+    
+    _INSERTDEEPAQUIFERS = 'INSERT INTO gis_deep_aquifers VALUES(?,?,?,?,?,?)'
+    
+    
+    
     
      

@@ -983,6 +983,7 @@ class CreateHRUs(QObject):
                 if group is not None:
                     group.insertLayer(index, fullLSUsLayer)
                 fullLSUsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'lsus.qml'))
+                fullLSUsLayer.setMapTipTemplate(FileTypes.mapTip(FileTypes._LSUS))
             self.progress('')
             if self.fullHRUsWanted:
                 self.progress('Creating FullHRUs shapes ...')
@@ -1101,6 +1102,8 @@ class CreateHRUs(QObject):
         
         self.mergedChannels.clear()
         self.mergees.clear()
+        # restore channel basin areas to original
+        QSWATTopology.copyBasinAreas(self._gv.topo.origChBasinAreas, self._gv.topo.chBasinAreas)
         # keep list of channels with water bodies or point sources,
         # and extend this list as merges are made
         mergedToWaterOrPtSrc: List[int] = []
@@ -1143,6 +1146,12 @@ class CreateHRUs(QObject):
 #                             for landscape, lsuData in basinData.mergedLsus[candidate].iteritems():
 #                                 CreateHRUs.checkConsistent(lsuData, basin, candidate, landscape, 2)
                             basinData.merge(channel, candidate)
+                            # fix chBasinAreas map
+                            # errors can casue this code to be execuated twice
+                            # and second time channel has already been removed
+                            if channel in self._gv.topo.chBasinAreas:
+                                self._gv.topo.chBasinAreas[candidate] += self._gv.topo.chBasinAreas[channel]
+                                del self._gv.topo.chBasinAreas[channel]
                             #TODO: merge FullHRUs and LSUs shapefiles
 #                             for landscape, lsuData in basinData.mergedLsus[candidate].iteritems():
 #                                 CreateHRUs.checkConsistent(lsuData, basin, candidate, landscape, 3)
@@ -1650,6 +1659,7 @@ class CreateHRUs(QObject):
                 group.insertLayer(index, fullHRUsLayer)
             styleFile = 'fullhrus.qml'
             fullHRUsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, styleFile))
+            fullHRUsLayer.setMapTipTemplate(FileTypes.mapTip(FileTypes._HRUS))
             return True
         else:
             return False
@@ -2869,7 +2879,7 @@ class CreateHRUs(QObject):
                 fw.writeLine('')
             if withHRUs:
                 fw.writeLine('HRUs:')
-            self.printChannelHRUs(basinData, withHRUs, basinHa, subHa, fw, curs)
+            self.printChannelHRUs(SWATBasin, basinData, withHRUs, basinHa, subHa, fw, curs)
             fw.writeLine(horizLine)
         if setHRUS:
             assert fullHRUsLayer is not None
@@ -2879,7 +2889,7 @@ class CreateHRUs(QObject):
                 QSWATUtils.error('Cannot commit changes to FullHRUs shapefile', self._gv.isBatch)
             self.writeActHRUs(fullHRUsLayer, subIndx, chIndx, catIndx, areaIndx, hrusIndx)
             
-    def printChannelHRUs(self, basinData: BasinData, withHRUs: bool, basinHa: float, subHa: float, fw: fileWriter, curs: Any) -> None:
+    def printChannelHRUs(self, SWATBasin: int, basinData: BasinData, withHRUs: bool, basinHa: float, subHa: float, fw: fileWriter, curs: Any) -> None:
         """Print channel number, landscape and (if with HRUs) HRUs for each channel."""
         for channel, channelData in basinData.getLsus().items():
             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
@@ -2887,11 +2897,14 @@ class CreateHRUs(QObject):
             self.printChannelArea(SWATChannel, self.mapSum(landscapeAreas), withHRUs, basinHa, subHa, fw)
             self.printLandscapeAreas(landscapeAreas, withHRUs, basinHa, subHa, fw)
             if withHRUs:
-                self.printLandscapeHRUs(SWATChannel, channelData, basinHa, subHa, fw, curs)
+                self.printLandscapeHRUs(SWATBasin, SWATChannel, channelData, basinHa, subHa, fw, curs)
                 fw.writeLine('')
             
-    def printLandscapeHRUs(self, SWATChannel: int, channelData: Dict[int, LSUData], basinHa: float, subHa: float, fw: fileWriter, curs: Any) -> None:
+    def printLandscapeHRUs(self, SWATBasin: int, SWATChannel: int, channelData: Dict[int, LSUData], basinHa: float, subHa: float, fw: fileWriter, curs: Any) -> None:
         '''Print HRUs for each landscape.'''
+        aquifer = 10 * SWATBasin
+        downAquifer = 10 * SWATBasin + QSWATUtils._FLOODPLAIN
+        upAquifer = 10 * SWATBasin + QSWATUtils._UPSLOPE
         for landscape, lsuData in channelData.items():
             lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
             # identity of the floodplain water body if any
@@ -2906,31 +2919,42 @@ class CreateHRUs(QObject):
             if treatAsUpslope:
                 downLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
                 downLsuData = channelData[QSWATUtils._FLOODPLAIN]
-                if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown():
+                # if floodplain LSU is all water, route into the water body
+                if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown() and \
+                    downLsuData.cropSoilSlopeArea == downLsuData.waterBody.originalArea:
+                    downAllWater = True
                     wid = downLsuData.waterBody.id
-                    # if floodplain LSU is all water, route into the water body
-                    if downLsuData.cropSoilSlopeArea == downLsuData.waterBody.originalArea:
-                        downAllWater = True
-                        wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, 100)
-                    else:
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', 100)
+                    wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
+                    self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, QSWATTopology._TOTAL, 100)
                 else:
-                    self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', 100)
+                    # use Katrin's formula
+                    upslopePercent = int(100 * lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea + downLsuData.cropSoilSlopeArea) + 0.5)
+                    if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                        wid = lsuData.waterBody.id
+                        wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
+                        if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
+                            self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, QSWATTopology._SURFACE, upslopePercent)
+                    else:
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._SURFACE, upslopePercent)
+                    self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', QSWATTopology._SURFACE, 100 - upslopePercent)
+                    self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', QSWATTopology._LATERAL, 100)
             else:
                 if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
                     if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
                         wid = lsuData.waterBody.id
                         wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, 100)
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, QSWATTopology._TOTAL, 100)
                 else:
                     lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                     if lake > 0:
                         lakeData = self._gv.topo.lakesData[lake]
                         lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, 100)
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, QSWATTopology._TOTAL, 100)
                     else: 
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', 100)
+                        self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._TOTAL, 100)
+            # route recharge from LSU
+            aqu = upAquifer if landscape == QSWATUtils._UPSLOPE else downAquifer if landscape == QSWATUtils._FLOODPLAIN else aquifer
+            self._gv.db.addToRouting(curs, lsuId, 'LSU', aqu, 'AQU', QSWATTopology._RECHARGE, 100)
             if self._gv.useLandscapes:
                 landscapeName = QSWATUtils.landscapeName(landscape, self._gv.useLeftRight)
                 fw.writeLine('{0} (LSU {1!s}):'.format(landscapeName, lsuId))
@@ -2943,8 +2967,6 @@ class CreateHRUs(QObject):
         if lake > 0:
             lakeData = self._gv.topo.lakesData[lake]
             lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
-        if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
-            wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
         floodTarget, floodCat = (lake, lCat) if lake > 0 else (wid, wCat) if wid > 0 else (SWATChannel, 'CH')
         arlsuHa = float(lsuData.area) / 1E4
         routeWaterAsWaterBody = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
@@ -3004,14 +3026,14 @@ class CreateHRUs(QObject):
                         # route HRU
                         if landscape == QSWATUtils._NOLANDSCAPE or landscape == QSWATUtils._FLOODPLAIN or \
                             QSWATUtils._FLOODPLAIN not in channelData: # upslope with no floodplain; can happen in grid models
-                            self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, 100)
+                            self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, QSWATTopology._TOTAL, 100)
                         else:
                             if downAllWater:
-                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, 100)
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, QSWATTopology._TOTAL, 100)
                             else:
-                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, self._gv.upslopeHRUDrain)
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodTarget, floodCat, QSWATTopology._TOTAL, self._gv.upslopeHRUDrain)
                                 floodLsuId = QSWATUtils.landscapeUnitId(SWATChannel, QSWATUtils._FLOODPLAIN)
-                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodLsuId, 'LSU', 100 - self._gv.upslopeHRUDrain)
+                                self._gv.db.addToRouting(curs, self.HRUNum, 'HRU', floodLsuId, 'LSU', QSWATTopology._TOTAL, 100 - self._gv.upslopeHRUDrain)
         waterBody = lsuData.waterBody                    
         if waterBody is not None and routeWaterAsWaterBody:
             # water area is original - prior to merging of reservoirs
@@ -3135,6 +3157,7 @@ class CreateHRUs(QObject):
             group.insertLayer(index, actHRUsLayer)
         styleFile = 'fullhrus.qml'
         actHRUsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, styleFile))
+        actHRUsLayer.setMapTipTemplate(FileTypes.mapTip(FileTypes._HRUS))
         # make selected HRUs active and remove visibility from FullHRUs layer
         self._gv.iface.setActiveLayer(actHRUsLayer)
         QSWATUtils.setLayerVisibility(fullHRUsLayer, False, root)
@@ -3385,6 +3408,7 @@ class CreateHRUs(QObject):
             if group is not None:
                 group.insertLayer(index, layer)
             layer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'lsus.qml'))
+            layer.setMapTipTemplate(FileTypes.mapTip(FileTypes._LSUS))
             if fullLSUsLayer is not None:
                 fullLSUsLayer.setItemVisibilityChecked(False)
         return OK               
@@ -3402,6 +3426,7 @@ class CreateHRUs(QObject):
         if not os.path.isfile(lsus2File):
             QSWATUtils.error('No actual LSUs file, so gis_subbasins and gis_lsus tables not written', self._gv.isBatch)
             return False
+        self.progress('Writing subbasins and lsus tables ...')
         # remove features with 0 subbasin value
         exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
 #         context = QgsExpressionContext()
@@ -3687,10 +3712,11 @@ class CreateHRUs(QObject):
             if subbasinsLayer is not None:
                 QSWATUtils.setLayerVisibility(subbasinsLayer, False, root)
         self.createAquifers(root)
+        self.progress('')
         return True
     
     def createAquifers(self, root: QgsLayerTree) -> None:
-        """Creat aquifers shapefile."""
+        """Creat aquifers and deep aquifers shapefiles, and write gis_aquifers and gis_deep_aquifers tables."""
         
         def addNewField(layer: QgsVectorLayer, fileName: str, newFieldname: str, oldFieldname: str, fun: Callable[[int], Any]) -> int:
             """Add new integer field to shapefile; set field to fun applied to value in old integer field.
@@ -3720,14 +3746,137 @@ class CreateHRUs(QObject):
                 return basin
             else:
                 return findOutlet(downBasin, downBasins)
+            
+        def writeAquifersTables(outletSubbasins: Dict[int, int]) -> None:
+            """Write gis_aquifers and gis_deep_aquifers tables"""
+            with self._db.conn as conn:
+                if not conn:
+                    return
+                cursor = conn.cursor()
+                sql = 'DROP TABLE IF EXISTS gis_aquifers'
+                cursor.execute(sql)
+                cursor.execute(self._gv.db._CREATEAQUIFERS)
+                demLayer = QgsRasterLayer(self._gv.demFile, 'DEM')
+                # map of outlet SWATBasin (same as deep aquifer id) to area, elevation * area, x * area, y * area
+                deepData: Dict[int, Tuple[float, float, float, float]] = dict()
+                for basin, basinData in self.basins.items():
+                    SWATBasin = self._gv.topo.subbasinToSWATBasin[basin]
+                    aquiferId = SWATBasin * 10
+                    floodAquiferId = SWATBasin * 10 + QSWATUtils._FLOODPLAIN
+                    upAquiferId = SWATBasin * 10 + QSWATUtils._UPSLOPE
+                    deepAquiferId = outletSubbasins[SWATBasin]
+                    # map of aquifer id to (area, centroid)
+                    aquiferData: Dict[int, Tuple[float, float, float, float]] = dict()
+                    x, y = self._gv.topo.basinCentroids[basin]
+                    centroid = QgsPointXY(x,y)
+                    for channel, channelData in basinData.getLsus().items():
+                        chBasin = self._gv.topo.chLinkToChBasin.get(channel, None)
+                        if chBasin is None:
+                            continue
+                        chBasinArea = self._gv.topo.dx * self._gv.topo.dy * self._gv.gridSize * self._gv.gridSize \
+                                        if self._gv.useGridModel else self._gv.topo.chBasinAreas[chBasin]
+                        upArea = 0.0
+                        upTotalElevation = 0.0
+                        upCellCount = 0
+                        hasFlood = False
+                        hasUp = False
+                        # only count upslope areas as floodplain may be partly water or lake
+                        for landscape, lsuData in channelData.items():
+                            if landscape == QSWATUtils._UPSLOPE:
+                                hasUp = True
+                                upArea += lsuData.area
+                                upTotalElevation += lsuData.totalElevation
+                                upCellCount += lsuData.cellCount
+                            elif landscape == QSWATUtils._FLOODPLAIN:
+                                hasFlood = True
+                        floodArea = chBasinArea - upArea
+                        SWATChannel = self._gv.topo.channelToSWATChannel[channel]
+                        # QSWATUtils.loginfo('Channel {0}: Area: {1}: Up: {2}: Flood: {3}'.format(SWATChannel, chBasinArea, upArea, floodArea))
+                        (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(deepAquiferId, (0.0, 0.0, 0.0, 0.0))
+                        if hasUp:
+                            elev = 0 if upCellCount == 0 else upTotalElevation / upCellCount
+                            (aqArea, aqElevMoment, aqXMoment, aqYMoment) = aquiferData.setdefault(upAquiferId, (0.0, 0.0, 0.0, 0.0))
+                            aqArea += upArea
+                            aqElevMoment += elev * upArea
+                            aqXMoment += x * upArea
+                            aqYMoment += y * upArea
+                            aquiferData[upAquiferId] = (aqArea, aqElevMoment, aqXMoment, aqYMoment)
+                            deepArea += upArea
+                            deepElevMoment += elev * upArea
+                            deepXMoment += x * upArea
+                            deepYMoment += y * upArea
+                        if hasFlood:
+                            elev = QSWATTopology.valueAtPoint(centroid, demLayer)
+                            (aqArea, aqElevMoment, _, _) = aquiferData.setdefault(floodAquiferId, (0.0, 0.0, 0.0, 0.0))
+                            aqArea += floodArea
+                            aqElevMoment += elev * floodArea
+                            aquiferData[floodAquiferId] = (aqArea, aqElevMoment, 0, 0)
+                            deepArea += floodArea
+                            deepElevMoment += elev * floodArea
+                            deepXMoment += x * floodArea
+                            deepYMoment += y * floodArea
+                        elif not hasUp:
+                            elev = QSWATTopology.valueAtPoint(centroid, demLayer)
+                            (aqArea, aqElevMoment, _, _) = aquiferData.setdefault(aquiferId, (0.0, 0.0, 0.0, 0.0))
+                            aqArea += chBasinArea
+                            aqElevMoment += elev * chBasinArea
+                            aquiferData[aquiferId] = (aqArea, aqElevMoment, 0, 0)
+                            deepArea += chBasinArea
+                            deepElevMoment += elev * chBasinArea
+                            deepXMoment += x * chBasinArea
+                            deepYMoment += y * chBasinArea
+                        # upAreaSoFar = aquiferData[upAquiferId][0]
+                        # floodAreaSoFar = aquiferData[floodAquiferId][0]
+                        # QSWATUtils.loginfo('So far: Up: {0}: Flood: {1}'.format(upAreaSoFar, floodAreaSoFar))
+                        deepData[deepAquiferId] = (deepArea, deepElevMoment, deepXMoment, deepYMoment)
+                        # QSWATUtils.loginfo('Deep area so far: {0}'.format(deepArea))
+                    # write gis_aquifers and route aquifers
+                    centroidll = self._gv.topo.pointToLatLong(centroid)
+                    for aqId, (area, elevMoment, xMoment, yMoment) in aquiferData.items():
+                        landscape = aqId % 10  # assumes aquifer id is 10 * sub + landscape
+                        elev = elevMoment / area
+                        if landscape == QSWATUtils._UPSLOPE:
+                            upCentroid = QgsPointXY(xMoment / area, yMoment / area)
+                            upCentroidll = self._gv.topo.pointToLatLong(upCentroid)
+                            cursor.execute(DBUtils._INSERTAQUIFERS,
+                                           (aqId, landscape, SWATBasin, deepAquiferId, area / 1E4, upCentroidll.y(), upCentroidll.x(), elev))
+                            # route total flow to floodplain aquifer if any, else to subbasin outlet
+                            downAqId = SWATBasin * 10 + QSWATUtils._FLOODPLAIN  # assumes aquifer id is 10 * sub + landscape
+                            if downAqId in aquiferData:
+                                self._gv.db.addToRouting(cursor, aqId, 'AQU', downAqId, 'AQU', QSWATTopology._TOTAL, 100)
+                            else:
+                                pointId, _, _ = self._gv.topo.outlets[basin]
+                                self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                        else:
+                            cursor.execute(DBUtils._INSERTAQUIFERS,
+                                           (aqId, landscape, SWATBasin, deepAquiferId, area / 1E4, centroidll.y(), centroidll.x(), elev))
+                            # route total flow to subbasin outlet
+                            pointId, _, _ = self._gv.topo.outlets[basin]
+                            self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                        # route recharge to deep aquifer
+                        self._gv.db.addToRouting(cursor, aqId, 'AQU', deepAquiferId, 'DAQ', QSWATTopology._RECHARGE, 100)
+                # write deep aquifers
+                sql = 'DROP TABLE IF EXISTS gis_deep_aquifers'
+                cursor.execute(sql)
+                cursor.execute(self._gv.db._CREATEADEEPQUIFERS)
+                for deepAqId, (deepArea, deepElevMoment, deepXMoment, deepYMoment) in deepData.items():
+                    elev = deepElevMoment / deepArea
+                    centroid = QgsPointXY(deepXMoment / deepArea, deepYMoment / deepArea)
+                    centroidll = self._gv.topo.pointToLatLong(centroid)
+                    # SWATbasin is same as aquifer id
+                    cursor.execute(DBUtils._INSERTDEEPAQUIFERS, 
+                                   (deepAqId, deepAqId, deepArea / 1E4, centroidll.y(), centroidll.x(), elev))
+                    # route total flow from deep aquifer to watershed outlet
+                    basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
+                    pointId, _, _ = self._gv.topo.outlets[basin]
+                    self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
+        self.progress('Writing aquifers and deep aquifers tables ...')
         if os.path.isfile(self._gv.subsNoLakesFile):
             subsFile = self._gv.subsNoLakesFile
         else:
             subsFile = self._gv.subbasinsFile
-        if not os.path.exists(subsFile):
-            return
         # remove features with 0 subbasin value (subbasins upstream from inlets)
         subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
 #         if self._gv.useGridModel:
@@ -3757,7 +3906,8 @@ class CreateHRUs(QObject):
             QSWATUtils.copyShapefile(subsFile, Parameters._AQUIFERS, self._gv.resultsDir)
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
-            QSWATTopology.removeFields(aqLayer.dataProvider(), [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
+            aqProvider = aqLayer.dataProvider()
+            QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
                 # first convert floodplain to polygons
@@ -3773,7 +3923,7 @@ class CreateHRUs(QObject):
                 processing.run('gdal:polygonize', params, context=context)
                 if not os.path.isfile(floodShapefile):
                     raise Exception('Failed to polygonize floodplain raster')
-                # the flood plygon can cause errors in aclculating the difference and intersection, 
+                # the flood plygon can cause errors in calculating the difference and intersection, 
                 # so first try to fix its geometry
                 floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
                 QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
@@ -3784,7 +3934,7 @@ class CreateHRUs(QObject):
                 processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 2
                 upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
-                addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 2)
+                addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._UPSLOPE)
                 # QgsProject.instance().addMapLayer(upAqLayer)
                 # downslope aquifers are subbasins intersected with floodplain
                 downAqFile = QSWATUtils.tempFile('.shp')
@@ -3793,7 +3943,7 @@ class CreateHRUs(QObject):
                                 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
                 # add Aquifer field and seto to 10 * subbasin + 1
                 downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
-                addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + 1)
+                addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._FLOODPLAIN)
                 # QgsProject.instance().addMapLayer(downAqLayer)
                 # merge up and down aquifers
                 # even with no invalid filter dissolve can lose some shapes
@@ -3838,6 +3988,7 @@ class CreateHRUs(QObject):
             # dissolve on Aquifer field
             processing.run("native:dissolve", 
                            {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile}, context=context)
+            deepAqLayer = QgsVectorLayer(deepAqFile, 'Deep aquifers', 'ogr')
 #             # try using SAGA dissolve
 #             params = {'POLYGONS': tempDeepAqFile,
 #                       'FIELD_1': QSWATTopology._AQUIFER,
@@ -3850,6 +4001,7 @@ class CreateHRUs(QObject):
         except Exception as ex:
             QSWATUtils.information('Failed to generate deep aquifers shapefile: deep aquifer result visualisation will not be possible: {0}'
                                    .format(repr(ex)), self._gv.isBatch)
+        writeAquifersTables(outletSubbasins)
         # if we have a multiple catchment grid model with over _GRIDCELLSMAX cells, create partition into catchments
         # only do this if not an existing watershed, when user presumed to know what they want.
         if self._gv.useGridModel and not self._gv.existingWshed and len(outlets) > 1 and subsProvider.featureCount() > Parameters._GRIDCELLSMAX:
@@ -4026,6 +4178,7 @@ class CreateHRUs(QObject):
         inletIndex = provider.fieldNameIndex(QSWATTopology._INLET)
         resIndex = provider.fieldNameIndex(QSWATTopology._RES)
         ptsourceIndex = provider.fieldNameIndex(QSWATTopology._PTSOURCE)
+        ptIdIndex = provider.fieldNameIndex(QSWATTopology._POINTID)
         for _, pointId, point in reservoirs.values():
             feature = QgsFeature()
             feature.setFields(fields)
@@ -4033,6 +4186,7 @@ class CreateHRUs(QObject):
             feature.setAttribute(inletIndex, 0)
             feature.setAttribute(resIndex, 1)
             feature.setAttribute(ptsourceIndex, 0)
+            feature.setAttribute(ptIdIndex, pointId)
             feature.setGeometry(QgsGeometry.fromPointXY(point))
             provider.addFeatures([feature])
         for channel, (pointId, point) in ptSources.items():
@@ -4051,6 +4205,7 @@ class CreateHRUs(QObject):
                 feature.setAttribute(inletIndex, 1)
                 feature.setAttribute(resIndex, 0)
                 feature.setAttribute(ptsourceIndex, 1)
+                feature.setAttribute(ptIdIndex, pointId)
                 feature.setGeometry(QgsGeometry.fromPointXY(point))
                 provider.addFeatures([feature])
         addReservoirLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._EXTRAPTSRCANDRES,

@@ -110,6 +110,8 @@ class ConvertFromArc(QObject):
         self.choice = ConvertFromArc._fullChoice
         ## transform to projection from lat-long
         self.transformFromDeg = None
+        ## transform to lat-long from projection
+        self.transformToLatLong = None
         
     def run(self):
         print("Converting from ArcSWAT")
@@ -342,7 +344,7 @@ class ConvertFromArc(QObject):
             QSWATUtils.error('Failed to create lat-long coordinate reference system')
             return False
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
-        # self.transformToLatLong = QgsCoordinateTransform(self.crsProject, self.crsLatLong, QgsProject.instance())
+        self.transformToLatLong = QgsCoordinateTransform(self.crs, crsLatLong, QgsProject.instance())
         return True
         
     
@@ -367,7 +369,7 @@ class ConvertFromArc(QObject):
             return False
         
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
-        # self.transformToLatLong = QgsCoordinateTransform(self.crsProject, self.crsLatLong, QgsProject.instance())
+        self.transformToLatLong = QgsCoordinateTransform(self.crs, crsLatLong, QgsProject.instance())
         return True
         
     @staticmethod
@@ -1768,31 +1770,19 @@ class ConvertFromArc(QObject):
         return result
     
     def createGISTables(self):
-        """Create gis_channels, _lsus, _points, _routing, _subbasins and _water 
+        """Create gis_channels, _lsus, _aquifers, _deep_aquifers, _points, _routing, _subbasins and _water 
         from csv files made from ArcSWAT project database"""
         # subasin - reach relation is 1-1, so use same number for each
         downstreamSubbasin = dict()
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
         with sqlite3.connect(qProjDb) as conn:
             cursor = conn.cursor()
-            # gis_channels
-            cursor.execute('DROP TABLE IF EXISTS gis_channels')
-            cursor.execute(ConvertFromArc._CREATECHANNELS)
-            with open(os.path.join(self.qProjDir, r'csv\Project\Reach.csv'), 'r', newline='') as f:
-                reader = csv.reader(f)
-                next(reader)  # skip header
-                for row in reader:
-                    subbasin = int(row[6])
-                    channel = subbasin
-                    cursor.execute(ConvertFromArc._INSERTCHANNELS, 
-                                   (channel, subbasin) + tuple(row[8:15]))
-                    downstreamSubbasin[subbasin] = int(row[7])
             # gis_lsus and _subbasins
             cursor.execute('DROP TABLE IF EXISTS gis_lsus')
             cursor.execute('DROP TABLE IF EXISTS gis_subbasins')
             cursor.execute(ConvertFromArc._CREATELSUS)
             cursor.execute(ConvertFromArc._CREATESUBBASINS)
-            subbasinLatLonElev = dict()
+            subbasinAreaLatLonElev = dict()
             with open(os.path.join(self.qProjDir, r'csv\Project\Watershed.csv'), 'r', newline='') as f:
                 reader = csv.reader(f)
                 next(reader)  # skip header
@@ -1814,12 +1804,50 @@ class ConvertFromArc(QObject):
                     elevmax = row[15]
                     lonlat = QgsPointXY(float(lon), float(lat))
                     xy = self.transformFromDeg.transform(lonlat)
-                    subbasinLatLonElev[subbasin] = (xy.x(), xy.y(), lat, lon, elev)
+                    subbasinAreaLatLonElev[subbasin] = (float(area), xy.x(), xy.y(), lat, lon, float(elev))
                     waterId = 0
                     cursor.execute(ConvertFromArc._INSERTLSUS, 
                                    (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, csl, wid1, dep1, lat, lon, elev))
                     cursor.execute(ConvertFromArc._INSERTSUBBASINS, 
                                    (subbasin, area, slo1, len1, sll, lat, lon, elev, elevmin, elevmax, waterId))
+            # gis_channels
+            cursor.execute('DROP TABLE IF EXISTS gis_channels')
+            cursor.execute(ConvertFromArc._CREATECHANNELS)
+            with open(os.path.join(self.qProjDir, r'csv\Project\Reach.csv'), 'r', newline='') as f:
+                reader = csv.reader(f)
+                next(reader)  # skip header
+                for row in reader:
+                    subbasin = int(row[6])
+                    channel = subbasin
+                    # estimate channel mid point as subbasin centroid
+                    _, _, _, lat, lon, _ = subbasinAreaLatLonElev[subbasin]
+                    cursor.execute(ConvertFromArc._INSERTCHANNELS, 
+                                   (channel, subbasin) + tuple(row[8:15]) + (lat, lon))
+                    downstreamSubbasin[subbasin] = int(row[7])
+            # gis_aquifers and gis_deep_aquifers
+            deepAquifers = dict()
+            deepData = dict()
+            cursor.execute('DROP TABLE IF EXISTS gis_aquifers')
+            cursor.execute('DROP TABLE IF EXISTS gis_deep_aquifers')
+            cursor.execute(ConvertFromArc._CREATEAQUIFERS)
+            cursor.execute(ConvertFromArc._CREATEDEEPAQUIFERS)
+            for subbasin, (area, x, y, lat, lon, elev) in subbasinAreaLatLonElev.items():
+                outletBasin = ConvertFromArc.findOutlet(subbasin, downstreamSubbasin)
+                deepAquifers[subbasin] = outletBasin
+                cursor.execute(ConvertFromArc._INSERTAQUIFERS,
+                               (subbasin, 0, subbasin, outletBasin, area, lat, lon, elev))
+                (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(outletBasin, (0,0,0,0))
+                deepArea += area
+                deepElevMoment += elev * area
+                deepXMoment += x * area
+                deepYMoment += y * area
+                deepData[outletBasin] = (deepArea, deepElevMoment, deepXMoment, deepYMoment)
+            for outletBasin, (deepArea, deepElevMoment, deepXMoment, deepYMoment) in deepData.items():
+                x = deepXMoment / deepArea
+                y = deepYMoment / deepArea
+                lonlat = self.transformToLatLong.transform(QgsPointXY(x, y))
+                cursor.execute(ConvertFromArc._INSERTDEEPAQUIFERS,
+                               (outletBasin, outletBasin, deepArea, lonlat.y(), lonlat.x(), deepElevMoment / deepArea))
             # gis_points
             cursor.execute('DROP TABLE IF EXISTS gis_points')
             cursor.execute(ConvertFromArc._CREATEPOINTS)
@@ -1884,7 +1912,7 @@ class ConvertFromArc(QObject):
                     soil = row[5]
                     self.usedSoils.add(soil)
                     area = float(row[8])
-                    x, y, lat, lon, elev = subbasinLatLonElev[subbasin]
+                    _, x, y, lat, lon, elev = subbasinAreaLatLonElev[subbasin]
                     if landuse == 'WATR':
                         if subbasin in reservoirSubbasins:
                             wtype = 'RES'
@@ -1906,14 +1934,22 @@ class ConvertFromArc(QObject):
             # gis_routing
             cursor.execute('DROP TABLE IF EXISTS gis_routing')
             cursor.execute(ConvertFromArc._CREATEROUTING)
-            # route subbasin to outlet and outlet to downstream subbasin
+            # route subbasin and aquifer to outlet and outlet to downstream subbasin
             for subbasin, outlet in subbasinToOutlet.items():
                 cursor.execute(ConvertFromArc._INSERTROUTING, 
-                               (subbasin, 'SUB', outlet, 'PT', 100))
+                               (subbasin, 'SUB', 'tot', outlet, 'PT', 100))
+                cursor.execute(ConvertFromArc._INSERTROUTING, 
+                               (subbasin, 'AQU', 'tot', outlet, 'PT', 100))
+                # aquifer recharges deep aquifer
+                cursor.execute(ConvertFromArc._INSERTROUTING, 
+                               (subbasin, 'AQU', 'rhg', deepAquifers[subbasin], 'DAQ', 100))
                 # LSUs are just copies of subbasins for ArcSWAT models
                 lsu = subbasin * 10
                 cursor.execute(ConvertFromArc._INSERTROUTING, 
-                               (lsu, 'LSU', outlet, 'PT', 100))
+                               (lsu, 'LSU', 'tot', outlet, 'PT', 100))
+                # LSU recharges aquifer
+                cursor.execute(ConvertFromArc._INSERTROUTING, 
+                               (lsu, 'LSU', 'rhg', subbasin, 'AQU', 100))
                 # subbasin reaches drain to the reservoir if there is one else to the outlet
                 channel = subbasin
                 if subbasin in reservoirSubbasins:
@@ -1925,52 +1961,55 @@ class ConvertFromArc(QObject):
                             break
                     if wnum > 0:
                         cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                       (channel, 'CH', wnum, 'RES', 100))
+                                       (channel, 'CH', 'tot', wnum, 'RES', 100))
                     else:
                         # make zero area reservoir
                         waterNum += 1
-                        x, y, lat, lon, elev = subbasinLatLonElev[subbasin]
+                        _, x, y, lat, lon, elev = subbasinAreaLatLonElev[subbasin]
                         cursor.execute(ConvertFromArc._INSERTWATER,
                                        (waterNum, 'RES', subbasin, 0, x, y, lat, lon, elev))
                         waters[waterNum] = 'RES', subbasin
                         cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                       (channel, 'CH', waterNum, 'RES', 100))
+                                       (channel, 'CH', 'tot', waterNum, 'RES', 100))
                 else:
                     cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                   (channel, 'CH', outlet, 'PT', 100))
+                                   (channel, 'CH', 'tot', outlet, 'PT', 100))
                 # the outlet point drains to 0, X if a watershed outlet
                 # else the downstream subbasins reach
                 downSubbasin = downstreamSubbasin[subbasin]
                 if downSubbasin == 0:
+                    # add deep aquifer routing to watershed outlet
                     cursor.execute(ConvertFromArc._INSERTROUTING,
-                                   (outlet, 'PT', 0, 'X', 100))
+                                   (subbasin, 'DAQ', 'tot', outlet, 'PT', 100))
+                    cursor.execute(ConvertFromArc._INSERTROUTING,
+                                   (outlet, 'PT', 'tot', 0, 'X', 100))
                 else:
                     downChannel = downSubbasin
                     cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                   (outlet, 'PT', downChannel, 'CH', 100))
+                                   (outlet, 'PT', 'tot', downChannel, 'CH', 100))
             # inlets and point sources drain to channels
             for inlet, subbasin in inletToSubbasin.items():
                 channel = subbasin
                 cursor.execute(ConvertFromArc._INSERTROUTING, 
-                               (inlet, 'PT', channel, 'CH', 100))
+                               (inlet, 'PT', 'tot', channel, 'CH', 100))
             for ptsrc, subbasin in ptsrcToSubbasin.items():
                 channel = subbasin
                 cursor.execute(ConvertFromArc._INSERTROUTING, 
-                               (ptsrc, 'PT', channel, 'CH', 100))
+                               (ptsrc, 'PT', 'tot', channel, 'CH', 100))
             # reservoirs route to points, ponds to channels
             for wnum, (wtype, wsubbasin) in waters.items():
                 if wtype == 'RES':
                     cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                   (wnum, 'RES', subbasinToOutlet[wsubbasin], 'PT', 100))
+                                   (wnum, 'RES', 'tot', subbasinToOutlet[wsubbasin], 'PT', 100))
                 else:
                     channel = wsubbasin
                     cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                   (wnum, 'PND', channel, 'CH', 100))
+                                   (wnum, 'PND', 'tot', channel, 'CH', 100))
             # HRUs drain to channels
             for hruNum, subbasin in hruToSubbasin.items():
                 channel = subbasin
                 cursor.execute(ConvertFromArc._INSERTROUTING, 
-                                (hruNum, 'HRU', channel, 'CH', 100))
+                                (hruNum, 'HRU', 'tot', channel, 'CH', 100))
             # checkRouting assumes sqlite3.Row used for row_factory
             conn.row_factory = sqlite3.Row
             errors, warnings = DBUtils.checkRouting(conn)
@@ -1984,6 +2023,15 @@ class ConvertFromArc(QObject):
                 ConvertFromArc.information(warning)
             print('gis_ tables written')
             conn.commit()
+            
+    @staticmethod            
+    def findOutlet(basin, downBasins):
+        """downBasins maps basin to downstream basin or 0 if none.  Return final basin starting from basin."""
+        downBasin = downBasins.get(basin, 0)
+        if downBasin == 0:
+            return basin
+        else:
+            return ConvertFromArc.findOutlet(downBasin, downBasins)
             
     def createDataFiles(self):
         """Create csv files from REC files identified in fig.fig file in each scenario."""
@@ -2436,11 +2484,13 @@ class ConvertFromArc(QObject):
     wid2     REAL,
     dep2     REAL,
     elevmin  REAL,
-    elevmax  REAL
+    elevmax  REAL,
+    midlat   REAL,
+    midlon   REAL
     )
     """
     
-    _INSERTCHANNELS = 'INSERT INTO gis_channels VALUES(?,?,?,?,?,?,?,?,?)'
+    _INSERTCHANNELS = 'INSERT INTO gis_channels VALUES(?,?,?,?,?,?,?,?,?,?,?)'
     
     _CREATEHRUS = \
     """
@@ -2510,13 +2560,14 @@ class ConvertFromArc(QObject):
     CREATE TABLE gis_routing (
     sourceid  INTEGER,
     sourcecat TEXT,
+    hyd_typ   TEXT,
     sinkid    INTEGER,
     sinkcat   TEXT,
     percent   REAL
     )
     """
     
-    _INSERTROUTING = 'INSERT INTO gis_routing VALUES(?,?,?,?,?)'
+    _INSERTROUTING = 'INSERT INTO gis_routing VALUES(?,?,?,?,?,?)'
     
     _CREATESUBBASINS = \
     """
@@ -2558,6 +2609,36 @@ class ConvertFromArc(QObject):
     """
     
     _INSERTWATER = 'INSERT INTO gis_water VALUES(?,?,?,?,?,?,?,?,?,?)'
+    
+    _CREATEAQUIFERS = \
+    """
+    CREATE TABLE gis_aquifers (
+    id         INTEGER PRIMARY KEY,
+    category   INTEGER,
+    subbasin   INTEGER,
+    deep_aquifer INTEGER,
+    area       REAK,
+    lat        REAL,
+    lon        REAL,
+    elev       REAL
+    );
+    """
+    
+    _INSERTAQUIFERS = 'INSERT INTO gis_aquifers VALUES(?,?,?,?,?,?,?,?)'
+    
+    _CREATEDEEPAQUIFERS = \
+    """
+    CREATE TABLE gis_deep_aquifers (
+    id         INTEGER PRIMARY KEY,
+    subbasin   INTEGER,
+    area       REAK,
+    lat        REAL,
+    lon        REAL,
+    elev       REAL
+    );
+    """
+    
+    _INSERTDEEPAQUIFERS = 'INSERT INTO gis_deep_aquifers VALUES(?,?,?,?,?,?)'
     
     class WeatherStation():
         """Name, lat, long, etc for weather station."""

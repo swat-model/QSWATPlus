@@ -29,3 +29,6 @@ visualise.py
 water body category could be 'unknown'
 hrus.py
 
+10/11/2019 #9
+failed to define chLink when listing crossing points
+delineation.py line 773
