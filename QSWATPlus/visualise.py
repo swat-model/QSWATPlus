@@ -879,7 +879,6 @@ class Visualise(QObject):
         
     def doClose(self):
         """Close the db connection, timer, clean up from animation, and close the form."""
-        self.conn = None
         self.animateTimer.stop()
         # empty animation and png directories
         self.clearAnimationDir()
@@ -888,6 +887,8 @@ class Visualise(QObject):
         proj = QgsProject.instance()
         for animation in QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, proj.layerTreeRoot()):
             proj.removeMapLayer(animation.layerId())
+        # only close connection after removing animation layers as the map title is affected and recalculation needs connection
+        self.conn = None
         self._dlg.close()
         
     def plotSetUnit(self):
@@ -1590,20 +1591,28 @@ class Visualise(QObject):
         self.currentResultsLayer = proj.addMapLayer(self.currentResultsLayer, False)
         resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
         resultsGroup.insertLayer(0, self.currentResultsLayer)
+        self._gv.iface.setActiveLayer(self.currentResultsLayer)
         if baseName == Parameters._SUBS:
             # add labels
-            self.subResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+            self.currentResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
             self.internalChangeToSubRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
         elif baseName == Parameters._LSUS:
             self.internalChangeToLSURenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
         elif baseName == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
         elif baseName == Parameters._AQUIFERS:
             self.internalChangeToAquRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
         elif baseName == Parameters._DEEPAQUIFERS:
             self.internalChangeToDeepAquRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
         else:
             self.internalChangeToRivRenderer = False
+            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+        self.currentResultsLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVar))
         self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
         self.currentResultsLayer.willBeDeleted.connect(self.redoTitle)
         return True
@@ -1775,7 +1784,7 @@ class Visualise(QObject):
         canvas = self._gv.iface.mapCanvas()
         if self.mapTitle is not None:
             canvas.scene().removeItem(self.mapTitle)
-        self.mapTitle = MapTitle(canvas, self.title, layer)
+        self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, layer)
         canvas.update()
         if base == Parameters._SUBS:
             self.internalChangeToSubRenderer = False
@@ -1860,7 +1869,7 @@ class Visualise(QObject):
                 # found a results layer to generate title for
                 self.currentResultsLayer = mapLayer
                 self.currentResultsLayer.willBeDeleted.connect(self.redoTitle)
-                self.mapTitle = MapTitle(canvas, self.title, mapLayer)
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
                 canvas.update()
                 return
         
@@ -1911,12 +1920,23 @@ class Visualise(QObject):
                         break
         self.animateLayer = proj.addMapLayer(animateLayer, False)
         animationGroup.insertLayer(index, self.animateLayer)
+        self._gv.iface.setActiveLayer(self.animateLayer)
         if layerToRemoveId is not None:
             proj.removeMapLayer(layerToRemoveId)
         self.animateIndexes[self.animateLayer.id()] = animateIndex
         # add labels if based on subbasins
         if base == Parameters._SUBS:
             self.animateLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subsresults.qml'))
+            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
+        elif base == Parameters._LSUS:
+            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
+        elif base == Parameters._HRUS:
+            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
+        elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
+            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
+        else:
+            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+        self.animateLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(self.animateVar))
         return True
             
     def colourAnimationLayer(self):
@@ -1971,7 +1991,7 @@ class Visualise(QObject):
 #             canvas = self._gv.iface.mapCanvas()
 #             if self.mapTitle is not None:
 #                 canvas.scene().removeItem(self.mapTitle)
-#             self.mapTitle = MapTitle(canvas, self.title, animations[0])
+#             self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, animations[0])
 #             canvas.update()
         
     def createAnimationComposition(self):
@@ -2449,6 +2469,7 @@ class Visualise(QObject):
             return
         if not self.setPeriods():
             return
+        self._dlg.setCursor(Qt.WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
             self.readData('', True, self.table, '', '')
@@ -2464,6 +2485,7 @@ class Visualise(QObject):
             else:
                 return
         self.colourResultsFile()
+        self._dlg.setCursor(Qt.ArrowCursor)
         
     def printResults(self):
         """Create print composer by instantiating template file."""
@@ -3292,7 +3314,7 @@ class Visualise(QObject):
         for treeLayer in animationLayers:
             mapLayer = treeLayer.layer()
             if self.mapTitle is None:
-                self.mapTitle = MapTitle(canvas, self.title, mapLayer)
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
                 canvas.update()
                 self.animateLayer = mapLayer
                 return
@@ -3304,7 +3326,7 @@ class Visualise(QObject):
                 canvas.scene().removeItem(self.mapTitle)
                 dat = self.sliderValToDate()
                 date = self.dateToString(dat)
-                self.mapTitle = MapTitle(canvas, self.title, mapLayer, line2=date)
+                self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer, line2=date)
                 canvas.update()
                 self.animateLayer = mapLayer
                 return
@@ -3784,7 +3806,7 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
     
     """Item for displaying title at top left of map canvas."""
     
-    def __init__(self, canvas, title, layer, line2=None):
+    def __init__(self, conn, canvas, table, title, layer, line2=None):
         """Initialise rectangle for displaying project name, layer name,  plus line2, if any, below them."""
         super().__init__(canvas)
         ## normal font
@@ -3800,7 +3822,22 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
         ## project line of title
         self.line0 = 'Project: {0}'.format(title)
         ## First line of title
-        self.line1 = layer.name()
+        # replace var with description and units if available
+        items = layer.name().split()
+        var = items[1]
+        if conn is None:
+            row = None
+        else:
+            sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
+            row = conn.execute(sql, (table, var)).fetchone()
+        # units can be '---'; also protect against NULL
+        units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
+        description = var if row is None or row[1] is None else row[1]
+        # items has three components for static results, 2 for animation
+        if len(items) == 3:
+            self.line1 = '{0} {1} {2}'.format(items[0], description + units, items[2])
+        else:
+            self.line1 = '{0} {1}'.format(items[0], description + units)
         ## second line of title (or None)
         self.line2 = line2
         rect0 = metricsBold.boundingRect(self.line0)

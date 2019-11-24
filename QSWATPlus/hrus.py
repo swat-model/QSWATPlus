@@ -3790,7 +3790,6 @@ class CreateHRUs(QObject):
                             elif landscape == QSWATUtils._FLOODPLAIN:
                                 hasFlood = True
                         floodArea = chBasinArea - upArea
-                        SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                         # QSWATUtils.loginfo('Channel {0}: Area: {1}: Up: {2}: Flood: {3}'.format(SWATChannel, chBasinArea, upArea, floodArea))
                         (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(deepAquiferId, (0.0, 0.0, 0.0, 0.0))
                         if hasUp:
