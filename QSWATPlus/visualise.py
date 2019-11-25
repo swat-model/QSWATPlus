@@ -3833,11 +3833,11 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
         # units can be '---'; also protect against NULL
         units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
         description = var if row is None or row[1] is None else row[1]
-        # items has three components for static results, 2 for animation
-        if len(items) == 3:
-            self.line1 = '{0} {1} {2}'.format(items[0], description + units, items[2])
-        else:
-            self.line1 = '{0} {1}'.format(items[0], description + units)
+        self.line1 = '{0} {1}'.format(items[0], description + units)
+        # items has 3 or more components for static results, 2 for animation
+        # add the rest
+        for i in range(2, len(items)):
+            self.line1 += ' {0}'.format(items[i])
         ## second line of title (or None)
         self.line2 = line2
         rect0 = metricsBold.boundingRect(self.line0)
@@ -3878,7 +3878,4 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
         self.rect = QRectF(0, self.rect01.top(), 
                             max(self.rect01.width(), rect2.width()), 
                             self.rect01.height() + rect2.height())
-        
-
-       
     
