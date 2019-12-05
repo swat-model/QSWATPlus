@@ -2986,6 +2986,9 @@ class CreateHRUs(QObject):
                         snam = self._db.getSoilName(soil)
                         slp = self._db.slopeRange(slope)
                         cropSoilSlope = luse + '/' + snam + '/' + slp
+                        # replace BARR with None (to make NULL)
+                        if luse == 'BARR':
+                            luse = None
                         # use cellArea rather than cellCount to calculate means
                         # cellCounts are integer and inaccurate (even zero) for small HRUs
                         if cellData.area == 0:

@@ -46,7 +46,7 @@ from QSWATTopology import QSWATTopology  # @UnresolvedImport
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
 from QSWATPlus import QSWATPlus
-from parameters import Parameters
+from parameters import Parameters  # @UnresolvedImport
 
 class ConvertFromArc(QObject):
     """Convert ArcSWAT projects to SWAT+"""
