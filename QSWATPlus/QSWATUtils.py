@@ -1127,7 +1127,7 @@ class QSWATUtils:
             list1 = [geom1.asPolygon()]
         else:
             list1 = geom1.asMultiPolygon() 
-        if geom2.wkbType() == QgsWkbTypes.MultiPolygon:
+        if geom2.wkbType() == QgsWkbTypes.Polygon:
             list2 = [geom2.asPolygon()]
         else:
             list2 = geom2.asMultiPolygon()

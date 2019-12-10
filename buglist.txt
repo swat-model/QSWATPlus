@@ -32,3 +32,7 @@ hrus.py
 10/11/2019 #9
 failed to define chLink when listing crossing points
 delineation.py line 773
+
+12/10/2019 #10
+removing point from list after it had been adjusted failed
+delineation.py line 772

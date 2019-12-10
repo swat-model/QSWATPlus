@@ -532,12 +532,14 @@ either larger to lengthen the stream or smaller to remove it.."""
             crossingPointMoved2 = QSWATTopology.separatePoints(outlet, crossingPointMoved1, transform)
             point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved2))
             newPoints.append(point)
+            # remove from points so if called twice same point cannot be selected
+            points.remove(crossingPoint)
             if res == 0:
                 self._gv.topo.lakeInlets[lakeId].add(currentPointId)
             else:
                 self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
                 QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
-                                   .format(lakeId, chLink, int(crossingPoint.x()), int(crossingPoint.y())))
+                                   .format(lakeId, chLink, int(crossingPointMoved2.x()), int(crossingPointMoved2.y())))
             return currentPointId
         
         lakeIdIndex = self.identifyLakes(lakesLayer)
@@ -768,8 +770,6 @@ that it flows out the lake at its last crossing point.
                 outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                 source = QgsPointXY(reachData.upperX, reachData.upperY)
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
-                # justy to be safe, make sure we cannot choose same point again
-                points.remove(newPoints[-1].geometry().asPoint())
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                 numOutlets += 1
             for channel, points in crossingChannels:
