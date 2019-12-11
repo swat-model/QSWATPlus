@@ -1262,7 +1262,10 @@ class QSWATTopology:
         and inlets/outlets are little use in any case with existing watersheds."""
         
         lakeIdIndex = self.getIndex(lakesLayer, QSWATTopology._LAKEID)
-        lakeResIndex = self.getIndex(lakesLayer, QSWATTopology._RES)
+        lakeResIndex = self.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
+        if lakeResIndex < 0:
+            QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
+                                   format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
         channelLinkIndex = self.getIndex(channelsLayer, QSWATTopology._LINKNO)
         channelDsLinkIndex = self.getIndex(channelsLayer, QSWATTopology._DSLINKNO)
         channelBasinIndex = self.getIndex(channelsLayer, QSWATTopology._BASINNO)
@@ -1276,7 +1279,10 @@ class QSWATTopology:
         self.lakesData = dict()
         for lake in lakesLayer.getFeatures():
             lakeId = int(lake[lakeIdIndex])
-            waterRole = int(lake[lakeResIndex])
+            if lakeResIndex < 0:
+                waterRole = QSWATTopology._RESTYPE
+            else:
+                waterRole = int(lake[lakeResIndex])
             if lakeId in self.lakesData:
                 QSWATUtils.error('Lake identifier {0} occurs twice in {1}.  Lakes not added.'.format(lakeId, QSWATUtils.layerFilename(lakesLayer)), 
                                  gv.isBatch, reportErrors=reportErrors)
