@@ -746,9 +746,10 @@ class ConvertFromArc(QObject):
         f2 = QgsField(QSWATTopology._DSLINKNO, QVariant.Int)
         f3 = QgsField(QSWATTopology._WSNO, QVariant.Int)
         f4 = QgsField(QSWATTopology._LENGTH, QVariant.Double)
-        f5 = QgsField(QSWATTopology._DROP, QVariant.Double)
-        f6 = QgsField(QSWATTopology._BASINNO, QVariant.Int)
-        provider.addAttributes([f1, f2, f3, f4, f5, f6])
+        f5 = QgsField(QSWATTopology._ORDER, QVariant.Int)
+        f6 = QgsField(QSWATTopology._DROP, QVariant.Double)
+        f7 = QgsField(QSWATTopology._BASINNO, QVariant.Int)
+        provider.addAttributes([f1, f2, f3, f4, f5, f6, f7])
         subIndex = provider.fieldNameIndex('Subbasin')
         fromIndex = provider.fieldNameIndex('FROM_NODE')
         toIndex = provider.fieldNameIndex('TO_NODE')
@@ -759,24 +760,58 @@ class ConvertFromArc(QObject):
         dsIndex = provider.fieldNameIndex(QSWATTopology._DSLINKNO)
         wsnoIndex = provider.fieldNameIndex(QSWATTopology._WSNO)
         lenIndex = provider.fieldNameIndex(QSWATTopology._LENGTH)
+        orderIndex = provider.fieldNameIndex(QSWATTopology._ORDER)
         dropIndex = provider.fieldNameIndex(QSWATTopology._DROP)
         basinIndex = provider.fieldNameIndex(QSWATTopology._BASINNO)
         mmap = dict()
+        us = dict()
+        outlets = []
         for f in provider.getFeatures():
             subbasin = f[subIndex]
+            link = f[fromIndex]
             toNode = f[toIndex]
+            dsLink = -1 if toNode == 0 else toNode
+            if dsLink >= 0:
+                ups = us.setdefault(dsLink, [])
+                ups.append(link)
+            else:
+                outlets.append(link)
             drop = max(0, f[maxElIndex] - f[minElIndex]) # avoid negative drop
             mmap[f.id()] = {wsnoIndex : subbasin,
-                            linkIndex : f[fromIndex], 
-                            dsIndex : -1 if toNode == 0 else toNode,
+                            linkIndex : link, 
+                            dsIndex : dsLink,
                             lenIndex : f[arcLenIndex],
+                            orderIndex: 0,  # fixed later
                             dropIndex : drop,
                             basinIndex : subbasin}
+        # calculate stream orders
+        strahler = dict()
+        for link in outlets:
+            ConvertFromArc.setStrahler(link, us, strahler)
+        # update map with streamorders
+        for fid in list(mmap.keys()):
+            link = mmap[fid][linkIndex]
+            mmap[fid][orderIndex] = strahler[link]
         if not provider.changeAttributeValues(mmap):
             ConvertFromArc.error('Could not edit channels shapefile {0}'.format(qChanFile))
             return False
         self.channelsFile = qChanFile
         return True
+    
+    @staticmethod
+    def setStrahler(link, us, strahler):
+        """Define Strahler order in strahler map using upstream relation us, starting from link."""
+        ups = us.get(link, [])
+        if ups == []:
+            strahler[link] = 1
+            return 1
+        orders = [ConvertFromArc.setStrahler(up, us, strahler) for up in ups]
+        omax = max(orders)
+        count = len([o for o in orders if o == omax])
+        order = omax if count == 1 else omax+1
+        strahler[link] = order
+        return order
+        
     
     @staticmethod
     def makeOutletFields():
@@ -1822,8 +1857,24 @@ class ConvertFromArc(QObject):
                     # estimate channel mid point as subbasin centroid
                     _, _, _, lat, lon, _ = subbasinAreaLatLonElev[subbasin]
                     cursor.execute(ConvertFromArc._INSERTCHANNELS, 
-                                   (channel, subbasin) + tuple(row[8:15]) + (lat, lon))
+                                   (channel, subbasin) + (row[8], 0) + tuple(row[9:15]) + (lat, lon))
                     downstreamSubbasin[subbasin] = int(row[7])
+            # calculate Strahler orders
+            us = dict()
+            outlets = []
+            for link, dsLink in downstreamSubbasin.items():
+                if dsLink > 0:
+                    ups = us.setdefault(dsLink, [])
+                    ups.append(link)
+                else:
+                    outlets.append(link)
+            strahler = dict()
+            for link in outlets:
+                ConvertFromArc.setStrahler(link, us, strahler)
+            # update order in gis_channels table
+            sql = 'UPDATE gis_channels SET strahler = ? WHERE id = ?'
+            for link, strahler in strahler.items():
+                cursor.execute(sql, (strahler, link))
             # gis_aquifers and gis_deep_aquifers
             deepAquifers = dict()
             deepData = dict()
@@ -2479,6 +2530,7 @@ class ConvertFromArc(QObject):
                      NOT NULL,
     subbasin INTEGER,
     areac    REAL,
+    strahler INTEGER,
     len2     REAL,
     slo2     REAL,
     wid2     REAL,
@@ -2490,7 +2542,7 @@ class ConvertFromArc(QObject):
     )
     """
     
-    _INSERTCHANNELS = 'INSERT INTO gis_channels VALUES(?,?,?,?,?,?,?,?,?,?,?)'
+    _INSERTCHANNELS = 'INSERT INTO gis_channels VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
     
     _CREATEHRUS = \
     """

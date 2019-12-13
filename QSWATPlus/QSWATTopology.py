@@ -212,6 +212,8 @@ class QSWATTopology:
         self.channelSlopes: Dict[int, float] = dict()
         ## numpy array of total area draining to downstream end of channel in square metres
         self.drainAreas: numpy.ndarray[float] = None  # type: ignore
+        ## numpy array of Strahler order of channels
+        self.strahler: numpy.ndarray[int] = None  # type: ignore
         ## map of lake id to ids of points added to split channels entering lakes
         self.lakeInlets: Dict[int, List[int]] = dict()
         ## map of lake id to ids of points added to split channels leaving lakes
@@ -403,6 +405,7 @@ class QSWATTopology:
         if wsnoIndex < 0:
             QSWATUtils.loginfo('No WSNO field in channels layer')
             return False
+        orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER, ignoreMissing=ignoreWithGridOrExisting)
         drainAreaIndex = self.getIndex(channelLayer, QSWATTopology._DRAINAREA, ignoreMissing=ignoreWithGridOrExisting)
         lengthIndex = self.getIndex(channelLayer, QSWATTopology._LENGTH, ignoreMissing=ignoreWithGridOrExisting)
         dropIndex = self.getIndex(channelLayer, QSWATTopology._DROP, ignoreMissing=ignoreWithGridOrExisting)
@@ -437,9 +440,8 @@ class QSWATTopology:
                 return False
             # ADDED field only used with lakes: may be missing
             addIndex = self.getIndex(outletLayer, QSWATTopology._ADDED, ignoreMissing=True)
-        if not useGridModel:
-            # upstream array will get very big for grid
-            us: Dict[int, List[int]] = dict()
+        # upstream links
+        us: Dict[int, List[int]] = dict()
         time1 = time.process_time()
         maxChLink = 0
         SWATChannel = 0
@@ -483,21 +485,17 @@ class QSWATTopology:
                 dsNodeToLink[dsNode] = chLink
                 #QSWATUtils.loginfo('DSNode {0} mapped to channel link {1}'.format(dsNode, chLink))
             if dsChLink >= 0:
-                if not useGridModel:
-                    ups = us.get(dsChLink, None)
-                    if ups is None:
-                        us[dsChLink] = [chLink]
-                    else:
-                        ups.append(chLink)
-                    # check we haven't just made the us relation circular
-                    if QSWATTopology.reachable(dsChLink, [chLink], us):
-                        QSWATUtils.error('Circular drainage network from channel link {0}'.format(dsChLink), self.isBatch)
-                        return False
+                ups = us.setdefault(dsChLink, [])
+                ups.append(chLink)
+                # check we haven't just made the us relation circular
+                if QSWATTopology.reachable(dsChLink, [chLink], us):
+                    QSWATUtils.error('Circular drainage network from channel link {0}'.format(dsChLink), self.isBatch)
+                    return False
         time2 = time.process_time()
         QSWATUtils.loginfo('Topology setup for channels took {0} seconds'.format(int(time2 - time1)))
         if not useGridModel:
             self.setChannelBasinAreas(gv)
-            QSWATTopology.copyBasinAreas(self.chBasinAreas, self.origChBasinAreas)
+            self.origChBasinAreas = QSWATTopology.copyBasinAreas(self.chBasinAreas)
             if existing:
                 # need to set centroids
                 for polygon in subbasinsLayer.getFeatures():
@@ -618,7 +616,14 @@ class QSWATTopology:
                 self.setDrainageAreas(us)
         time5 = time.process_time()
         QSWATUtils.loginfo('Topology drainage took {0} seconds'.format(int(time5 - time4)))
-        
+        # Strahler order
+        self.strahler = zeros((maxChLink + 1), dtype=int)
+        if orderIndex >= 0:
+            self.setStrahlerFromChannels(channelLayer, orderIndex)
+        elif useGridModel:
+            self.setStrahlerFromGrid(us)
+        else:
+            self.setStrahler(us)
         #try existing subbasin numbers as SWAT basin numbers
         ok = polyIndex >= 0 and subbasinIndex >= 0 and self.tryBasinAsSWATBasin(subbasinsLayer, polyIndex, subbasinIndex)
         if not ok:
@@ -1558,11 +1563,12 @@ class QSWATTopology:
                 self.chunkCount += 1
                 
     @staticmethod
-    def copyBasinAreas(areas1: Dict[int, float], areas2: Dict[int, float]) -> None:
-        """Copy areas1 to areas2."""
+    def copyBasinAreas(areas: Dict[int, float]) -> Dict[int, float]:
+        """Return copy of areas."""
         areas2 = dict()
-        for i, val in areas1.items():
+        for i, val in areas.items():
             areas2[i] = val
+        return areas2
             
     def checkAreas(self, subbasinsLayer: QgsVectorLayer, gv: Any) -> bool:
         """
@@ -1680,7 +1686,7 @@ class QSWATTopology:
         
     def checkDrainage(self, channelLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, maxChLink: int, needDrainage: bool) -> None:
         """Check drainage as defined by downChannels map is not circular: attempt to fix if so.  Also calculate drainage in 
-        self.drainAreas if nedDrainage is true.  If so, assume it is initialised with area of grid cell.
+        self.drainAreas if needDrainage is true.  If so, assume it is initialised with area of grid cell.
         
         Only used in grid models.
         Changes the channel and the grid shapefiles, plus the downChannels and downSubbasins mappings."""
@@ -1812,6 +1818,64 @@ class QSWATTopology:
             upsArea += self.drainAreas[up]
         self.drainAreas[chLink] = ownArea + upsArea
         
+    def setStrahlerFromChannels(self, channelLayer: QgsVectorLayer, orderIndex: int) -> None:
+        """Get Strahler order from channelLayer file's order attribute."""
+        inds: List[int] = [self.channelIndex, orderIndex]
+        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes(inds)
+        for reach in channelLayer.getFeatures(request):
+            channelLink = reach[self.channelIndex]
+            self.strahler[channelLink] = reach[orderIndex]
+            
+    def setStrahler(self, us: Dict[int, List[int]]) -> None:
+        """Set Strahler orders using upstream map from each outlet.
+        
+        Not used with grid models"""
+        
+        def setStrahlerLink(link: int) -> int:
+            """Recursively set Strahler order for link and those upstream from it."""
+            ups = us.get(link, [])
+            if ups == []:
+                self.strahler[link] = 1
+                return 1
+            orders = [setStrahlerLink(up) for up in ups]
+            omax = max(orders)
+            count = len([o for o in orders if o == omax])
+            order = omax if count == 1 else omax+1
+            self.strahler[link] = order
+            return order
+        
+        for _,_,link in self.outlets.values():
+            setStrahlerLink(link)
+            
+    def setStrahlerFromGrid(self, us: Dict[int, List[int]]) -> None:
+        """Set Strahler orders for channels using upstream map us.
+        
+        Non-recusive as used in grid models."""
+        # continue looping as long as an order is calculated
+        changed = True
+        while changed:
+            changed = False
+            for link in self.downChannels.keys():
+                if self.strahler[link] > 0:
+                    # already calculated
+                    continue
+                else:
+                    ups = us.get(link, [])
+                    if ups == []:
+                        self.strahler[link] = 1
+                        changed = True
+                    else:
+                        orders = [self.strahler[up] for up in ups]
+                        if 0 in orders:
+                            # at least one yet to be calculated
+                            continue
+                        else:
+                            omax = max(orders)
+                            count = len([o for o in orders if o == omax])
+                            order = omax if count == 1 else omax+1
+                            self.strahler[link] = order
+                            changed = True
+            
     def getDistanceToJoin(self, basin: int, otherBasin: int) -> float:
         """Get distance in metres to join with otherBasin from outlet of basin.  Add to distancesToJoins if necessary."""
         link = self.subbasinToStream[basin]
@@ -2583,6 +2647,7 @@ class QSWATTopology:
         if addToRiv1:
             fields = []
             fields.append(QgsField(QSWATTopology._AREAC, QVariant.Double, len=20, prec=0))
+            fields.append(QgsField(QSWATTopology._ORDER, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LEN2, QVariant.Double))
             fields.append(QgsField(QSWATTopology._SLO2, QVariant.Double))
             fields.append(QgsField(QSWATTopology._WID2, QVariant.Double))
@@ -2598,6 +2663,7 @@ class QSWATTopology:
             linkIdx = self.getIndex(rivs1Layer, QSWATTopology._LINKNO)
             chIdx = self.getIndex(rivs1Layer, QSWATTopology._CHANNEL)
             areaCIdx = self.getIndex(rivs1Layer, QSWATTopology._AREAC)
+            orderIdx = self.getIndex(rivs1Layer, QSWATTopology._ORDER)
             len2Idx = self.getIndex(rivs1Layer, QSWATTopology._LEN2)
             slo2Idx = self.getIndex(rivs1Layer, QSWATTopology._SLO2)
             wid2Idx = self.getIndex(rivs1Layer, QSWATTopology._WID2)
@@ -2621,7 +2687,7 @@ class QSWATTopology:
             time1 = time.process_time()
             wid2Data = dict()
             floodscape = QSWATUtils._FLOODPLAIN if gv.useLandscapes else QSWATUtils._NOLANDSCAPE 
-            sql = "INSERT INTO " + table + " VALUES(?,?,?,?,?,?,?,?,?,?,?)"
+            sql = "INSERT INTO " + table + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
             if addToRiv1:
                 # iterate over channels in rivs1 shapefile
                 request =  QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([linkIdx, chIdx])
@@ -2645,6 +2711,7 @@ class QSWATTopology:
                     channelData = self.channelsData[channel]
                     # drain area is a numpy float, so need to coerce, or won't get written to attributes of rivs1
                     drainAreaHa = float(self.drainAreas[channel]) / 1E4
+                    order = int(self.strahler[channel])
                     length = float(self.channelLengths[channel] * gv.mainLengthMultiplier)
                     slopePercent = float(self.channelSlopes[channel] * 100 * gv.reachSlopeMultiplier / gv.mainLengthMultiplier)
                     minEl = float(channelData.lowerZ)
@@ -2654,6 +2721,7 @@ class QSWATTopology:
                     if mergeData is None:
                         continue
                     drainAreaHa = float(mergeData.areaC / 1E4)
+                    order = int(mergeData.order)
                     length = float(mergeData.length  * gv.mainLengthMultiplier)
                     slopePercent = float(mergeData.slope * 100 * gv.reachSlopeMultiplier) / gv.mainLengthMultiplier
                     minEl = float(mergeData.minEl)
@@ -2683,13 +2751,14 @@ class QSWATTopology:
                 midLong = midll.x()
                 if rid == 0 and pid == 0:
                     # omit from gis_channels channels which have become reservoirs or ponds
-                    curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, length, slopePercent, 
+                    curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, order, length, slopePercent, 
                                        channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
                     self.db.addKey(table, SWATChannel)
                 if addToRiv1:
                     lakeInId = self.chLinkIntoLake.get(channel, 0)
                     mmap[fid] = dict()
                     mmap[fid][areaCIdx] = drainAreaHa
+                    mmap[fid][orderIdx] = order
                     mmap[fid][len2Idx] = length
                     mmap[fid][slo2Idx] = slopePercent
                     mmap[fid][wid2Idx] = channelWidth
@@ -2804,6 +2873,7 @@ class QSWATTopology:
             if channel not in mergeChannels:
                 channelData = self.channelsData[channel]
                 mergedChannelData[channel] = MergedChannelData(self.drainAreas[channel],
+                                                               self.strahler[channel],
                                                                self.channelLengths[channel],
                                                                self.channelSlopes[channel],
                                                                channelData.lowerZ,
@@ -2813,6 +2883,7 @@ class QSWATTopology:
             channelData = self.channelsData[channel]
             final = self.finalTarget(target, mergeChannels)
             mergedChannelData[final].add(self.drainAreas[source],
+                                         self.strahler[source],
                                          self.channelLengths[source],
                                          self.channelSlopes[source],
                                          channelData.lowerZ,

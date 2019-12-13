@@ -1103,7 +1103,7 @@ class CreateHRUs(QObject):
         self.mergedChannels.clear()
         self.mergees.clear()
         # restore channel basin areas to original
-        QSWATTopology.copyBasinAreas(self._gv.topo.origChBasinAreas, self._gv.topo.chBasinAreas)
+        self._gv.topo.chBasinAreas = QSWATTopology.copyBasinAreas(self._gv.topo.origChBasinAreas)
         # keep list of channels with water bodies or point sources,
         # and extend this list as merges are made
         mergedToWaterOrPtSrc: List[int] = []
@@ -3263,9 +3263,9 @@ class CreateHRUs(QObject):
         result: List[QgsFeature] = []
         for (feature, feats) in mergers.values():
             assert feature is not None  # consequence of code in mergeActHRUs
-            geom = feature.geometry()
+            geom = feature.geometry().makeValid()
             for feat in feats:
-                geom1 = feat.geometry()
+                geom1 = feat.geometry().makeValid()
                 geom2 = geom.combine(geom1)
                 if geom2 is None:
                     # hru features can contain one polygon inside another
@@ -3348,7 +3348,8 @@ class CreateHRUs(QObject):
                 for targetFeature in provider.getFeatures(request):
                     newFeature = QgsFeature(fields)
                     newFeature.setAttributes(targetFeature.attributes())
-                    newFeature.setGeometry(targetFeature.geometry())
+                    geom = targetFeature.geometry().makeValid()
+                    newFeature.setGeometry(geom)
                     lscape = targetFeature[catIndx]
                     if target in mergeMap:
                         mergeMap[target][lscape] = newFeature
@@ -3370,8 +3371,8 @@ class CreateHRUs(QObject):
                             newFeature = mergeMap[target][lscape]
                             newFeature[areaIndx] += feature[areaIndx]
                             newFeature[percentSubIndx] += feature[percentSubIndx]
-                            geom1 = newFeature.geometry()
-                            geom2 = feature.geometry()
+                            geom1 = newFeature.geometry().makeValid()
+                            geom2 = feature.geometry().makeValid()
                             geom3 = geom1.combine(geom2)
                             if geom3 is None:
                                 # LSU geometries can fail to combine
@@ -4847,6 +4848,8 @@ class HRUs(QObject):
             if self._dlg.channelMergeSlider.value() > 0:
                 self.CreateHRUs.mergeChannels()
             else:
+                # restore channel basin areas to original
+                self._gv.topo.chBasinAreas = QSWATTopology.copyBasinAreas(self._gv.topo.origChBasinAreas)
                 # remove all channel merges
                 for basinData in self.CreateHRUs.basins.values():
                     basinData.mergedLsus = None

@@ -1203,8 +1203,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     cellCount INTEGER, 
     area REAL, 
     outletElevation REAL, 
-    sourceElevation REAL, 
-    channelLength REAL, 
+    sourceElevation REAL,
+    channelLength REAL,  
+    channelOrder INTEGER,
     farElevation REAL, 
     farDistance REAL, 
     farPointX REAL, 
@@ -1219,7 +1220,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     lastHru INTEGER)
     """
     
-    _LSUSDATAINSERTSQL = 'INSERT INTO LSUSDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+    _LSUSDATAINSERTSQL = 'INSERT INTO LSUSDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
     
     _HRUSDATA = 'HRUSDATA'
     _HRUSDATATABLE = \
@@ -1666,7 +1667,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 try:
                     curs.execute(DBUtils._LSUSDATAINSERTSQL, (lsuId, basin, landscape, channel, lsuData.cellCount, 
                                           float(lsuData.area), float(lsuData.outletElevation),
-                                          float(lsuData.sourceElevation), float(lsuData.channelLength),
+                                          float(lsuData.sourceElevation), float(lsuData.channelLength), int(lsuData.channelOrder),
                                           float(lsuData.farElevation), float(lsuData.farDistance),
                                           float(lsuData.farPointX), float(lsuData.farPointY), 
                                           float(lsuData.midPointX), float(lsuData.midPointY), 
@@ -1781,8 +1782,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #===========================================================================
         
     def regenerateBasins(self, gv: Any, ignoreerrors: bool=False) -> Tuple[Optional[Dict[int, BasinData]], bool]: 
-        """Recreate basins data from BASINSDATA, LSUSDATA, WATERDATA and HRUSDATA tables in project database."""
+        """Recreate basins data from BASINSDATA, LSUSDATA, WATERDATA and HRUSDATA tables in project database.
+        
+        Also recreates original channel basin areas."""
         try:
+            gv.topo.origChBasinAreas = dict()
             basins: Dict[int, BasinData] = dict()
             # map lsuid -> (basin, channel, landscape) to enable non-search reads of all tables
             lsuMap = dict()
@@ -1819,6 +1823,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         lsuData.outletElevation = lrow['outletElevation']
                         lsuData.sourceElevation = lrow['sourceElevation']
                         lsuData.channelLength = lrow['channelLength']
+                        # allow chnnelOrder not to exist in older project
+                        try:
+                            lsuData.channelOrder = lrow['channelOrder']
+                        except:
+                            lsuData.channelOrder = 0
                         lsuData.farElevation = lrow['farElevation']
                         lsuData.farDistance = lrow['farDistance']
                         lsuData.farPointX = lrow['farPointX']
@@ -1842,6 +1851,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         channelData = basinData.lsus.get(channel, dict())
                         channelData[landscape] = lsuData
                         basinData.lsus[channel] = channelData
+                        chBasin = gv.topo.chLinkToChBasin[channel]
+                        _ = gv.topo.origChBasinAreas.setdefault(chBasin, 0)
+                        gv.topo.origChBasinAreas[chBasin] += lsuData.area
                     # add water bodies
                     for wrow in cur.execute(self.sqlSelect(self._WATERDATA, '*', '', '')):
                         lsuid = wrow['lsu']
@@ -2814,6 +2826,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                              NOT NULL,
             subbasin INTEGER,
             areac    REAL,
+            strahler INTEGER,
             len2     REAL,
             slo2     REAL,
             wid2     REAL,

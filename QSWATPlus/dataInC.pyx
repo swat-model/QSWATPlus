@@ -233,6 +233,7 @@ cdef class LSUData:
         public double outletElevation
         public double sourceElevation
         public double channelLength
+        public int channelOrder
         public double farElevation
         public double farDistance
         public double farPointX
@@ -274,6 +275,8 @@ cdef class LSUData:
         self.sourceElevation = 0
         ## channel length in m
         self.channelLength = 0
+        ## Strahler order
+        self.channelOrder = 0
         ## elevation of point with longest flow distance 
         self.farElevation = 0
         ## longest flow distance to channel
@@ -581,6 +584,7 @@ cdef class LSUData:
         result.outletElevation = self.outletElevation
         result.sourceElevation = self.sourceElevation
         result.channelLength = self.channelLength
+        result.channelOrder = self.channelOrder
         result.farElevation = self.farElevation
         result.farDistance = self.farDistance
         result.farPointX = self.farPointX
@@ -675,6 +679,8 @@ cdef class LSUData:
         self.midPointX = (self.midPointX + lsuData.midPointX) / 2
         self.midPointY = (self.midPointY + lsuData.midPointY) / 2
         self.channelLength += lsuData.channelLength
+        if self.channelOrder < lsuData.channelOrder:
+            self.channelOrder = lsuData.channelOrder
         self.totalElevation += lsuData.totalElevation
         self.totalSlope += lsuData.totalSlope
         self.totalLatitude += lsuData.totalLatitude
@@ -784,6 +790,7 @@ cdef class BasinData:
             lsuData.midPointX = (reachData.lowerX + reachData.upperX) / 2
             lsuData.midPointY = (reachData.lowerY + reachData.upperY) / 2
             lsuData.channelLength = _gv.topo.channelLengths[channel]
+            lsuData.channelOrder = _gv.topo.strahler[channel]
             if _gv.existingWshed:
                 lsuData.farDistance = lsuData.channelLength
                 lsuData.farElevation = lsuData.sourceElevation
@@ -1121,15 +1128,18 @@ cdef class MergedChannelData:
     
     cdef:
         public double areaC
+        public int order
         public double length
         public double slope
         public double minEl
         public double maxEl
     
-    def __init__(self, double areaC, double length, double slope, double minEl, double maxEl):
+    def __init__(self, double areaC, int order, double length, double slope, double minEl, double maxEl):
         """Initialise class variables for first channel."""
         ## total drainage area in square metres
         self.areaC = areaC
+        ## Strahler order
+        self.order = order
         ## total length in metres
         self.length = length
         ## mean slope in m/m for merged channels
@@ -1139,9 +1149,10 @@ cdef class MergedChannelData:
         ## maximum elevation in metres
         self.maxEl = maxEl
         
-    cpdef void add(self, double areaC, double length, double slope, double minEl, double maxEl):
+    cpdef void add(self, double areaC, int order, double length, double slope, double minEl, double maxEl):
         """Add a channel's data."""
         self.areaC = max(self.areaC, areaC)
+        self.order = max(self.order, order)
         if length > 0:
             newLength = self.length + length
             self.slope = (self.slope * self.length + slope * length) / newLength
