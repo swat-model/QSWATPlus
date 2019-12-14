@@ -533,6 +533,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         OK = True
         # make sure no extra spaces
         landuseCode = landuseCode.strip()
+        if landuseCode.upper() == 'BARR':
+            # replaced by NULL later
+            # use -1 as the landuseId
+            self.landuseCodes[landuseCat] = landuseCode
+            self.landuseIds[landuseCat] = -1
+            return True
+        elif landuseCode.upper() == 'WATR':
+            # no longer in plant table; replaced by WETN later
+            # but needed for now as may form pond, reservoir or be added to lake
+            self.landuseCodes[landuseCat] = landuseCode
+            self.landuseIds[landuseCat] = 0
+            self.waterLanduse = landuseCat  # TODO: should use a set of water landuses
+            return True
         database = self.plantSoilDatabase
         isProjDb = filecmp.cmp(database, self.dbFile)
         isRefDb = filecmp.cmp(database, self.dbRefFile)
@@ -573,8 +586,6 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 landuseId = row['id']
             self.landuseCodes[landuseCat] = landuseCode
             self.landuseIds[landuseCat] = landuseId
-            if landuseCode.upper() == 'WATR':
-                self.waterLanduse = landuseCat  # TODO: should use a set of water landuses
             return OK
         finally:
             if not (isProjDb or isRefDb):
@@ -1041,6 +1052,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # uid = 0
             for crop in self.landuseVals:
                 name = self.getLanduseCode(crop)
+                if name.upper() == 'BARR' or name.upper() == 'WATR':
+                    # BARR will become NULL later, WATR will become WETN; neither in plant table
+                    continue
                 args = (name,)
                 # look first in plantTable
                 row = readCursor.execute(plantSelect, args).fetchone()

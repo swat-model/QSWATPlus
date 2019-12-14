@@ -622,7 +622,11 @@ class CreateHRUs(QObject):
                                     extra = 1 + index - elevMapSize
                                     self.elevMap += [0] * extra
                                     elevMapSize += extra
-                                self.elevMap[index] += 1
+                                try:
+                                    self.elevMap[index] += 1
+                                except:
+                                    # probably a no daa liker -3.4E38
+                                    pass
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 channelLandscapeCropSoilSlopeNumbers = subbasinChannelLandscapeCropSoilSlopeNumbers.get(subbasin, None)
                                 if channelLandscapeCropSoilSlopeNumbers is None:
@@ -892,10 +896,10 @@ class CreateHRUs(QObject):
                                     elevMapSize += extra
                                 try:
                                     self.basinElevMap[subbasin][index] += 1
-                                except Exception:
-                                    QSWATUtils.error('Problem in basin {0!s} reading elevation {1!s} at ({5!s}, {6!s}).  Minimum: {2!s}, maximum: {3!s}, index: {4!s}'.format(subbasin, elevation, self.minElev, maxElev, index, x, y), self._gv.isBatch)
-                                    break
-                                self.elevMap[index] += 1
+                                    self.elevMap[index] += 1
+                                except:
+                                    # probably a no daa liker -3.4E38
+                                    pass
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 if crop != cropNoData and soil != soilNoData and slope != slopeNoData:
                                     hru = BasinData.getHruNumber(channelLandscapeCropSoilSlopeNumbers, lastHru, chLink, landscape, crop, soil, slope)

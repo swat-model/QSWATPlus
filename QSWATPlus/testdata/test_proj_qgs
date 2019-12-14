@@ -1,5 +1,5 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis projectname="" version="3.4.11-Madeira">
+<qgis projectname="" version="3.4.13-Madeira">
   <homePath path=""/>
   <title></title>
   <autotransaction active="0"/>
@@ -21,11 +21,11 @@
     <customproperties/>
     <custom-order enabled="0"/>
   </layer-tree-group>
-  <snapping-settings tolerance="0" intersection-snapping="0" mode="3" type="1" enabled="1" unit="2">
+  <snapping-settings type="1" unit="2" intersection-snapping="0" mode="3" enabled="1" tolerance="0">
     <individual-layer-settings/>
   </snapping-settings>
   <relations/>
-  <mapcanvas annotationsVisible="1" name="theMapCanvas">
+  <mapcanvas name="theMapCanvas" annotationsVisible="1">
     <units>degrees</units>
     <extent>
       <xmin>-1</xmin>
@@ -55,54 +55,54 @@
   <projectlayers/>
   <layerorder/>
   <properties>
-    <Gui>
-      <CanvasColorGreenPart type="int">255</CanvasColorGreenPart>
-      <SelectionColorRedPart type="int">255</SelectionColorRedPart>
-      <CanvasColorRedPart type="int">255</CanvasColorRedPart>
-      <SelectionColorAlphaPart type="int">255</SelectionColorAlphaPart>
-      <CanvasColorBluePart type="int">255</CanvasColorBluePart>
-      <SelectionColorGreenPart type="int">255</SelectionColorGreenPart>
-      <SelectionColorBluePart type="int">0</SelectionColorBluePart>
-    </Gui>
     <Paths>
       <Absolute type="bool">false</Absolute>
     </Paths>
     <Legend>
       <filterByMap type="bool">false</filterByMap>
     </Legend>
+    <SpatialRefSys>
+      <ProjectCrs type="QString">EPSG:4326</ProjectCrs>
+      <ProjectCRSID type="int">3452</ProjectCRSID>
+      <ProjectCRSProj4String type="QString">+proj=longlat +datum=WGS84 +no_defs</ProjectCRSProj4String>
+      <ProjectionsEnabled type="int">1</ProjectionsEnabled>
+    </SpatialRefSys>
+    <PositionPrecision>
+      <DecimalPlaces type="int">2</DecimalPlaces>
+      <Automatic type="bool">true</Automatic>
+    </PositionPrecision>
     <Measurement>
       <AreaUnits type="QString"></AreaUnits>
       <DistanceUnits type="QString">meters</DistanceUnits>
     </Measurement>
     <PAL>
       <DrawRectOnly type="bool">false</DrawRectOnly>
-      <CandidatesPoint type="int">16</CandidatesPoint>
       <ShowingAllLabels type="bool">false</ShowingAllLabels>
-      <ShowingPartialsLabels type="bool">true</ShowingPartialsLabels>
-      <CandidatesLine type="int">50</CandidatesLine>
       <ShowingCandidates type="bool">false</ShowingCandidates>
       <SearchMethod type="int">0</SearchMethod>
-      <TextFormat type="int">0</TextFormat>
+      <CandidatesPoint type="int">16</CandidatesPoint>
+      <ShowingPartialsLabels type="bool">true</ShowingPartialsLabels>
       <CandidatesPolygon type="int">30</CandidatesPolygon>
+      <CandidatesLine type="int">50</CandidatesLine>
+      <TextFormat type="int">0</TextFormat>
     </PAL>
-    <SpatialRefSys>
-      <ProjectCrs type="QString">EPSG:4326</ProjectCrs>
-      <ProjectCRSProj4String type="QString">+proj=longlat +datum=WGS84 +no_defs</ProjectCRSProj4String>
-      <ProjectionsEnabled type="int">1</ProjectionsEnabled>
-      <ProjectCRSID type="int">3452</ProjectCRSID>
-    </SpatialRefSys>
     <Digitizing>
+      <AvoidIntersectionsList type="QStringList"/>
       <LayerSnappingToleranceList type="QStringList"/>
+      <LayerSnappingEnabledList type="QStringList"/>
       <LayerSnappingList type="QStringList"/>
       <LayerSnapToList type="QStringList"/>
-      <LayerSnappingEnabledList type="QStringList"/>
       <LayerSnappingToleranceUnitList type="QStringList"/>
-      <AvoidIntersectionsList type="QStringList"/>
     </Digitizing>
-    <PositionPrecision>
-      <DecimalPlaces type="int">2</DecimalPlaces>
-      <Automatic type="bool">true</Automatic>
-    </PositionPrecision>
+    <Gui>
+      <SelectionColorBluePart type="int">0</SelectionColorBluePart>
+      <CanvasColorBluePart type="int">255</CanvasColorBluePart>
+      <SelectionColorRedPart type="int">255</SelectionColorRedPart>
+      <SelectionColorGreenPart type="int">255</SelectionColorGreenPart>
+      <CanvasColorGreenPart type="int">255</CanvasColorGreenPart>
+      <SelectionColorAlphaPart type="int">255</SelectionColorAlphaPart>
+      <CanvasColorRedPart type="int">255</CanvasColorRedPart>
+    </Gui>
   </properties>
   <visibility-presets/>
   <transformContext/>
