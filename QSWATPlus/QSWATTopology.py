@@ -843,7 +843,7 @@ class QSWATTopology:
                             lakeData.lakeChLinks.add(dsLink)
                             self.chLinkInsideLake[dsLink] = lakeId
                         self.chLinkIntoLake[link] = lakeId
-                        if elev != gv.elevationNoData:
+                        if not math.isclose(elev, gv.elevationNoData, rel_tol=1e-06):
                             totalElevation += elev
                             elevPointCount += 1
                         channelId: int = channel.id()
@@ -1231,7 +1231,7 @@ class QSWATTopology:
                         drainage = float(self.drainAreas[exLink]) if streamDrainageIndex < 0 else float(channel[streamDrainageIndex])
                         exPoint = QgsPointXY(reachData.upperX, reachData.upperY)
                         exElev = reachData.upperZ
-                        if exElev == gv.elevationNoData:
+                        if math.isclose(exElev, gv.elevationNoData, rel_tol=1e-06):
                             exElev = 0
                         data[exLink] = (exWsno, drainage, exPoint, exElev)
             others = list(data.keys())

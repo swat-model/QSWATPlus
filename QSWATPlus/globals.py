@@ -188,7 +188,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## path of floodplain raster
         self.floodFile = ''
         ## Nodata value for DEM
-        self.elevationNoData = 0
+        self.elevationNoData = 0.0
         ## DEM horizontal block size
         self.xBlockSize = 0
         ## DEM vertical block size

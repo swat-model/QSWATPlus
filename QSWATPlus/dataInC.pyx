@@ -29,6 +29,7 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import *  # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
+import math
 
 cdef class CellData:
 
@@ -801,7 +802,7 @@ cdef class BasinData:
         lsuData.totalLongitude += x
         if slopeValue != _gv.slopeNoData:
             lsuData.totalSlope += slopeValue
-        if elevation != _gv.elevationNoData:
+        if not math.isclose(elevation, _gv.elevationNoData, rel_tol=1e-06):
             lsuData.totalElevation += elevation
             if distSt != _gv.distStNoData and distSt > self.farDistance:
                 # We have found a new  farthest (by flow distance) point from the subbasin outlet:

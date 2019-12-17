@@ -502,8 +502,8 @@ class Delineation(QObject):
             Return next point id used."""
             if QSWATTopology.withinPixels(1, source, outlet, transform):
                 QSWATUtils.error("""Channel with LINKNO {0} crosses the boundary of lake {1} 
-but is too short to allow the creation of a crossing point.  You need to rerun delineation with a different channel threshold,
-either larger to lengthen the stream or smaller to remove it.."""
+but is too short to allow the creation of a crossing point.  You can try rerunning delineation with a different channel threshold,
+either smaller to lengthen the stream or larger to remove it.  Or if the lake is very small you may need to remove it or enlarge it."""
                                 .format(chLink, lakeId), self._gv.isBatch)
                 return currentPointId
             minMeasure = float('inf')
@@ -615,16 +615,21 @@ either larger to lengthen the stream or smaller to remove it.."""
             return False
         snapLayer = QgsVectorLayer(self._gv.snapFile, 'Snapped points', 'ogr')
         snapProvider = snapLayer.dataProvider()
-        # add ADDED field to define additional points
-        snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, QVariant.Int)])
-        snapLayer.updateFields()
         fields = snapProvider.fields()
         idIndex = fields.indexFromName(QSWATTopology._ID)
         resIndex = fields.indexFromName(QSWATTopology._RES)
         inletIndex = fields.indexFromName(QSWATTopology._INLET)
         srcIndex = fields.indexFromName(QSWATTopology._PTSOURCE)
         ptIdIndex = fields.indexFromName(QSWATTopology._POINTID)
+        # add ADDED field to define additional points
         addIndex = fields.indexFromName(QSWATTopology._ADDED)
+        print('Initially addIndex is {0}'.format(addIndex))
+        if addIndex < 0:
+            snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, QVariant.Int)])
+            snapLayer.updateFields()
+            fields = snapProvider.fields()
+            addIndex = fields.indexFromName(QSWATTopology._ADDED)
+            print('After adding addIndex is {0}'.format(addIndex))
         ds = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         transform = ds.GetGeoTransform()
         ds = None
@@ -645,7 +650,6 @@ either larger to lengthen the stream or smaller to remove it.."""
         geoMap: Dict[int, QgsGeometry] = dict()
         lakesToRemove: List[int] = []
         for lake in lakeProvider.getFeatures():
-            newPoints: List[QgsFeature] = []
             lakeId = lake[lakeIdIndex]
             geom = lake.geometry()
             if geom.type() != QgsWkbTypes.PolygonGeometry:
@@ -690,6 +694,7 @@ either larger to lengthen the stream or smaller to remove it.."""
 #             for err in lakeProvider.errors():
 #                 QSWATUtils.loginfo(err)
 #             return False
+        newPoints: List[QgsFeature] = []
         for lake in lakeProvider.getFeatures():
             lakeId = lake[lakeIdIndex]
             res = 2 if lakeResIndex >= 0 and lake[lakeResIndex] == 2 else 1  # default to reservoir

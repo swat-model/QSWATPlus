@@ -309,9 +309,9 @@ class CreateHRUs(QObject):
         if self._gv.useLandscapes:
             floodBand = floodDs.GetRasterBand(1)
         
-        elevationNoData: int = elevationBand.GetNoDataValue()
-        distStNoData: int = elevationNoData
-        distChNoData: int = elevationNoData
+        elevationNoData: float = elevationBand.GetNoDataValue()
+        distStNoData: float = elevationNoData
+        distChNoData: float = elevationNoData
         if not self._gv.existingWshed:
             distStNoData = distStBand.GetNoDataValue()
             if not self._gv.useGridModel:
@@ -613,20 +613,17 @@ class CreateHRUs(QObject):
                         if self._gv.useLandscapes:
                             floodRow = floodRowFun(row, y)
                         for col in colRange:
-                            elevation: float = cast(float, elevationData[row - elevationTopRow, col]) * self._gv.verticalFactor
-                            if elevation != elevationNoData:
-                                elevation = int(elevation)
+                            elevation = elevationData[row - elevationTopRow, col]
+                            # elevation: float = cast(float, elevationData[row - elevationTopRow, col]) * self._gv.verticalFactor
+                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                                elevation = int(elevation * self._gv.verticalFactor)
                                 index: int = elevation - self.minElev
                                 # can have index too large because max not calculated properly by gdal
                                 if index >= elevMapSize:
                                     extra = 1 + index - elevMapSize
                                     self.elevMap += [0] * extra
                                     elevMapSize += extra
-                                try:
-                                    self.elevMap[index] += 1
-                                except:
-                                    # probably a no daa liker -3.4E38
-                                    pass
+                                self.elevMap[index] += 1
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 channelLandscapeCropSoilSlopeNumbers = subbasinChannelLandscapeCropSoilSlopeNumbers.get(subbasin, None)
                                 if channelLandscapeCropSoilSlopeNumbers is None:
@@ -857,7 +854,7 @@ class CreateHRUs(QObject):
                                 elevation = cast(float, elevationData[0, elevationCol]) * self._gv.verticalFactor
                             else:
                                 elevation = elevationNoData
-                            if elevation != elevationNoData:
+                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 elevation = int(elevation)
                             if self._gv.useLandscapes:
                                 floodCol = floodColFun(col, x)
@@ -885,7 +882,7 @@ class CreateHRUs(QObject):
                                 self.basins[subbasin] = data
                             data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elevation, slopeValue, distSt, distCh, x, y, self._gv)
                             self.basins[subbasin] = data
-                            if elevation != elevationNoData:
+                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 index = int(elevation) - self.minElev
                                 # can have index too large because max not calculated properly by gdal
                                 if index >= elevMapSize:
@@ -894,12 +891,8 @@ class CreateHRUs(QObject):
                                         self.basinElevMap[b] += [0] * extra
                                     self.elevMap += [0] * extra
                                     elevMapSize += extra
-                                try:
-                                    self.basinElevMap[subbasin][index] += 1
-                                    self.elevMap[index] += 1
-                                except:
-                                    # probably a no daa liker -3.4E38
-                                    pass
+                                self.basinElevMap[subbasin][index] += 1
+                                self.elevMap[index] += 1
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 if crop != cropNoData and soil != soilNoData and slope != slopeNoData:
                                     hru = BasinData.getHruNumber(channelLandscapeCropSoilSlopeNumbers, lastHru, chLink, landscape, crop, soil, slope)
@@ -2939,7 +2932,13 @@ class CreateHRUs(QObject):
                         if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
                             self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, QSWATTopology._SURFACE, upslopePercent)
                     else:
-                        self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._SURFACE, upslopePercent)
+                        lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
+                        if lake > 0:
+                            lakeData = self._gv.topo.lakesData[lake]
+                            lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                            self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, QSWATTopology._SURFACE, upslopePercent)
+                        else:
+                            self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._SURFACE, upslopePercent)
                     self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', QSWATTopology._SURFACE, 100 - upslopePercent)
                     self._gv.db.addToRouting(curs, lsuId, 'LSU', downLsuId, 'LSU', QSWATTopology._LATERAL, 100)
             else:
