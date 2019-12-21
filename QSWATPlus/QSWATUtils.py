@@ -55,7 +55,13 @@ from qgis.core import Qgis, \
                         QgsSingleBandPseudoColorRenderer, \
                         QgsUnitTypes, \
                         QgsVectorLayer, \
-                        QgsWkbTypes 
+                        QgsWkbTypes, \
+                        QgsLineSymbol, \
+                        QgsGradientColorRamp, \
+                        QgsRendererRangeLabelFormat, \
+                        QgsGraduatedSymbolRenderer
+                        
+                        
                         
 
 import os.path
@@ -1580,6 +1586,25 @@ class FileTypes:
         enhancement.setMaximumValue(1)
         renderer.setContrastEnhancement(enhancement)
         layer.setRenderer(renderer)
+        layer.triggerRepaint()
+        
+    @staticmethod
+    def colourStreams(layer: QgsVectorLayer, penWidth: str, drainage: str) -> None:
+        """Colour streams layer classifying drainage with symbol based on penWidth."""
+                # make stream width dependent on drainage values (drainage is accumulation, ie number of dem cells draining to start of stream)
+        numClasses = 5
+        props = {'width_expression': penWidth}
+        symbol = QgsLineSymbol.createSimple(props)
+        # ramp from light to darkish blue
+        color1 = QColor(166,206,227,255)
+        color2 = QColor(0,0,255,255)
+        ramp = QgsGradientColorRamp(color1, color2)
+        labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
+        renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, drainage,
+                                                               numClasses, QgsGraduatedSymbolRenderer.Jenks,
+                                                               symbol, ramp, labelFmt)
+        layer.setRenderer(renderer)
+        layer.setOpacity(1)
         layer.triggerRepaint()
         
 

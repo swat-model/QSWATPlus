@@ -623,13 +623,11 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
         ptIdIndex = fields.indexFromName(QSWATTopology._POINTID)
         # add ADDED field to define additional points
         addIndex = fields.indexFromName(QSWATTopology._ADDED)
-        print('Initially addIndex is {0}'.format(addIndex))
         if addIndex < 0:
             snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, QVariant.Int)])
             snapLayer.updateFields()
             fields = snapProvider.fields()
             addIndex = fields.indexFromName(QSWATTopology._ADDED)
-            print('After adding addIndex is {0}'.format(addIndex))
         ds = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         transform = ds.GetGeoTransform()
         ds = None

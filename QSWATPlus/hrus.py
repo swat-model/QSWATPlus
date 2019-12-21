@@ -613,11 +613,10 @@ class CreateHRUs(QObject):
                         if self._gv.useLandscapes:
                             floodRow = floodRowFun(row, y)
                         for col in colRange:
-                            elevation = elevationData[row - elevationTopRow, col]
-                            # elevation: float = cast(float, elevationData[row - elevationTopRow, col]) * self._gv.verticalFactor
+                            elevation = cast(float, elevationData[row - elevationTopRow, col])
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
-                                elevation = int(elevation * self._gv.verticalFactor)
-                                index: int = elevation - self.minElev
+                                elev = int(elevation * self._gv.verticalFactor)
+                                index: int = elev - self.minElev
                                 # can have index too large because max not calculated properly by gdal
                                 if index >= elevMapSize:
                                     extra = 1 + index - elevMapSize
@@ -705,7 +704,7 @@ class CreateHRUs(QObject):
                                     lsuRows[row - elevationTopRow, col] = lsuId
                             else:
                                 landscape = QSWATUtils._NOLANDSCAPE
-                            data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elevation, slopeValue, distSt, distCh, x, y, self._gv)
+                            data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elev, slopeValue, distSt, distCh, x, y, self._gv)
                             self.basins[subbasin] = data
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 if crop != cropNoData and soil != soilNoData and slope != slopeNoData:
@@ -851,11 +850,11 @@ class CreateHRUs(QObject):
                                 slope = slopeBandsNoData
                             elevationCol = elevationColFun(col, x)
                             if 0 <= elevationCol < elevationNumberCols and 0 <= elevationRow < elevationNumberRows:
-                                elevation = cast(float, elevationData[0, elevationCol]) * self._gv.verticalFactor
+                                elevation = cast(float, elevationData[0, elevationCol])
                             else:
                                 elevation = elevationNoData
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
-                                elevation = int(elevation)
+                                elev = int(elevation * self._gv.verticalFactor)
                             if self._gv.useLandscapes:
                                 floodCol = floodColFun(col, x)
                                 if 0 <= floodCol < floodNumberCols and 0 <= floodRow < floodNumberRows:
@@ -880,7 +879,7 @@ class CreateHRUs(QObject):
                                     farDistance = -1
                                 data = BasinData(self._db.waterLanduse, farDistance, 0)
                                 self.basins[subbasin] = data
-                            data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elevation, slopeValue, distSt, distCh, x, y, self._gv)
+                            data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elev, slopeValue, distSt, distCh, x, y, self._gv)
                             self.basins[subbasin] = data
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 index = int(elevation) - self.minElev
@@ -3813,6 +3812,9 @@ class CreateHRUs(QObject):
                             deepYMoment += y * upArea
                         if hasFlood:
                             elev = QSWATTopology.valueAtPoint(centroid, demLayer)
+                            if elev is None:
+                                elev = 0
+                                # QSWATUtils.loginfo('No elevation for basin {0}'.format(chBasin))
                             (aqArea, aqElevMoment, _, _) = aquiferData.setdefault(floodAquiferId, (0.0, 0.0, 0.0, 0.0))
                             aqArea += floodArea
                             aqElevMoment += elev * floodArea
@@ -3823,6 +3825,9 @@ class CreateHRUs(QObject):
                             deepYMoment += y * floodArea
                         elif not hasUp:
                             elev = QSWATTopology.valueAtPoint(centroid, demLayer)
+                            if elev is None:
+                                elev = 0
+                                # QSWATUtils.loginfo('No elevation for basin {0}'.format(chBasin))
                             (aqArea, aqElevMoment, _, _) = aquiferData.setdefault(aquiferId, (0.0, 0.0, 0.0, 0.0))
                             aqArea += chBasinArea
                             aqElevMoment += elev * chBasinArea
@@ -3851,14 +3856,30 @@ class CreateHRUs(QObject):
                             if downAqId in aquiferData:
                                 self._gv.db.addToRouting(cursor, aqId, 'AQU', downAqId, 'AQU', QSWATTopology._TOTAL, 100)
                             else:
-                                pointId, _, _ = self._gv.topo.outlets[basin]
-                                self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                                pointId, _, chLink = self._gv.topo.outlets[basin]
+                                lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                                if lakeId < 0:
+                                    lakeId = self._gv.topo.chLinkInsideLake.get(chLink, -1)
+                                if lakeId < 0:
+                                    self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                                else:
+                                    lakeData = self._gv.topo.lakesData[lakeId]
+                                    wCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                                    self._gv.db.addToRouting(cursor, aqId, 'AQU', lakeId, wCat, QSWATTopology._TOTAL, 100)
                         else:
                             cursor.execute(DBUtils._INSERTAQUIFERS,
                                            (aqId, landscape, SWATBasin, deepAquiferId, area / 1E4, centroidll.y(), centroidll.x(), elev))
                             # route total flow to subbasin outlet
-                            pointId, _, _ = self._gv.topo.outlets[basin]
-                            self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                            pointId, _, chLink = self._gv.topo.outlets[basin]
+                            lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                            if lakeId < 0:
+                                lakeId = self._gv.topo.chLinkInsideLake.get(chLink, -1)
+                            if lakeId < 0:
+                                self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                            else:
+                                lakeData = self._gv.topo.lakesData[lakeId]
+                                wCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                                self._gv.db.addToRouting(cursor, aqId, 'AQU', lakeId, wCat, QSWATTopology._TOTAL, 100)
                         # route recharge to deep aquifer
                         self._gv.db.addToRouting(cursor, aqId, 'AQU', deepAquiferId, 'DAQ', QSWATTopology._RECHARGE, 100)
                 # write deep aquifers
@@ -3921,15 +3942,23 @@ class CreateHRUs(QObject):
                 floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
                 floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
                 QSWATUtils.tryRemoveLayerAndFiles(floodShapefile, root)
+                # gdal_polygonize is broken in QGIS 3.4.14; use SAGA, or don't, as that fails on Ravn
                 params = {'INPUT': floodPath,
                           'BAND': 1,
                           'FIELD': 'DN',
                           'EIGHT_CONNECTEDNESS': False,
                           'OUTPUT': floodShapefile}
                 processing.run('gdal:polygonize', params, context=context)
+                # SAGA fails on Ravn example with floodplain, so back to GDAL above
+#                 params = {'GRID': floodPath,
+#                           'CLASS_ALL': 0,
+#                           'CLASS_ID': 1,
+#                           'SPLIT': 0,
+#                           'POLYGONS': floodShapefile}
+#                 processing.run("saga:vectorisinggridclasses", params)
+                # the flood polygon can cause errors in calculating the difference and intersection, 
                 if not os.path.isfile(floodShapefile):
                     raise Exception('Failed to polygonize floodplain raster')
-                # the flood plygon can cause errors in calculating the difference and intersection, 
                 # so first try to fix its geometry
                 floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
                 QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
@@ -3938,7 +3967,7 @@ class CreateHRUs(QObject):
                 # upslope aquifers are subbasins minus the floodplain
                 upAqFile = QSWATUtils.tempFile('.shp')
                 processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)
-                # add Aquifer field and seto to 10 * subbasin + 2
+                # add Aquifer field and set number to 10 * subbasin + 2
                 upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
                 addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._UPSLOPE)
                 # QgsProject.instance().addMapLayer(upAqLayer)
@@ -3947,7 +3976,7 @@ class CreateHRUs(QObject):
                 processing.run("native:intersection", 
                                {'INPUT': subsFile, 'OVERLAY': floodFixed, 'INPUT_FIELDS': [], 
                                 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
-                # add Aquifer field and seto to 10 * subbasin + 1
+                # add Aquifer field and set number to 10 * subbasin + 1
                 downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
                 addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._FLOODPLAIN)
                 # QgsProject.instance().addMapLayer(downAqLayer)
@@ -3994,7 +4023,7 @@ class CreateHRUs(QObject):
             # dissolve on Aquifer field
             processing.run("native:dissolve", 
                            {'INPUT': tempDeepAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': deepAqFile}, context=context)
-            deepAqLayer = QgsVectorLayer(deepAqFile, 'Deep aquifers', 'ogr')
+            # deepAqLayer = QgsVectorLayer(deepAqFile, 'Deep aquifers', 'ogr')
 #             # try using SAGA dissolve
 #             params = {'POLYGONS': tempDeepAqFile,
 #                       'FIELD_1': QSWATTopology._AQUIFER,

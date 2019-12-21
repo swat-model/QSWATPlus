@@ -196,9 +196,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Nodata value for basins raster
         self.basinNoData = 0
         ## Nodata value for distance to outlets raster
-        self.distStNoData = 0
+        self.distStNoData = 0.0
         ## Nodata value for distance to channel raster
-        self.distChNoData = 0
+        self.distChNoData = 0.0
         ## Nodata value for slope raster
         self.slopeNoData = 0
         ## Nodata value for landuse raster
