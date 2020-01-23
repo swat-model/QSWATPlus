@@ -76,6 +76,7 @@ from osgeo import gdal, ogr  # type: ignore
 from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic, cast
 from builtins import int
 import traceback
+import processing  # type: ignore @UnresolvedImport
 
 class QSWATUtils:
     """Various utilities."""
@@ -675,7 +676,7 @@ class QSWATUtils:
                     err: QgsError = mapLayer.error()
                     msg = err.summary()
                 else:
-                    msg = 'layer is None'
+                    msg = 'layer is None: {0}'.format(proj.error())
                 QSWATUtils.error('Failed to load {0}: {1}'.format(fileName, msg), gv.isBatch)
         return (None, False)
     
@@ -753,12 +754,13 @@ class QSWATUtils:
     @staticmethod    
     def openAndLoadFile(root: QgsLayerTreeGroup, ft: int,
                         box: QTextEdit, saveDir: str, gv: Any, 
-                        subLayer: QgsLayerTreeLayer, groupName: str, clipToDEM: bool =False) \
+                        subLayer: QgsLayerTreeLayer, groupName: str, clipToDEM: bool=False, runFix: bool=False) \
                             -> Tuple[Optional[str], Optional[QgsMapLayer]]:
         """
         Use dialog to open file of FileType ft chosen by user, 
         add a layer for it if necessary, 
         clip if clipToDEM is true and substantially larger than DEM,
+        run geometry fix if runFix is true,
         copy files to saveDir, write path to box,
         and return file path and layer.
         """
@@ -807,8 +809,13 @@ class QSWATUtils:
                     del inDs
                     del outDs
                 else:
-                    QSWATUtils.copyFiles(inInfo, saveDir)
+                    if runFix:
+                        QSWATUtils.fixGeometry(inFileName, saveDir)
+                    else:
+                        QSWATUtils.copyFiles(inInfo, saveDir)
             else:
+                # even if runFix is true, has already neen stored in project folder 
+                # and so fixing geometry should be unnecessary
                 outFileName = inFileName
             if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER:
                 # not to be loaded into QGIS
@@ -840,6 +847,14 @@ class QSWATUtils:
             return (outFileName, layer)
         else:
             return (None, None)
+        
+    @staticmethod
+    def fixGeometry(inFile, saveDir):
+        """Fix geometries in shapefile.  Assumes saveDir is not the folder of inFile."""
+        filename = os.path.split(inFile)[1]
+        outFile = QSWATUtils.join(saveDir, filename)
+        params = {'INPUT': inFile, 'OUTPUT': outFile}
+        processing.run('native:fixgeometries', params)
         
     @staticmethod
     def getFeatureByValue(layer: QgsVectorLayer, indx: int, val: Any) -> Optional[QgsFeature]:

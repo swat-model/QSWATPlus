@@ -2377,7 +2377,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             else:
                 subLayer = None
         (lakesFile, lakesLayer) = QSWATUtils.openAndLoadFile(root, FileTypes._LAKES, self._dlg.selectLakes, self._gv.shapesDir, 
-                                                           self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
+                                                           self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME, runFix=True)
         if lakesFile and lakesLayer:
             lakesLayer.setLabelsEnabled(False)
             self._gv.lakeFile = lakesFile

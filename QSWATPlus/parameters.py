@@ -39,7 +39,7 @@ class Parameters:
     """Collect QSWAT parameters (location of SWATPlus directory and MPI) from user and save."""
     
     _ISWIN = os.name == 'nt'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/swatplus'
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus'
     _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'

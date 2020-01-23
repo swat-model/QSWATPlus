@@ -132,13 +132,13 @@ class ConvertFromArc(QObject):
                 # convert to string from QString
                 self.arcProjDir = str(self.arcProjDir)
                 self.arcProjName = os.path.split(self.arcProjDir)[1]
-                arcProjFile = os.path.join(self.arcProjDir, self.arcProjName + '.mxd')
-                if not os.path.exists(arcProjFile):
-                    ConvertFromArc.error('Cannot find ArcSWAT project file {0}'.format(arcProjFile))
+                arcDbFile = os.path.join(self.arcProjDir, self.arcProjName + '.mdb')
+                if not os.path.exists(arcDbFile):
+                    ConvertFromArc.error('Cannot find ArcSWAT database file {0}'.format(arcDbFile))
                     self.arcProjDir = None
                     continue
             except Exception:
-                ConvertFromArc.exceptionError('Cannot find ArcSWAT project file in {0}'.format(self.arcProjDir))
+                ConvertFromArc.exceptionError('Cannot find ArcSWAT database file {0} in {1}'.format(self.arcProjName + '.mdb', self.arcProjDir))
                 self.arcProjDir = None
                 continue
         # set up QSWAT+ project directory
@@ -335,8 +335,14 @@ class ConvertFromArc(QObject):
         """Copy ESRI DEM as GeoTiff into QSWAT project."""
         inDEM = os.path.join(self.arcProjDir, r'Watershed\Grid\sourcedem\hdr.adf')
         if not os.path.exists(inDEM):
-            ConvertFromArc.error('Cannot find DEM {0}'.format(inDEM))
-            return False
+            if self.choice == ConvertFromArc._noGISChoice:
+                self.crs = None
+                self.transformFromDeg = None
+                self.transformToLatLong = None
+                return True
+            else:
+                ConvertFromArc.error('Cannot find DEM {0}'.format(inDEM))
+                return False
         demLayer = QgsRasterLayer(inDEM, 'DEM')
         self.crs = demLayer.crs()
         crsLatLong = QgsCoordinateReferenceSystem()
@@ -1123,11 +1129,13 @@ class ConvertFromArc(QObject):
         return result
                     
     def createDbTables(self):
-        """Create gis_landexempt, gis_splithrus and gis_elevationbands tables,
+        """Creates gis_landexempt, gis_splithrus and gis_elevationbands tables,
         creates MonitoringPoint.csv,
         and reads MasterProgress table to set number of landuse classes and soil option.
         Also reads Reach, hrus and Watershed if no GIS option selected.
-        Also reads SubHmd, SubSlr and SubWnd if they exist for their weather stations.
+        Also reads SubPcp and SubTmp, SubHmd, SubSlr and SubWnd if they exist for their weather stations.
+        Also reads pcp*, tmp* if they exist.
+        Also reads cio to get data on number of gauges, number of gauges in pcp data files, etc.
         
         This is a 64-bit program for which there is no Access driver.
         Instead use the AccessToCSV program to write csv files which are then read."""
@@ -1135,7 +1143,8 @@ class ConvertFromArc(QObject):
         arcProjDb = os.path.join(self.arcProjDir, self.arcProjName + '.mdb')
         # extract csv files 
         toolPath = os.path.join(self.ConvertFromArcDir, 'AccessToCSV.exe')
-        args = [toolPath, arcProjDb, 'LuExempt', 'SplitHrus', 'ElevationBand', 'MasterProgress', 'MonitoringPoint', 'SubHmd', 'SubSlr', 'SubWnd']
+        args = [toolPath, arcProjDb, 'LuExempt', 'SplitHrus', 'ElevationBand', 'MasterProgress', 'MonitoringPoint', 
+                'SubPcp', 'SubTmp', 'SubHmd', 'SubSlr', 'SubWnd', 'pcp*', 'tmp*', 'cio']
         if self.choice == ConvertFromArc._noGISChoice:
             args.extend(['Reach', 'hrus', 'Watershed'])
         subprocess.run(args, cwd=projCsvDir)
@@ -1601,54 +1610,105 @@ class ConvertFromArc(QObject):
         if not os.path.isdir(arcTxtInOutDir):
             return
         qTextInOutDir = os.path.join(self.qProjDir, r'Scenarios\Default\TxtInOut')
-        hmdSlrWndTables = dict()
-        # each table maps a position in a hmd, slr or wnd data file to a (station name, pcp or tmp position)
-        hmdSlrWndTables['hmd'] = dict()
-        hmdSlrWndTables['slr'] = dict()
-        hmdSlrWndTables['wnd'] = dict()
-        self.populateWeatherTables(hmdSlrWndTables)
+        gaugeStats = ConvertFromArc.GaugeStats()
+        gaugeStats.setStats(self.qProjDir)
+        # map typ -> order in data file -> WeatherStation
+        stationTables = dict()
+        self.populateWeatherTables(stationTables)
         with sqlite3.connect(qProjDb) as qConn:
             cursor = qConn.cursor()
             cursor.execute('DROP TABLE IF EXISTS weather_file')
             cursor.execute(ConvertFromArc._CREATEWEATHERFILE)
             cursor.execute('DROP TABLE IF EXISTS weather_sta_cli')
             cursor.execute(ConvertFromArc._CREATEWEATHERSTATION)
-            stations = dict()
-            # note pcp and tmp must be run before other three, since they use pcp or tmp weather station data
-            self.createWeatherTypeData(stations, 'pcp', 'precipitation', None, arcTxtInOutDir, qTextInOutDir)
-            self.createWeatherTypeData(stations, 'tmp', 'temperature', None, arcTxtInOutDir, qTextInOutDir)
-            hmdTable = hmdSlrWndTables['hmd']
-            if len(hmdTable) > 0:
-                self.createWeatherTypeData(stations, 'hmd', 'relative humidity', hmdTable, arcTxtInOutDir, qTextInOutDir)
-            slrTable = hmdSlrWndTables['slr']
-            if len(slrTable) > 0:
-                self.createWeatherTypeData(stations, 'slr', 'solar radiation', slrTable, arcTxtInOutDir, qTextInOutDir)
-            wndTable = hmdSlrWndTables['wnd']
-            if len(wndTable) > 0:
-                self.createWeatherTypeData(stations, 'wnd', 'wind speed', wndTable, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData('pcp', 'precipitation', stationTables['pcp'], 
+                                       gaugeStats.nrgauge, gaugeStats.nrtot, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData('tmp', 'temperature', stationTables['tmp'], 
+                                       gaugeStats.ntgauge, gaugeStats.nttot, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData('hmd', 'relative humidity', stationTables['hmd'], 
+                                       1, gaugeStats.nhtot, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData('slr', 'solar radiation', stationTables['slr'], 
+                                       1, gaugeStats.nstot, arcTxtInOutDir, qTextInOutDir)
+            self.createWeatherTypeData('wnd', 'wind speed', stationTables['wnd'], 
+                                       1, gaugeStats.nwtot, arcTxtInOutDir, qTextInOutDir)
             # write stations to project database
-            self.writeWeatherStations(stations, cursor)
+            self.writeWeatherStations(stationTables, cursor)
             qConn.commit()
             
-    def populateWeatherTables(self, hmdSlrWndTables):
-        """Fill stations, orders tables from Subtyp tables."""
+    def populateWeatherTables(self, stationTables):
+        """Fill stationTables from Subtyp and typ tables."""
+        
+        def populateStations(typFile, typStations):
+            """Use typ.csv file to make map staId -> WeatherStation."""
+            with open(typFile, 'r', newline='') as f:
+                reader = csv.reader(f)
+                next(reader)  # skip header row
+                for row in reader:
+                    staId = int(row[0])
+                    station = ConvertFromArc.WeatherStation(row[1], float(row[2]), float(row[3]), float(row[4]))
+                    typStations[staId] = station
+            
         projCsvDir = os.path.join(self.qProjDir, r'csv\Project')
-        for typ, data in hmdSlrWndTables.items():
+        pcpTmp = ['pcp', 'tmp']
+        stations = dict()
+        for typ in pcpTmp:
+            typStations = dict()
+            stations[typ] = typStations
+            typFile = os.path.join(projCsvDir, '{0}.csv'.format(typ))
+            if os.path.isfile(typFile):
+                populateStations(typFile, typStations)
+            else:
+                ConvertFromArc.error('Cannot find {0}* table'.format(typ))
+                return
+        # important to do pcp and tmp first here as others use pcp or tmp station latitude etc
+        for typ in ['pcp', 'tmp', 'hmd', 'slr', 'wnd']:
+            data = dict()
+            # leave this entry as an empty table if no data of this typ, since passed to createWeatherTypeData later
+            stationTables[typ] = data
             csvFile = os.path.join(projCsvDir, 'Sub{0}.csv'.format(typ.capitalize()))
-            if os.path.exists(csvFile):
+            if os.path.isfile(csvFile):
                 with open(csvFile, 'r', newline='') as f:
                     reader = csv.reader(f)
                     next(reader)  # skip header row
                     for row in reader:
-                        order = int(row[3])
-                        if order not in data:
-                            data[order] = (row[4], int(row[5]))
+                        minRec = row[3]
+                        name = row[4]
+                        order = row[5]
+                        if minRec == '':
+                            if typ in pcpTmp:
+                                # HAWQS leaves this blank; find name in stations and assume order will be same as ID there
+                                for staId, station in stations[typ].items():
+                                    if name == station.name:
+                                        minRec = staId
+                                        order = staId
+                                        break
+                                if minRec == '':
+                                    ConvertFromArc.error('Cannot find station {0} in {1}* table'.format(name, typ))
+                                    return
+                            else:
+                                ConvertFromArc.error('MinRec field in table Sub{0} is blank'.format(typ.capitalize()))
+                        else:
+                            minRec = int(minRec)
+                            order = int(order)
+                        if order in data:
+                            continue
+                        if typ in pcpTmp:
+                            station = stations[typ][minRec]
+                        else:
+                            if typ == 'slr':
+                                # order is order in tmp data
+                                station1 = stationTables['tmp'][order]
+                            else:
+                                station1 = stationTables['pcp'][order]
+                            station = ConvertFromArc.WeatherStation(name, station1.latitude, station1.longitude, station1.elevation) 
+                        data[order] = station
             
-    def createWeatherTypeData(self, stations, typ, descr, hmdSlrWndTable, arcTxtInOutDir, qTxtInOutDir):
+    def createWeatherTypeData(self, typ, descr, stationTable, numFiles, numRecords, arcTxtInOutDir, qTxtInOutDir):
         """Create typ data files files from ArcSWAT TxtInOut files."""
+        if len(stationTable) == 0:
+            # no weather data for this typ
+            return
         print('Writing {0} data ...'.format(descr))
-        stations[typ] = []
-        infileNum = 0
         now = datetime.datetime.now()
         timeNow = now.strftime("%Y-%m-%d %H:%M")
         staFile = os.path.join(qTxtInOutDir, '{0}.cli'.format(typ))
@@ -1656,70 +1716,38 @@ class ConvertFromArc(QObject):
             staF.write('{0}.cli : {1} file names - file written by ConvertFromArc {2}\n'.format(typ, descr, timeNow))
             staF.write('filename\n')
             stationNamesToSort = []
-            finished = False
-            while not finished:
+            for num in range(numFiles):
                 if typ == 'pcp' or typ == 'tmp':
-                    infileNum += 1
+                    infileNum = num+1
                     inFile = os.path.join(arcTxtInOutDir, '{1}{0!s}.{1}'.format(infileNum, typ))
                     if not os.path.isfile(inFile):
-                        break
+                        ConvertFromArc.error('Cannot find weather data file {0}'.format(inFile))
+                        return
                 else:
                     inFile = os.path.join(arcTxtInOutDir, '{0}.{0}'.format(typ))
                     if not os.path.isfile(inFile):
-                        break
-                    finished = True  # at most one tmp, slr or wnd file
-                # order is one more than number of stations added for this typ
-                order = 1
+                        ConvertFromArc.error('Cannot find weather data file {0}'.format(inFile))
+                        return
+                numWidth = 5
                 with open(inFile, 'r') as f:
+                    # skip comment first line
+                    f.readline()
                     if typ == 'pcp' or typ == 'tmp':
-                        stationNames = f.readline()[8:].split(',') # skip 'Station ' at start of header
-                        for name in stationNames:
-                            name = name.strip()
-                            if name != '': # there is a trailing comma in header, so last station is empty
-                                # make new list of stripped names (so can be properly sorted later: may have leading blanks)
-                                stationNamesToSort.append(name)
-                                station = ConvertFromArc.WeatherStation(name, order)
-                                stations[typ].append(station)
-                                order += 1
                         if typ == 'tmp':
                             width = 10
-                            numWidth = 5
                         else:
                             width = 5
                         latitudes = f.readline()
-                        for i in range(order-1):
-                            start = 7 + width * i
-                            stations[typ][i].latitude = float(latitudes[start:start+width])
-                        longitudes = f.readline()
-                        for i in range(order-1):
-                            start = 7 + width * i
-                            stations[typ][i].longitude = float(longitudes[start:start+width])
-                        elevations = f.readline()
-                        for i in range(order-1):
-                            start = 7 + width * i
-                            stations[typ][i].elevation = float(elevations[start:start+width])
+                        # use latitudes line to get number of records in this file
+                        numRecords = (len(latitudes) - 7) // width
+                        _ = f.readline()  # longitudes
+                        _ = f.readline()  # elevations
                     else:
-                        # skip comment first line
-                        f.readline()
-                        # for hmd, slr, wnd station details come from corresponding pcp or tmp station
-                        if typ == 'slr':  # use tmp station details
-                            stationList = stations['tmp']
-                        else:
-                            stationList = stations['pcp']
-                        for pos, (name, fndOrder) in hmdSlrWndTable.items():
-                            for station in stationList:
-                                if station.order == fndOrder:
-                                    name = name.strip()
-                                    stationNamesToSort.append(name)
-                                    station2 = ConvertFromArc.WeatherStation(name, pos)
-                                    station2.latitude = station.latitude
-                                    station2.longitude = station.longitude
-                                    station2.elevation = station.elevation
-                                    stations[typ].append(station2)
-                                    break
-                            order = max(order, pos)
-                        order += 1
                         width = 8            
+                    for i in range(numRecords):
+                        order = i+1
+                        name = stationTable[order].name
+                        stationNamesToSort.append(name) 
                     # collect data in arrays
                     dates = []
                     data = []
@@ -1731,13 +1759,13 @@ class ConvertFromArc(QObject):
                         if typ == 'tmp':
                             nextData = [(float(line[start:start+numWidth]),
                                          float(line[start+numWidth:start+width])) 
-                                         for start in [7+width*i for i in range(order-1)]]
+                                         for start in [7+width*i for i in range(numRecords)]]
                         else:
-                            nextData = [float(line[start:start+width]) for start in [7+width*i for i in range(order-1)]]
+                            nextData = [float(line[start:start+width]) for start in [7+width*i for i in range(numRecords)]]
                         data.append(nextData)
                     # write files
-                    for station in stations[typ]:
-                        pos = station.order - 1
+                    for order, station in stationTable.items():
+                        pos = order - 1
                         fileName = '{0}.{1}'.format(station.name, typ)
                         outFile = os.path.join(qTxtInOutDir, fileName)
                         with open(outFile, 'w') as f:
@@ -1769,22 +1797,45 @@ class ConvertFromArc(QObject):
             for name in sorted(stationNamesToSort):
                 staF.write('{0}.{1}\n'.format(name, typ))
                             
-    def writeWeatherStations(self, stations, cursor):
+    def writeWeatherStations(self, stationTables, cursor):
         """Wtite entries for stations in weather_file and weather_sta_cli. """
+        # dictionary collectedName -> typ -> WeatherStation
+        collectedStations = dict()
+        for typ, stations in stationTables.items():
+            for station in stations.values():
+                # generate name from latitude and longitude enabling co-located stations of different types to be merged
+                lat = int(round(station.latitude, 2) * 100)
+                latStr = '{0}n'.format(lat) if lat >= 0 else '{0}s'.format(abs(lat))
+                lon = int(round(station.longitude, 2) * 100)
+                if lon > 180:
+                    lon = lon - 360
+                lonStr = '{0}e'.format(lon) if lon >= 0 else '{0}w'.format(abs(lon))
+                collectedName = 'sta' + lonStr + latStr
+                data = collectedStations.setdefault(collectedName, dict())
+                data[typ] = station
         staId = 0
-        for typ, stationList in stations.items():
-            for station in stationList:
-                staId += 1
+        staFileId = 0
+        for collectedName, data in collectedStations.items():
+            files = ['sim', 'sim', 'sim', 'sim', 'sim', 'sim', 'sim']
+            first = True
+            wgnId = 0
+            latitude = 0.0
+            longitude = 0.0
+            for typ, station in data.items():
+                if first:
+                    latitude = station.latitude
+                    longitude = station.longitude
+                    wgnId = self.nearestWgn(latitude, longitude)
+                    first = False
+                staFileId += 1
                 fileName = '{0}.{1}'.format(station.name, typ)
                 cursor.execute(ConvertFromArc._INSERTWEATHERFILE, 
-                               (staId, fileName, typ,
-                                station.latitude, station.longitude))
+                               (staFileId, fileName, typ, latitude, longitude))
                 indx = ['pcp', 'tmp', 'slr', 'hmd', 'wnd'].index(typ)
-                files = ['sim', 'sim', 'sim', 'sim', 'sim', 'sim', 'sim']
                 files[indx] = fileName
-                wgnId = self.nearestWgn(station.latitude, station.longitude)
-                cursor.execute(ConvertFromArc._INSERTWEATHERSTATION, 
-                               (staId, station.name, wgnId) + tuple(files) + (station.latitude, station.longitude))
+            staId += 1
+            cursor.execute(ConvertFromArc._INSERTWEATHERSTATION, 
+                           (staId, collectedName, wgnId) + tuple(files) + (latitude, longitude))
                             
     def nearestWgn(self, lat, lon):
         """Return nearest wgn station id, or -1 if none.
@@ -1810,8 +1861,51 @@ class ConvertFromArc(QObject):
         # subasin - reach relation is 1-1, so use same number for each
         downstreamSubbasin = dict()
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
+        # table of (x, y, lat, long) tuples from MonitoringPoint table
+        transformTable = []
         with sqlite3.connect(qProjDb) as conn:
             cursor = conn.cursor()
+            # gis_points
+            cursor.execute('DROP TABLE IF EXISTS gis_points')
+            cursor.execute(ConvertFromArc._CREATEPOINTS)
+            reservoirSubbasins = set()  # subbasins with reservoirs
+            subbasinToOutlet = dict()
+            inletToSubbasin = dict()
+            ptsrcToSubbasin = dict()
+            ptNum = 0
+            monitoringPoints = os.path.join(self.qProjDir, r'csv\Project\MonitoringPoint.csv')
+            if os.path.isfile(monitoringPoints):
+                with open(monitoringPoints, 'r', newline='') as f:
+                    reader = csv.reader(f)
+                    next(reader)  # skip header
+                    for row in reader:
+                        transformTable.append((float(row[4]), float(row[5]), float(row[6]), float(row[7])))
+                        ptNum += 1
+                        subbasin = int(row[11])
+                        arcType = row[10]
+                        if arcType in ['L', 'T', 'O']:
+                            qType = 'O'
+                            subbasinToOutlet[subbasin] = ptNum
+                        elif arcType in ['W', 'I']:
+                            qType = 'I'
+                            inletToSubbasin[ptNum] = subbasin
+                        elif arcType in ['D', 'P']:
+                            qType = 'P'
+                            ptsrcToSubbasin[ptNum] = subbasin
+                        elif arcType == 'R':
+                            qType = 'R'
+                            reservoirSubbasins.add(subbasin)
+                        else:
+                            # weather gauge: not included in gis_points
+                            continue
+                        elev = row[8]
+                        if elev == '': # avoid null: arcSWAT only gives elevations to weather gauges
+                            elev = 0
+                        cursor.execute(ConvertFromArc._INSERTPOINTS, 
+                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elev,))
+            # create x-y <-> lat-long functions from MonitoringPoint data if needed
+            if self.transformFromDeg is None:
+                fromDeg, toDeg = ConvertFromArc.makeTransforms(transformTable)
             # gis_lsus and _subbasins
             cursor.execute('DROP TABLE IF EXISTS gis_lsus')
             cursor.execute('DROP TABLE IF EXISTS gis_subbasins')
@@ -1838,11 +1932,14 @@ class ConvertFromArc(QObject):
                     elevmin = row[14]
                     elevmax = row[15]
                     lonlat = QgsPointXY(float(lon), float(lat))
-                    xy = self.transformFromDeg.transform(lonlat)
+                    if self.transformFromDeg is None:
+                        xy = fromDeg(lonlat)
+                    else:
+                        xy = self.transformFromDeg.transform(lonlat)
                     subbasinAreaLatLonElev[subbasin] = (float(area), xy.x(), xy.y(), lat, lon, float(elev))
                     waterId = 0
                     cursor.execute(ConvertFromArc._INSERTLSUS, 
-                                   (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, csl, wid1, dep1, lat, lon, elev))
+                                   (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, len1, csl, wid1, dep1, lat, lon, elev))
                     cursor.execute(ConvertFromArc._INSERTSUBBASINS, 
                                    (subbasin, area, slo1, len1, sll, lat, lon, elev, elevmin, elevmax, waterId))
             # gis_channels
@@ -1856,8 +1953,15 @@ class ConvertFromArc(QObject):
                     channel = subbasin
                     # estimate channel mid point as subbasin centroid
                     _, _, _, lat, lon, _ = subbasinAreaLatLonElev[subbasin]
+                    # HAWQS can leave MinEl and MaxEl empty; replace with 0 for SWAT+ editor
+                    minEl = row[13]
+                    if minEl == '':
+                        minEl = '0'
+                    maxEl = row[14]
+                    if maxEl == '':
+                        maxEl = '0'
                     cursor.execute(ConvertFromArc._INSERTCHANNELS, 
-                                   (channel, subbasin) + (row[8], 0) + tuple(row[9:15]) + (lat, lon))
+                                   (channel, subbasin) + (row[8], 0) + tuple(row[9:13]) + (minEl, maxEl, lat, lon))
                     downstreamSubbasin[subbasin] = int(row[7])
             # calculate Strahler orders
             us = dict()
@@ -1896,46 +2000,12 @@ class ConvertFromArc(QObject):
             for outletBasin, (deepArea, deepElevMoment, deepXMoment, deepYMoment) in deepData.items():
                 x = deepXMoment / deepArea
                 y = deepYMoment / deepArea
-                lonlat = self.transformToLatLong.transform(QgsPointXY(x, y))
+                if self.transformFromDeg is None:
+                    lonlat = toDeg(QgsPointXY(x, y))
+                else:
+                    lonlat = self.transformToLatLong.transform(QgsPointXY(x, y))
                 cursor.execute(ConvertFromArc._INSERTDEEPAQUIFERS,
                                (outletBasin, outletBasin, deepArea, lonlat.y(), lonlat.x(), deepElevMoment / deepArea))
-            # gis_points
-            cursor.execute('DROP TABLE IF EXISTS gis_points')
-            cursor.execute(ConvertFromArc._CREATEPOINTS)
-            reservoirSubbasins = set()  # subbasins with reservoirs
-            subbasinToOutlet = dict()
-            inletToSubbasin = dict()
-            ptsrcToSubbasin = dict()
-            ptNum = 0
-            monitoringPoints = os.path.join(self.qProjDir, r'csv\Project\MonitoringPoint.csv')
-            if os.path.isfile(monitoringPoints):
-                with open(monitoringPoints, 'r', newline='') as f:
-                    reader = csv.reader(f)
-                    next(reader)  # skip header
-                    for row in reader:
-                        ptNum += 1
-                        subbasin = int(row[11])
-                        arcType = row[10]
-                        if arcType in ['L', 'T', 'O']:
-                            qType = 'O'
-                            subbasinToOutlet[subbasin] = ptNum
-                        elif arcType in ['W', 'I']:
-                            qType = 'I'
-                            inletToSubbasin[ptNum] = subbasin
-                        elif arcType in ['D', 'P']:
-                            qType = 'P'
-                            ptsrcToSubbasin[ptNum] = subbasin
-                        elif arcType == 'R':
-                            qType = 'R'
-                            reservoirSubbasins.add(subbasin)
-                        else:
-                            # weather gauge: not included in gis_points
-                            continue
-                        elev = row[8]
-                        if elev == '': # avoid null: arcSWAT only gives elevations to weather gauges
-                            elev = 0
-                        cursor.execute(ConvertFromArc._INSERTPOINTS, 
-                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elev,))
             # gis_hrus and _water
             cursor.execute('DROP TABLE IF EXISTS gis_hrus')
             cursor.execute('DROP TABLE IF EXISTS gis_water')
@@ -2074,6 +2144,71 @@ class ConvertFromArc(QObject):
                 ConvertFromArc.information(warning)
             print('gis_ tables written')
             conn.commit()
+            
+    @staticmethod
+    def makeTransforms(transformTable):
+        """Make lat-lon <-> x-y functions by linear interpolation using points from MonitoringPoint table"""
+        
+        def maxSeparateXY():
+            """Return two pairs of tuples from transformTable, first pair with maximum x seperation, second with maximum y separation."""
+            maxX = 0
+            maxY = 0
+            currentX1 = None
+            currentX2 = None
+            currentY1 = None
+            currentY2 = None
+            currentLon1 = None
+            currentLon2 = None
+            currentLat1 = None
+            currentLat2 = None
+            for i1 in range(len(transformTable)):
+                (x1, y1, lat1, lon1) = transformTable[i1]
+                for i2 in range(i1+1, len(transformTable)):
+                    (x2, y2, lat2, lon2) = transformTable[i2]
+                    if abs(x1 - x2) > maxX:
+                        maxX = abs(x1 - x2)
+                        currentX1 = x1 
+                        currentX2 = x2
+                        currentLon1 = lon1
+                        currentLon2 = lon2
+                    if abs(y1 - y2) > maxY:
+                        maxY = abs(y1 - y2)
+                        currentY1 = y1 
+                        currentY2 = y2
+                        currentLat1 = lat1
+                        currentLat2 = lat2
+            return ((currentX1, currentX2), (currentLon1, currentLon2), (currentY1, currentY2), (currentLat1, currentLat2))
+        
+        def interpolate(pair1, pair2):
+            """Return a function that interpolates from a value in domain of pair1 to a value in domain of pair2,
+            assuming pair1 and pair2 define corresponding values in the two domains."""
+            
+            def interp(x):
+                a, b = pair1
+                p, q = pair2
+                frac = (x-a) / (b-a)
+                return frac * q + (1-frac) * p
+            
+            return interp
+            
+        def interpolatePoint(pairH, pairV):
+            """Return a function that interpolates a point from a horizontal pair and a vertical pair."""
+            
+            def interpt(pt):
+                pairH1, pairH2 = pairH
+                funH = interpolate(pairH1, pairH2)
+                pairV1, pairV2 = pairV
+                funV = interpolate(pairV1, pairV2)
+                x = pt.x()
+                y = pt.y()
+                return QgsPointXY(funH(x), funV(y))
+            
+            return interpt
+            
+        pairX, pairLon, pairY, pairLat = maxSeparateXY()
+        toDeg = interpolatePoint((pairX, pairLon), (pairY, pairLat))
+        fromDeg = interpolatePoint((pairLon, pairX), (pairLat, pairY))
+        return fromDeg, toDeg
             
     @staticmethod            
     def findOutlet(basin, downBasins):
@@ -2578,6 +2713,7 @@ class ConvertFromArc(QObject):
     channel    INTEGER,
     area  REAL,
     slope REAL,
+    len1  REAL,
     csl   REAL,
     wid1  REAL,
     dep1  REAL,
@@ -2587,7 +2723,7 @@ class ConvertFromArc(QObject):
     )
     """
     
-    _INSERTLSUS = 'INSERT INTO gis_lsus VALUES(?,?,?,?,?,?,?,?,?,?,?)'
+    _INSERTLSUS = 'INSERT INTO gis_lsus VALUES(?,?,?,?,?,?,?,?,?,?,?,?)'
     
     _CREATEPOINTS = \
     """
@@ -2694,18 +2830,57 @@ class ConvertFromArc(QObject):
     
     class WeatherStation():
         """Name, lat, long, etc for weather station."""
-        def __init__(self, name, order):
+        def __init__(self, name, latitude, longitude, elevation):
             """Constructor."""
             ## name
             self.name = name
-            ## order in data file
-            self.order = order
             ## latitude
-            self.latitude = 0
+            self.latitude = latitude
             ## longitude
-            self.longitude = 0
+            self.longitude = longitude
             ## elevation
-            self.elevation = 0
+            self.elevation = elevation
+            
+    class GaugeStats():
+        """Number of precipitation gauges etc."""
+        def __init__(self):
+            ## number of .pcp files
+            self.nrgauge = 0
+            ## number of pcp records used
+            self.nrtot = 0
+            ## number of pcp records in each pcp file
+            self.nrgfil = 0
+            ## number of .tmp files
+            self.ntgauge = 0
+            ## number of tmp records used
+            self.nttot = 0
+            ## number of tmp records in each tmp file
+            self.ntgfil = 0
+            ## number of slr records in slr file
+            self.nstot = 0
+            ## number of hmd records in hmd file
+            self.nhtot = 0
+            ## number of wnd records in wnd file
+            self.nwtot = 0
+            
+        def setStats(self, qProjDir):
+            cioFile = os.path.join(qProjDir, r'csv\Project\cio.csv')
+            if not os.path.isfile(cioFile):
+                ConvertFromArc.error('No cio csv file {0} created'.format(cioFile))
+                return
+            with open(cioFile, 'r', newline='') as f:
+                reader = csv.reader(f)
+                next(reader) # skip headers
+                row = next(reader)
+                self.nrgauge = int(row[10])
+                self.nrtot = int(row[11])
+                self.nrgfil = int(row[12])
+                self.ntgauge = int(row[14])
+                self.nttot = int(row[15])
+                self.ntgfil = int(row[16])
+                self.nstot = int(row[18])
+                self.nhtot = int(row[20])
+                self.nwtot = int(row[22])
  
 if __name__ == '__main__':
     ## QApplication object needed 

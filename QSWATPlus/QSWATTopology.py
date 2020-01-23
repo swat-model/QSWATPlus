@@ -715,6 +715,7 @@ class QSWATTopology:
             QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
                                    format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
         subsProvider =  subbasinsLayer.dataProvider()
+        subsPolyIndex = subsProvider.fieldNameIndex(QSWATTopology._POLYGONID)
         subsAreaIndex = subsProvider.fieldNameIndex(Parameters._AREA)
         if subsAreaIndex < 0:
             QSWATUtils.error('Cannot find {0} field in {1}'.format(Parameters._AREA, gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
@@ -779,7 +780,8 @@ class QSWATTopology:
                     newGeom = subGeom.difference(lakeGeom)
                     area2 = newGeom.area()
                     if area2 < area1:
-                        QSWATUtils.loginfo('Lake {0} overlaps subbasin {1}: area reduced from {2} to {3}'.format(lakeId, subId, area1, area2))
+                        subPoly = sub[subsPolyIndex]
+                        QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
                         geomMap[subId] = newGeom
                         attMap[subId] = {subsAreaIndex: newGeom.area() / 1E4}
             if not subsProvider.changeAttributeValues(attMap):
@@ -1015,10 +1017,11 @@ class QSWATTopology:
             lakeArea = lakeData.area
             percentChBasinWater = chBasinWaterArea / lakeArea * 100
             QSWATUtils.loginfo('Lake {0} has area {1} and channel basin water area {2}: {3}%'.format(lakeId, lakeArea, chBasinWaterArea, percentChBasinWater))
-#             intPercent = int(percentChBasinWater + 0.5)
-#             if percentChBasinWater < 99:
-#                 QSWATUtils.information(u'WARNING: Only {0}% of the area of lake {1} is accounted for in your watershed.  There may be other channels flowing into it'
-#                                        .format(intPercent, lakeId), self.isBatch)
+            intPercent = int(percentChBasinWater + 0.5)
+            if percentChBasinWater < 99 or percentChBasinWater > 101:
+                QSWATUtils.information(u"""WARNING: Only {0}% of the area of lake {1} is accounted for in your watershed.
+                You should carefull check the messages concerning this lake in the QSWAT+ log in the QGIS log messages panel."""
+                                       .format(intPercent, lakeId), self.isBatch)
         if len(self.lakesData) == 0:
             QSWATUtils.error('No lakes found in {0}'.format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch, reportErrors=reportErrors)
             return False
@@ -1393,12 +1396,12 @@ class QSWATTopology:
 
     @staticmethod
     def intersectsPoly(geom: QgsGeometry, polyGeom: QgsGeometry, polyRect: QgsRectangle) -> bool:
-        """Returns true if any part of geom intersects any part of polyGeom, which has associated rectangle polyRect."""
+        """Returns true if any part of geom intersects any part of polyGeom, or polyGeom is within geom. polyGeom has associated rectangle polyRect."""
         geoRect = geom.boundingBox()
         if QSWATTopology.disjointBoxes(geoRect, polyRect):
             return False
         else:
-            return geom.overlaps(polyGeom)
+            return geom.overlaps(polyGeom) or polyGeom.within(geom)
         
     @staticmethod
     def disjointBoxes(box1: QgsRectangle, box2: QgsRectangle) -> bool:
