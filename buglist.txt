@@ -36,3 +36,7 @@ delineation.py line 773
 12/10/2019 #10
 removing point from list after it had been adjusted failed
 delineation.py line 772
+
+21/2/2020 #11
+sniffer limit of 1000 failed on usersoil csv file: removed limits
+DBUtils.py lines 2437, 2495

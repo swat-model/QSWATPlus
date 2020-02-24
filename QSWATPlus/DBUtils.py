@@ -2434,7 +2434,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 # or 11 plus a layers file
                 # read first line to find which
                 with open(fil, 'r', newline='') as csvFile:
-                    dialect = csv.Sniffer().sniff(csvFile.read(1000))  # sample size 1000 bytes is arbitrary
+                    dialect = csv.Sniffer().sniff(csvFile.read())
                     csvFile.seek(0)
                     reader = csv.reader(csvFile, dialect)
                     line1 = next(reader)
@@ -2492,11 +2492,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             QSWATUtils.error('Could not create table {0} in database {1}'.format(table, db), self.isBatch)
             return ''
         with open(fil, 'r', newline='') as csvFile:
-            # sample size 20000 bytes is arbitrary
-            # fails to find delimiter in plant.csv with size of 2000
-            dialect = csv.Sniffer().sniff(csvFile.read(20000))  
+            dialect = csv.Sniffer().sniff(csvFile.read())  
             csvFile.seek(0)
-            hasHeader = csv.Sniffer().has_header(csvFile.read(20000))
+            hasHeader = csv.Sniffer().has_header(csvFile.read())
             csvFile.seek(0)
             reader = csv.reader(csvFile, dialect)
             line1 = next(reader)
