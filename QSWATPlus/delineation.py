@@ -605,8 +605,8 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             QSWATUtils.copyShapefile(outletsFile, 'madeoutlets_snap', self._gv.shapesDir)
             self._gv.outletFile = outletsFile
             self._gv.snapFile = snapFile
-            self._dlg.useOutlets.setChecked(True)
-            self._dlg.selectOutlets.setText(self._gv.outletFile)
+            # self._dlg.useOutlets.setChecked(True)
+            # self._dlg.selectOutlets.setText(self._gv.outletFile)
 #             QSWATUtils.error("""Since adding lakes involves adding new outlet points you must have an inlets/outlets file 
 #             with at least a watershed outlet marked, or one of the new outlets will become a watershed outlet.""", self._gv.isBatch)
 #             return False
@@ -1095,6 +1095,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         #QSWATUtils.printLayers(root, 1)
         if demFile and demMapLayer:
             self._gv.demFile = demFile
+            self._gv.elevationNoData = demMapLayer.dataProvider().sourceNoDataValue(1)
             self.setDefaultNumCells(demMapLayer)
             # warn if large DEM
             numCells = self.demWidth * self.demHeight
@@ -4590,8 +4591,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     outletFile = possFile
         if outletLayer is not None:
             self._gv.outletFile = outletFile
-            self._dlg.selectExistOutlets.setText(self._gv.outletFile)
-            self._dlg.selectOutlets.setText(self._gv.outletFile)
+            if useOutlets:
+                self._dlg.selectExistOutlets.setText(self._gv.outletFile)
+                self._dlg.selectOutlets.setText(self._gv.outletFile)
         else:
             self._gv.outletFile = ''
         snapFile, found = proj.readEntry(title, 'delin/snapOutlets', '')

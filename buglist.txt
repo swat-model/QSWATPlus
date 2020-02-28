@@ -40,3 +40,7 @@ delineation.py line 772
 21/2/2020 #11
 sniffer limit of 1000 failed on usersoil csv file: removed limits
 DBUtils.py lines 2437, 2495
+
+28/2/2020
+channel basin totally inside lake needs to be removed, and subbasin may need removing if same as channel basin
+QSWATTopology.py line 822, 2071, 639

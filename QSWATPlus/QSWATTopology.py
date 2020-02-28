@@ -563,7 +563,7 @@ class QSWATTopology:
                                     # main outlets allowed within lakes
                                     break
                                 lakeIdIndex = lakesLayer.dataProvider().fieldNameIndex(QSWATTopology._LAKEID)
-                                lakeId = lake[lakeIdIndex]
+                                lakeId = int(lake[lakeIdIndex])
                                 QSWATUtils.information('{0} {1} is inside lake {2}.  Will be ignored.'.format(typ, dsNode, lakeId), self.isBatch)
                                 break
                     if isInlet:
@@ -636,7 +636,7 @@ class QSWATTopology:
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex])
             for feature in subbasinsLayer.getFeatures(request):
                 subbasin = feature[polyIndex]
-                if subbasin not in self.upstreamFromInlets:
+                if subbasin not in self.upstreamFromInlets and subbasin in self.chBasinToSubbasin.values():  # else was removed by chBasin being within a lake
                     SWATBasin += 1
                     self.subbasinToSWATBasin[subbasin] = SWATBasin
                     self.SWATBasinToSubbasin[SWATBasin] = subbasin
@@ -759,7 +759,7 @@ class QSWATTopology:
         for lake in lakesProvider.getFeatures():
             lakeGeom = lake.geometry()
             lakeRect = lakeGeom.boundingBox()
-            lakeId = lake[lakeIdIndex]
+            lakeId = int(lake[lakeIdIndex])
             if lakeResIndex < 0:
                 waterRole = QSWATTopology._RESTYPE
             else:
@@ -783,7 +783,7 @@ class QSWATTopology:
                         subPoly = sub[subsPolyIndex]
                         QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
                         geomMap[subId] = newGeom
-                        attMap[subId] = {subsAreaIndex: newGeom.area() / 1E4}
+                        attMap[subId] = {subsAreaIndex: area2 / 1E4}
             if not subsProvider.changeAttributeValues(attMap):
                 QSWATUtils.error('Failed to update subbasins attributes in {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
                 for err in subsProvider.errors():
@@ -817,8 +817,13 @@ class QSWATTopology:
                         QSWATUtils.loginfo('Lake {0} overlaps channel basin {1}: area reduced from {2} to {3}'.format(lakeId, polyId, area1, area2))
                         chBasinWaterArea += area1 - area2
                         geomMap[chBasinId] = newGeom
-                        attMap[chBasinId] = {chBasinsAreaIndex: newGeom.area() / 1E4}
+                        attMap[chBasinId] = {chBasinsAreaIndex: area2 / 1E4}
                         channelAreaChange[polyId] = area1 - area2
+                        if area2 == 0:
+                            # channel basin disappears into lake: remove its mapping to subbasin
+                            subbasin = self.chBasinToSubbasin[polyId]
+                            del self.chBasinToSubbasin[polyId]
+                            QSWATUtils.loginfo('Channel basin {0} (subbasin {1}) removed'.format(polyId, subbasin))
             if not chBasinsProvider.changeAttributeValues(attMap):
                 QSWATUtils.error('Failed to update channel basin attributes in {0}'.format(gv.wshedFile), self.isBatch, reportErrors=reportErrors)
                 for err in chBasinsProvider.errors():
@@ -1489,7 +1494,7 @@ class QSWATTopology:
             try: # in case old database without these tables
                 # without fetchall this only reads first row.  Strange
                 for lakeRow in curs.execute(lakeSql).fetchall():
-                    lakeId = lakeRow['id']
+                    lakeId = int(lakeRow['id'])
                     self.waterBodyId = max(self.waterBodyId, lakeId)
                     self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy']), lakeRow['role'])
                     outChLink = lakeRow['outlink']
@@ -1986,7 +1991,7 @@ class QSWATTopology:
                     return
                 point = line[numPoints // 2]
                 wVal = QSWATTopology.valueAtPoint(point, wLayer)
-                if wVal == wNoData:  # outside watershed
+                if math.isclose(wVal, wNoData, rel_tol=1e-06):  # outside watershed
                     basin = -1
                 else:
                     basin = cast(int, wVal)
@@ -2063,7 +2068,7 @@ class QSWATTopology:
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex, subbasinIndex])
         for polygon in subbasinsLayer.getFeatures(request):
             subbasin = polygon[polyIndex]
-            if subbasin in self.upstreamFromInlets:
+            if subbasin in self.upstreamFromInlets or subbasin not in self.chBasinToSubbasin.values():  # removed by chBasin being within a lake
                 continue
             SWATBasin = polygon[subbasinIndex]
             if SWATBasin <= 0:

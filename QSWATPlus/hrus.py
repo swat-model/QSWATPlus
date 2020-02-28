@@ -310,6 +310,9 @@ class CreateHRUs(QObject):
             floodBand = floodDs.GetRasterBand(1)
         
         elevationNoData: float = elevationBand.GetNoDataValue()
+        # guard against DEM with no nodata value
+        if elevationNoData is None:
+            elevationNoData = self.defaultNoData
         distStNoData: float = elevationNoData
         distChNoData: float = elevationNoData
         if not self._gv.existingWshed:
@@ -790,6 +793,12 @@ class CreateHRUs(QObject):
                                 hruRow[col] = -1
                             continue
                         subbasin = self._gv.topo.chBasinToSubbasin.get(chBasin, -1)
+                        if subbasin == -1:
+                            if self._gv.useLandscapes:
+                                lsuRow[col] = -1
+                            if self.fullHRUsWanted:
+                                hruRow[col] = -1
+                            continue
                         if not self._gv.topo.isUpstreamSubbasin(subbasin):
                             if self._gv.useLandscapes or self.fullHRUsWanted:
                                 channelLandscapeCropSoilSlopeNumbers = subbasinChannelLandscapeCropSoilSlopeNumbers.get(subbasin, None)
