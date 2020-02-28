@@ -626,7 +626,7 @@ class QSWATTopology:
         else:
             self.setStrahler(us)
         #try existing subbasin numbers as SWAT basin numbers
-        ok = polyIndex >= 0 and subbasinIndex >= 0 and self.tryBasinAsSWATBasin(subbasinsLayer, polyIndex, subbasinIndex)
+        ok = polyIndex >= 0 and subbasinIndex >= 0 and self.tryBasinAsSWATBasin(subbasinsLayer, polyIndex, subbasinIndex, useGridModel)
         if not ok:
             # failed attempt may have put data in these, so clear them
             self.subbasinToSWATBasin.clear()
@@ -636,7 +636,7 @@ class QSWATTopology:
             request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex])
             for feature in subbasinsLayer.getFeatures(request):
                 subbasin = feature[polyIndex]
-                if subbasin not in self.upstreamFromInlets and subbasin in self.chBasinToSubbasin.values():  # else was removed by chBasin being within a lake
+                if subbasin not in self.upstreamFromInlets and (useGridModel or subbasin in self.chBasinToSubbasin.values()):  # else was removed by chBasin being within a lake
                     SWATBasin += 1
                     self.subbasinToSWATBasin[subbasin] = SWATBasin
                     self.SWATBasinToSubbasin[SWATBasin] = subbasin
@@ -2056,7 +2056,7 @@ class QSWATTopology:
         dy = data.upperY - data.lowerY
         return math.sqrt(dx * dx + dy * dy)  # type: ignore
 
-    def tryBasinAsSWATBasin(self, subbasinsLayer: QgsVectorLayer, polyIndex: int, subbasinIndex: int) -> bool:
+    def tryBasinAsSWATBasin(self, subbasinsLayer: QgsVectorLayer, polyIndex: int, subbasinIndex: int, useGridModel: bool) -> bool:
         """Return true if the subbasin field values can be used as SWAT basin numbers.
         
         The basin numbers, if any, can be used if they 
@@ -2068,7 +2068,7 @@ class QSWATTopology:
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndex, subbasinIndex])
         for polygon in subbasinsLayer.getFeatures(request):
             subbasin = polygon[polyIndex]
-            if subbasin in self.upstreamFromInlets or subbasin not in self.chBasinToSubbasin.values():  # removed by chBasin being within a lake
+            if subbasin in self.upstreamFromInlets or not (useGridModel or subbasin in self.chBasinToSubbasin.values()):  # removed by chBasin being within a lake
                 continue
             SWATBasin = polygon[subbasinIndex]
             if SWATBasin <= 0:
