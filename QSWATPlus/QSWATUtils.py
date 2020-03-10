@@ -1538,9 +1538,12 @@ class FileTypes:
         items: List[QgsPalettedRasterRenderer.Class] = []
         colours = QgsLimitedRandomColorRamp.randomColors(len(db.landuseVals))
         index = 0
+        # allow for duplicated landuses while using same colour for same landuse
+        colourMap: Dict[str, QColor] = dict()
         for i in db.landuseVals:
             luse: str = db.getLanduseCode(i)
-            item = QgsPalettedRasterRenderer.Class(int(i), colours[index], luse)
+            colour = colourMap.setdefault(luse, colours[index])
+            item = QgsPalettedRasterRenderer.Class(int(i), colour, luse)
             items.append(item)
             index += 1
         renderer = QgsPalettedRasterRenderer(layer.dataProvider(), 1, items)
@@ -1560,9 +1563,16 @@ class FileTypes:
                 items.append(item)
                 index += 1    
         else:
-            colours = QgsLimitedRandomColorRamp.randomColors(len(db.usedSoilNames))
-            for i, name in db.usedSoilNames.items():
-                item = QgsPalettedRasterRenderer.Class(int(i), colours[index], name)
+            # next 2 lines replaced to allow for duplicated soils with different indexes
+            # colours = QgsLimitedRandomColorRamp.randomColors(len(db.usedSoilNames))
+            # for i, name in db.usedSoilNames.items():  
+            # allow for duplicated colours while using same colour for same soil
+            colourMap: Dict[str, QColor] = dict()
+            colours = QgsLimitedRandomColorRamp.randomColors(len(db.soilVals))
+            for i in db.soilVals:
+                name = db.getSoilName(i)
+                colour = colourMap.setdefault(name, colours[index])
+                item = QgsPalettedRasterRenderer.Class(int(i), colour, name)
                 items.append(item)
                 index += 1    
         renderer = QgsPalettedRasterRenderer(layer.dataProvider(), 1, items)

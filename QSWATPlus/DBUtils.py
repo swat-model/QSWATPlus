@@ -160,6 +160,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self._undefinedSoilIds: List[int] = []
         ## Copy of soilNames for those soils actually found
         self.usedSoilNames: Dict[int, str] = dict()
+        ## Set of values occurring in soil map
+        self.soilVals: Set[int] = set()
         ## ssurgo soil numbers actually found
         self.ssurgoSoils: Set[int] = set()
         ## Default soil
@@ -1004,6 +1006,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         
     def translateSoil(self, sid: int) -> int:
         """Translate a soil id to its equivalent id in soilNames."""
+        self.soilVals.add(sid)
         if self.useSSURGO:
             return sid
         return self.soilTranslate.get(sid, sid)
@@ -1893,6 +1896,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             self.landuseVals.add(crop)
                         if soil not in lsuData.cropSoilSlopeNumbers[crop]:
                             lsuData.cropSoilSlopeNumbers[crop][soil] = dict()
+                            self.soilVals.add(soil)
                         lsuData.cropSoilSlopeNumbers[crop][soil][slope] = hru
                         cellData = CellData(hrow['cellcount'], hrow['area'], hrow['totalElevation'],
                                             hrow['totalSlope'], hrow['totalLongitude'], hrow['totalLatitude'], crop)

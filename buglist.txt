@@ -44,3 +44,8 @@ DBUtils.py lines 2437, 2495
 28/2/2020
 channel basin totally inside lake needs to be removed, and subbasin may need removing if same as channel basin
 QSWATTopology.py line 822, 2071, 639
+
+6/3/2020
+soil map (and landuse) can have gaps when lookup table is many-one.
+QSWATUtils.py colourLanduses and colourSoils
+
