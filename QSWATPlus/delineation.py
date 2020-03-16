@@ -782,14 +782,16 @@ that it flows out the lake at its last crossing point.
 Since it starts and terminates outside the lake it will be 
 assumed that its crossing the lake boundary is an inaccuracy. 
 """.format(chLink, lakeId), self._gv.isBatch)
-            QSWATUtils.loginfo('Lake {0} has {1} outlets'.format(lakeId, numOutlets))
             if numOutlets == 0:
                 # last chance to include lake - check if it has a watershed outlet inside it
                 channelDsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
-                for (pointId, pt, _) in self._gv.topo.outlets.values():
+                for subbasin, (pointId, pt, _) in self._gv.topo.outlets.items():
                     if QSWATTopology.isWatershedOutlet(pointId, channelProvider, channelDsLinkIndex) and \
-                        QSWATTopology.polyContains(pt, geom, box):  
-                        numOutlets = 1
+                        QSWATTopology.polyContains(pt, geom, box): 
+                        # outletsInLake needed for making deep aquifers later
+                        self._gv.topo.outletsInLake[subbasin] = lakeId 
+                        numOutlets += 1
+            QSWATUtils.loginfo('Lake {0} has {1} outlets {2}'.format(lakeId, numOutlets, self._gv.topo.outletsInLake))
             if numOutlets == 0: 
                 self._gv.iface.setActiveLayer(lakesLayer)
                 lakesLayer.select(lake.id())

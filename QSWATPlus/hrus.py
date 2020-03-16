@@ -3762,7 +3762,7 @@ class CreateHRUs(QObject):
             else:
                 return findOutlet(downBasin, downBasins)
             
-        def writeAquifersTables(outletSubbasins: Dict[int, int]) -> None:
+        def writeAquifersTables(outletSubbasins: Dict[int, int], outletLakes: Dict[int, int]) -> None:
             """Write gis_aquifers and gis_deep_aquifers tables"""
             with self._db.conn as conn:
                 if not conn:
@@ -3772,8 +3772,8 @@ class CreateHRUs(QObject):
                 cursor.execute(sql)
                 cursor.execute(self._gv.db._CREATEAQUIFERS)
                 demLayer = QgsRasterLayer(self._gv.demFile, 'DEM')
-                # map of outlet SWATBasin (same as deep aquifer id) to area, elevation * area, x * area, y * area
-                deepData: Dict[int, Tuple[float, float, float, float]] = dict()
+                # map of outlet SWATBasin (same as deep aquifer id) to area, elevation * area, x * area, y * area, lakeId or zero
+                deepData: Dict[int, Tuple[float, float, float, float, int]] = dict()
                 for basin, basinData in self.basins.items():
                     SWATBasin = self._gv.topo.subbasinToSWATBasin[basin]
                     aquiferId = SWATBasin * 10
@@ -3806,7 +3806,8 @@ class CreateHRUs(QObject):
                                 hasFlood = True
                         floodArea = chBasinArea - upArea
                         # QSWATUtils.loginfo('Channel {0}: Area: {1}: Up: {2}: Flood: {3}'.format(SWATChannel, chBasinArea, upArea, floodArea))
-                        (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(deepAquiferId, (0.0, 0.0, 0.0, 0.0))
+                        lakeId = outletLakes.get(SWATBasin, 0)
+                        (deepArea, deepElevMoment, deepXMoment, deepYMoment, lakeId) = deepData.setdefault(deepAquiferId, (0.0, 0.0, 0.0, 0.0, lakeId))
                         if hasUp:
                             elev = 0 if upCellCount == 0 else upTotalElevation / upCellCount
                             (aqArea, aqElevMoment, aqXMoment, aqYMoment) = aquiferData.setdefault(upAquiferId, (0.0, 0.0, 0.0, 0.0))
@@ -3848,7 +3849,7 @@ class CreateHRUs(QObject):
                         # upAreaSoFar = aquiferData[upAquiferId][0]
                         # floodAreaSoFar = aquiferData[floodAquiferId][0]
                         # QSWATUtils.loginfo('So far: Up: {0}: Flood: {1}'.format(upAreaSoFar, floodAreaSoFar))
-                        deepData[deepAquiferId] = (deepArea, deepElevMoment, deepXMoment, deepYMoment)
+                        deepData[deepAquiferId] = (deepArea, deepElevMoment, deepXMoment, deepYMoment, lakeId)
                         # QSWATUtils.loginfo('Deep area so far: {0}'.format(deepArea))
                     # write gis_aquifers and route aquifers
                     centroidll = self._gv.topo.pointToLatLong(centroid)
@@ -3895,7 +3896,7 @@ class CreateHRUs(QObject):
                 sql = 'DROP TABLE IF EXISTS gis_deep_aquifers'
                 cursor.execute(sql)
                 cursor.execute(self._gv.db._CREATEADEEPQUIFERS)
-                for deepAqId, (deepArea, deepElevMoment, deepXMoment, deepYMoment) in deepData.items():
+                for deepAqId, (deepArea, deepElevMoment, deepXMoment, deepYMoment, lakeId) in deepData.items():
                     elev = deepElevMoment / deepArea
                     centroid = QgsPointXY(deepXMoment / deepArea, deepYMoment / deepArea)
                     centroidll = self._gv.topo.pointToLatLong(centroid)
@@ -3903,8 +3904,11 @@ class CreateHRUs(QObject):
                     cursor.execute(DBUtils._INSERTDEEPAQUIFERS, 
                                    (deepAqId, deepAqId, deepArea / 1E4, centroidll.y(), centroidll.x(), elev))
                     # route total flow from deep aquifer to watershed outlet
-                    basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
-                    pointId, _, _ = self._gv.topo.outlets[basin]
+                    if lakeId > 0:
+                        _, pointId, _, _ = self._gv.topo.lakesData[lakeId].outPoint
+                    else:
+                        basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
+                        pointId, _, _ = self._gv.topo.outlets[basin]
                     self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
@@ -4009,13 +4013,28 @@ class CreateHRUs(QObject):
                                        .format(repr(ex)), self._gv.isBatch)
         # make map of subbasin to outlet subbasin in each watershed:
         outletSubbasins: Dict[int, int] = dict()
+        # lakes with watershed outlets within them
+        outletLakes: Dict[int, int] = dict()
+        # to make deepAquiferId when watershed outlet is in lake and there is no outlet SWATBasin
+        baseDeepAquiferId = max(self._gv.topo.SWATBasinToSubbasin.keys())
         outlets: Set[int] = set()
         for basin in self._gv.topo.downSubbasins:
             SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
             if SWATBasin > 0:
                 outBasin = findOutlet(basin, self._gv.topo.downSubbasins)
                 outlets.add(outBasin)
-                outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin[outBasin]
+                # check if outlet in lake
+                lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                if lakeId > 0:
+                    # deepAquiferId chosen so that basins draining to same lake will share it
+                    deepAquiferId = baseDeepAquiferId + lakeId
+                    outletSubbasins[SWATBasin] = deepAquiferId
+                    outletLakes[SWATBasin] = lakeId
+                else:
+                    outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin.get(outBasin, 0)
+                    if outletSubbasins[SWATBasin] == 0:
+                        QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch)
+                        continue
         #QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
         #QSWATUtils.loginfo('Down subbasins: {0!s}'.format(self._gv.topo.downSubbasins))
         try:
@@ -4045,7 +4064,7 @@ class CreateHRUs(QObject):
         except Exception as ex:
             QSWATUtils.information('Failed to generate deep aquifers shapefile: deep aquifer result visualisation will not be possible: {0}'
                                    .format(repr(ex)), self._gv.isBatch)
-        writeAquifersTables(outletSubbasins)
+        writeAquifersTables(outletSubbasins, outletLakes)
         # if we have a multiple catchment grid model with over _GRIDCELLSMAX cells, create partition into catchments
         # only do this if not an existing watershed, when user presumed to know what they want.
         if self._gv.useGridModel and not self._gv.existingWshed and len(outlets) > 1 and subsProvider.featureCount() > Parameters._GRIDCELLSMAX:
@@ -4142,7 +4161,8 @@ class CreateHRUs(QObject):
                 lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
                 lsuId = 0  # no LSU for a lake
                 (subbasin, _, _, _) = lakeData.outPoint
-                SWATBasin = self._gv.topo.subbasinToSWATBasin[subbasin]
+                # out point may have no subbasin if internal to lake
+                SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
                 areaHa = lakeData.area / 1E4
                 centroid = lakeData.centroid
                 centroidll = self._gv.topo.pointToLatLong(centroid)

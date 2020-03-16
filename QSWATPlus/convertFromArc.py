@@ -345,10 +345,7 @@ class ConvertFromArc(QObject):
                 return False
         demLayer = QgsRasterLayer(inDEM, 'DEM')
         self.crs = demLayer.crs()
-        crsLatLong = QgsCoordinateReferenceSystem()
-        if not crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
-            QSWATUtils.error('Failed to create lat-long coordinate reference system')
-            return False
+        crsLatLong = QgsCoordinateReferenceSystem('EPSG:4326')
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
         self.transformToLatLong = QgsCoordinateTransform(self.crs, crsLatLong, QgsProject.instance())
         return True
@@ -369,11 +366,7 @@ class ConvertFromArc(QObject):
         QSWATUtils.writePrj(self.demFile, demLayer)
         self.crs = demLayer.crs()
         # set up transform from lat-long
-        crsLatLong = QgsCoordinateReferenceSystem()
-        if not crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
-            QSWATUtils.error('Failed to create lat-long coordinate reference system')
-            return False
-        
+        crsLatLong = QgsCoordinateReferenceSystem('EPSG:4326')
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
         self.transformToLatLong = QgsCoordinateTransform(self.crs, crsLatLong, QgsProject.instance())
         return True

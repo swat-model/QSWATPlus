@@ -270,9 +270,7 @@ class QSWATTopology:
         ## reservoirs found by converting water HRUs
         self.foundReservoirs: Dict[int, Tuple[int, int, QgsPointXY]] = dict()
         ## lat-long coordinate reference system
-        self.crsLatLong = QgsCoordinateReferenceSystem()
-        if not self.crsLatLong.createFromId(4326, QgsCoordinateReferenceSystem.EpsgCrsId):
-            QSWATUtils.error('Failed to create lat-long coordinate reference system', isBatch)
+        self.crsLatLong = QgsCoordinateReferenceSystem('EPSG:4326')
         ## transform from project corrdinates to lat-long
         self.transformToLatLong: Optional[QgsCoordinateTransform] = None
         ## Flag to show if batch run
@@ -317,6 +315,7 @@ class QSWATTopology:
         self.verticalFactor = gv.verticalFactor
         self.outletAtStart = self.hasOutletAtStart(channelLayer, ad8Layer)
         QSWATUtils.loginfo('Outlet at start is {0!s}'.format(self.outletAtStart))
+        self.outletsInLake.clear()
         return self.saveOutletsAndSources(channelLayer, outletLayer, gv.useGridModel)
     
     def setCrs(self, demLayer: QgsRasterLayer, gv: Any) -> None:
@@ -754,7 +753,6 @@ class QSWATTopology:
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
-        self.outletsInLake = dict()
         lakeAttMap: Dict[int, Dict[int, int]] = dict()
         for lake in lakesProvider.getFeatures():
             lakeGeom = lake.geometry()
@@ -771,10 +769,10 @@ class QSWATTopology:
             chBasinWaterArea = 0.0
             attMap: Dict[int, Dict[int, float]] = dict()
             geomMap: Dict[int, QgsGeometry] = dict()
+            polysToRemove: List[int] = []
             for sub in subsProvider.getFeatures():
                 subGeom = sub.geometry()
                 if  QSWATTopology.intersectsPoly(subGeom, lakeGeom, lakeRect):
-                    # TODO: sub inside lake
                     subId = sub.id()
                     area1 = subGeom.area()
                     newGeom = subGeom.difference(lakeGeom)
@@ -782,8 +780,20 @@ class QSWATTopology:
                     if area2 < area1:
                         subPoly = sub[subsPolyIndex]
                         QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
-                        geomMap[subId] = newGeom
-                        attMap[subId] = {subsAreaIndex: area2 / 1E4}
+                        if area2 == 0:
+                            polysToRemove.append(subId)
+                            # remove subbasin from range of chBasinToSubbasin
+                            chBasinsToRemove: Set[int] = set()
+                            for chBasin, subbasin in self.chBasinToSubbasin.items():
+                                if subbasin == subPoly:
+                                    chBasinsToRemove.add(chBasin)
+                            for chBasin in chBasinsToRemove:
+                                del self.chBasinToSubbasin[chBasin]
+                            QSWATUtils.loginfo('Subbasin polygon {0} removed'.format(subPoly))
+                        else:
+                            geomMap[subId] = newGeom
+                            attMap[subId] = {subsAreaIndex: area2 / 1E4}
+            # change attributes and topology BEFORE removing the zero area ones, as removal changes ids of the others
             if not subsProvider.changeAttributeValues(attMap):
                 QSWATUtils.error('Failed to update subbasins attributes in {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
                 for err in subsProvider.errors():
@@ -800,6 +810,11 @@ class QSWATTopology:
 #                 for err in subsProvider.errors():
 #                     QSWATUtils.loginfo(err)
 #                 return 
+            if len(polysToRemove) > 0:
+                if not subsProvider.deleteFeatures(polysToRemove):
+                    QSWATUtils.error('Failed to remove polygons from {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
+                    for err in subsProvider.errors():
+                        QSWATUtils.loginfo(err)
             attMap = dict()
             geomMap = dict()
             # map of polygon id to area that is part of the lake
@@ -808,7 +823,7 @@ class QSWATTopology:
                 chBasinGeom = chBasin.geometry()
                 polyId = chBasin[chBasinsPolyIndex]
                 # if area reduced to zero because inside another lake, geometry is None
-                if chBasinGeom is not None and not chBasinGeom.disjoint(lakeGeom):
+                if chBasinGeom is not None and QSWATTopology.intersectsPoly(chBasinGeom, lakeGeom, lakeRect):
                     chBasinId = chBasin.id()
                     area1 = chBasinGeom.area()
                     newGeom = chBasinGeom.difference(lakeGeom)
@@ -821,9 +836,11 @@ class QSWATTopology:
                         channelAreaChange[polyId] = area1 - area2
                         if area2 == 0:
                             # channel basin disappears into lake: remove its mapping to subbasin
-                            subbasin = self.chBasinToSubbasin[polyId]
-                            del self.chBasinToSubbasin[polyId]
-                            QSWATUtils.loginfo('Channel basin {0} (subbasin {1}) removed'.format(polyId, subbasin))
+                            # may already have been removed because all subbasin in lake
+                            subbasin = self.chBasinToSubbasin.get(polyId, -1)
+                            if subbasin >= 0:
+                                del self.chBasinToSubbasin[polyId]
+                                QSWATUtils.loginfo('Channel basin {0} (subbasin {1}) removed'.format(polyId, subbasin))
             if not chBasinsProvider.changeAttributeValues(attMap):
                 QSWATUtils.error('Failed to update channel basin attributes in {0}'.format(gv.wshedFile), self.isBatch, reportErrors=reportErrors)
                 for err in chBasinsProvider.errors():
@@ -1025,7 +1042,7 @@ class QSWATTopology:
             intPercent = int(percentChBasinWater + 0.5)
             if percentChBasinWater < 99 or percentChBasinWater > 101:
                 QSWATUtils.information(u"""WARNING: Only {0}% of the area of lake {1} is accounted for in your watershed.
-                You should carefull check the messages concerning this lake in the QSWAT+ log in the QGIS log messages panel."""
+                You should carefully check the messages concerning this lake in the QSWAT+ log in the QGIS log messages panel."""
                                        .format(intPercent, lakeId), self.isBatch)
         if len(self.lakesData) == 0:
             QSWATUtils.error('No lakes found in {0}'.format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch, reportErrors=reportErrors)
@@ -1314,7 +1331,6 @@ class QSWATTopology:
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
-        self.outletsInLake = dict()
         for channel in channelsLayer.getFeatures():
             chLink = channel[channelLinkIndex]
             dsLink = channel[channelDsLinkIndex]
@@ -1401,12 +1417,12 @@ class QSWATTopology:
 
     @staticmethod
     def intersectsPoly(geom: QgsGeometry, polyGeom: QgsGeometry, polyRect: QgsRectangle) -> bool:
-        """Returns true if any part of geom intersects any part of polyGeom, or polyGeom is within geom. polyGeom has associated rectangle polyRect."""
+        """Returns true if any part of geom intersects any part of polyGeom, or geom is within polyGeom. polyGeom has associated rectangle polyRect."""
         geoRect = geom.boundingBox()
         if QSWATTopology.disjointBoxes(geoRect, polyRect):
             return False
         else:
-            return geom.overlaps(polyGeom) or polyGeom.within(geom)
+            return not geom.disjoint(polyGeom) # geom.overlaps(polyGeom) or geom.within(polyGeom) or polyGeom.within(geom)
         
     @staticmethod
     def disjointBoxes(box1: QgsRectangle, box2: QgsRectangle) -> bool:
@@ -2331,8 +2347,7 @@ class QSWATTopology:
             waterAdded: List[int] = []
             # Add outlets from streams
             for subbasin, (pointId, pt, chLink) in self.outlets.items():
-                if subbasin in self.upstreamFromInlets or subbasin in self.outletsInLake or \
-                    chLink in self.chLinkInsideLake:
+                if subbasin in self.upstreamFromInlets:
                     continue # excluded
                 elev = QSWATTopology.valueAtPoint(pt, demLayer)
                 if elev is None:
@@ -2396,11 +2411,12 @@ class QSWATTopology:
                 subbasin, pointId, pt, elev = lake.outPoint
                 assert elev is not None
                 chLink = lake.outChLink
-                if not useGridModel and chLink == -1:
-                    # main outlet was moved inside lake, but reservoir point will still be routed to it
-                    # so add its definition
-                    (outletId, outPt, _) = self.outlets[subbasin]
-                    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
+                # unnecessary as will be in self.outlets
+                #if not useGridModel and chLink == -1:
+                #    # main outlet was moved inside lake, but reservoir point will still be routed to it
+                #    # so add its definition
+                #    (outletId, outPt, _) = self.outlets[subbasin]
+                #    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
                 self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
                 waterAdded.append(pointId)
                 # inlets to lake.  These are outlets from streams in grid models, so not necessary
@@ -2468,8 +2484,9 @@ class QSWATTopology:
         """Add point to gis_points table."""
         table = 'gis_points'
         SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
-        if SWATBasin == 0:
-            return
+        # include points without SWATT basin since points within lakes may not have one
+        #if SWATBasin == 0:
+        #    return
         ptll = self.pointToLatLong(pt)
         sql = "INSERT INTO " + table + " VALUES(?,?,?,?,?,?,?,?)"
         try:
@@ -3549,22 +3566,30 @@ class QSWATTopology:
                     for x in range(x0, x1+1):
                         if steep:
                             if QSWATTopology.addPointToChanged(changed, y, x):
-                                arr = band.ReadAsArray(y, x, 1, 1)
-                                # arr may be none if stream map extends outside DEM extent
-                                if arr and arr[0,0] != nodata:
-                                    arr[0,0] = arr[0,0] - demReduction
-                                    band.WriteArray(arr, y, x)
-                                    countChanges += 1
+                                # read can raise exception if coordinates outside extent
+                                try:
+                                    arr = band.ReadAsArray(y, x, 1, 1)
+                                    # arr may be none if stream map extends outside DEM extent
+                                    if arr and arr[0,0] != nodata:
+                                        arr[0,0] = arr[0,0] - demReduction
+                                        band.WriteArray(arr, y, x)
+                                        countChanges += 1
+                                except:
+                                    pass
                             else:
                                 countHits += 1
                         else:
                             if QSWATTopology.addPointToChanged(changed, x, y):
-                                arr = band.ReadAsArray(x, y, 1, 1)
-                                # arr may be none if stream map extends outside DEM extent
-                                if arr and arr[0,0] != nodata:
-                                    arr[0,0] = arr[0,0] - demReduction
-                                    band.WriteArray(arr, x, y)
-                                    countChanges += 1
+                                # read can raise exception if coordinates outside extent
+                                try:
+                                    arr = band.ReadAsArray(x, y, 1, 1)
+                                    # arr may be none if stream map extends outside DEM extent
+                                    if arr and arr[0,0] != nodata:
+                                        arr[0,0] = arr[0,0] - demReduction
+                                        band.WriteArray(arr, x, y)
+                                        countChanges += 1
+                                except:
+                                    pass   
                             else:
                                 countHits += 1
                         err += deltaerr
