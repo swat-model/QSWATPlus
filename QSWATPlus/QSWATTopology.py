@@ -972,7 +972,7 @@ class QSWATTopology:
                     # remove the channel's point source
                     del self.chPointSources[link]
             # if the lake has an outlet channel with a drain area less than LAKEOUTLETCHANNELAREA percent of the lake area
-            # make its channel internal
+            # and dsNode negative (to avoid pulling a point inside the lake) make its channel internal
             outLinkId = -1
             outLink = lakeData.outChLink
             outBasin = -1
@@ -984,7 +984,8 @@ class QSWATTopology:
                 outLinkId = channel.id()
                 outBasin = channel[channelWSNOIndex]
                 dsOutLink = channel[channelDsLinkIndex]
-            if outBasin >= 0:
+                dsNodeOutLink = channel[channelDsNodeIndex]
+            if dsNodeOutLink < 0 and outBasin >= 0:
                 # threshold in ha: LAKEOUTLETCHANNELAREA of lake area
                 threshold = (lakeData.area / 1E6) * Parameters._LAKEOUTLETCHANNELAREA
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([chBasinsPolyIndex, chBasinsAreaIndex])
@@ -2007,7 +2008,7 @@ class QSWATTopology:
                     return
                 point = line[numPoints // 2]
                 wVal = QSWATTopology.valueAtPoint(point, wLayer)
-                if math.isclose(wVal, wNoData, rel_tol=1e-06):  # outside watershed
+                if wVal is None or math.isclose(wVal, wNoData, rel_tol=1e-06):  # outside watershed
                     basin = -1
                 else:
                     basin = cast(int, wVal)

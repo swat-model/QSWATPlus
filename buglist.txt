@@ -49,3 +49,18 @@ QSWATTopology.py line 822, 2071, 639
 soil map (and landuse) can have gaps when lookup table is many-one.
 QSWATUtils.py colourLanduses and colourSoils
 
+14/3/2020 #14
+lake / basin overlap inadequate test: replaced with non-disjoint
+QSWTTopology line 1425
+
+18/3/2020 #15
+failed to redefine chLink when channel changed
+delineation.py line 775
+
+18/3/2020 #16
+should check no dsNode before pulling short outlet channel into lake
+QSWATTopology.py line 988
+
+18/3/2020 #17
+Failed to check valueAtPoint for None
+QSWATTopology.py line 2011

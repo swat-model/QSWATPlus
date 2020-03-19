@@ -772,16 +772,17 @@ that it flows out the lake at its last crossing point.
                 reachData = self._gv.topo.getReachData(channel.geometry(), None)
                 outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                 source = QgsPointXY(reachData.upperX, reachData.upperY)
+                chLink = channel[channelLinkIndex]
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                 numOutlets += 1
             for channel, points in crossingChannels:
-                chLink = channel[channelLinkIndex]
+                chLink0 = channel[channelLinkIndex]
                 QSWATUtils.information(
 """Channel with LINKNO {0} enters and then leaves lake {1}.  
 Since it starts and terminates outside the lake it will be 
 assumed that its crossing the lake boundary is an inaccuracy. 
-""".format(chLink, lakeId), self._gv.isBatch)
+""".format(chLink0, lakeId), self._gv.isBatch)
             if numOutlets == 0:
                 # last chance to include lake - check if it has a watershed outlet inside it
                 channelDsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
@@ -791,7 +792,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                         # outletsInLake needed for making deep aquifers later
                         self._gv.topo.outletsInLake[subbasin] = lakeId 
                         numOutlets += 1
-            QSWATUtils.loginfo('Lake {0} has {1} outlets {2}'.format(lakeId, numOutlets, self._gv.topo.outletsInLake))
+            QSWATUtils.loginfo('Lake {0} has {1} outlets'.format(lakeId, numOutlets))
             if numOutlets == 0: 
                 self._gv.iface.setActiveLayer(lakesLayer)
                 lakesLayer.select(lake.id())
