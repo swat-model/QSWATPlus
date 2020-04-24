@@ -37,7 +37,7 @@ from processing.core.Processing import Processing  # type: ignore @UnresolvedImp
 from operator import itemgetter
 from typing import Dict, List, Set, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
 if TYPE_CHECKING:
-    from globals import GlobalVars  # @UnresolvedImport @Reimport
+    from globals import GlobalVars  # @UnusedImport @UnresolvedImport
 
 # Import the code for the dialog
 from .hrusdialog import HrusDialog  # type: ignore
@@ -52,7 +52,7 @@ from .exempt import Exempt  # type: ignore
 from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
 from .delineation import Delineation  # type: ignore
-from .globals import GlobalVars  # type: ignore @UnusedImport
+from .globals import GlobalVars  # type: ignore @Reimport
 
 class CreateHRUs(QObject):
     
@@ -102,7 +102,7 @@ class CreateHRUs(QObject):
         At least one HRU is retained in each landscape unit, regardless of thresholds.
     '''
     
-    def __init__(self, gv: GlobalVars, reportsCombo: QComboBox, dialog: QDialog) -> None:
+    def __init__(self, gv: GlobalVars, reportsCombo: QComboBox, dialog: HrusDialog) -> None:
         """Constructor."""
         QObject.__init__(self)
         ## Map of basin number to basin data
@@ -173,7 +173,7 @@ class CreateHRUs(QObject):
         """Update progress label with message; emit message for display in testing."""
         QSWATUtils.progress(msg, self._progressLabel)
         if msg != '':
-            self.progress_signal.emit(msg)  # type: ignore
+            self.progress_signal.emit(msg)
         
     def generateBasins(self, progressBar: QProgressBar, root: QgsLayerTree) -> bool:
         """Generate basin data from watershed, landuse, soil and slope grids.
@@ -1592,7 +1592,7 @@ class CreateHRUs(QObject):
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
-            # delete the writer to flush
+            # flush
             writer.flushBuffer()
             del writer
             QSWATUtils.copyPrj(self._gv.basinFile, self._gv.fullLSUsFile)
@@ -1659,7 +1659,7 @@ class CreateHRUs(QObject):
             group = root.findGroup(QSWATUtils._WATERSHED_GROUP_NAME)
             index = QSWATUtils.groupIndex(group, subLayer)
             QSWATUtils.removeLayerByLegend(legend, layers)
-            fullHRUsLayer = proj.addMapLayer(layer, False)
+            fullHRUsLayer = cast(QgsVectorLayer, proj.addMapLayer(layer, False))
             if group is not None:
                 group.insertLayer(index, fullHRUsLayer)
             styleFile = 'fullhrus.qml'
@@ -3166,7 +3166,7 @@ class CreateHRUs(QObject):
         # seems we have to completely relinquish hold on actHRUsFile for changes to take effect
         del layer
         actHRUsLayer = QgsVectorLayer(actHRUsFile, '{0} ({1})'.format(legend, actHRUsBasename), 'ogr')
-        actHRUsLayer = proj.addMapLayer(actHRUsLayer, False)
+        actHRUsLayer = cast(QgsVectorLayer, proj.addMapLayer(actHRUsLayer, False))
         if group is not None:
             group.insertLayer(index, actHRUsLayer)
         styleFile = 'fullhrus.qml'
@@ -3264,7 +3264,7 @@ class CreateHRUs(QObject):
         newFeatures = self.mergeGeometries(mergers)
         OK = len(amap) == 0 or provider.changeAttributeValues(amap)
         if OK:
-            OK = len(newFeatures) == 0 or provider.addFeatures(newFeatures)
+            OK = len(newFeatures) == 0 or provider.addFeatures(newFeatures)[0]
         if OK:
             OK = len(fidsToDelete) == 0 or provider.deleteFeatures(fidsToDelete)
         return OK
@@ -3401,7 +3401,7 @@ class CreateHRUs(QObject):
         OK = len(amap) == 0 or provider.changeAttributeValues(amap)
         if OK:
             for mergers in mergeMap.values():
-                OK = OK and provider.addFeatures(list(mergers.values()))
+                OK = OK and provider.addFeatures(list(mergers.values()))[0]
         if OK:
             OK = len(toDelete) == 0 or provider.deleteFeatures(toDelete)
         if OK and not self._gv.useGridModel:
@@ -5184,7 +5184,7 @@ class HRUs(QObject):
                     msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.HRUNum, 
                                                                                                 self.CreateHRUs.countChannels(), 
                                                                                                 len(self._gv.topo.subbasinToSWATBasin))
-                    self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)
+                    self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)  # type: ignore
                     if self._gv.isBatch:
                         print(msg)
             self._gv.db.checkRoutingTable()
@@ -5683,24 +5683,24 @@ class HRUs(QObject):
         
     def doExempt(self) -> None:
         """Run the exempt dialog."""
-        dlg: QDialog = Exempt(self._gv)
+        dlg = Exempt(self._gv)
         dlg.run()
         
     def doSplit(self) -> None:
         """Run the split dialog."""
-        dlg: QDialog = Split(self._gv)
+        dlg = Split(self._gv)
         dlg.run()
         
     def doElevBands(self) -> None:
         """Run the elevation bands dialog."""
-        dlg: QDialog = ElevationBands(self._gv)
+        dlg = ElevationBands(self._gv)
         dlg.run()
     
     def progress(self, msg: str) -> None:
         """Update progress label with message; emit message for display in testing."""
         QSWATUtils.progress(msg, self._dlg.progressLabel)
         if msg != '':
-            self.progress_signal.emit(msg)  # type: ignore
+            self.progress_signal.emit(msg)
        
     ## signal for indicating progress     
     progress_signal = pyqtSignal(str)

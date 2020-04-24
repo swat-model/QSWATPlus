@@ -291,7 +291,7 @@ class QSWATUtils:
     @staticmethod
     def layerFileInfo(mapLayer: QgsMapLayer) -> Optional[QFileInfo]:
         """Return QFileInfo of raster or vector layer."""
-        provider: QgsDataProvider = mapLayer.dataProvider()
+        provider = mapLayer.dataProvider()
         if isinstance(mapLayer, QgsRasterLayer):
             return QFileInfo(provider.dataSourceUri())
         elif isinstance(mapLayer, QgsVectorLayer):
@@ -308,7 +308,7 @@ class QSWATUtils:
         """Return path of raster or vector layer."""
         provider = layer.dataProvider()
         if isinstance(layer, QgsRasterLayer):
-            return cast(str, provider.dataSourceUri())
+            return provider.dataSourceUri()
         elif isinstance(layer, QgsVectorLayer):
             path: str  = provider.dataSourceUri()
             # vector data sources have additional "|layerid=0"
@@ -642,7 +642,7 @@ class QSWATUtils:
                 layer: QgsMapLayer = QgsRasterLayer(fileName, '{0} ({1})'.format(legend, baseName))
                 if clipToDEM:
                     layer = QSWATUtils.clipLayerToDEM(treeLayers, cast(QgsRasterLayer, layer), fileName, legend, gv)
-                mapTip = ''  # so we can check later if the file is araster
+                mapTip = ''  # so we can check later if the file is a raster
             else: 
                 ogr.RegisterAll()
                 layer = QgsVectorLayer(fileName, '{0} ({1})'.format(legend, baseName), 'ogr')
@@ -655,8 +655,9 @@ class QSWATUtils:
                 # this function does not seem to work:
                 # replaced by code above to set the layer insertion point
                 # mapLayer = QSWATUtils.moveLayerToGroup(mapLayer, groupName, root, gv)
-                fun: Optional[Callable[[QgsMapLayer, Any], None]] = FileTypes.colourFun(ft)
+                fun: Optional[Callable[[QgsRasterLayer, Any], None]] = FileTypes.colourFun(ft)
                 if fun is not None:
+                    assert isinstance(mapLayer, QgsRasterLayer)
                     fun(mapLayer, gv.db)
                 if not (styleFile is None or styleFile == ''):
                     # note thic causes 'Calling appendChild() on a null node does nothing.' to be output
@@ -669,6 +670,7 @@ class QSWATUtils:
                         QSWATUtils.error('Failed to create dem.qml: {0}'.format(msg), gv.isBatch)
                 # now can set map tip if there is one
                 if mapTip != '':
+                    assert isinstance(mapLayer, QgsVectorLayer)
                     mapLayer.setMapTipTemplate(mapTip)
                 return (mapLayer, True)
             else:
@@ -716,7 +718,7 @@ class QSWATUtils:
             for child in root.children():
                 node = cast(QgsLayerTreeNode, child)
                 if QgsLayerTree.isGroup(node):
-                    currentLayer = node.findLayer(layerId)
+                    currentLayer = cast(QgsLayerTreeGroup, node).findLayer(layerId)
                     if currentLayer is not None:
                         if node == group: # already in required group
                             return layer
@@ -731,7 +733,7 @@ class QSWATUtils:
         QSWATUtils.loginfo('Found layer in group {0}'.format(currentGroup.name()))
         # need to move from currentGroup to group
         QSWATUtils.loginfo('Layer to be cloned is {0}'.format(repr(layer)))
-        cloneLayer: QgsLayerTreeLayer = layer.clone()
+        cloneLayer = layer.clone()
         QSWATUtils.loginfo('Cloned map layer is {0}'.format(repr(cloneLayer)))
         movedLayer: QgsLayerTreeLayer = group.insertLayer(0, cloneLayer)
         currentGroup.removeLayer(layer)
@@ -849,7 +851,7 @@ class QSWATUtils:
             return (None, None)
         
     @staticmethod
-    def fixGeometry(inFile, saveDir):
+    def fixGeometry(inFile: str, saveDir: str) -> None:
         """Fix geometries in shapefile.  Assumes saveDir is not the folder of inFile."""
         filename = os.path.split(inFile)[1]
         outFile = QSWATUtils.join(saveDir, filename)
@@ -1489,7 +1491,7 @@ class FileTypes:
         return False
         
     @staticmethod
-    def colourFun(ft: int) -> Optional[Callable[[QgsMapLayer, Any], None]]:
+    def colourFun(ft: int) -> Optional[Callable[[QgsRasterLayer, Any], None]]:
         """Layer colouring function for raster layer of file type ft."""
         if ft == FileTypes._DEM:
             return FileTypes.colourDEM
@@ -1505,9 +1507,8 @@ class FileTypes:
             return None
 
     @staticmethod
-    def colourDEM(layer: QgsMapLayer, _: Any) -> None:
+    def colourDEM(layer: QgsRasterLayer, _: Any) -> None:
         """Layer colouring function for DEM."""
-        cast(QgsRasterLayer, layer)
         shader: QgsRasterShader = QgsRasterShader()
         stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1,
                                                                         QgsRasterBandStats.Min | QgsRasterBandStats.Max)
@@ -1528,13 +1529,11 @@ class FileTypes:
         shader.setRasterShaderFunction(fcn)
         renderer: QgsSingleBandPseudoColorRenderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
         layer.setRenderer(renderer)
-        
         layer.triggerRepaint()
         
     @staticmethod
-    def colourLanduses(layer: QgsMapLayer, db: Any) -> None:
+    def colourLanduses(layer: QgsRasterLayer, db: Any) -> None:
         """Layer colouring function for landuse grid."""
-        cast(QgsRasterLayer, layer)
         items: List[QgsPalettedRasterRenderer.Class] = []
         colours = QgsLimitedRandomColorRamp.randomColors(len(db.landuseVals))
         index = 0
@@ -1551,9 +1550,8 @@ class FileTypes:
         layer.triggerRepaint()
     
     @staticmethod
-    def colourSoils(layer: QgsMapLayer, db: Any) -> None:
+    def colourSoils(layer: QgsRasterLayer, db: Any) -> None:
         """Layer colouring function for soil grid."""
-        cast(QgsRasterLayer, layer)
         items: List[QgsPalettedRasterRenderer.Class] = []
         index = 0
         if db.useSSURGO:
@@ -1580,9 +1578,8 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourSlopes(layer: QgsMapLayer, db: Any) -> None:
+    def colourSlopes(layer: QgsRasterLayer, db: Any) -> None:
         """Layer colouring for slope bands grid."""
-        cast(QgsRasterLayer, layer)
         shader: QgsRasterShader = QgsRasterShader()
         items: List[QgsColorRampShader.ColorRampItem] = []
         numItems: int = len(db.slopeLimits) + 1
@@ -1601,9 +1598,8 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourFlood(layer: QgsMapLayer, _: Any) -> None:
+    def colourFlood(layer: QgsRasterLayer, _: Any) -> None:
         """Layer colouring for floodplain rasters."""
-        cast(QgsRasterLayer, layer)
         renderer: QgsSingleBandGrayRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)
         renderer.setGradient(QgsSingleBandGrayRenderer.BlackToWhite)
         enhancement: QgsContrastEnhancement = QgsContrastEnhancement()

@@ -29,11 +29,11 @@ import os.path
 # import xml.etree.ElementTree as ET
 from typing import Dict, List, Set, Optional, TYPE_CHECKING  # @UnusedImport
 
-from .QSWATTopology import QSWATTopology  # type: ignore
-from .QSWATUtils import QSWATUtils  # type: ignore
-from .DBUtils import DBUtils  # type: ignore
-from .TauDEMUtils import TauDEMUtils  # type: ignore
-from .parameters import Parameters  # type: ignore
+from .QSWATTopology import QSWATTopology  # type: ignore  @UnusedImport
+from .QSWATUtils import QSWATUtils  # type: ignore  @UnusedImport
+from .DBUtils import DBUtils  # type: ignore  @UnusedImport
+from .TauDEMUtils import TauDEMUtils  # type: ignore  @UnusedImport
+from .parameters import Parameters  # type: ignore  @UnusedImport
 from .raster import Raster  # type: ignore  @UnusedImport
 
 if TYPE_CHECKING:
@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from parameters import Parameters  # @UnresolvedImport @Reimport
     from delineation import Delineation  # @UnresolvedImport @UnusedImport
     from hrus import HRUs, CreateHRUs  # @UnresolvedImport @UnusedImport
+    from visualise import Visualise  # @UnresolvedImport @Reimport @UnusedImport
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""

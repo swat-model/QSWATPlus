@@ -20,7 +20,7 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication
+from PyQt5.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion
 from PyQt5.QtGui import QFontDatabase, QIcon, QFont
 from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
 from qgis.core import * # @UnusedWildImport
@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '1.3.3'
+    __version__ = '1.4'
 
     def __init__(self, iface):
         """Constructor."""

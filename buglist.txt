@@ -64,3 +64,7 @@ QSWATTopology.py line 988
 18/3/2020 #17
 Failed to check valueAtPoint for None
 QSWATTopology.py line 2011
+
+22/4/2020 #18
+Misplaced parenthesis.  Typecheck would find (should have been listed earlier, probably October 2019).
+QSWATtopology.py line 1516

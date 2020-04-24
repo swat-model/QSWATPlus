@@ -866,7 +866,8 @@ class ConvertFromArc(QObject):
                     entry.ref = 'F@1' 
                     arcPFile = base + 'arcp.tif'
                     formula = '("F@1" = 1) + ("F@1" = 128) * 2 + ("F@1" = 64) * 3 + ("F@1" = 32) * 4 + ("F@1" = 16) * 5 + ("F@1" = 8) * 6 + ("F@1" = 4) * 7 + ("F@1" = 2) * 8'
-                    calc = QgsRasterCalculator(formula, arcPFile, 'GTiff', ESRIPLayer.extent(), ESRIPLayer.width(), ESRIPLayer.height(), [entry])
+                    calc = QgsRasterCalculator(formula, arcPFile, 'GTiff', ESRIPLayer.extent(), ESRIPLayer.width(), ESRIPLayer.height(), [entry],
+                                               QgsCoordinateTransformContext())
                     result = calc.processCalculation()
                     if result == 0:
                         assert os.path.exists(arcPFile), 'QGIS calculator formula {0} failed to write output {1}'.format(formula, arcPFile)

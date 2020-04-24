@@ -819,12 +819,12 @@ class QSWATTopology:
             geomMap = dict()
             # map of polygon id to area that is part of the lake
             channelAreaChange: Dict[int, float] = dict()
-            for chBasin in chBasinsProvider.getFeatures():
-                chBasinGeom = chBasin.geometry()
-                polyId = chBasin[chBasinsPolyIndex]
+            for chBasinFeature in chBasinsProvider.getFeatures():
+                chBasinGeom = chBasinFeature.geometry()
+                polyId = chBasinFeature[chBasinsPolyIndex]
                 # if area reduced to zero because inside another lake, geometry is None
                 if chBasinGeom is not None and QSWATTopology.intersectsPoly(chBasinGeom, lakeGeom, lakeRect):
-                    chBasinId = chBasin.id()
+                    chBasinId = chBasinFeature.id()
                     area1 = chBasinGeom.area()
                     newGeom = chBasinGeom.difference(lakeGeom)
                     area2 = newGeom.area()
@@ -893,7 +893,7 @@ class QSWATTopology:
                                     replace = False
                             if replace:
                                 wsno = channel[channelWSNOIndex]
-                                subbasin: int = self.chBasinToSubbasin[wsno]
+                                subbasin = self.chBasinToSubbasin[wsno]
                                 lakeData.outPoint = (subbasin, dsNode, outlet, outflowData.lowerZ)
                                 lakeData.outChLink = dsLink
                             else:
@@ -989,9 +989,9 @@ class QSWATTopology:
                 # threshold in ha: LAKEOUTLETCHANNELAREA of lake area
                 threshold = (lakeData.area / 1E6) * Parameters._LAKEOUTLETCHANNELAREA
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([chBasinsPolyIndex, chBasinsAreaIndex])
-                for chBasin in chBasinsProvider.getFeatures():
-                    if chBasin[chBasinsPolyIndex] == outBasin:
-                        areaHa = chBasin[chBasinsAreaIndex]
+                for chBasinFeature in chBasinsProvider.getFeatures(request):
+                    if chBasinFeature[chBasinsPolyIndex] == outBasin:
+                        areaHa = chBasinFeature[chBasinsAreaIndex]
                         if areaHa < threshold:
                             # move outlet channel inside lake
                             lakeData.lakeChLinks.add(outLink)
@@ -2008,7 +2008,7 @@ class QSWATTopology:
                     return
                 point = line[numPoints // 2]
                 wVal = QSWATTopology.valueAtPoint(point, wLayer)
-                if wVal is None or math.isclose(wVal, wNoData, rel_tol=1e-06):  # outside watershed
+                if wVal is None or math.isclose(wVal, wNoData, rel_tol=1e-06):  # type: ignore outside watershed
                     basin = -1
                 else:
                     basin = cast(int, wVal)

@@ -1112,7 +1112,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             #QSWATUtils.printLayers(root, 6)
 
     @staticmethod            
-    def addHillshade(demFile: str, root: QgsLayerTreeNode, demMapLayer: QgsRasterLayer, gv: GlobalVars) -> None:
+    def addHillshade(demFile: str, root: QgsLayerTree, demMapLayer: QgsRasterLayer, gv: GlobalVars) -> None:
         """ Create hillshade layer and load."""
         hillshadeFile = os.path.splitext(demFile)[0] + 'hillshade.tif'
         if not QSWATUtils.isUpToDate(demFile, hillshadeFile):
@@ -1149,6 +1149,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 return
             # compress legend entry: need to find tree layer
             hillTreeLayer = root.findLayer(hillMapLayer.id())
+            assert hillTreeLayer is not None
             hillTreeLayer.setExpanded(False)
             hillMapLayer.renderer().setOpacity(0.4)
             hillMapLayer.triggerRepaint()
@@ -2201,7 +2202,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         result = self._odlg.exec_()
         self._gv.outletsPos = self._odlg.pos()
         self._dlg.raise_()
-        canvas.setMapTool(None)
+        canvas.setMapTool(None)  # type: ignore
         if result == 1:
             self.thresholdChanged = True
             # points added by drawing will have ids of -1, so fix them
@@ -3376,7 +3377,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         # We use 'Q+1' instead of Q to avoid problems in first subbasin 
         # when PolygonId is zero so Q is zero
         formula = '((Q@1 + 1) / (Q@1 + 1)) * P@1'
-        calc = QgsRasterCalculator(formula, accFile, 'GTiff', ad8Layer.extent(), ad8Layer.width(), ad8Layer.height(), [entry1, entry2])
+        calc = QgsRasterCalculator(formula, accFile, 'GTiff', ad8Layer.extent(), ad8Layer.width(), ad8Layer.height(), [entry1, entry2],
+                                   QgsCoordinateTransformContext())
         result = calc.processCalculation(feedback=None)
         if result == 0:
             assert os.path.exists(accFile), 'QGIS calculator formula {0} failed to write output'.format(formula)
@@ -3620,7 +3622,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         # since Booleans expressions evaluate to 1 (true) or 0 (false).
         # The result will have positive accumulation values only below the inlets, 0 above them
         formula = '(Q@1 = -1) * P@1'
-        calc = QgsRasterCalculator(formula, downAcc, 'GTiff', accLayer.extent(), accLayer.width(), accLayer.height(), [entry1, entry2])
+        calc = QgsRasterCalculator(formula, downAcc, 'GTiff', accLayer.extent(), accLayer.width(), accLayer.height(), [entry1, entry2],
+                                   QgsCoordinateTransformContext())
         result = calc.processCalculation(feedback=None)
         if result == 0:
             assert os.path.exists(downAcc), 'QGIS calculator formula {0} failed to write output'.format(formula)
@@ -3765,7 +3768,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid shapefile {0}: {1}'.format(gridFile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # delete the writer to flush
+            # flush
             writer.flushBuffer()
             del writer
             QSWATUtils.copyPrj(flowFile, gridFile)
@@ -4006,7 +4009,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid streams shapefile {0}: {1}'.format(drainStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
-            # delete the writer to flush
+            # flush
             writer.flushBuffer()
             del writer
             QSWATUtils.copyPrj(subbasinsFile, drainStreamsFile)

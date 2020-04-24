@@ -431,7 +431,7 @@ class Landscape(QObject):
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
                 return
-            # delete the writer to flush
+            # flush
             writer.flushBuffer()
             del writer
             QSWATUtils.copyPrj(channels, bufferShapefile)
