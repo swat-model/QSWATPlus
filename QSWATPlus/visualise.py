@@ -3623,7 +3623,7 @@ class Visualise(QObject):
         # remember we need to return a moving average, not a moving total
         if self._dlg.dQpPercentile.isChecked():
             p = self._dlg.dQpSpinP.value()
-            fraction = (100 - p) / 100
+            fraction = p / 100
             self.dQpResult = Visualise.percentile(totals, fraction) / d
             self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult)) 
         else:

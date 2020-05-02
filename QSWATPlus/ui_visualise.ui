@@ -938,17 +938,10 @@ observed</string>
                  <string>Qq</string>
                 </attribute>
                 <layout class="QGridLayout" name="gridLayout_11">
-                 <item row="0" column="0">
-                  <widget class="QLabel" name="label_11">
-                   <property name="text">
-                    <string>q (percentile)</string>
-                   </property>
-                  </widget>
-                 </item>
                  <item row="1" column="0">
                   <widget class="QSpinBox" name="QqSpin">
                    <property name="toolTip">
-                    <string>In each month, this percentage of the subbasin's outflows will be atleast the figure calculated.</string>
+                    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;In each month, this percentage of the subbasin's outflows will be above the calculated result for the month.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                    </property>
                    <property name="maximum">
                     <number>100</number>
@@ -1079,6 +1072,13 @@ p, li { white-space: pre-wrap; }
                    </property>
                   </widget>
                  </item>
+                 <item row="0" column="0" colspan="3">
+                  <widget class="QLabel" name="label_11">
+                   <property name="text">
+                    <string>q (percentile: upper bound)</string>
+                   </property>
+                  </widget>
+                 </item>
                 </layout>
                </widget>
                <widget class="QWidget" name="tab_4">
@@ -1126,28 +1126,21 @@ p, li { white-space: pre-wrap; }
                    </property>
                   </widget>
                  </item>
-                 <item row="2" column="0" colspan="3">
-                  <widget class="QLabel" name="label_19">
-                   <property name="text">
-                    <string>p (percentile)</string>
-                   </property>
-                  </widget>
-                 </item>
                  <item row="3" column="0">
                   <widget class="QSpinBox" name="dQpSpinP">
                    <property name="toolTip">
                     <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
-&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
-&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;For each year, this percentage of the flows exceed the selected flow.&lt;/span&gt;&lt;/p&gt;
-&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;This percentage of the subbasins's outflows will be below the calculated result.&lt;/p&gt;
+&lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
                    </property>
                    <property name="maximum">
                     <number>100</number>
                    </property>
                    <property name="value">
-                    <number>95</number>
+                    <number>5</number>
                    </property>
                   </widget>
                  </item>
@@ -1284,6 +1277,13 @@ p, li { white-space: pre-wrap; }
                      <string>Mean</string>
                     </property>
                    </widget>
+                  </widget>
+                 </item>
+                 <item row="2" column="0" colspan="5">
+                  <widget class="QLabel" name="label_19">
+                   <property name="text">
+                    <string>p (percentile: lower bound)</string>
+                   </property>
                   </widget>
                  </item>
                 </layout>
