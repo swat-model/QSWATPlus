@@ -23,7 +23,7 @@
 from PyQt5.QtCore import *  #  @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.core import QgsProject  # @UnresolvedImport
 # Import the code for the dialog
 import os.path
 from typing import Any

@@ -48,6 +48,13 @@ from QSWATTopology import QSWATTopology  # @UnresolvedImport
 from QSWATPlus import QSWATPlus
 from parameters import Parameters  # @UnresolvedImport
 
+
+## QApplication object needed 
+app = QgsApplication([], True)
+osGeo4wRoot = os.getenv('OSGEO4W_ROOT')
+app.setPrefixPath(osGeo4wRoot + r'\apps\qgis-ltr', True)
+app.initQgis()
+
 class ConvertFromArc(QObject):
     """Convert ArcSWAT projects to SWAT+"""
     _fullChoice = 0
@@ -2082,7 +2089,7 @@ class ConvertFromArc(QObject):
                         waterNum += 1
                         _, x, y, lat, lon, elev = subbasinAreaLatLonElev[subbasin]
                         cursor.execute(ConvertFromArc._INSERTWATER,
-                                       (waterNum, 'RES', subbasin, 0, x, y, lat, lon, elev))
+                                       (waterNum, 'RES', lsu, subbasin, 0, x, y, lat, lon, elev))
                         waters[waterNum] = 'RES', subbasin
                         cursor.execute(ConvertFromArc._INSERTROUTING, 
                                        (channel, 'CH', 'tot', waterNum, 'RES', 100))
@@ -2877,9 +2884,6 @@ class ConvertFromArc(QObject):
                 self.nwtot = int(row[22])
  
 if __name__ == '__main__':
-    ## QApplication object needed 
-    app = QgsApplication([], True)
-    app.initQgis()
     ## main program
     main = ConvertFromArc(sys.argv[1])
     try:
@@ -2888,5 +2892,6 @@ if __name__ == '__main__':
     except Exception:
         ConvertFromArc.exceptionError('Error')
     finally:
+        app.exitQgis()
         exit()    
     

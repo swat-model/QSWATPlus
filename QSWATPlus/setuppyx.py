@@ -8,7 +8,7 @@ if 'QSWAT_PROJECT' in os.environ and 'Linux' in os.environ['QSWAT_PROJECT']:
     sep = ':'
     is32 = '_32' in os.environ['QSWAT_PROJECT']
 else:
-    includePath = os.environ['OSGEO4W_ROOT'] + r'/apps/Python36/include'
+    includePath = os.environ['OSGEO4W_ROOT'] + r'/apps/Python37/include'
     sep = ';'
     is32 = False
 if 'INCLUDE' in os.environ:
@@ -25,3 +25,4 @@ else:
         package_dir = {'QSWATPlus': ''}, 
         ext_modules = cythonize('*.pyx', include_path = [os.environ['INCLUDE']]),
     )
+ 

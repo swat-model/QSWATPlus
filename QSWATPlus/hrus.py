@@ -20,11 +20,11 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
-from PyQt5.QtGui import QTextCursor, QDoubleValidator, QIntValidator
-from PyQt5.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox, QDialog
-from qgis.core import * # @UnusedWildImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
+from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator
+from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox
+from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext  # @UnresolvedImport
+# from qgis.gui import * # @UnusedWildImport
 import os.path
 from osgeo import gdal  # type: ignore
 from osgeo.gdalconst import *  # type: ignore @UnusedWildImport
@@ -361,7 +361,7 @@ class CreateHRUs(QObject):
         self.minElev = elevationBand.GetMinimum()
         maxElev: Optional[float] = elevationBand.GetMaximum()
         if self.minElev is None or maxElev is None:
-            (self.minElev, maxElev) = elevationBand.ComputeRasterMinMax(1)
+            (self.minElev, maxElev) = elevationBand.ComputeRasterMinMax(0)
         # convert to metres
         assert self.minElev is not None
         self.minElev *= self._gv.verticalFactor
@@ -5015,7 +5015,8 @@ class HRUs(QObject):
             QSWATUtils.tryRemoveLayerAndFiles(self._gv.actLSUsFile, root)
             if self._dlg.generateFullHRUs.isChecked():
                 self.CreateHRUs.fullHRUsWanted = True
-                QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullHRUsFile, root)
+                QSWATUtils.removeLayer(self._gv.fullHRUsFile, root)
+                #QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullHRUsFile, root)
                 QSWATUtils.tryRemoveLayerAndFiles(self._gv.actHRUsFile, root)
             else:
                 # remove any full and actual HRUs layers and files
@@ -5038,18 +5039,19 @@ class HRUs(QObject):
             # now have occurrences of landuses, so can make proper colour scheme and legend entry
             # soils will be done after HRU creation, since only uses occurring soils
             FileTypes.colourLanduses(self.landuseLayer, self._db)
-            treeModel = QgsLayerTreeModel(root)
-            assert self.landuseLayer is not None
-            landuseTreeLayer = root.findLayer(self.landuseLayer.id())
-            assert landuseTreeLayer is not None
-            treeModel.refreshLayerLegend(landuseTreeLayer)
-            if len(self._db.slopeLimits) > 0:
-                slopeBandsLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.slopeBandsFile, FileTypes._SLOPEBANDS, 
-                                                                        self._gv, None, QSWATUtils._SLOPE_GROUP_NAME)
-                if slopeBandsLayer is not None:
-                    slopeBandsTreeLayer = root.findLayer(slopeBandsLayer.id())
-                    assert slopeBandsTreeLayer is not None
-                    treeModel.refreshLayerLegend(slopeBandsTreeLayer)
+            if not self._gv.isBatch:
+                treeModel = QgsLayerTreeModel(root)
+                assert self.landuseLayer is not None
+                landuseTreeLayer = root.findLayer(self.landuseLayer.id())
+                assert landuseTreeLayer is not None
+                treeModel.refreshLayerLegend(landuseTreeLayer)
+                if len(self._db.slopeLimits) > 0:
+                    slopeBandsLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.slopeBandsFile, FileTypes._SLOPEBANDS, 
+                                                                            self._gv, None, QSWATUtils._SLOPE_GROUP_NAME)
+                    if slopeBandsLayer is not None:
+                        slopeBandsTreeLayer = root.findLayer(slopeBandsLayer.id())
+                        assert slopeBandsTreeLayer is not None
+                        treeModel.refreshLayerLegend(slopeBandsTreeLayer)
             if OK:
                 if not self._gv.useGridModel:
                     if self._dlg.channelMergeSlider.value() > 0:

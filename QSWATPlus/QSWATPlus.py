@@ -23,7 +23,7 @@
 from PyQt5.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion
 from PyQt5.QtGui import QFontDatabase, QIcon, QFont
 from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
-from qgis.core import * # @UnusedWildImport
+from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer
 import os
 import subprocess
 import time
@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '1.4'
+    __version__ = '1.3.99'
 
     def __init__(self, iface):
         """Constructor."""
@@ -767,6 +767,7 @@ class QSWATPlus(QObject):
             self.vis._dlg.close()
         self.vis = Visualise(self._gv)
         self.vis.run()
+        self.vis = None
                     
     def finish(self):   
         """Close the database connections and subsidiary forms."""

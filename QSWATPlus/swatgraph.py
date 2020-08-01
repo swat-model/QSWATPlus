@@ -21,10 +21,10 @@ import csv
 from datetime import datetime, timedelta
 import math
 # import seaborn as sns
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure  # @UnresolvedImport
 from matplotlib.backends.backend_qt4agg import (
-    FigureCanvasQTAgg as FigureCanvas,
-    NavigationToolbar2QT as NavigationToolbar)
+    FigureCanvasQTAgg as FigureCanvas,  # @UnresolvedImport
+    NavigationToolbar2QT as NavigationToolbar)  # @UnresolvedImport
 try:
     from .graphdialog import GraphDialog  # @UnusedImport
 except:

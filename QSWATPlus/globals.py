@@ -23,7 +23,7 @@
 from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport 
 from PyQt5.QtWidgets import QComboBox
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem  # @UnusedImport
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter  # @UnusedImport
 from qgis.gui import QgisInterface  # @UnresolvedImport
 import os.path
 # import xml.etree.ElementTree as ET
@@ -309,6 +309,11 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.visualisePos = QPoint(0, 100)
         ## rasters open that need to be closed if memory exception occurs
         self.openRasters: Set[Raster] = set()
+        ## options for creating shapefiles
+        self.vectorFileWriterOptions = QgsVectorFileWriter.SaveVectorOptions()
+        self.vectorFileWriterOptions.ActionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+        self.vectorFileWriterOptions.driverName = "ESRI Shapefile"
+        self.vectorFileWriterOptions.fileEncoding = "UTF-8"
         ## will set to choice made when converting from ArcSWAT, if that was how the project file was created
         # 0: Full
         # 1: Existing

@@ -291,6 +291,8 @@ class QSWATUtils:
     @staticmethod
     def layerFileInfo(mapLayer: QgsMapLayer) -> Optional[QFileInfo]:
         """Return QFileInfo of raster or vector layer."""
+        if mapLayer is None:
+            return None
         provider = mapLayer.dataProvider()
         if isinstance(mapLayer, QgsRasterLayer):
             return QFileInfo(provider.dataSourceUri())
@@ -674,10 +676,12 @@ class QSWATUtils:
                     mapLayer.setMapTipTemplate(mapTip)
                 return (mapLayer, True)
             else:
+                msg = ''
                 if mapLayer is not None:
                     err: QgsError = mapLayer.error()
-                    msg = err.summary()
-                else:
+                    if not err.isEmpty():
+                        msg = err.summary()
+                if msg == '':
                     msg = 'layer is None: {0}'.format(proj.error())
                 QSWATUtils.error('Failed to load {0}: {1}'.format(fileName, msg), gv.isBatch)
         return (None, False)

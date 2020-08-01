@@ -3283,11 +3283,11 @@ class QSWATTopology:
             fun = lambda _: 1.0
         chIdx = provider.fieldNameIndex(QSWATTopology._CHANNEL)
         if chIdx < 0:
-            QSWATUtils.error('Cannot find {0} field in channels results template'.format(QSWATTopology._CHANNEL))
+            QSWATUtils.error('Cannot find {0} field in channels results template'.format(QSWATTopology._CHANNEL), self.isBatch)
             return
         penIdx = provider.fieldNameIndex(QSWATTopology._PENWIDTH)
         if penIdx < 0:
-            QSWATUtils.error('Cannot find {0} field in channels results template'.format(QSWATTopology._PENWIDTH))
+            QSWATUtils.error('Cannot find {0} field in channels results template'.format(QSWATTopology._PENWIDTH), self.isBatch)
             return
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([chIdx, penIdx])
         mmap = dict()
@@ -3445,7 +3445,7 @@ class QSWATTopology:
     def runCalc2Trans(self, file1: str, file2: str, func: Callable[[float, float, float, float, float], float], 
                       outFile: str, baseFile:str, gv: Any, isInt: bool=False, 
                       fun1: Optional[Callable[[float], float]]=None, fun2: Optional[Callable[[float], float]]=None) -> bool:
-        """Use func as a function to calulate outFile from file1 and file2, using rows, columns and extent of baseFile.
+        """Use func as a function to calulate outFile from file1 and file2, using numbers of rows and columns of baseFile.
 
         If file1/2 values are not nodata and fun1/2 are not None, they are applied before func is applied."""
         if os.path.exists(outFile):

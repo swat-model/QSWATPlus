@@ -77,7 +77,7 @@ PY_FILES = \
 	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
 	ui_convert.py ui_graph.py
 
-PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC2.pyx
+PYX_FILES =  jenks.pyx dataInC.pyx # polygonizeInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
 

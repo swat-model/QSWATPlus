@@ -21,10 +21,10 @@
 '''
 # Import the PyQt and QGIS libraries
 from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *   # type: ignore  @UnusedWildImport
+from PyQt5.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from qgis.core import QgsApplication, QgsPointXY, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsStyle, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsTextAnnotation  # @UnusedImport
 from qgis.gui import * # @UnusedWildImport
 import os
 # import random
@@ -1034,11 +1034,13 @@ class Visualise(QObject):
                 if scenario != self.scenario:
                     # need to change database
                     self.setConnection(scenario)
-                    self.readData('', False, table, var, where)
+                    if not self.readData('', False, table, var, where):
+                        return
                     # restore database
                     self.setConnection(self.scenario)
                 else:
-                    self.readData('', False, table, var, where)
+                    if not self.readData('', False, table, var, where):
+                        return
                 isDaily, isMonthly, isAnnual, _ = Visualise.tableIsDailyMonthlyOrAnnual(table)
                 (year, tim) = self.startYearTime(isDaily, isMonthly)
                 (finishYear, finishTime) = self.finishYearTime(isDaily, isMonthly)
@@ -1109,10 +1111,10 @@ class Visualise(QObject):
         graph = SWATGraph(csvFile)
         graph.run()
     
-    def readData(self, layerId: str, isStatic: bool, table: str, var: str, where: str) -> None:
-        """Read data from database table into staticData."""
+    def readData(self, layerId: str, isStatic: bool, table: str, var: str, where: str) -> bool:
+        """Read data from database table into staticData.  Return True if no error detected."""
         if not self.conn:
-            return
+            return False
         # clear existing data for layerId
         self.staticData[layerId] = dict()
         layerData = self.staticData[layerId]
@@ -1170,7 +1172,11 @@ class Visualise(QObject):
                 if not year in layerData[gisId][var]:
                     layerData[gisId][var][year] = dict()
                 layerData[gisId][var][year][tim] = val
+        if len(layerData) == 0:
+            QSWATUtils.error('No data has nbeen read.  Perhaps your dates are outside the dates of the table', self._gv.isBatch)
+            return False
         self.summaryChanged = True
+        return True
         
 #     def readDailyFlowData(self, table: str, channel: int, monthData):
 #         """Read data from table for channel, organised by month."""
@@ -1754,7 +1760,7 @@ class Visualise(QObject):
         layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, summary))
         if not keepColours:
             count = 5
-            opacity = 1.0 if base == Parameters._RIVS else 65.0
+            opacity = 1.0 if base == Parameters._RIVS else 0.65
         else:
             # same layer as currently - try to use same range size and colours, and same opacity
             try:
@@ -1767,7 +1773,7 @@ class Visualise(QObject):
                 # don't care if no suitable colours, so no message, just revert to defaults
                 keepColours = False
                 count = 5
-                opacity = 1.0 if base == Parameters._RIVS else 65.0
+                opacity = 1.0 if base == Parameters._RIVS else 0.65
         if not keepColours:
             ramp = self.chooseColorRamp(self.table, selectVar)
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
@@ -1801,11 +1807,9 @@ class Visualise(QObject):
         layer.triggerRepaint()
         self._gv.iface.layerTreeView().refreshLayerSymbology(layer.id())
         canvas = self._gv.iface.mapCanvas()
-        if self.mapTitle is not None:
-            canvas.scene().removeItem(self.mapTitle)
-            canvas.update()
+        self.clearMapTitle()
         self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, layer)
-        canvas.update()
+        canvas.refresh()
         if base == Parameters._SUBS:
             self.internalChangeToSubRenderer = False
             self.keepSubColours = keepColours
@@ -1944,7 +1948,7 @@ class Visualise(QObject):
         if base is None:
             return
         count = 5
-        opacity = 1 if base == Parameters._RIVS else 65
+        opacity = 1.0 if base == Parameters._RIVS else 0.65
         ramp = self.chooseColorRamp(self.table, self.animateVar)
         # replaced by Cython code
         #=======================================================================
@@ -1988,9 +1992,9 @@ class Visualise(QObject):
 #             canvas = self._gv.iface.mapCanvas()
 #             if self.mapTitle is not None:
 #                 canvas.scene().removeItem(self.mapTitle)
-#                 canvas.update()
+#                 canvas.refresh()
 #             self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, animations[0])
-#             canvas.update()
+#             canvas.refresh()
         
     def createAnimationComposition(self) -> None:
         """Create print composer to capture each animation step."""
@@ -2108,6 +2112,7 @@ class Visualise(QObject):
                 subs['%%WshedLayer{0}%%'.format(i)] = layerStr.format(QSWATUtils.layerFilename(wLayer), wLayer.name(), wLayer.id())
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
+        # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
         with open(templateIn, 'rU') as inFile:
             with open(self.animationTemplate, 'w') as outFile:
                 for line in inFile:
@@ -2116,7 +2121,7 @@ class Visualise(QObject):
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
         if f.open(QIODevice.ReadOnly):
-            OK = self.animationDOM.setContent(f)
+            OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
                 return
@@ -2224,9 +2229,10 @@ class Visualise(QObject):
             else:
                 root = QgsProject.instance().layerTreeRoot()
                 animateTreeLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=False)
-                animateLayers = [layer.layer() for layer in animateTreeLayers]
+                animateLayers = [layer.layer() for layer in animateTreeLayers if layer is not None]
             for animateLayer in animateLayers:
-                assert animateLayer is not None
+                if animateLayer is None:
+                    continue
                 layerId = animateLayer.id()
                 self.resultsData = cast(Dict[str, Dict[int, Dict[int, float]]], self.resultsData)
                 data = self.resultsData[layerId][dat]
@@ -2308,7 +2314,6 @@ class Visualise(QObject):
         self.animateLayer.triggerRepaint()
         canvas = self._gv.iface.mapCanvas()
         canvas.refresh()
-        canvas.update()
         self.currentStillNumber += 1
         base, suffix = os.path.splitext(self.stillFileBase)
         nextStillFile = base + '{0:05d}'.format(self.currentStillNumber) + suffix
@@ -2478,7 +2483,8 @@ class Visualise(QObject):
         self._dlg.setCursor(Qt.WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
-            self.readData('', True, self.table, '', '')
+            if not self.readData('', True, self.table, '', ''):
+                return
             self.periodsUpToDate = True
         if self.summaryChanged:
             self.summariseData('', True)
@@ -2608,6 +2614,7 @@ class Visualise(QObject):
                 subs['%%WshedLayer{0}%%'.format(i)] = layerStr.format(QSWATUtils.layerFilename(wLayer), wLayer.name(), wLayer.id())
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
+        # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
         with open(templateIn, 'rU') as inFile:
             with open(templateOut, 'w') as outFile:
                 for line in inFile:
@@ -2616,7 +2623,7 @@ class Visualise(QObject):
         templateDoc = QDomDocument()
         f = QFile(templateOut)
         if f.open(QIODevice.ReadOnly):
-            OK = templateDoc.setContent(f)
+            OK = templateDoc.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(templateOut), self._gv.isBatch)
                 return
@@ -2683,7 +2690,8 @@ class Visualise(QObject):
                 return
             assert self.animateLayer is not None
             lid = self.animateLayer.id()
-            self.readData(lid, False, self.table, self.animateVar, '')
+            if not self.readData(lid, False, self.table, self.animateVar, ''):
+                return
             self.summariseData(lid, False)
             if self.isDaily:
                 animateLength = self.periodDays
@@ -2726,7 +2734,7 @@ class Visualise(QObject):
             self.videoFile = QSWATUtils.join(resultsDir, self.animateVar + 'Video.gif')
         try:
             os.remove(self.videoFile)
-        except:
+        except Exception:
             pass
         period = 1.0 / self._dlg.spinBox.value()
         try:
@@ -3308,6 +3316,25 @@ class Visualise(QObject):
 #         return len(breaks) - 1 
 #===============================================================================
 
+    def clearMapTitle(self):
+        """Can often end up with more than one map title.  Remove all of them from the canvas, prior to resetting one required."""
+        canvas = self._iface.mapCanvas()
+        scene = canvas.scene()
+        if self.mapTitle is not None:
+            scene.removeItem(self.mapTitle)
+            self.mapTitle = None
+        for item in scene.items():
+            # testing by isinstance is insufficient as a MapTitle item can have a wrappertype
+            # and the test returns false
+            #if isinstance(item, MapTitle):
+            try:
+                isMapTitle = item.identifyMapTitle() == 'MapTitle'
+            except Exception:
+                isMapTitle = False
+            if isMapTitle:
+                scene.removeItem(item)
+        canvas.refresh()
+
     def setAnimateLayer(self) -> None:
         """Set self.animateLayer to first visible layer in Animations group, retitle as appropriate."""
         canvas = self._gv.iface.mapCanvas()
@@ -3321,7 +3348,7 @@ class Visualise(QObject):
             mapLayer = treeLayer.layer()
             if self.mapTitle is None:
                 self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
-                canvas.update()
+                canvas.refresh()
                 self.animateLayer = mapLayer
                 return
             elif mapLayer == self.mapTitle.layer:
@@ -3329,14 +3356,17 @@ class Visualise(QObject):
                 return
             else:
                 # first visible animation layer not current titleLayer
-                canvas.scene().removeItem(self.mapTitle)
-                canvas.update()
+                self.clearMapTitle()
                 dat = self.sliderValToDate()
                 date = self.dateToString(dat)
                 self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer, line2=date)
-                canvas.update()
+                canvas.refresh()
                 self.animateLayer = mapLayer
                 return
+        # if we get here, no visible animation layers
+        self.clearMapTitle()
+        self.animateLayer = None
+        return     
     
     def setResultsLayer(self) -> None:
         """Set self.currentResultsLayer to first visible layer in Results group, retitle as appropriate."""
@@ -3346,23 +3376,18 @@ class Visualise(QObject):
         animationLayers = QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, root, visible=True)
         if len(animationLayers) > 0:
             return
+        self.clearMapTitle()
         resultsLayers = QSWATUtils.getLayersInGroup(QSWATUtils._RESULTS_GROUP_NAME, root, visible=True) 
         if len(resultsLayers) == 0:
-            if self.mapTitle is not None:
-                canvas.scene().removeItem(self.mapTitle)
-                canvas.update()
             self.currentResultsLayer = None
             return
         else:
             for treeLayer in resultsLayers:
                 mapLayer = treeLayer.layer()
-                if self.mapTitle is not None:
-                    canvas.scene().removeItem(self.mapTitle)
-                    canvas.update()
                 self.currentResultsLayer = mapLayer
                 assert self.currentResultsLayer is not None
                 self.mapTitle = MapTitle(self.conn, canvas, self.table, self.title, mapLayer)
-                canvas.update()
+                canvas.refresh()
                 return 
     
     def clearAnimationDir(self) -> None:
@@ -3379,7 +3404,7 @@ class Visualise(QObject):
             for f in glob.iglob(pattern):
                 try:
                     os.remove(f)
-                except:
+                except Exception:
                     pass
         self.currentStillNumber = 0
         
@@ -3908,4 +3933,9 @@ class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
         self.rect = QRectF(0, self.rect01.top(), 
                             max(self.rect01.width(), rect2.width()), 
                             self.rect01.height() + rect2.height())
+    
+    def identifyMapTitle(self) -> str:
+        """Function used to identify a MapTitle object even when it has a wrapper."""    
+        return 'MapTitle'
+          
     

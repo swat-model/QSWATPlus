@@ -19,12 +19,12 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries 
-from PyQt5.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant
-from PyQt5.QtGui import QColor, QDoubleValidator, QIntValidator
-from PyQt5.QtWidgets import QMessageBox
-from qgis.core import * # @UnusedWildImport 
+from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
+from qgis.PyQt.QtGui import QColor, QDoubleValidator, QIntValidator
+from qgis.PyQt.QtWidgets import QMessageBox
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsGradientColorRamp, QgsRendererRangeLabelFormat, QgsGraduatedSymbolRenderer, QgsLineSymbol, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
 from qgis.gui import * # @UnusedWildImport
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os
 import glob
 import shutil
@@ -32,10 +32,10 @@ import math
 import subprocess
 import time
 from osgeo import gdal, ogr  # type: ignore
-from osgeo._gdalconst import GA_Update, GA_ReadOnly  # type: ignore
+from osgeo._gdalconst import GA_Update, GA_ReadOnly  # type: ignore  @UnresolvedImport
 import csv
 import traceback
-from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast
+from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
 
 # Import the code for the dialog
 from .delineationdialog import DelineationDialog  # type: ignore

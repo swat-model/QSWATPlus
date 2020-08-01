@@ -22,7 +22,7 @@
  
  Cython version of parts of hrus
 '''
-
+ 
 
 # Import the PyQt and QGIS libraries
 from PyQt5.QtCore import *  # @UnusedWildImport
