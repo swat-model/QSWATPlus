@@ -272,6 +272,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.isBatch = isBatch
         ## Path of project database
         self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isBatch)
+        ## multiplier to turn DEM distances to metres
+        self.horizontalFactor = 1
         ## multiplier to turn elevations to metres
         self.verticalFactor = 1
         ## vertical units

@@ -22,18 +22,19 @@
 from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
 from qgis.PyQt.QtGui import QColor, QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsGradientColorRamp, QgsRendererRangeLabelFormat, QgsGraduatedSymbolRenderer, QgsLineSymbol, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsGradientColorRamp, QgsRendererRangeLabelFormat, QgsGraduatedSymbolRenderer, QgsLineSymbol, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
 from qgis.gui import * # @UnusedWildImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os
 import glob
 import shutil
 import math
-import subprocess
+#import subprocess
 import time
 from osgeo import gdal, ogr  # type: ignore
-from osgeo._gdalconst import GA_Update, GA_ReadOnly  # type: ignore  @UnresolvedImport
 import csv
+import processing  # type: ignore @UnresolvedImport
+from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
 import traceback
 from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
 
@@ -123,7 +124,7 @@ class Delineation(QObject):
         self._odlg.move(self._gv.outletsPos)
         ## Qgs vector layer for drawing inlet/outlet points
         self.drawOutletLayer: Optional[QgsVectorLayer] = None
-        ## depends on DEM height and width and also on choice of area units
+        ## area of DEM cell in sq m
         self.areaOfCell = 0.0
         ## Width of DEM as number of cells
         self.demWidth = 0
@@ -645,6 +646,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
         lakeProvider = lakesLayer.dataProvider()
         channelProvider = channelsLayer.dataProvider()
         channelLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._LINKNO)
+        areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
         geoMap: Dict[int, QgsGeometry] = dict()
         lakesToRemove: List[int] = []
         for lake in lakeProvider.getFeatures():
@@ -664,7 +666,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                 partNum = 0
                 for poly in polys:
                     nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
-                    nextArea = nextPart.area()
+                    nextArea = nextPart.area() * areaFactor
                     nextLen = len(poly[0])
                     partNum += 1
                     QSWATUtils.loginfo('Part {0} has {1} perimeter vertices and area {2}'.format(partNum, nextLen, int(nextArea)))
@@ -974,6 +976,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 return
             gridLayer.updateFields()
             gridResIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._RES)
+        areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
         # list of ids of lakes already added to grid
         done: List[int] = []
         mmap: Dict[int, Dict[int, Any]] = dict()
@@ -1001,7 +1004,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 lakePart = cellGeom.intersection(lakeGeom)
                 if lakePart.isEmpty():
                     continue
-                if lakePart.area() < cellAreaThreshold:
+                if lakePart.area() * areaFactor < cellAreaThreshold:
                     continue
                 mmap[cell.id()] = {gridLakeIdIndex: lakeId, gridResIndex: waterRole}
             done.append(lakeId)
@@ -1116,22 +1119,37 @@ assumed that its crossing the lake boundary is an inaccuracy.
         """ Create hillshade layer and load."""
         hillshadeFile = os.path.splitext(demFile)[0] + 'hillshade.tif'
         if not QSWATUtils.isUpToDate(demFile, hillshadeFile):
+            processing.run("gdal:hillshade", 
+                           {'INPUT':demFile,
+                            'BAND':1,
+                            'Z_FACTOR':5,
+                            'SCALE':1,
+                            'AZIMUTH':315,
+                            'ALTITUDE':45,
+                            'COMPUTE_EDGES':False,
+                            'ZEVENBERGEN':False,
+                            'COMBINED':False,
+                            'MULTIDIRECTIONAL':False,
+                            'OPTIONS':'',
+                            'EXTRA':'',
+                            'OUTPUT':hillshadeFile})
+
             # run gdaldem to generate hillshade.tif
-            if Parameters._ISWIN:
-                gdaldem = 'gdaldem.exe'
-            else:
-                gdaldem = 'gdaldem'
-            QSWATUtils.tryRemoveLayerAndFiles(hillshadeFile, root)
-            command = '"{0}" hillshade -compute_edges -z 5 "{1}" "{2}"'.format(gdaldem, demFile, hillshadeFile)
-            proc = subprocess.run(command,
-                                shell=True,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                universal_newlines=True)    # text=True) only in python 3.7
-            QSWATUtils.loginfo('Creating hillshade ...')
-            QSWATUtils.loginfo(command)
-            for line in  proc.stdout.split('\n'):
-                QSWATUtils.loginfo(line)
+#             if Parameters._ISWIN:
+#                 gdaldem = 'gdaldem.exe'
+#             else:
+#                 gdaldem = 'gdaldem'
+#             QSWATUtils.tryRemoveLayerAndFiles(hillshadeFile, root)
+#             command = '"{0}" hillshade -compute_edges -z 5 "{1}" "{2}"'.format(gdaldem, demFile, hillshadeFile)
+#             proc = subprocess.run(command,
+#                                 shell=True,
+#                                 stdout=subprocess.PIPE,
+#                                 stderr=subprocess.STDOUT,
+#                                 universal_newlines=True)    # text=True) only in python 3.7
+#             QSWATUtils.loginfo('Creating hillshade ...')
+#             QSWATUtils.loginfo(command)
+#             for line in  proc.stdout.split('\n'):
+#                 QSWATUtils.loginfo(line)
             if not os.path.exists(hillshadeFile):
                 QSWATUtils.information('Failed to create hillshade file {0}'.format(hillshadeFile), gv.isBatch)
                 return
@@ -1907,11 +1925,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # fail gracefully
             epsg = ''
         if units == QgsUnitTypes.DistanceMeters:
-            factor = 1.0
+            self._gv.horizontalFactor = 1.0
             self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._METRES))
             self._dlg.horizontalCombo.setEnabled(False)
         elif units == QgsUnitTypes.DistanceFeet:
-            factor = Parameters._FEETTOMETRES
+            self._gv.horizontalFactor = Parameters._FEETTOMETRES
             self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._FEET))
             self._dlg.horizontalCombo.setEnabled(False)
         else:
@@ -1929,8 +1947,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         self.demHeight = demLayer.height()
         if int(demLayer.rasterUnitsPerPixelX() + 0.5) != int(demLayer.rasterUnitsPerPixelY() + 0.5):
             QSWATUtils.information('WARNING: DEM cells are not square: {0!s} x {1!s}'.format(demLayer.rasterUnitsPerPixelX(), demLayer.rasterUnitsPerPixelY()), self._gv.isBatch)
-        self._gv.topo.dx = demLayer.rasterUnitsPerPixelX() * factor
-        self._gv.topo.dy = demLayer.rasterUnitsPerPixelY() * factor
+        self._gv.topo.dx = demLayer.rasterUnitsPerPixelX() * self._gv.horizontalFactor
+        self._gv.topo.dy = demLayer.rasterUnitsPerPixelY() * self._gv.horizontalFactor
         self._dlg.sizeEdit.setText('{:.4G} x {:.4G}'.format(self._gv.topo.dx, self._gv.topo.dy))
         self._dlg.sizeEdit.setReadOnly(True)
         self.setAreaOfCell()
@@ -3185,7 +3203,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if QSWATUtils.isUpToDate(wFile, subbasinsFile):
             return
         # create shapes from wFile
-        wDs = gdal.Open(wFile, GA_ReadOnly)
+        wDs = gdal.Open(wFile, gdal.GA_ReadOnly)
         if wDs is None:
             QSWATUtils.error('Cannot open watershed grid {0}'.format(wFile), self._gv.isBatch)
             return
@@ -3257,7 +3275,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             feature = QgsFeature(fields)
             # basin is a numpy.int32 so we need to convert it to a Python int
             feature.setAttribute(basinIndex, int(basin))
-            feature.setAttribute(areaIndex, shapes.area(basin) / 1E4)
+            feature.setAttribute(areaIndex, shapes.area(basin) * self._gv.horizontalFactor * self._gv.horizontalFactor / 1E4)
             feature.setGeometry(geometry1)
             if not provider.addFeatures([feature]):
                 QSWATUtils.error('Unable to add feature to watershed shapefile {0}'. \
@@ -3386,7 +3404,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         else:
             QSWATUtils.error('QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch)
             return None, None, 0, 0
-        accRaster = gdal.Open(accFile, GA_ReadOnly)
+        accRaster = gdal.Open(accFile, gdal.GA_ReadOnly)
         if accRaster is None:
             QSWATUtils.error('Cannot open accumulation file {0}'.format(accFile), self._gv.isBatch)
             return None, None, 0, 0
@@ -3394,7 +3412,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         accBand = accRaster.GetRasterBand(1)
         accTransform = accRaster.GetGeoTransform()    
         accArray = accBand.ReadAsArray(0, 0, accBand.XSize, accBand.YSize)
-        unitArea = abs(accTransform[1] * accTransform[5]) / 1E6 # area of one cell in square km
+        unitArea = abs(accTransform[1] * accTransform[5]) * self._gv.horizontalFactor * self._gv.horizontalFactor / 1E6 # area of one cell in square km
         QSWATUtils.loginfo('Grid cell area {0!s} sq km'.format(unitArea * self._gv.gridSize * self._gv.gridSize))
         # create polygons and add to gridFile
         polyId = 0
@@ -3603,7 +3621,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         # need to reclassify nodata values to use in calculator, else they inevitably remain nodata
         # accumulation files have a nodata value of -1
         # we change the nodata value to -9999 to prevent -1 being regarded as nodata    
-        ds = gdal.Open(upAccFile, GA_Update)
+        ds = gdal.Open(upAccFile, gdal.GA_Update)
         band = ds.GetRasterBand(1)
         band.SetNoDataValue(-9999)
         ds = None
@@ -3802,7 +3820,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 feature.setAttribute(idIndex, gridData.num)
                 feature.setAttribute(downIndex, gridData.downNum)
                 # convert area in raster cell count to area of grid cell in hectares
-                feature.setAttribute(areaIndex, abs(gridData.area * x_size * y_size) / 1E4)
+                feature.setAttribute(areaIndex, abs(gridData.area * x_size * y_size * self._gv.horizontalFactor * self._gv.horizontalFactor) / 1E4)
                 geometry = QgsGeometry.fromPolygonXY([ring])
                 feature.setGeometry(geometry)
                 features.append(feature)
@@ -4028,11 +4046,12 @@ If you want to start again from scratch, reload the lakes shapefile."""
         features = list()
         self._gv.topo.basinCentroids.clear()
         toRemove: List[int] = list()
+        areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
         if self.gridDrainage:
             centroids: Dict[int, Tuple[int, QgsPointXY, Tuple[float, float], Tuple[float, float]]] = dict()
             for cell in subbasinsLayer.getFeatures():
                 basin = cell[basinIndex]
-                area = int(cell.geometry().area())
+                area = int(cell.geometry().area() * areaFactor)
                 if area == 0:
                     # grid cells collected by clipping with aquifers can be degenerate ones at edge with close to zero area:
                     # remove them

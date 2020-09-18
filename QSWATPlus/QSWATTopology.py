@@ -255,6 +255,8 @@ class QSWATTopology:
         self.xThreshold = 0
         ## y direction threshold for points to be considered coincident
         self.yThreshold = 0
+        ## multiplier to turn DEM distances to metres
+        self.horizontalFactor = 1
         ## multiplier to turn DEM elevations to metres
         self.verticalFactor = 1
         ## DEM nodata value
@@ -298,20 +300,21 @@ class QSWATTopology:
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(traceback.format_exc()))
             return False
         if units == QgsUnitTypes.DistanceMeters:
-            factor = 1
+            gv.horizontalFactor = 1
         elif units == QgsUnitTypes.DistanceFeet:
-            factor = Parameters._FEETTOMETRES
+            gv.horizontalFactor = Parameters._FEETTOMETRES
         else:
             # unknown or degrees - will be reported in delineation - just quietly fail here
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(str(units)))
             return False
         self.demNodata = demLayer.dataProvider().sourceNoDataValue(1)
-        self.dx = demLayer.rasterUnitsPerPixelX() * factor
-        self.dy = demLayer.rasterUnitsPerPixelY() * factor
+        self.dx = demLayer.rasterUnitsPerPixelX() * gv.horizontalFactor
+        self.dy = demLayer.rasterUnitsPerPixelY() * gv.horizontalFactor
         self.xThreshold = self.dx * Parameters._NEARNESSTHRESHOLD
         self.yThreshold = self.dy * Parameters._NEARNESSTHRESHOLD
-        QSWATUtils.loginfo('Factor is {0}, cell width is {1}, cell depth is {2}'.format(factor, self.dx, self.dy))
+        QSWATUtils.loginfo('Factor is {0}, cell width is {1}, cell depth is {2}'.format(gv.horizontalFactor, self.dx, self.dy))
         self.demExtent = demLayer.extent()  # type: ignore
+        self.horizontalFactor = gv.horizontalFactor
         self.verticalFactor = gv.verticalFactor
         self.outletAtStart = self.hasOutletAtStart(channelLayer, ad8Layer)
         QSWATUtils.loginfo('Outlet at start is {0!s}'.format(self.outletAtStart))
@@ -352,9 +355,9 @@ class QSWATTopology:
             dsLink = reach[dsStreamIndex]
             basin = reach[wsnoIndex]
             if lengthIndex < 0:
-                length = reach.geometry().length()
+                length = reach.geometry().length() * self.horizontalFactor
             else:
-                length = reach[lengthIndex]
+                length = reach[lengthIndex] * self.horizontalFactor
             self.subbasinToStream[basin] = link
             self.downStreams[link] = dsLink
             self.streamLengths[link] = length
@@ -450,9 +453,9 @@ class QSWATTopology:
             chBasin: int = channel[wsnoIndex]
             geom: QgsGeometry = channel.geometry()
             if lengthIndex < 0 or recalculate:
-                length = geom.length()
+                length = geom.length() * gv.horizontalFactor
             else:
-                length = channel[lengthIndex]
+                length = channel[lengthIndex] * gv.horizontalFactor
             data = self.getReachData(geom, demLayer)
             self.channelsData[chLink] = data
             if data and (dropIndex < 0 or recalculate):
@@ -753,6 +756,7 @@ class QSWATTopology:
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
+        areaFactor = gv.horizontalFactor * gv.horizontalFactor
         lakeAttMap: Dict[int, Dict[int, int]] = dict()
         for lake in lakesProvider.getFeatures():
             lakeGeom = lake.geometry()
@@ -762,7 +766,7 @@ class QSWATTopology:
                 waterRole = QSWATTopology._RESTYPE
             else:
                 waterRole = lake[lakeResIndex]
-            lakeData = LakeData(lakeGeom.area(), lakeGeom.centroid().asPoint(), waterRole)
+            lakeData = LakeData(lakeGeom.area() * areaFactor, lakeGeom.centroid().asPoint(), waterRole)
             totalElevation = 0.0
             elevPointCount = 0
             # the area removed from channel basins that intersect wih the lake
@@ -774,9 +778,9 @@ class QSWATTopology:
                 subGeom = sub.geometry()
                 if  QSWATTopology.intersectsPoly(subGeom, lakeGeom, lakeRect):
                     subId = sub.id()
-                    area1 = subGeom.area()
+                    area1 = subGeom.area() * areaFactor
                     newGeom = subGeom.difference(lakeGeom)
-                    area2 = newGeom.area()
+                    area2 = newGeom.area() * areaFactor
                     if area2 < area1:
                         subPoly = sub[subsPolyIndex]
                         QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
@@ -825,9 +829,9 @@ class QSWATTopology:
                 # if area reduced to zero because inside another lake, geometry is None
                 if chBasinGeom is not None and QSWATTopology.intersectsPoly(chBasinGeom, lakeGeom, lakeRect):
                     chBasinId = chBasinFeature.id()
-                    area1 = chBasinGeom.area()
+                    area1 = chBasinGeom.area() * areaFactor
                     newGeom = chBasinGeom.difference(lakeGeom)
-                    area2 = newGeom.area()
+                    area2 = newGeom.area() * areaFactor
                     if area2 < area1:
                         QSWATUtils.loginfo('Lake {0} overlaps channel basin {1}: area reduced from {2} to {3}'.format(lakeId, polyId, area1, area2))
                         chBasinWaterArea += area1 - area2
@@ -874,7 +878,7 @@ class QSWATTopology:
                         channelId: int = channel.id()
                         wsno: int = channel[channelWSNOIndex]
                         areaChange = channelAreaChange.get(wsno, 0)
-                        drainArea = channel[channelDrainAreaIndex] - areaChange
+                        drainArea = channel[channelDrainAreaIndex] * areaFactor - areaChange
                         attMap[channelId] = {channelDrainAreaIndex: drainArea}
                     elif dsNode in self.lakeOutlets[lakeId]:
                         outflowData = self.getReachData(channel.geometry(), demLayer)
@@ -1312,6 +1316,7 @@ class QSWATTopology:
             channelLakeInIndex < 0 or channelLakeOutIndex < 0 or channelLakeWithinIndex < 0 or channelLakeMainIndex < 0:
             return False
         self.lakesData = dict()
+        areaFactor = gv.horizontalFactor * gv.horizontalFactor
         for lake in lakesLayer.getFeatures():
             lakeId = int(lake[lakeIdIndex])
             if lakeResIndex < 0:
@@ -1326,7 +1331,7 @@ class QSWATTopology:
             # to stop reuse of the same water body id
             self.waterBodyId = max(self.waterBodyId, lakeId)
             geom = lake.geometry()
-            area = geom.area()
+            area = geom.area() * areaFactor
             centroid = geom.centroid().asPoint()
             self.lakesData[lakeId] = LakeData(area, centroid, waterRole)
         self.chLinkIntoLake = dict()
@@ -1623,9 +1628,10 @@ class QSWATTopology:
 #                     return y == 0
 #                 else:
 #                     return abs(x - y) < 0.01 * x
+            areaFactor = gv.horizontalFactor * gv.horizontalFactor
             for poly in subbasinsLayer.getFeatures():
                 if areaIndex < 0:
-                    basinArea = poly.geometry().area()
+                    basinArea = poly.geometry().area() * areaFactor
                 else:
                     basinArea = poly[areaIndex] * 1E4  # areas in subbasins shapefile are in hectares
                 # need to count areas of basins upstream from inlets because comparison for whole watershed
@@ -1646,7 +1652,7 @@ class QSWATTopology:
                     SWATChannels = {self.channelToSWATChannel[chLink] for chLink in chLinks}
                     SWATBasin = self.subbasinToSWATBasin[basin]
                     QSWATUtils.error('Basin {0} with area {1} has channels {2} with total area {3}'.
-                                     format(SWATBasin, basinArea, SWATChannels, area), True)
+                                     format(SWATBasin, basinArea, SWATChannels, area), gv.isBatch)
                     # return true so run continue if user regards error as small
                     return True
             # now compare areas for whole watershed
@@ -1654,7 +1660,7 @@ class QSWATTopology:
                 totalChannelBasinsArea += chArea
             if abs(totalBasinsArea - totalChannelBasinsArea) >= unitArea: # not using compare(totalBasinsArea, totalChannelBasinsArea):
                 QSWATUtils.error('Watershed area is {0} by adding subbasin areas and {1} by adding channel basin areas'.
-                                 format(totalBasinsArea, totalChannelBasinsArea), True)
+                                 format(totalBasinsArea, totalChannelBasinsArea), gv.isBatch)
                 # return true so run continue if user regards error as small
                 return True
             QSWATUtils.loginfo('Total watershed area is {0}'.format(totalBasinsArea))
@@ -1683,10 +1689,11 @@ class QSWATTopology:
     def setDrainageFromChannels(self, channelLayer: QgsVectorLayer, drainAreaIndex: int) -> None:
         """Get drain areas from channelLayer file's DS_Cont_Ar attribute."""
         inds = [self.channelIndex, drainAreaIndex]
+        areaFactor = self.horizontalFactor * self.horizontalFactor
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes(inds)
         for reach in channelLayer.getFeatures(request):
             channelLink = reach[self.channelIndex]
-            self.drainAreas[channelLink] = reach[drainAreaIndex]
+            self.drainAreas[channelLink] = reach[drainAreaIndex] * areaFactor
                     
     def setGridDrainageFromChannels(self, channelLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, maxChLink: int, us: Dict[int, List[int]]) -> bool: 
         """Get drain areas from channelLayer file's Drainage attribute.  Return True if successful."""
@@ -1987,9 +1994,9 @@ class QSWATTopology:
             # find a point well into the channel to ensure we are not just outside the basin
             geometry = feature.geometry()
             if lenIdx < 0:
-                length = geometry.length()
+                length = geometry.length() * self.horizontalFactor
             else:
-                length = feature[lenIdx]
+                length = feature[lenIdx] * self.horizontalFactor
             if length <= 0:
                 basin = QSWATTopology._NOBASIN # value to indicate a zero-length channel
             else:

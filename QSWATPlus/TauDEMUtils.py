@@ -277,10 +277,10 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQG
     @staticmethod
     def findMPIExecPath(settings: QSettings) -> str:
         """Find and return path of MPI execuatable, if any, else None."""
-        if settings.contains('/QSWAT/mpiexecDir'):
-            path: str = QSWATUtils.join(settings.value('/QSWAT/mpiexecDir'), Parameters._MPIEXEC)
+        if settings.contains('/QSWATPlus/mpiexecDir'):
+            path: str = QSWATUtils.join(settings.value('/QSWATPlus/mpiexecDir'), Parameters._MPIEXEC)
         else:
-            settings.setValue('/QSWAT/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
+            settings.setValue('/QSWATPlus/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
             path = QSWATUtils.join(Parameters._MPIEXECDEFAULTDIR, Parameters._MPIEXEC)
         if os.path.exists(path):
             return path

@@ -45,37 +45,79 @@ namespace AccessToCSV
             string connectionString = "Provider=Microsoft.Jet.OLEDB.4.0; Data Source=" + db;
             OleDbConnection dbConnection = new OleDbConnection(connectionString);
 			dbConnection.Open();
+			// make list of all tables
+			// We only want user tables, not system tables
+			string[] restrictions = new string[4];
+			restrictions[3] = "Table";
+			// Get list of user tables
+			DataTable tables = dbConnection.GetSchema("Tables", restrictions);
 			if (args.Length > 1)
 			{
-			    // folowing arguments are table names
+			    // following arguments are table names or table name prefixes (ending in '*')
 			    for (int i = 1; i < args.Length; i++)
 			    {
-			        WriteCSV(args[i], dbConnection);
+			    	string arg = args[i];
+			    	//Console.WriteLine("Next arg is " + arg);
+			    	if (arg[arg.Length - 1] == '*') 
+			    	{
+			    		string prefix = arg.Substring(0, arg.Length - 1);
+			    		//Console.WriteLine("Asterisk found: prefix is " + prefix);
+			    		string table = FindPrefixTable(prefix, tables);
+			    		//Console.WriteLine("Prefix table is " + table);
+			    		if (table != "") 
+			    		{
+			    			WriteCSV(table, prefix + ".csv", dbConnection);
+			    		}
+			    	}
+			    	else if (TableInTables(arg, tables))
+			    	{
+			        	WriteCSV(arg, arg + ".csv", dbConnection);
+			    	}
 			    }
 			}
 			else // generate csv files for all tables
 			{
-			    // We only want user tables, not system tables
-			    string[] restrictions = new string[4];
-			    restrictions[3] = "Table";
-			    // Get list of user tables
-			    DataTable table = dbConnection.GetSchema("Tables", restrictions);
-			    for (int i = 0; i < table.Rows.Count; i++)
+			    for (int i = 0; i < tables.Rows.Count; i++)
 			    {
-			        WriteCSV(table.Rows[i][2].ToString(), dbConnection);
+			    	string table = tables.Rows[i][2].ToString();
+			        WriteCSV(table, table + ".csv", dbConnection);
 			    }
 			}
 			dbConnection.Close();
         }
         
-        private static void WriteCSV(string table, OleDbConnection dbConnection)
+        private static bool TableInTables(string table, DataTable tables)
+        {
+        	for (int i = 0; i < tables.Rows.Count; i++)
+        	{
+        		if (table == tables.Rows[i][2].ToString())
+        		{
+        			return true;
+        		}
+        	}
+        	return false;
+        }
+        
+        private static string FindPrefixTable(string prefix, DataTable tables)
+        {
+        	for (int i = 0; i < tables.Rows.Count; i++)
+        	{
+        		string table = tables.Rows[i][2].ToString();
+        		if (table.StartsWith(prefix))
+        		{
+        		    return table;
+        		}
+        	}
+        	return "";
+        }
+        
+        private static void WriteCSV(string table, string fileName, OleDbConnection dbConnection)
         {
             try
             {
                 string sql = "SELECT * FROM " + table;
                 OleDbCommand command = new OleDbCommand(sql, dbConnection);
                 OleDbDataReader reader = command.ExecuteReader();
-                string fileName = table + ".csv";
                 bool firstLine = true;
                 using (StreamWriter sw = new StreamWriter(fileName))
                 {
@@ -109,7 +151,7 @@ namespace AccessToCSV
                         }
                     }
                 }
-            //Console.WriteLine(fileName + " written");
+            // Console.WriteLine(fileName + " written");
             }
             catch (Exception)
             {

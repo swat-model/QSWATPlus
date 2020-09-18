@@ -21,7 +21,6 @@
  """
 from qgis.core import QgsCoordinateReferenceSystem
 from osgeo import gdal  # type: ignore
-from osgeo.gdalconst import GA_ReadOnly, GA_Update  # type: ignore
 from qgis.core import QgsRasterLayer
 import numpy as np
 import os
@@ -87,7 +86,7 @@ class Raster():
         try:
             if self.canWrite:
                 if os.path.exists(self.fileName):
-                    self.ds = gdal.Open(self.fileName, GA_Update)
+                    self.ds = gdal.Open(self.fileName, gdal.GA_Update)
                 else:
                     typ = gdal.GDT_Int32 if self.isInt else gdal.GDT_Float32
                     self.ds = gdal.GetDriverByName('GTiff').Create(self.fileName, numCols, numRows, 1, typ)
@@ -102,7 +101,7 @@ class Raster():
                 self.band.SetNoDataValue(noData)
                 self.noData  = noData
             else:
-                self.ds = gdal.Open(self.fileName, GA_ReadOnly)
+                self.ds = gdal.Open(self.fileName, gdal.GA_ReadOnly)
                 assert self.ds is not None
                 self.numRows = self.ds.RasterYSize
                 self.numCols = self.ds.RasterXSize

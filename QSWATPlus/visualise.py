@@ -24,14 +24,13 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import QgsApplication, QgsPointXY, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsStyle, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsTextAnnotation  # @UnusedImport
+from qgis.core import QgsApplication, QgsPointXY, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsStyle, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsTextAnnotation, QgsExpression, QgsFeatureRequest  # @UnusedImport
 from qgis.gui import * # @UnusedWildImport
 import os
 # import random
 import numpy
 import sqlite3
 import subprocess
-from osgeo.gdalconst import *  # type: ignore  @UnusedWildImport
 import glob
 from datetime import date
 # from PIL import Image
@@ -2924,10 +2923,12 @@ class Visualise(QObject):
         if not os.path.exists(self.videoFile):
             QSWATUtils.information('No video file for {0} exists at present'.format(self.animateVar), self._gv.isBatch)
             return
-        if os.name == 'nt': # Windows
+        if Parameters._ISWIN: # Windows
             os.startfile(self.videoFile)  # @UndefinedVariable since not defined in Linux
-        elif os.name == 'posix': # Linux
+        elif Parameters._ISLINUX:
             subprocess.call(('xdg-open', self.videoFile))
+        else:
+            os.system('open {0}'.format(self.videoFile))
     
     def changeSummary(self) -> None:
         """Flag change to summary method."""

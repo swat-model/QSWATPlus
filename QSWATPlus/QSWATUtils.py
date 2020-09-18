@@ -540,7 +540,7 @@ class QSWATUtils:
         if units == QgsUnitTypes.DistanceMeters:
             factor: float = 1
         elif units == QgsUnitTypes.DistanceFeet:
-            factor = 0.0348
+            factor = 0.3048
         else: # something odd has happened - probably in lat-long - reported elsewhere
             return rasterLayer
         xSize: float = rasterLayer.rasterUnitsPerPixelX() * factor
@@ -566,10 +566,19 @@ class QSWATUtils:
         clipName: str = baseName + '_clip.tif'
         QSWATUtils.removeLayerByLegend(legend, treeLayers)
         QSWATUtils.tryRemoveFiles(clipName)
-        command: str = 'gdal_translate -a_nodata {0!s} -of GTiff -srcwin {1} {2} {3} {4} "{5}" "{6}"' \
-                        .format(nodata, leftExcess, topExcess, numCols, numRows, fileName, clipName)
-        QSWATUtils.loginfo(command)
-        os.system(command)
+        processing.run("gdal:translate",
+                       {'INPUT':fileName,
+                        'TARGET_CRS':None,
+                        'NODATA':nodata,
+                        'COPY_SUBDATASETS':False,
+                        'OPTIONS':'',
+                        'EXTRA':'-srcwin {0} {1} {2} {3}'.format(leftExcess, topExcess, numCols, numRows),
+                        'DATA_TYPE':0,
+                        'OUTPUT':clipName})
+#         command: str = 'gdal_translate -a_nodata {0!s} -of GTiff -srcwin {1} {2} {3} {4} "{5}" "{6}"' \
+#                         .format(nodata, leftExcess, topExcess, numCols, numRows, fileName, clipName)
+#         QSWATUtils.loginfo(command)
+#         os.system(command)
         assert os.path.exists(clipName), 'Failed to clip raster {0} to make {1}'.format(fileName, clipName)
         QSWATUtils.copyPrj(fileName, clipName)
         return QgsRasterLayer(clipName, '{0} ({1})'.format(legend, os.path.split(clipName)[1]))

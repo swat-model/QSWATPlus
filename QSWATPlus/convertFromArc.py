@@ -119,6 +119,11 @@ class ConvertFromArc(QObject):
         self.transformFromDeg = None
         ## transform to lat-long from projection
         self.transformToLatLong = None
+        ## options for creating shapefiles
+        self.vectorOptions = QgsVectorFileWriter.SaveVectorOptions()
+        self.vectorOptions.ActionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+        self.vectorOptions.driverName = "ESRI Shapefile"
+        self.vectorOptions.fileEncoding = "UTF-8"
         
     def run(self):
         print("Converting from ArcSWAT")
@@ -411,7 +416,7 @@ class ConvertFromArc(QObject):
             if river[toNodeIndex] == 0:
                 outletSubs.add(river[subIndex])
         fields = ConvertFromArc.makeOutletFields()
-        if not ConvertFromArc.makeOutletFile(qOutlets, fields, prjFile):
+        if not self.makeOutletFile(qOutlets, fields, prjFile):
             return False
         # add main outlets and inlets to outlets file
         qOutletsLayer = QgsVectorLayer(qOutlets, 'Inlets\outlets', 'ogr')
@@ -829,8 +834,7 @@ class ConvertFromArc(QObject):
         fields.append(QgsField('PTSOURCE', QVariant.Int))
         return fields
         
-    @staticmethod
-    def makeOutletFile(filePath, fields, prjFile, basinWanted=False):
+    def makeOutletFile(self, filePath, fields, prjFile, basinWanted=False):
         """Create filePath with fields needed for outlets file, 
         copying prjFile.  Return true if OK.
         """
@@ -838,6 +842,7 @@ class ConvertFromArc(QObject):
             QSWATUtils.removeFiles(filePath)
         if basinWanted:
             fields.append(QgsField('Subbasin', QVariant.Int))
+        # writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, self.crs, QgsCoordinateTransformContext(), self.vectorOptions)
         writer = QgsVectorFileWriter(filePath, 'CP1250', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
         if writer.hasError() != QgsVectorFileWriter.NoError:
             ConvertFromArc.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()))
@@ -2260,23 +2265,23 @@ class ConvertFromArc(QObject):
                     recOther.append(line[10:23].strip())
         if len(recConst) > 0:
             qConstFile = os.path.join(qTextInOutDir, 'rec_const.csv')
-            qConst = open(qConstFile, 'w')
-            qConst.write('name,flo,sed,ptl_n,ptl_p,no3_n,sol_p,chla,nh3_n,no2_n,cbn_bod,oxy,sand,silt,clay,sm_agg,lg_agg,gravel,tmp\n')
-            for datFile in recConst:
-                with open(os.path.join(arcTxtInOutDir, datFile)) as f:
-                    # skip 6 lines
-                    for _ in range(6):
-                        _ = f.readline()
-                    fName = os.path.splitext(datFile)[0]
-                    if fName.endswith('p'):
-                        name = 'pt' + fName[:-1]
-                    elif fName.endswith('i'):
-                        name = 'in' + fName[:-1]
-                    else:
-                        name = 'x' + fName  # just ensure starts with a letter
-                    vals = f.readline().split()
-                    qConst.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},0,0,0,0,0,0,0\n'
-                                     .format(name, vals[0], vals[1], vals[2], vals[3], vals[4], vals[7], vals[10], vals[5], vals[6], vals[8], vals[9]))
+            with open(qConstFile, 'w') as qConst:
+                qConst.write('name,flo,sed,ptl_n,ptl_p,no3_n,sol_p,chla,nh3_n,no2_n,cbn_bod,oxy,sand,silt,clay,sm_agg,lg_agg,gravel,tmp\n')
+                for datFile in recConst:
+                    with open(os.path.join(arcTxtInOutDir, datFile)) as f:
+                        # skip 6 lines
+                        for _ in range(6):
+                            _ = f.readline()
+                        fName = os.path.splitext(datFile)[0]
+                        if fName.endswith('p'):
+                            name = 'pt' + fName[:-1]
+                        elif fName.endswith('i'):
+                            name = 'in' + fName[:-1]
+                        else:
+                            name = 'x' + fName  # just ensure starts with a letter
+                        vals = f.readline().split()
+                        qConst.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},0,0,0,0,0,0,0\n'
+                                         .format(name, vals[0], vals[1], vals[2], vals[3], vals[4], vals[7], vals[10], vals[5], vals[6], vals[8], vals[9]))
             print('{0} written'.format(qConstFile))
         for datFile in recYear:
             qFile = os.path.join(qTextInOutDir, os.path.splitext(datFile)[0] + '.csv')

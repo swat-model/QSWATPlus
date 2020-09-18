@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import * # @UnusedWildImport
 from qgis.core import QgsProject  # @UnresolvedImport
 # Import the code for the dialog
 import os.path
+import platform
 from typing import Any
     
 try:
@@ -38,14 +39,16 @@ class Parameters:
     
     """Collect QSWAT parameters (location of SWATPlus directory and MPI) from user and save."""
     
-    _ISWIN = os.name == 'nt'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus'
+    _ISWIN = platform.system() == 'Windows'
+    _ISLINUX = platform.system() == 'Linux'
+    _ISMAC = platform.system() == 'Darwin'
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWAT/SWATPlus'
     _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
-    _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec'
-    _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin'
+    _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
+    _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin' if _ISLINUX else '/usr/local/bin'
     _TAUDEMDIR = 'TauDEM5Bin'
-    _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux
+    _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux or Mac
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'
     _DBDIR = 'Databases'
     _DBPROJ = 'QSWATPlusProj2018.sqlite'

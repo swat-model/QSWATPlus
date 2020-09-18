@@ -27,7 +27,6 @@ from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsFiel
 # from qgis.gui import * # @UnusedWildImport
 import os.path
 from osgeo import gdal  # type: ignore
-from osgeo.gdalconst import *  # type: ignore @UnusedWildImport
 import math
 import time
 import numpy
@@ -35,7 +34,7 @@ import glob
 import processing  # type: ignore @UnresolvedImport
 from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
 from operator import itemgetter
-from typing import Dict, List, Set, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
+from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnusedImport @UnresolvedImport
 
@@ -181,7 +180,7 @@ class CreateHRUs(QObject):
         Also generate lsus shapefile, and fullHRUs shapefile if requested."""
         # in case this is a rerun
         self.basins.clear()
-        elevationDs = gdal.Open(self._gv.demFile, GA_ReadOnly)  # type: ignore
+        elevationDs = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)  # type: ignore
         if not elevationDs:
             QSWATUtils.error('Cannot open DEM {0}'.format(self._gv.demFile), self._gv.isBatch)
             return False
@@ -198,29 +197,29 @@ class CreateHRUs(QObject):
             basinBand = basinDs.GetRasterBand(1)
             basinNoData: int = basinBand.GetNoDataValue()
         if not self._gv.existingWshed:
-            distStDs = gdal.Open(self._gv.distStFile, GA_ReadOnly)  # type: ignore
+            distStDs = gdal.Open(self._gv.distStFile, gdal.GA_ReadOnly)  # type: ignore
             if not distStDs:
                 QSWATUtils.error('Cannot open distance to outlets file {0}'.format(self._gv.distStFile), self._gv.isBatch)
                 return False
             if not self._gv.useGridModel:
-                distChDs = gdal.Open(self._gv.distChFile, GA_ReadOnly)  # type: ignore
+                distChDs = gdal.Open(self._gv.distChFile, gdal.GA_ReadOnly)  # type: ignore
                 if not distChDs:
                     QSWATUtils.error('Cannot open distance to channel file {0}'.format(self._gv.distChFile), self._gv.isBatch)
                     return False
-        cropDs = gdal.Open(self._gv.landuseFile, GA_ReadOnly)  # type: ignore
+        cropDs = gdal.Open(self._gv.landuseFile, gdal.GA_ReadOnly)  # type: ignore
         if not cropDs:
             QSWATUtils.error('Cannot open landuse file {0}'.format(self._gv.landuseFile), self._gv.isBatch)
             return False
-        soilDs = gdal.Open(self._gv.soilFile, GA_ReadOnly)  # type: ignore
+        soilDs = gdal.Open(self._gv.soilFile, gdal.GA_ReadOnly)  # type: ignore
         if not soilDs:
             QSWATUtils.error('Cannot open soil file {0}'.format(self._gv.soilFile), self._gv.isBatch)
             return False
-        slopeDs = gdal.Open(self._gv.slopeFile, GA_ReadOnly)  # type: ignore
+        slopeDs = gdal.Open(self._gv.slopeFile, gdal.GA_ReadOnly)  # type: ignore
         if not slopeDs:
             QSWATUtils.error('Cannot open slope file {0}'.format(self._gv.slopeFile), self._gv.isBatch)
             return False
         if self._gv.useLandscapes:
-            floodDs = gdal.Open(self._gv.floodFile, GA_ReadOnly)  # type: ignore
+            floodDs = gdal.Open(self._gv.floodFile, gdal.GA_ReadOnly)  # type: ignore
             if not floodDs:
                 QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch)
                 return False
@@ -640,8 +639,8 @@ class CreateHRUs(QObject):
                                     crop = cropNoData 
                             else:
                                 crop = cropNoData
-                            # no data read from map is None if no noData value defined 
-                            if crop is None or crop == cropNoData:
+                            # no data read from map is None or Nan if no noData value defined 
+                            if crop is None or math.isnan(crop) or crop == cropNoData:
                                 landuseNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -658,7 +657,7 @@ class CreateHRUs(QObject):
                                     soil = soilNoData 
                             else:
                                 soil = soilNoData
-                            if soil is None or soil == soilNoData:
+                            if soil is None or math.isnan(soil) or soil == soilNoData:
                                 soilNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -825,7 +824,7 @@ class CreateHRUs(QObject):
                             cropCol = cropColFun(col, x)
                             if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
                                 crop = cast(int, cropData[0, cropCol])
-                                if crop is None:
+                                if crop is None or math.isnan(crop):
                                     crop = cropNoData
                             else:
                                 crop = cropNoData
@@ -838,7 +837,7 @@ class CreateHRUs(QObject):
                             soilCol = soilColFun(col, x)
                             if 0 <= soilCol < soilNumberCols and 0 <= soilRow < soilNumberRows:
                                 soil = cast(int, soilData[0, soilCol])
-                                if soil is None:
+                                if soil is None or math.isnan(soil):
                                     soil = soilNoData
                             else:
                                 soil = soilNoData
@@ -1314,7 +1313,7 @@ class CreateHRUs(QObject):
                             feature.setAttribute(subIndx, SWATBasin)
                             feature.setAttribute(chIndx, SWATChannel)
                             feature.setAttribute(catIndx, QSWATUtils.landscapeName(landscape, self._gv.useLeftRight, notEmpty=True))
-                            shapeArea = shapes.area(lsuId)  # type: ignore
+                            shapeArea = shapes.area(lsuId) * self._gv.horizontalFactor * self._gv.horizontalFactor  # type: ignore
                             feature.setAttribute(areaIndx, shapeArea / 1E4)
                             if subbasinArea == 0:
                                 QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch)
@@ -1386,7 +1385,7 @@ class CreateHRUs(QObject):
                                     feature.setAttribute(luseIndx, self._db.getLanduseCode(crop))
                                     feature.setAttribute(soilIndx, self._db.getSoilName(soil))
                                     feature.setAttribute(slopeIndx, self._db.slopeRange(slope))
-                                    shapeArea = shapes.area(hru)  # type: ignore
+                                    shapeArea = shapes.area(hru) * self._gv.horizontalFactor * self._gv.horizontalFactor  # type: ignore
                                     feature.setAttribute(areaIndx, shapeArea / 1E4)
                                     if subbasinArea == 0:
                                         QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch)
@@ -1519,6 +1518,7 @@ class CreateHRUs(QObject):
                     toDelete.append(f.id())
                     continue
             basinData = self.basins.get(basin, None)
+            areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
             if basinData is not None:
                 subbasinCells = basinData.subbasinCellCount()
                 # use original lsus
@@ -1526,7 +1526,7 @@ class CreateHRUs(QObject):
                 if channel not in lsus:
                     # too small?
                     if self._gv.useGridModel:
-                        area = f.geometry().area() / 1E4
+                        area = f.geometry().area() * areaFactor / 1E4
                     QSWATUtils.loginfo('Ignoring LSU for link {0} with area {1}'.format(channel, area))
                     toDelete.append(f.id())
                     continue

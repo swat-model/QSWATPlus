@@ -33,7 +33,9 @@ from qgis.core import *  # @UnusedWildImport
 from qgis.gui import *  # @UnusedWildImport 
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os.path
-import subprocess
+#import subprocess
+import processing  # type: ignore @UnresolvedImport
+from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
 import time
 from osgeo import gdal
 
@@ -232,12 +234,20 @@ class Landscape(QObject):
         if self.mustClip(clipperFile, inFile, clipFile):
             if os.path.exists(clipFile):
                 QSWATUtils.tryRemoveLayerAndFiles(clipFile, root)
-            command = 'gdalwarp --config GDALWARP_IGNORE_BAD_CUTLINE YES -dstnodata {3} -q -overwrite -cutline "{0}" -crop_to_cutline -of GTiff "{1}" "{2}"'.format(clipperFile, inFile, clipFile, self.noData)
-            proc = subprocess.run(command,  # @UnusedVariable
-                                    shell=True,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    universal_newlines=True)    # text=True) only in python 3.7
+            processing.run("gdal:cliprasterbymasklayer", 
+                           {'INPUT':inFile,
+                            'MASK':clipperFile,
+                            'NODATA':self.noData,
+                            'CROP_TO_CUTLINE':True,
+                            'DATA_TYPE':0,
+                            'EXTRA':'--config GDALWARP_IGNORE_BAD_CUTLINE YES -overwrite',
+                            'OUTPUT':clipFile})
+#             command = 'gdalwarp --config GDALWARP_IGNORE_BAD_CUTLINE YES -dstnodata {3} -overwrite -cutline "{0}" -crop_to_cutline -of GTiff "{1}" "{2}"'.format(clipperFile, inFile, clipFile, self.noData)
+#             proc = subprocess.run(command,  # @UnusedVariable
+#                                     shell=True,
+#                                     stdout=subprocess.PIPE,
+#                                     stderr=subprocess.STDOUT,
+#                                     universal_newlines=True)    # text=True) only in python 3.7
             #for line in  proc.stdout.split('\n'):
             #    QSWATUtils.loginfo(line)
             QSWATUtils.copyPrj(inFile, clipFile)
@@ -448,7 +458,7 @@ class Landscape(QObject):
             if drainAreaIndex >= 0:
                 areaToSqKm = 1E2 # AreaC is in hectares
         else:
-            areaToSqKm = 1E6 # DS_Cont_Ar is in sqaure metres
+            areaToSqKm = 1E6 / (self._gv.horizontalFactor * self._gv.horizontalFactor) # DS_Cont_Ar is in square metres (or maybe square feet)
         provider = bufferShapefileLayer.dataProvider()
         features = list()
         for reach in channelsLayer.getFeatures():

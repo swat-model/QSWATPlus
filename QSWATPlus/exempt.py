@@ -26,7 +26,6 @@ from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 from .exemptdialog import ExemptDialog
 from .QSWATUtils import ListFuns
-from osgeo.gdalconst import * # @UnusedWildImport
 
 class Exempt:
     """Allow user to define landuses to be exempt from removal as under threshold."""

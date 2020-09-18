@@ -373,8 +373,8 @@ class QSWATPlus(QObject):
         
     def showReport(self):
         """Display selected report."""
-        if not self._odlg.reportsBox.hasFocus():
-            return
+#         if not self._odlg.reportsBox.hasFocus():
+#             return
         item = self._odlg.reportsBox.currentText()
         if item == Parameters._TOPOITEM:
             report = Parameters._TOPOREPORT
@@ -389,9 +389,11 @@ class QSWATPlus(QObject):
             QSWATUtils.error('Cannot find report {0}'.format(report))
             return
         if Parameters._ISWIN : # Windows
-            os.startfile(report)  # @UndefinedVariable since not defined in Linux
-        elif os.name == 'posix': # Linux
-            subprocess.call(('xdg-open', report))
+            os.startfile(report)  # @UndefinedVariable since not defined in Linux or Mac
+        elif Parameters._ISLINUX:
+            subprocess.call(['xdg-open', report])
+        else:
+            os.system('open "{0}"'.format(report))
         self._odlg.reportsBox.setCurrentIndex(0)
         
     def exportTable(self):

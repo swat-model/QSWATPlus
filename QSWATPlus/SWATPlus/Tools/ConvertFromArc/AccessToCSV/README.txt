@@ -46,7 +46,8 @@ Access.
  
 Field types and primary keys can be defined manually in SQLiteStudio.
 
-The project file currently places AccessToCSV.exe in C:\SWAT\SWAT-DEG
+The project file currently places AccessToCSV.exe in the parent of the project folder, i.e.
+C:\SWAT\SWATPlus\Tools\ConvertFromArc
 when it is built. 
 There is a copy in obj/Debug.
 

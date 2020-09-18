@@ -38,6 +38,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "C:\Users\Chirs George\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\ConvertFromArc\*"; DestDir: "C:\SWAT\SWATPlus\Tools\ConvertFromArc"; Excludes: "AccessToCSV", "*.manifest"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\SWATGraph\*";  DestDir: "C:\SWAT\SWATPlus\Tools\SWATGraph"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
 var
