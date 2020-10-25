@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
- QSWAT
+ QSWATPlus
                                  A QGIS plugin
- Create SWAT inputs
+ Create SWATPlus inputs
                               -------------------
         begin                : 2014-07-18
         copyright            : (C) 2014 by Chris George
@@ -20,38 +20,56 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from PyQt5.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion
+from PyQt5.QtGui import QFontDatabase, QIcon, QFont
+from PyQt5.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
+from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer
 import os
 import subprocess
 import time
 import shutil
+import sys
+import traceback
 
 # Initialize Qt resources from file resources_rc.py
-from .resources_rc import * # @UnusedWildImport
+try:
+    from .resources_rc import * # @UnusedWildImport
+except:
+    from resources_rc import *  # for convertFromArc @UnresolvedImport @UnusedWildImport
 # Import the code for the dialog
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
-from .QSWATUtils import QSWATUtils, FileTypes
 try:
+    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport
+except:
+    # for convertFromArc
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
+try:
+    txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
+    txt = 'HRUs'
     from .hrus import HRUs
+    txt = 'QSWATTopology'
     from .QSWATTopology import QSWATTopology
+    txt = 'GlobalVars'
     from .globals import GlobalVars
+    txt = 'Delineation'
     from .delineation import Delineation
+    txt = 'Parameters'
     from .parameters import Parameters
+    txt = 'Visualise'
     from .visualise import Visualise
+    txt = 'AboutQSWAT'
     from .about import AboutQSWAT
-except Exception as e:
-    raise e
-    #QSWATUtils.loginfo('QSWAT+ failed to import')
+    txt = 'ExportTable'
+    from .exporttable import ExportTable
+except Exception:
+    QSWATUtils.loginfo('QSWAT+ failed to import {0}: {1}'.format(txt, traceback.format_exc()))
 
 class QSWATPlus(QObject):
-    """QGIS plugin to prepare geographic data for SWAT Editor."""
+    """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '0.7'
+    __version__ = '1.3.99'
 
     def __init__(self, iface):
         """Constructor."""
@@ -63,9 +81,9 @@ class QSWATPlus(QObject):
         ## flag to show if init ran successfully
         self.loadFailed = False
         try:
-            from . import dataInC # @UnusedImport
+            from . import dataInC  # @UnusedImport
         except Exception:
-            QSWATUtils.loginfo('Failed to load Cython module: wrong architecture?')
+            QSWATUtils.loginfo('Failed to load Cython module: wrong architecture?: {0}'.format(traceback.format_exc()))
             self.loadFailed = True
             return
         # uncomment next line for debugging
@@ -75,6 +93,8 @@ class QSWATPlus(QObject):
         # initialize plugin directory
         ## plugin directory
         self.plugin_dir = os.path.dirname(__file__)
+        # add to PYTHONPATH
+        sys.path.append(self.plugin_dir)
         settings = QSettings()
         # initialize locale
         # in testing with a dummy iface object this settings value can be None
@@ -96,10 +116,12 @@ class QSWATPlus(QObject):
         self._gv = None  # set later
         # font = QFont('MS Shell Dlg 2', 8)
         try:
-            pointSize = int(settings.value('/QSWAT/FontSize'))
+            pointSize = int(settings.value('/QSWATPlus/FontSize'))
         except Exception:
             pointSize = 8
         self.setUbuntuFont(pointSize)
+        # an experiment - probably not use
+        # self.setStyles()
         # Create the dialog (after translation) and keep reference
         self._odlg = QSwatDialog()
         self._odlg.setWindowFlags(self._odlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
@@ -131,7 +153,7 @@ class QSWATPlus(QObject):
             return
         ## Action that will start plugin configuration
         self.action = QAction(
-            QIcon(":/plugins/QSWATPlus/SWATPlus32.png"),
+            QIcon(":/plugins/QSWATPlus/swatplus32.png"),
             '{0}'.format(QSWATUtils._QSWATNAME), self._iface.mainWindow())
         # connect the action to the run method
         self.action.triggered.connect(self.run)
@@ -166,6 +188,7 @@ class QSWATPlus(QObject):
         self._odlg.visualiseButton.clicked.connect(self.visualise)
         self._odlg.paramsButton.clicked.connect(self.runParams)
         self._odlg.reportsBox.activated.connect(self.showReport)
+        self._odlg.exportButton.clicked.connect(self.exportTable)
         self.initButtons()
         self._odlg.projPath.setText('')
         # make sure we clear data from previous runs
@@ -178,10 +201,16 @@ class QSWATPlus(QObject):
         proj = QgsProject.instance()
         if proj.fileName() == '':
             self._odlg.mainBox.setVisible(False)
+            self._odlg.exportButton.setVisible(False)
         else:
             self._iface.mainWindow().setCursor(Qt.WaitCursor)
             self.setupProject(proj, False)
             self._iface.mainWindow().setCursor(Qt.ArrowCursor)
+        # Run the dialog event loop
+        result = self._odlg.exec_()
+        # See if OK was pressed
+        if result == 1:
+            proj.write()
         
     def initButtons(self):
         """Initial button settings."""
@@ -214,16 +243,38 @@ class QSWATPlus(QObject):
         QApplication.setFont(ufont)
         QSWATUtils.loginfo('Ubuntu {0} point font set'.format(ptSize))
         
+#     def setStyles(self):
+#         """Set stle sheet values"""
+#         QApplication.instance().setStyleSheet("""
+#             QDialog[QSWATDialog=true] {
+#                 background-color: white
+#                 }
+#             QPushButton {
+#                 color: white
+#                 }
+#             QPushButton[browseButton=true] {
+#                 color: white;
+#                 background-color: blue
+#                 }
+#             QPushButton[okButton=true] {
+#                 color: white;
+#                 background-color: green
+#                 }
+#             QPushButton[cancelButton=true] {
+#                 background-color: grey
+#                 }
+#         """)
+        
     def newProject(self):
         """Call QGIS actions to create and name a new project."""
         settings = QSettings()
-        if settings.contains('/QSWAT/LastInputPath'):
-            path = settings.value('/QSWAT/LastInputPath')
+        if settings.contains('/QSWATPlus/LastInputPath'):
+            path = settings.value('/QSWATPlus/LastInputPath')
         else:
             path = ''
         title = 'Select parent directory'
         parentDir = QFileDialog.getExistingDirectory(None, title, path)
-        if parentDir:
+        if parentDir is not None and os.path.isdir(parentDir):
             projName, ok = QInputDialog.getText(None, 'Project name', 'Please enter the project name, starting with a letter:')
             if not ok:
                 return
@@ -238,8 +289,8 @@ class QSWATPlus(QObject):
                 shutil.rmtree(projDir, True)
             try: 
                 os.mkdir(projDir)
-            except Exception as e:
-                QSWATUtils.error('Failed to create project directory {0}: {1}'.format(projDir, str(e)), False)
+            except Exception:
+                QSWATUtils.exceptionError('Failed to create project directory {0}'.format(projDir), False)
                 return
             self._iface.newProject()
             projFile = QSWATUtils.join(projDir, projName + '.qgs')
@@ -250,7 +301,7 @@ class QSWATPlus(QObject):
             # allow time for project to be created
             time.sleep(2)
             self.initButtons()
-            settings.setValue('/QSWAT/LastInputPath', str(projDir))
+            settings.setValue('/QSWATPlus/LastInputPath', str(projDir))
             self._odlg.raise_()
             self.setupProject(proj, False)
             self._gv.writeProjectConfig(0, 0)
@@ -276,18 +327,33 @@ class QSWATPlus(QObject):
         proj.setTitle(QFileInfo(proj.fileName()).baseName())
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
-        self._gv = GlobalVars(QSWATPlus.__version__, isBatch)
-        self._gv.plugin_dir = self.plugin_dir
-        self._odlg.projPath.update()
+        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch)
+        if self._gv.SWATPlusDir == '':
+            # failed to find SWATPlus directory
+            return
+        self._odlg.projPath.repaint()
         self.checkReports()
         self.setLegendGroups()
+        # enable edit button if converted from Arc with 'No GIS' option
+        title = proj.title()
+        choice, found = proj.readNumEntry(title, 'fromArc', -1)
+        if found:
+            self._gv.fromArcChoice = choice
+            if choice == 2:  # NB value from convertFromArc.py
+                self._odlg.editLabel.setEnabled(True)
+                self._odlg.editButton.setEnabled(True)
+        # also assume editor can be run if there are stream and hrus shapefiles in the results directory
+        if os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._RIVS + '.shp')) and \
+            os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._SUBS + '.shp')):
+                self._odlg.editLabel.setEnabled(True)
+                self._odlg.editButton.setEnabled(True)
         if self.demProcessed():
             self._demIsProcessed = True
             self.allowCreateHRU()
-            hrus = HRUs(self._iface, self._gv, self._odlg.reportsBox)
+            self.hrus = HRUs(self._gv, self._odlg.reportsBox)
             #result = hrus.tryRun()
             #if result == 1:
-            if hrus.HRUsAreCreated():
+            if self.hrus.HRUsAreCreated():
                 QSWATUtils.progress('Done', self._odlg.hrusLabel)
                 self.showReports()
                 self._odlg.editLabel.setEnabled(True)
@@ -297,6 +363,7 @@ class QSWATPlus(QObject):
             self._odlg.visualiseButton.setVisible(True)
         self._odlg.projPath.setText(self._gv.projDir)
         self._odlg.mainBox.setEnabled(True)
+        self._odlg.exportButton.setVisible(True)
         self._odlg.setCursor(Qt.ArrowCursor)
             
     def runParams(self):
@@ -322,10 +389,15 @@ class QSWATPlus(QObject):
             QSWATUtils.error('Cannot find report {0}'.format(report))
             return
         if Parameters._ISWIN : # Windows
-            os.startfile(report)
+            os.startfile(report)  # @UndefinedVariable since not defined in Linux
         elif os.name == 'posix': # Linux
             subprocess.call(('xdg-open', report))
         self._odlg.reportsBox.setCurrentIndex(0)
+        
+    def exportTable(self):
+        """Run export table form."""
+        export = ExportTable(self._gv)
+        export.run()
         
     def checkReports(self):
         """Add existing reports to reports box and if there are some make it visible."""
@@ -352,9 +424,10 @@ class QSWATPlus(QObject):
         # avoid getting second window
         if self.delin is not None and self.delin._dlg.isEnabled():
             self.delin._dlg.close()
-        self.delin = Delineation(self._iface, self._gv, self._demIsProcessed)
+        self.delin = Delineation(self._gv, self._demIsProcessed)
         result = self.delin.run()
         if result == 1 and self._gv.isDelinDone():
+            self._demIsProcessed = True
             self.allowCreateHRU()
             # remove old data so cannot be reused
             self._gv.db.clearTable('BASINSDATA')
@@ -377,7 +450,7 @@ class QSWATPlus(QObject):
         # avoid getting second window
         if self.hrus is not None and self.hrus._dlg.isEnabled():
             self.hrus._dlg.close()
-        self.hrus = HRUs(self._iface, self._gv, self._odlg.reportsBox)
+        self.hrus = HRUs(self._gv, self._odlg.reportsBox)
         result = self.hrus.run()
         if result == 1:
             QSWATUtils.progress('Done', self._odlg.hrusLabel)
@@ -409,22 +482,25 @@ class QSWATPlus(QObject):
         if not found or demFile == '':
             QSWATUtils.loginfo('demProcessed failed: no DEM')
             return False
-        demFile = QSWATUtils.join(self._gv.projDir, demFile)
+        demFile = proj.readPath(demFile)
         demLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), demFile, FileTypes._DEM,
                                                     self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         if not demLayer:
             QSWATUtils.loginfo('demProcessed failed: no DEM layer')
             return False
         self._gv.demFile = demFile
+        self._gv.elevationNoData = demLayer.dataProvider().sourceNoDataValue(1)
         units = demLayer.crs().mapUnits()
         factor = 1 if units == QgsUnitTypes.DistanceMeters else Parameters._FEETTOMETRES if units == QgsUnitTypes.DistanceFeet else 0
         if factor == 0:
             QSWATUtils.loginfo('demProcessed failed: units are {0!s}'.format(units))
             return False
         self._gv.cellArea = demLayer.rasterUnitsPerPixelX() * demLayer.rasterUnitsPerPixelY() * factor * factor
+        # hillshade
+        Delineation.addHillshade(demFile, root, demLayer, self._gv)
         outletFile, found = proj.readEntry(title, 'delin/outlets', '')
-        if found and outletFile:
-            outletFile = QSWATUtils.join(self._gv.projDir, outletFile)
+        if found and outletFile != '':
+            outletFile = proj.readPath(outletFile)
             outletLayer, _ = \
                 QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._OUTLETS,
                                               self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
@@ -436,12 +512,13 @@ class QSWATPlus(QObject):
         self._gv.outletFile = outletFile
         self._gv.existingWshed = proj.readBoolEntry(title, 'delin/existingWshed', False)[0]
         self._gv.useGridModel = proj.readBoolEntry(title, 'delin/useGridModel', False)[0]
+        self._gv.useLandscapes = proj.readBoolEntry(title, 'lsu/useLandscapes', False)[0]
         streamFile, found = proj.readEntry(title, 'delin/net', '')
         if self._gv.useGridModel or not self._gv.existingWshed:
             if not found or streamFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no streams shapefile')
                 return False
-            streamFile = QSWATUtils.join(self._gv.projDir, streamFile)
+            streamFile = proj.readPath(streamFile)
             ft = FileTypes._GRIDSTREAMS if self._gv.useGridModel else FileTypes._STREAMS
             streamLayer, _ = \
                 QSWATUtils.getLayerByFilename(root.findLayers(), streamFile, ft, 
@@ -460,7 +537,7 @@ class QSWATPlus(QObject):
             if not found or channelFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no channels shapefile')
                 return False
-            channelFile = QSWATUtils.join(self._gv.projDir, channelFile)
+            channelFile = proj.readPath(channelFile)
             channelLayer, _ = \
                 QSWATUtils.getLayerByFilename(root.findLayers(), channelFile, FileTypes._CHANNELS, 
                                               self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
@@ -472,7 +549,7 @@ class QSWATPlus(QObject):
         if not found or subbasinsFile == '':
             QSWATUtils.loginfo('demProcessed failed: no subbasins shapefile')
             return False
-        subbasinsFile = QSWATUtils.join(self._gv.projDir, subbasinsFile)
+        subbasinsFile = proj.readPath(subbasinsFile)
         subbasinsInfo = QFileInfo(subbasinsFile)
         subbasinsTime = subbasinsInfo.lastModified()
         subbasinsLayer, _ = \
@@ -482,37 +559,40 @@ class QSWATPlus(QObject):
             QSWATUtils.loginfo('demProcessed failed: no subbasins layer')
             return False
         self._gv.subbasinsFile = subbasinsFile
-        if self._gv.existingWshed and not self._gv.useGridModel:
+        self._gv.subsNoLakesFile, _ = proj.readEntry(title, 'delin/subsNoLakes', '')
+        if self._gv.subsNoLakesFile != '':
+            self._gv.subsNoLakesFile = proj.readPath(self._gv.subsNoLakesFile)
+        if not self._gv.useGridModel:
             wshedFile, found = proj.readEntry(title, 'delin/wshed', '')
             if not found or wshedFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no wshed shapefile')
                 return False
-            wshedFile = QSWATUtils.join(self._gv.projDir, wshedFile)
-            wshedLayer, _ = \
-                QSWATUtils.getLayerByFilename(root.findLayers(), wshedFile, FileTypes._EXISTINGWATERSHED, 
-                                              self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
-            if not wshedLayer:
-                QSWATUtils.loginfo('demProcessed failed: no wshed layer')
-                return False
+            wshedFile = proj.readPath(wshedFile)
+            if self._gv.existingWshed:
+                wshedLayer, _ = \
+                    QSWATUtils.getLayerByFilename(root.findLayers(), wshedFile, FileTypes._EXISTINGWATERSHED, 
+                                                  self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
+                if not wshedLayer:
+                    QSWATUtils.loginfo('demProcessed failed: no wshed layer')
+                    return False
             self._gv.wshedFile = wshedFile
-        extraOutletFile, found = proj.readEntry(title, 'delin/extraOutlets', '')
-        if found and extraOutletFile != '':
-            extraOutletFile = QSWATUtils.join(self._gv.projDir, extraOutletFile)
-            extraOutletLayer, _ = \
-                QSWATUtils.getLayerByFilename(root.findLayers(), extraOutletFile, FileTypes._OUTLETS,
-                                              self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
-            if not extraOutletLayer:
-                QSWATUtils.loginfo('demProcessed failed: no extra outlet layer')
-                return False
-        else:
-            extraOutletLayer = None
-        self._gv.extraOutletFile = extraOutletFile
         demInfo = QFileInfo(demFile)
         if not demInfo.exists():
             QSWATUtils.loginfo('demProcessed failed: no DEM info')
             return False
         base = QSWATUtils.join(demInfo.absolutePath(), demInfo.baseName())
-        self._gv.slopeFile = base + 'slp.tif'
+        if not self._gv.existingWshed:
+            burnFile, found = proj.readEntry(title, 'delin/burn', '')
+            if found and burnFile != '':
+                burnFile = proj.readPath(burnFile)
+                if not os.path.exists(burnFile):
+                    QSWATUtils.loginfo('demProcessed failed: no burn file')
+                    return False
+                self._gv.slopeFile = base + 'slope.tif'
+            else:
+                self._gv.slopeFile = base + 'slp.tif'
+        else:
+            self._gv.slopeFile = base + 'slp.tif'
         if not os.path.exists(self._gv.slopeFile):
             QSWATUtils.loginfo('demProcessed failed: no slope raster')
             return False
@@ -536,6 +616,10 @@ class QSWATPlus(QObject):
             if not (felInfo.exists() and subbasinsInfo.exists()):
                 QSWATUtils.loginfo('demProcessed failed: no filled raster')
                 return False
+            self._gv.ad8File = base + 'ad8.tif'
+            if not os.path.exists(self._gv.ad8File):
+                QSWATUtils.loginfo('demProcessed failed: no D8 accumulation raster')
+                return False
             demTime = demInfo.lastModified()
             felTime = felInfo.lastModified()
             if not (demTime <= felTime <= subbasinsTime):
@@ -550,26 +634,57 @@ class QSWATPlus(QObject):
                 if not os.path.exists(self._gv.distChFile):
                     QSWATUtils.loginfo('demProcessed failed: no distance to channel raster')
                     return False
-            self._gv.valleyDepthsFile = base + 'depths.tif'
-            if not os.path.exists(self._gv.valleyDepthsFile):
-                QSWATUtils.loginfo('demProcessed failed: no valley depths raster')
-                return False
+            valleyDepthsFile = base + 'depths.tif'
+            if os.path.exists(valleyDepthsFile):
+                self._gv.valleyDepthsFile = valleyDepthsFile
+            # no longer compulsory
+#             if not os.path.exists(self._gv.valleyDepthsFile):
+#                 QSWATUtils.loginfo('demProcessed failed: no valley depths raster')
+#                 return False
         if not self._gv.useGridModel:
             if not os.path.exists(self._gv.channelBasinFile):
                 QSWATUtils.loginfo('demProcessed failed: no channel basins raster')
                 return False
         snapFile, found = proj.readEntry(title, 'delin/snapOutlets', '')
         if found and snapFile != '':
-            snapFile = QSWATUtils.join(self._gv.projDir, snapFile)
+            snapFile = proj.readPath(snapFile)
             if os.path.exists(snapFile):
                 self._gv.snapFile = snapFile
             else:
                 snapFile = ''
         else:
             snapFile = ''
+        lakeLayer = None
+        lakeFile, found = proj.readEntry(title, 'delin/lakes', '')
+        if found and lakeFile != '':
+            lakeFile = proj.readPath(lakeFile)
+            if os.path.exists(lakeFile):
+                self._gv.lakeFile = lakeFile
+                lakeLayer = QgsVectorLayer(lakeFile, 'Lakes', 'ogr')
+                if self._gv.useGridModel:
+                    gridLakesAdded = proj.readBoolEntry(title, 'delin/gridLakesAdded', False)[0]
+                    if not gridLakesAdded:
+                        QSWATUtils.loginfo('demProcessed failed: grid lakes not added')
+                        return False
+                else:
+                    chBasinNoLakeFile = base + 'wChannelNoLake.tif'
+                    if os.path.exists(chBasinNoLakeFile):
+                        self._gv.chBasinNoLakeFile = chBasinNoLakeFile
+                        if not self._gv.existingWshed:
+                            lakePointsAdded = proj.readBoolEntry(title, 'delin/lakePointsAdded', False)[0]
+                            if not lakePointsAdded:
+                                QSWATUtils.loginfo('demProcessed failed: lake points not added')
+                                return False
+                    else:
+                        QSWATUtils.loginfo('demProcessed failed: no channel basins without lakes raster')
+                        return False
         snapLayer = outletLayer if snapFile == '' else QgsVectorLayer(self._gv.snapFile, 'Snapped outlets', 'ogr')
         chanLayer = streamLayer if self._gv.useGridModel else channelLayer
-        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, self._gv.verticalFactor, self._gv.useGridModel):
+        if self._gv.existingWshed:
+            ad8Layer = None
+        else:
+            ad8Layer = QgsRasterLayer(self._gv.ad8File, 'Accumulation')
+        if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv):
             return False
         basinIndex = self._gv.topo.getIndex(subbasinsLayer, QSWATTopology._POLYGONID)
         if basinIndex < 0:
@@ -578,9 +693,13 @@ class QSWATPlus(QObject):
             basin = feature.attributes()[basinIndex]
             centroid = feature.geometry().centroid().asPoint()
             self._gv.topo.basinCentroids[basin] = (centroid.x(), centroid.y())
+        if lakeLayer is not None:
+            if not self._gv.topo.readLakesData(self._gv.db):
+                QSWATUtils.loginfo('demProcessed failed: lakes data not read')
+                return False
         # this can go wrong if eg the streams and watershed files exist but are inconsistent
         try:
-            if not self._gv.topo.setUp(demLayer, chanLayer, subbasinsLayer, outletLayer, extraOutletLayer, \
+            if not self._gv.topo.setUp(demLayer, chanLayer, subbasinsLayer, snapLayer, lakeLayer,
                                        self._gv, self._gv.existingWshed, False, self._gv.useGridModel, streamDrainage, False):
                 QSWATUtils.loginfo('demProcessed failed: topo setup failed')
                 return False
@@ -588,8 +707,8 @@ class QSWATPlus(QObject):
                 # no inlets, so no need to expand subbasins layer legend
                 treeSubbasinsLayer = root.findLayer(subbasinsLayer.id())
                 treeSubbasinsLayer.setExpanded(False)
-        except Exception as e:
-            QSWATUtils.loginfo('demProcessed failed: topo setup raised exception: {0}'.format(str(e)))
+        except Exception:
+            QSWATUtils.loginfo('demProcessed failed: topo setup raised exception: {0}'.format(traceback.format_exc()))
             return False
         return True
             
@@ -617,7 +736,8 @@ class QSWATPlus(QObject):
         Create them if necessary.
         """
         root = QgsProject.instance().layerTreeRoot()
-        groups = [QSWATUtils._RESULTS_GROUP_NAME,
+        groups = [QSWATUtils._ANIMATION_GROUP_NAME,
+                  QSWATUtils._RESULTS_GROUP_NAME,
                   QSWATUtils._WATERSHED_GROUP_NAME,
                   QSWATUtils._LANDUSE_GROUP_NAME,
                   QSWATUtils._SOIL_GROUP_NAME,
@@ -630,8 +750,12 @@ class QSWATPlus(QObject):
 
     def startEditor(self):
         """Start the SWAT Editor, first setting its initial parameters."""
-        self._gv.setSWATEditorParams()
-        subprocess.call(self._gv.SWATEditorPath)
+        # self._gv.setSWATEditorParams()
+        editor = self._gv.findSWATPlusEditor()
+        if editor is None:
+            return
+        QSWATUtils.loginfo('Starting SWAT+ editor with command: "{0}" "{1}"'.format(editor, self._gv.db.dbFile))
+        subprocess.call('"{0}" "{1}"'.format(editor, self._gv.db.dbFile), shell=True)
         if os.path.exists(QSWATUtils.join(self._gv.resultsDir, Parameters._OUTPUTDB)):
             self._odlg.visualiseLabel.setVisible(True)
             self._odlg.visualiseButton.setVisible(True)
@@ -641,13 +765,15 @@ class QSWATPlus(QObject):
         # avoid getting second window
         if self.vis is not None and self.vis._dlg.isEnabled():
             self.vis._dlg.close()
-        self.vis = Visualise(self._iface, self._gv)
-        # vis = VisualOutput(self._iface, self._gv)
+        self.vis = Visualise(self._gv)
         self.vis.run()
+        self.vis = None
                     
     def finish(self):   
         """Close the database connections and subsidiary forms."""
-        QSWATUtils.loginfo('Closing databases')
+        if QSWATUtils is not None:
+            QSWATUtils.deleteTempFolder()
+            QSWATUtils.loginfo('Closing databases')
         try:
             self.delin = None
             self.hrus = None
@@ -657,7 +783,8 @@ class QSWATPlus(QObject):
                     self._gv.db.conn.close()
                 if self._gv.db.connRef:
                     self._gv.db.connRef.close() 
-            QSWATUtils.loginfo('Databases closed') 
+            if QSWATUtils is not None:
+                QSWATUtils.loginfo('Databases closed') 
         except Exception:
             pass
         

@@ -774,6 +774,7 @@ class QSWATTopology:
             attMap: Dict[int, Dict[int, float]] = dict()
             geomMap: Dict[int, QgsGeometry] = dict()
             polysToRemove: List[int] = []
+            minArea = self.dx * self.dy  # area of one pixel in sq metres
             for sub in subsProvider.getFeatures():
                 subGeom = sub.geometry()
                 if  QSWATTopology.intersectsPoly(subGeom, lakeGeom, lakeRect):
@@ -784,7 +785,7 @@ class QSWATTopology:
                     if area2 < area1:
                         subPoly = sub[subsPolyIndex]
                         QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
-                        if area2 == 0:
+                        if area2 < minArea:
                             polysToRemove.append(subId)
                             # remove subbasin from range of chBasinToSubbasin
                             chBasinsToRemove: Set[int] = set()
@@ -838,7 +839,7 @@ class QSWATTopology:
                         geomMap[chBasinId] = newGeom
                         attMap[chBasinId] = {chBasinsAreaIndex: area2 / 1E4}
                         channelAreaChange[polyId] = area1 - area2
-                        if area2 == 0:
+                        if area2 < minArea:
                             # channel basin disappears into lake: remove its mapping to subbasin
                             # may already have been removed because all subbasin in lake
                             subbasin = self.chBasinToSubbasin.get(polyId, -1)

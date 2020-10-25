@@ -3319,7 +3319,7 @@ class Visualise(QObject):
 
     def clearMapTitle(self):
         """Can often end up with more than one map title.  Remove all of them from the canvas, prior to resetting one required."""
-        canvas = self._iface.mapCanvas()
+        canvas = self._gv.iface.mapCanvas()
         scene = canvas.scene()
         if self.mapTitle is not None:
             scene.removeItem(self.mapTitle)
