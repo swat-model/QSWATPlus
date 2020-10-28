@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "QSWATPlus3_32"
-#define MyAppVersion "1.2"
-#define MyAppSubVersion "5"
+#define MyAppVersion "1.3"
+#define MyAppSubVersion "99"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -64,11 +64,11 @@ var
   QGISDirectory: String;
   MainQGISPluginDirResult: String;
 begin
-  if DirExists(ExpandConstant('{pf32}/QGIS 3.4')) then begin
-    QGISDirectory := ExpandConstant('{pf32}/QGIS 3.4');
+  if DirExists(ExpandConstant('{pf32}/QGIS 3.10')) then begin
+    QGISDirectory := ExpandConstant('{pf32}/QGIS 3.10');
   end else 
-    if DirExists(ExpandConstant('{pf32}/QGIS 3.10')) then begin
-      QGISDirectory := ExpandConstant('{pf32}/QGIS 3.10');
+    if DirExists(ExpandConstant('{pf32}/QGIS 3.16')) then begin
+      QGISDirectory := ExpandConstant('{pf32}/QGIS 3.16');
     end else 
       if DirExists(ExpandConstant('{sd}/OSGeo4W32')) then begin
         QGISDirectory := ExpandConstant('{sd}/OSGeo4W32');

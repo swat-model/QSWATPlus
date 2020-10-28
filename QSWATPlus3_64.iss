@@ -38,8 +38,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "C:\Users\Chirs George\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs
-; Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\ConvertFromArc\*"; DestDir: "C:\SWAT\SWATPlus\Tools\ConvertFromArc"; Excludes: "AccessToCSV", "*.manifest"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\SWATGraph\*";  DestDir: "C:\SWAT\SWATPlus\Tools\SWATGraph"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\ConvertFromArc\*"; DestDir: "C:\SWAT\SWATPlus\Tools\ConvertFromArc"; Excludes: "AccessToCSV", "*.manifest"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Users\Public\QSWATPlus3\QSWATPlus\SWATPlus\Tools\SWATGraph\*";  DestDir: "C:\SWAT\SWATPlus\Tools\SWATGraph"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
 var
@@ -66,11 +66,11 @@ var
   QGISDirectory: String;
   MainQGISPluginDirResult: String;
 begin
-  if DirExists(ExpandConstant('{pf64}/QGIS 3.4')) then begin
-    QGISDirectory := ExpandConstant('{pf64}/QGIS 3.4');
+  if DirExists(ExpandConstant('{pf64}/QGIS 3.10')) then begin
+    QGISDirectory := ExpandConstant('{pf64}/QGIS 3.10');
   end else 
-    if DirExists(ExpandConstant('{pf64}/QGIS 3.10')) then begin
-      QGISDirectory := ExpandConstant('{pf64}/QGIS 3.10');
+    if DirExists(ExpandConstant('{pf64}/QGIS 3.16')) then begin
+      QGISDirectory := ExpandConstant('{pf64}/QGIS 3.16');
     end else 
       if DirExists(ExpandConstant('{sd}/OSGeo4W64')) then begin
         QGISDirectory := ExpandConstant('{sd}/OSGeo4W64');

@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '1.4.1'
+    __version__ = '1.3.99'
 
     def __init__(self, iface):
         """Constructor."""

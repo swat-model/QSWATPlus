@@ -9,10 +9,10 @@
 
 
 [general]
-name=QSWATPlus3_64
+name=QSWATPlusMac3_32
 qgisMinimumVersion=3.0
 description=Create SWAT+ inputs
-version=1.3.99
+version=1.3.1
 author=Chris George
 email=cgeorge@mcmaster.ca
 
@@ -35,4 +35,3 @@ experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version
 deprecated=False
-

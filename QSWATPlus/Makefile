@@ -45,28 +45,60 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	PLUGINNAME = QSWATPlus3_64
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
-	QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vuf
+	CPDIR = cp -vufr
 else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	COMPILER = msvc
 	METADATA = metadata3_32.txt
 	PLUGINNAME = QSWATPlus3_32
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win32.pyd)
-	QGISDIR=AppData/Roaming/QGIS/QGIS3/profiles/default
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vuf
+	CPDIR = cp -vufr
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	COMPILER = unix
 	METADATA = metadatalinux3_64.txt
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-x86_64-linux-gnu.so)
-	QGISDIR=.local/share/QGIS/QGIS3/profiles/default
+	BAT_FILES = $(addprefix ../, runtestn.sh)
+	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vf
+	CPDIR = cp -vfR
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	COMPILER = unix
 	METADATA = metadatalinux3_32.txt
 	PLUGINNAME = QSWATPlusLinux3_32
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-linux-gnu.so)
-	QGISDIR=.local/share/QGIS/QGIS3/profiles/default
+	BAT_FILES = $(addprefix ../, runtestn.sh)
+	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vf
+	CPDIR = cp -vfR
+else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
+	COMPILER = unix
+	METADATA = metadatamac3_64.txt
+	PLUGINNAME = QSWATPlusMac3_64
+	DOXYGEN = doxygen
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-37m-darwin.so)
+	BAT_FILES = $(addprefix ../, runtestn.sh)
+	QGISDIR = Library/Application Support/QGIS/QGIS3/profiles/default
+	CPFILE = rsync -av
+	CPDIR = rsync -av
+#else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_32)
+#	COMPILER = unix
+#	METADATA = metadatamac3_32.txt
+#	PLUGINNAME = QSWATPlusMac3_32
+#	DOXYGEN = doxygen
+#	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-mac-gnu.so)
+#	BAT_FILES = 
+#	QGISDIR=Library/Application Support/QGIS/QGIS3/profiles/default
+#	CPFILE = rsync -av
+#	CPDIR = rsync -av
 endif
 
 PY_FILES = \
@@ -77,7 +109,7 @@ PY_FILES = \
 	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
 	ui_convert.py ui_graph.py
 
-PYX_FILES =  jenks.pyx dataInC.pyx # polygonizeInC.pyx polygonizeInC2.pyx problem compiling - cython version?  Manually copy pyd files.
+PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
 
@@ -92,8 +124,6 @@ QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate
 			PrintTemplate2Portrait.qpt PrintTemplate3Landscape.qpt PrintTemplate3Portrait.qpt \
 			PrintTemplate4Landscape.qpt PrintTemplate4Portrait.qpt PrintTemplate6Landscape.qpt \
 			PrintTemplate6Portrait.qpt
-
-# BAT_FILES = runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat runtestn.sh
 
 EXTRAS = Changelog.txt swatplus32.png
 
@@ -157,6 +187,16 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	i686-linux-gnu-gcc-7 -pthread -DNDEBUG -g -fwrapv -O2 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.6m -c $*.c -o build/temp.linux-i386-3.6/$*.o	
 	i686-linux-gnu-gcc-7 -pthread -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -Wdate-time -D_FORTIFY_SOURCE=2 build/temp.linux-i386-3.6/$*.o -o $@
 
+# similar hack to 32-bit Linux
+%.cpython-37m-darwin.so : %.pyx
+	#python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
+	/usr/local/bin/cython *.pyx
+	mkdir -p build/temp.macosx-10.14-x86_64-3.7
+	xcrun -sdk macosx clang -arch x86_64 -Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common -dynamic -DNDEBUG -g -fwrapv -O3 -Wall -I/Library/Python/3.7/site-packages/numpy/core/include -I/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.7/include/python3.7m -c $*.c -o build/temp.macosx-10.14-x86_64-3.7/$*.o
+	xcrun -sdk macosx clang -arch x86_64 -Wno-unused-result -Wsign-compare -Wunreachable-code -fno-common -dynamiclib -DNDEBUG -g -fwrapv -O3 -Wall -L/Applications/QGIS3.10.app/Contents/Frameworks/Python.framework/Versions/3.7/lib -lpython3.7m build/temp.macosx-10.14-x86_64-3.7/$*.o -o $@
+
+
+
 %_rc.py : %.qrc
 	pyrcc5 -o $*_rc.py  $<
 
@@ -203,25 +243,25 @@ deploy: compile
 	# the Python plugin directory is located at:
 	# $(HOME)/$(QGISDIR)/python/plugins
 	mkdir -p "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(PY_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(PYX_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(OBJ_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-#	cp -vuf $(BAT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(COMPILED_RESOURCE_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(EXTRAS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vuf $(METADATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/metadata.txt"
-#	cp -vufr i18n "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-#	cp -vufr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-#	cp -vufr $(HTML) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vufr $(GLOBALDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	cp -vufr $(EXTRAPACKAGES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-#	cp -vufr $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(PY_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(PYX_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(OBJ_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(BAT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(COMPILED_RESOURCE_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(EXTRAS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(METADATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/metadata.txt"
+#	$(CPDIR) i18n "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+#	$(CPDIR) $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+#	$(CPDIR) $(HTML) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPDIR) $(GLOBALDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPDIR) $(EXTRAPACKAGES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+#	$(CPDIR) $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 # remove test outputs before copying test data
 	rm -vfr $(TESTOUTPUT)
-	cp -vufr $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPDIR) $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 
 # The dclean target deletes any .git entry
 dclean:
@@ -269,7 +309,7 @@ upload: zip
 	@echo "Uploading plugin to QGIS Plugin repo."
 	@echo "-------------------------------------"
 	$(PLUGIN_UPLOAD) $(PLUGINNAME).zip
-	
+
 transup:
 	@echo
 	@echo "------------------------------------------------"
