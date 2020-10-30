@@ -3961,7 +3961,7 @@ class CreateHRUs(QObject):
                           'FIELD': 'DN',
                           'EIGHT_CONNECTEDNESS': False,
                           'OUTPUT': floodShapefile}
-                processing.run('gdal:polygonize', params, context=context)
+                processing.run('gdal:polygonize', params, context=context)  # @UndefinedVariable
                 # SAGA fails on Ravn example with floodplain, so back to GDAL above
 #                 params = {'GRID': floodPath,
 #                           'CLASS_ALL': 0,
