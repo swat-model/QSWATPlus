@@ -22,22 +22,7 @@
 # Import the PyQt and QGIS libraries
 from PyQt5.QtCore import *  #   @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
-from qgis.core import QgsCoordinateReferenceSystem, \
-                    QgsUnitTypes, \
-                    QgsCoordinateTransform, \
-                    QgsProject, \
-                    QgsFeatureRequest, \
-                    QgsField, \
-                    QgsFeature, \
-                    QgsVectorLayer, \
-                    QgsPointXY, \
-                    QgsRasterLayer, \
-                    QgsExpression, \
-                    QgsGeometry, \
-                    QgsVectorDataProvider, \
-                    QgsRectangle, \
-                    QgsLayerTreeGroup, \
-                    QgsLayerTreeLayer
+from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer  # @UnresolvedImport
 from osgeo import gdal  # type: ignore
 from numpy import * # @UnusedWildImport
 import os.path
@@ -211,9 +196,9 @@ class QSWATTopology:
         # complete
         self.channelSlopes: Dict[int, float] = dict()
         ## numpy array of total area draining to downstream end of channel in square metres
-        self.drainAreas: numpy.ndarray[float] = None  # type: ignore
+        self.drainAreas: numpy.ndarray[float] = None  # type: ignore @UndefinedVariable
         ## numpy array of Strahler order of channels
-        self.strahler: numpy.ndarray[int] = None  # type: ignore
+        self.strahler: numpy.ndarray[int] = None  # type: ignore @UndefinedVariable
         ## map of lake id to ids of points added to split channels entering lakes
         self.lakeInlets: Dict[int, List[int]] = dict()
         ## map of lake id to ids of points added to split channels leaving lakes
@@ -470,10 +455,10 @@ class QSWATTopology:
                 # it is the downstream channel link from an inlet, and has no basin
                 pass
             else:
+                self.chLinkToChBasin[chLink] = chBasin
+                self.chBasinToChLink[chBasin] = chLink
                 # exit channels in grid model can have zero length
                 if length > 0 or useGridModel: 
-                    self.chLinkToChBasin[chLink] = chBasin
-                    self.chBasinToChLink[chBasin] = chLink
                     SWATChannel += 1
                     self.channelToSWATChannel[chLink] = SWATChannel
                     self.SWATChannelToChannel[SWATChannel] = chLink
