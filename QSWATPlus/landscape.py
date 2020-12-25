@@ -437,7 +437,7 @@ class Landscape(QObject):
         else:
             QSWATUtils.removeLayerAndFiles(bufferShapefile, root)
             fields = QgsFields()
-            writer = QgsVectorFileWriter(bufferShapefile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(bufferShapefile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
                 return

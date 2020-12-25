@@ -319,10 +319,10 @@ class CreateHRUs(QObject):
             if not self._gv.useGridModel:
                 distChNoData = distChBand.GetNoDataValue()
         cropNoData: int = cropBand.GetNoDataValue()
-        if cropNoData is None:
+        if cropNoData is None or cropNoData < self.defaultNoData:  # guard against floats that cannot be converted to int
             cropNoData = self.defaultNoData
         soilNoData: int = soilBand.GetNoDataValue()
-        if soilNoData is None:
+        if soilNoData is None or soilNoData < self.defaultNoData:  # guard against floats that cannot be converted to int
             soilNoData = self.defaultNoData
         slopeNoData: int = slopeBand.GetNoDataValue()
         if not self._gv.useGridModel:
@@ -640,7 +640,7 @@ class CreateHRUs(QObject):
                             else:
                                 crop = cropNoData
                             # no data read from map is None or Nan if no noData value defined 
-                            if crop is None or math.isnan(crop) or crop == cropNoData:
+                            if crop is None or math.isnan(crop) or crop <= cropNoData:  # use <= since may have been set to defaultNoData
                                 landuseNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -824,7 +824,7 @@ class CreateHRUs(QObject):
                             cropCol = cropColFun(col, x)
                             if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
                                 crop = cast(int, cropData[0, cropCol])
-                                if crop is None or math.isnan(crop):
+                                if crop is None or math.isnan(crop) or crop < cropNoData: # may have been set to defaultNoData
                                     crop = cropNoData
                             else:
                                 crop = cropNoData
@@ -837,7 +837,7 @@ class CreateHRUs(QObject):
                             soilCol = soilColFun(col, x)
                             if 0 <= soilCol < soilNumberCols and 0 <= soilRow < soilNumberRows:
                                 soil = cast(int, soilData[0, soilCol])
-                                if soil is None or math.isnan(soil):
+                                if soil is None or math.isnan(soil) or soil < soilNoData: # may have been set to defaultNoData
                                     soil = soilNoData
                             else:
                                 soil = soilNoData
@@ -1186,7 +1186,7 @@ class CreateHRUs(QObject):
                 '{5}: numbers {0} not consistent with hru map keys {1} for basin {2} channel {3} landscape {4}'.format(lsuData.cropSoilSlopeNumbers, hruList2, basin, channel, landscape, posn)
     
     def addReservoirs(self) -> None:
-        """Add reservoirs."""
+        """Add reservoirs, and remove WATR HRUs"""
         
         def mergeDownstream(floodscape: int) -> None:
             """Merge floodplain reservoirs downstream."""
@@ -1261,6 +1261,13 @@ class CreateHRUs(QObject):
                     lsuData.makeReservoir(self.reservoirThreshold)
                     if waterBody.isReservoir():
                         reservoirChannels.add(channel)
+                if waterBody is not None and not waterBody.isUnknown():
+                    # need to remove WATR HRUs
+                    soilSlopeNumbers = lsuData.cropSoilSlopeNumbers.get(self._gv.db.waterLanduse, None)
+                    if soilSlopeNumbers is not None:
+                        for (soil, slopeNumbers) in list(soilSlopeNumbers.items()):
+                            for (slope, hru) in list(slopeNumbers.items()):
+                                lsuData.removeHRU(hru, self._gv.db.waterLanduse, soil, slope)
         for channel in reservoirChannels:
             QSWATUtils.loginfo('Reservoir water body in channel {0} ({1})'.format(self._gv.topo.channelToSWATChannel[channel], channel))
         mergeDownstream(floodscape)
@@ -1588,7 +1595,7 @@ class CreateHRUs(QObject):
             fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
             fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -1634,7 +1641,7 @@ class CreateHRUs(QObject):
             fields.append(QgsField(QSWATTopology._HRUS, QVariant.String, len=20))
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(self._gv.fullHRUsFile, 'CP1250', fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(self._gv.fullHRUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch)
                 return False
@@ -2059,7 +2066,9 @@ class CreateHRUs(QObject):
                     # in either case convert to square metres
                     threshold = self.areaVal * 10000 if self.useArea else (lsuData.cropSoilSlopeArea * self.areaVal) / 100
                     exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
-                    hruArea = lsuData.area
+                    hrusArea = lsuData.area
+                    if exemptWater:
+                        hrusArea -= lsuData.waterBody.area
                     areaToRedistribute = 0.0
                     unfinished = True
                     while unfinished:
@@ -2091,9 +2100,9 @@ class CreateHRUs(QObject):
                                 unfinished = False
                             if areaToRedistribute > 0:
                                 # make sure we don't divide by zero
-                                if hruArea - areaToRedistribute == 0:
+                                if hrusArea - areaToRedistribute == 0:
                                     raise ValueError('No HRUs for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                                redistributeFactor = hruArea / (hruArea - areaToRedistribute)
+                                redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
                                 lsuData.redistribute(redistributeFactor)
                                 areaToRedistribute = 0
                         else:
@@ -2122,7 +2131,9 @@ class CreateHRUs(QObject):
                 for landscape, lsuData in channelData.items():
                     cropAreas = lsuData.originalCropAreas
                     exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
-                    hruArea = lsuData.area
+                    hrusArea = lsuData.area
+                    if exemptWater:
+                        hrusArea -= lsuData.waterBody.area
                     areaToRedistribute = 0.0
                     minCropArea = (lsuData.cropSoilSlopeArea * minCropPercent) / 100
                     # reduce area if necessary to avoid removing all crops
@@ -2140,9 +2151,9 @@ class CreateHRUs(QObject):
                                         lsuData.removeHRU(hru, crop, soil, slope)
                     if areaToRedistribute > 0:
                         # just to make sure we don't divide by zero
-                        if hruArea - areaToRedistribute == 0:
+                        if hrusArea - areaToRedistribute == 0:
                             raise ValueError('No landuse data for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
-                        redistributeFactor = hruArea / (hruArea - areaToRedistribute)
+                        redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
                         lsuData.redistribute(redistributeFactor)
                     # Now have to remove soil areas within each crop area that are
                     # less than minSoilVal for that crop.
@@ -2231,17 +2242,21 @@ class CreateHRUs(QObject):
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.getLsus().items(): 
                 for landscape, lsuData in channelData.items():
+                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
                     cropAreas = lsuData.originalCropAreas
+                    if exemptWater and self._gv.db.waterLanduse in cropAreas:
+                        del cropAreas[self._gv.db.waterLanduse]
                     # reduce area if necessary to avoid removing all crops
                     if not self.hasExemptCrop(lsuData):
                         minCropArea = min(minCropAreaBasin, self.maxValue(cropAreas))
                     else:
                         minCropArea = minCropAreaBasin
-                    exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
-                    hruArea = lsuData.area
+                    hrusArea = lsuData.area
+                    if exemptWater:
+                        hrusArea -= lsuData.waterBody.area
                     areaToRedistribute = 0.0
                     for (crop, area) in cropAreas.items():
-                        if not self._gv.isExempt(crop) and not (crop == self._gv.db.waterLanduse and exemptWater):
+                        if not self._gv.isExempt(crop):
                             if area < minCropArea:
                                 # remove this crop
                                 # going to change maps so make lists
@@ -2291,9 +2306,9 @@ class CreateHRUs(QObject):
                     if areaToRedistribute > 0:
                         # Now redistribute removed areas
                         # just to make sure we don't divide by zero
-                        if hruArea - areaToRedistribute == 0:
+                        if hrusArea - areaToRedistribute == 0:
                             raise ValueError('Cannot redistribute area of {3:.2F} ha for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel, (areaToRedistribute / 10000)))
-                        redistributeFactor = hruArea / (hruArea - areaToRedistribute)
+                        redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
                         lsuData.redistribute(redistributeFactor)
                 
     def hasExemptCrop(self, lsuData: LSUData) -> bool:
@@ -2367,6 +2382,10 @@ class CreateHRUs(QObject):
         """Remove an HRU and redistribute its area within its landscape unit."""
         basinData = self.basins[basin]
         lsuData = basinData.getLsus()[channel][landscape]
+        exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
+        hrusArea = lsuData.area
+        if exemptWater:
+            hrusArea -= lsuData.waterBody.area
         CreateHRUs.checkConsistent(lsuData, basin, channel, landscape, 4)
         hrus = lsuData.hruMap
         if len(hrus) == 1:
@@ -2379,9 +2398,9 @@ class CreateHRUs(QObject):
         lsuData.removeHRU(hru, crop, soil, slope)
         if areaToRedistribute > 0:
             # make sure we don't divide by zero
-            if lsuData.area - areaToRedistribute == 0:
+            if hrusArea - areaToRedistribute == 0:
                 raise ValueError('No HRUs for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel))
-            redistributeFactor = lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea - areaToRedistribute)
+            redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
             lsuData.redistribute(redistributeFactor)
         CreateHRUs.checkConsistent(lsuData, basin, channel, landscape, 5)
 
@@ -4113,7 +4132,7 @@ class CreateHRUs(QObject):
             partNum += 1
             nextPartFile = gridBase + str(partNum) + '.shp'
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(nextPartFile, 'CP1250', gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(nextPartFile, "UTF-8", gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create partition shapefile {0}: {1}'.format(nextPartFile, writer.errorMessage()), self._gv.isBatch)
                 return

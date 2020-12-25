@@ -59,7 +59,9 @@ from qgis.core import Qgis, \
                         QgsLineSymbol, \
                         QgsGradientColorRamp, \
                         QgsRendererRangeLabelFormat, \
-                        QgsGraduatedSymbolRenderer
+                        QgsGraduatedSymbolRenderer, \
+                        QgsRendererRange, \
+                        QgsClassificationJenks  # @UnresolvedImport
                         
                         
                         
@@ -853,7 +855,7 @@ class QSWATUtils:
                 epsgProject = gv.crsProject.authid()
                 epsgLoad = layer.crs().authid()
                 if epsgProject != epsgLoad:
-                    QSWATUtils.error('File {0} has a projection {1} which is different from the project projection {2}.  Please reproject and reload.'.
+                    QSWATUtils.error('File {0} has a projection {1} which is different from the project projection {2}, which was set from the DEM.  Please reproject and reload.'.
                                      format(outFileName, epsgLoad, epsgProject), gv.isBatch)
                     QgsProject.instance().removeMapLayer(layer.id())
                     del layer
@@ -1625,7 +1627,7 @@ class FileTypes:
     @staticmethod
     def colourStreams(layer: QgsVectorLayer, penWidth: str, drainage: str) -> None:
         """Colour streams layer classifying drainage with symbol based on penWidth."""
-                # make stream width dependent on drainage values (drainage is accumulation, ie number of dem cells draining to start of stream)
+        # make stream width dependent on drainage values (drainage is accumulation, ie number of dem cells draining to start of stream)
         numClasses = 5
         props = {'width_expression': penWidth}
         symbol = QgsLineSymbol.createSimple(props)
@@ -1633,6 +1635,13 @@ class FileTypes:
         color1 = QColor(166,206,227,255)
         color2 = QColor(0,0,255,255)
         ramp = QgsGradientColorRamp(color1, color2)
+#         method = QgsClassificationJenks()
+#         method.setLabelFormat('%1 - %2')
+#         classes = method.classes(layer, drainage, numClasses)
+#         ranges = [QgsRendererRange(clas, symbol) for clas in classes]
+#         renderer = QgsGraduatedSymbolRenderer(drainage, ranges)
+#         renderer.setSourceColorRamp(ramp)
+        # these functions are deprecated, but alternative above causes crash later
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
         renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, drainage,
                                                                numClasses, QgsGraduatedSymbolRenderer.Jenks,

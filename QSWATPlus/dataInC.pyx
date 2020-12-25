@@ -416,9 +416,6 @@ cdef class LSUData:
         for (hru, cellData) in self.hruMap.items():
             cellData.multiply(factor)
             self.hruMap[hru] = cellData
-        # keep area of water hrus and water body consistent
-        if self.waterBody is not None:
-            self.waterBody.multiply(factor)
             
     cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 

@@ -20,10 +20,10 @@
  ***************************************************************************/
 """
  
-from PyQt5.QtCore import *  # @UnusedWildImport
+from PyQt5.QtCore import QObject, Qt, QVariant  # @UnresolvedImport
 from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import *  # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
+from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox  # @UnresolvedImport
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes  # @UnresolvedImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import sys
 import os
@@ -691,7 +691,7 @@ class ConvertFromArc(QObject):
 #         # create shapefile
 #         fields = QgsFields()
 #         fields.append(QgsField('Basin', QVariant.Int))
-#         writer = QgsVectorFileWriter(subbasinsFile, 'CP1250', fields, 
+#         writer = QgsVectorFileWriter(subbasinsFile, "UTF-8", fields, 
 #                                      QGis.WKBMultiPolygon, None, 'ESRI Shapefile')
 #         if writer.hasError() != QgsVectorFileWriter.NoError:
 #             ConvertFromArc.error('Cannot create subbasin shapefile {0}: {1}'. \
@@ -843,7 +843,7 @@ class ConvertFromArc(QObject):
         if basinWanted:
             fields.append(QgsField('Subbasin', QVariant.Int))
         # writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, self.crs, QgsCoordinateTransformContext(), self.vectorOptions)
-        writer = QgsVectorFileWriter(filePath, 'CP1250', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
+        writer = QgsVectorFileWriter(filePath, 'UTF-8', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
         if writer.hasError() != QgsVectorFileWriter.NoError:
             ConvertFromArc.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()))
             return False

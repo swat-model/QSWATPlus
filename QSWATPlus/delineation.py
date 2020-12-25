@@ -3241,7 +3241,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             else:
                 fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
-            writer = QgsVectorFileWriter(subbasinsFile, 'CP1250', fields, 
+            writer = QgsVectorFileWriter(subbasinsFile, "UTF-8", fields, 
                                          QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create watershed shapefile {0}: {1}'. \
@@ -3782,7 +3782,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(Parameters._AREA, QVariant.Double))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LAKEID, QVariant.Int))
-            writer = QgsVectorFileWriter(gridFile, 'CP1250', fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(gridFile, "UTF-8", fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid shapefile {0}: {1}'.format(gridFile, writer.errorMessage()), self._gv.isBatch)
                 return
@@ -3877,7 +3877,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DRAINAGE, QVariant.Double))
             fields.append(QgsField(QSWATTopology._PENWIDTH, QVariant.Double))
-            writer = QgsVectorFileWriter(gridStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(gridStreamsFile, "UTF-8", fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create streams shapefile {0}: {1}'.format(gridStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return -1
@@ -4023,7 +4023,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSNODEID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
-            writer = QgsVectorFileWriter(drainStreamsFile, 'CP1250', fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(drainStreamsFile, "UTF-8", fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid streams shapefile {0}: {1}'.format(drainStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -4357,7 +4357,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
             if basinWanted:
                 fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            writer = QgsVectorFileWriter(filePath, 'CP1250', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
+            writer = QgsVectorFileWriter(filePath, "UTF-8", fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), isBatch)
                 return False
