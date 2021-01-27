@@ -46,6 +46,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -56,6 +57,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win32.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -66,6 +68,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufR
@@ -76,6 +79,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufR
@@ -86,6 +90,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-37m-darwin.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	EXTRAPACKAGES = imageio
 	QGISDIR = Library/Application Support/QGIS/QGIS3/profiles/default
 	CPFILE = rsync -av
 	CPDIR = rsync -av
@@ -96,6 +101,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 #	DOXYGEN = doxygen
 #	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-mac-gnu.so)
 #	BAT_FILES = 
+#	EXTRAPACKAGES = imageio
 #	QGISDIR=Library/Application Support/QGIS/QGIS3/profiles/default
 #	CPFILE = rsync -av
 #	CPDIR = rsync -av
@@ -132,8 +138,6 @@ EXTRA_DIRS =
 COMPILED_RESOURCE_FILES = resources_rc.py
 
 GLOBALDATA = GlobalData
-
-EXTRAPACKAGES = imageio PIL
 
 TOOLS = Tools
 

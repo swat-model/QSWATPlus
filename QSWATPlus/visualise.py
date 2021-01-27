@@ -24,7 +24,7 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsClassificationCustom, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest  # @UnresolvedImport
+from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest  # @UnresolvedImport
 from qgis.gui import QgsMapCanvas, QgsMapCanvasItem  # @UnresolvedImport
 import os
 # import random
@@ -3338,7 +3338,7 @@ class Visualise(QObject):
 #         return len(breaks) - 1 
 #===============================================================================
 
-    def clearMapTitle(self):
+    def clearMapTitle(self) -> None:
         """Can often end up with more than one map title.  Remove all of them from the canvas, prior to resetting one required."""
         canvas = self._gv.iface.mapCanvas()
         scene = canvas.scene()

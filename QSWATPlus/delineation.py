@@ -996,7 +996,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 try:
                     currentLakeId = int(cell[gridLakeIdIndex])
                     if currentLakeId not in done:
-                        mmap[cell.id()] = {gridLakeIdIndex: NULL} # type: ignore
+                        mmap[cell.id()] = {gridLakeIdIndex: NULL}
                 except:
                     pass
                 if QSWATTopology.disjointBoxes(lakeBox, cellBox):
@@ -2466,7 +2466,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             lakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
             mmap = dict()
             for cell in gridLayer.selectedFeatures():
-                mmap[cell.id()] = {lakeIdIndex: NULL}  # type: ignore
+                mmap[cell.id()] = {lakeIdIndex: NULL}
             if not gridLayer.dataProvider().changeAttributeValues(mmap):
                 QSWATUtils.error('Failed to edit grid layer', self._gv.isBatch)
         gridLayer.removeSelection()

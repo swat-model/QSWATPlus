@@ -19,7 +19,9 @@
  *                                                                         *
  ***************************************************************************/
 '''
-# Import the PyQt and QGIS libraries
+
+from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
+# Import the PyQt and QGIS librariesx
 from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
 from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox
@@ -34,10 +36,9 @@ import glob
 import processing  # type: ignore @UnresolvedImport
 from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
 from operator import itemgetter
-from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnusedImport @UnresolvedImport
-
+    
 # Import the code for the dialog
 from .hrusdialog import HrusDialog  # type: ignore
 from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns  # type: ignore
@@ -180,7 +181,7 @@ class CreateHRUs(QObject):
         Also generate lsus shapefile, and fullHRUs shapefile if requested."""
         # in case this is a rerun
         self.basins.clear()
-        elevationDs = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)  # type: ignore
+        elevationDs = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         if not elevationDs:
             QSWATUtils.error('Cannot open DEM {0}'.format(self._gv.demFile), self._gv.isBatch)
             return False
@@ -197,29 +198,29 @@ class CreateHRUs(QObject):
             basinBand = basinDs.GetRasterBand(1)
             basinNoData: int = basinBand.GetNoDataValue()
         if not self._gv.existingWshed:
-            distStDs = gdal.Open(self._gv.distStFile, gdal.GA_ReadOnly)  # type: ignore
+            distStDs = gdal.Open(self._gv.distStFile, gdal.GA_ReadOnly)
             if not distStDs:
                 QSWATUtils.error('Cannot open distance to outlets file {0}'.format(self._gv.distStFile), self._gv.isBatch)
                 return False
             if not self._gv.useGridModel:
-                distChDs = gdal.Open(self._gv.distChFile, gdal.GA_ReadOnly)  # type: ignore
+                distChDs = gdal.Open(self._gv.distChFile, gdal.GA_ReadOnly)
                 if not distChDs:
                     QSWATUtils.error('Cannot open distance to channel file {0}'.format(self._gv.distChFile), self._gv.isBatch)
                     return False
-        cropDs = gdal.Open(self._gv.landuseFile, gdal.GA_ReadOnly)  # type: ignore
+        cropDs = gdal.Open(self._gv.landuseFile, gdal.GA_ReadOnly)
         if not cropDs:
             QSWATUtils.error('Cannot open landuse file {0}'.format(self._gv.landuseFile), self._gv.isBatch)
             return False
-        soilDs = gdal.Open(self._gv.soilFile, gdal.GA_ReadOnly)  # type: ignore
+        soilDs = gdal.Open(self._gv.soilFile, gdal.GA_ReadOnly)
         if not soilDs:
             QSWATUtils.error('Cannot open soil file {0}'.format(self._gv.soilFile), self._gv.isBatch)
             return False
-        slopeDs = gdal.Open(self._gv.slopeFile, gdal.GA_ReadOnly)  # type: ignore
+        slopeDs = gdal.Open(self._gv.slopeFile, gdal.GA_ReadOnly)
         if not slopeDs:
             QSWATUtils.error('Cannot open slope file {0}'.format(self._gv.slopeFile), self._gv.isBatch)
             return False
         if self._gv.useLandscapes:
-            floodDs = gdal.Open(self._gv.floodFile, gdal.GA_ReadOnly)  # type: ignore
+            floodDs = gdal.Open(self._gv.floodFile, gdal.GA_ReadOnly)
             if not floodDs:
                 QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch)
                 return False
@@ -4007,6 +4008,7 @@ class CreateHRUs(QObject):
                 # create shapefile
                 fields = QgsFields()
                 fields.append(QgsField('DN', QVariant.Int))
+                assert self._gv.crsProject is not None
                 writer = QgsVectorFileWriter(floodShapefile, "UTF-8", fields, 
                                              QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
                 if writer.hasError() != QgsVectorFileWriter.NoError:
