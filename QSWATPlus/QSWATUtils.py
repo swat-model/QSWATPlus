@@ -24,44 +24,7 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import Qgis, \
-                        QgsApplication, \
-                        QgsColorRampShader, \
-                        QgsCoordinateReferenceSystem, \
-                        QgsContrastEnhancement, \
-                        QgsDataProvider, \
-                        QgsVectorDataProvider, \
-                        QgsRasterDataProvider, \
-                        QgsError, \
-                        QgsFeature, \
-                        QgsFeatureRequest, \
-                        QgsGeometry, \
-                        QgsLayerTree, \
-                        QgsLayerTreeGroup, \
-                        QgsLayerTreeLayer, \
-                        QgsLayerTreeNode, \
-                        QgsLimitedRandomColorRamp, \
-                        QgsMapLayer, \
-                        QgsMessageLog, \
-                        QgsPalettedRasterRenderer, \
-                        QgsPointXY, \
-                        QgsProject, \
-                        QgsProviderRegistry, \
-                        QgsRasterBandStats, \
-                        QgsRasterLayer, \
-                        QgsRasterShader, \
-                        QgsRectangle, \
-                        QgsSingleBandGrayRenderer, \
-                        QgsSingleBandPseudoColorRenderer, \
-                        QgsUnitTypes, \
-                        QgsVectorLayer, \
-                        QgsWkbTypes, \
-                        QgsLineSymbol, \
-                        QgsGradientColorRamp, \
-                        QgsRendererRangeLabelFormat, \
-                        QgsGraduatedSymbolRenderer, \
-                        QgsRendererRange, \
-                        QgsClassificationJenks  # @UnresolvedImport
+from qgis.core import ( Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks)  # @UnresolvedImport @UnusedImport
                         
                         
                         
@@ -138,7 +101,7 @@ class QSWATUtils:
         Find it using the path of qgis.  It is the name of the directory following 'apps"""
         try:
             import qgis
-            dirs = qgis.__file__.split('/')  
+            dirs = qgis.__file__.split('/')  # @UndefinedVariable
             for i in range(len(dirs)):
                 if dirs[i] == 'apps':
                     return dirs[i+1]
@@ -1641,6 +1604,8 @@ class FileTypes:
 #         ranges = [QgsRendererRange(clas, symbol) for clas in classes]
 #         renderer = QgsGraduatedSymbolRenderer(drainage, ranges)
 #         renderer.setSourceColorRamp(ramp)
+#         renderer.setClassificationMethod(method)
+#         renderer.updateColorRamp(ramp)
         # these functions are deprecated, but alternative above causes crash later
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
         renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, drainage,

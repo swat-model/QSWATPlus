@@ -261,17 +261,14 @@ Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
 If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
                     return  ''
             else:
-                TauDEMDir2 = QSWATUtils.join('~/.local/share/swatplus', Parameters._TAUDEMDIR)
+                TauDEMDir2 = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._TAUDEMDIR)
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
                 else:
-                    TauDEMDir3 = QSWATUtils.join('/usr/local/share/swatplus', Parameters._TAUDEMDIR)
-                    if os.path.isdir(TauDEMDir3):
-                        TauDEMDir = TauDEMDir3
-                    else:
-                        TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1} or {2}.  
-Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2, TauDEMDir3), hasQGIS)
+                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
+Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
                     return ''
+        QSWATUtils.loginfo('TauDEM directory is {0}'.format(TauDEMDir))
         return TauDEMDir
     
     @staticmethod

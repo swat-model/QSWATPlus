@@ -42,8 +42,10 @@ class Parameters:
     _ISWIN = platform.system() == 'Windows'
     _ISLINUX = platform.system() == 'Linux'
     _ISMAC = platform.system() == 'Darwin'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWAT/SWATPlus'
-    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'swatpluseditor'
+    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else os.path.expanduser('~') + '/SWATPlus'
+    if not os.path.isdir(_SWATPLUSDEFAULTDIR) and (_ISLINUX or _ISMAC):
+        _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/Users/Shared/SWATPlus'
+    _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'SWATPlusEditor' if _ISLINUX else 'SWATPlusEditor.app/Contents/MacOS/SWATPlusEditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
     _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin' if _ISLINUX else '/usr/local/bin'

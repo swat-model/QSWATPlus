@@ -24,8 +24,8 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import QgsApplication, QgsPointXY, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsStyle, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsTextAnnotation, QgsExpression, QgsFeatureRequest  # @UnusedImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsClassificationCustom, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest  # @UnresolvedImport
+from qgis.gui import QgsMapCanvas, QgsMapCanvasItem  # @UnresolvedImport
 import os
 # import random
 import numpy
@@ -1789,6 +1789,15 @@ class Visualise(QObject):
         renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
                                                              QgsGraduatedSymbolRenderer.Jenks, symbol, 
                                                              ramp, labelFmt)
+        # new method causes crash
+#         method = QgsClassificationJenks()
+#         method.setLabelFormat('%1 - %2')
+#         classes = method.classes(layer, selectVarShort, count)
+#         ranges = [QgsRendererRange(clas, symbol) for clas in classes]
+#         renderer = QgsGraduatedSymbolRenderer(selectVarShort, ranges)
+#         renderer.setSourceColorRamp(ramp)
+#         renderer.setClassificationMethod(method)
+#         renderer.updateColorRamp(ramp)
         if base == Parameters._SUBS:
             self.internalChangeToSubRenderer = True
         elif base == Parameters._LSUS:
@@ -1964,12 +1973,19 @@ class Visualise(QObject):
             colourVal = i / (count - 1)
             colour = ramp.color(colourVal)
             rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, 4))
+        # deprecated but works
         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
         renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
         renderer.calculateLabelPrecision()
         precision = renderer.labelFormat().precision()
+        # new method but fails when repainting    
+#         method = QgsClassificationCustom()
+#         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
+#         renderer.setClassificationMethod(method)
+#         renderer.calculateLabelPrecision()
+#         precision = renderer.classificationMethod().labelPrecision()       
         QSWATUtils.loginfo('Animation precision: {0}'.format(precision-1))
-        # repeat with calculated precision
+        # repeat with calculated precision - 1
         rangeList = []
         for i in range(count):
             # adjust min and max by 1% to avoid rounding errors causing values to be outside the range
@@ -1981,6 +1997,11 @@ class Visualise(QObject):
             rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, precision-1))
         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
         renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
+        # new method but fails when repainting 
+#         renderer.setSourceColorRamp(ramp)
+#         #renderer.classificationMethod().setLabelPrecision(precision-1)
+#         renderer.updateColorRamp(ramp)
+#         renderer.updateRangeLabels()        
         assert self.animateLayer is not None
         self.animateLayer.setRenderer(renderer)
         self.animateLayer.setOpacity(opacity)
@@ -3856,7 +3877,7 @@ class Visualise(QObject):
         return d0+d1
         
 
-class MapTitle(QgsMapCanvasItem):  # @UndefinedVariable
+class MapTitle(QgsMapCanvasItem):
     
     """Item for displaying title at top left of map canvas."""
     

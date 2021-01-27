@@ -64,21 +64,21 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	METADATA = metadatalinux3_64.txt
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-x86_64-linux-gnu.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
-	CPFILE = cp -vf
-	CPDIR = cp -vfR
+	CPFILE = cp -vuf
+	CPDIR = cp -vufR
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	COMPILER = unix
 	METADATA = metadatalinux3_32.txt
 	PLUGINNAME = QSWATPlusLinux3_32
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-linux-gnu.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
-	CPFILE = cp -vf
-	CPDIR = cp -vfR
+	CPFILE = cp -vuf
+	CPDIR = cp -vufR
 else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	COMPILER = unix
 	METADATA = metadatamac3_64.txt
@@ -176,12 +176,12 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
-%.cpython-36m-x86_64-linux-gnu.so : %.pyx
+%.cpython-38-x86_64-linux-gnu.so : %.pyx
 	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
 # 32 bit Linux
 # this is a hack to mimic what distutils.setup can do
-%.cpython-36m-i386-linux-gnu.so : %.pyx
+%.cpython-38-i386-linux-gnu.so : %.pyx
 	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 	mkdir -p build/temp.linux-i386-3.6
 	i686-linux-gnu-gcc-7 -pthread -DNDEBUG -g -fwrapv -O2 -Wall -Wdate-time -D_FORTIFY_SOURCE=2 -fPIC -I/usr/include/python3.6m -c $*.c -o build/temp.linux-i386-3.6/$*.o	

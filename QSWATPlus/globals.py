@@ -23,7 +23,7 @@
 from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport 
 from PyQt5.QtWidgets import QComboBox
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter  # @UnusedImport
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter  # @UnusedImport @UnresolvedImport
 from qgis.gui import QgisInterface  # @UnresolvedImport
 import os.path
 # import xml.etree.ElementTree as ET
@@ -53,15 +53,15 @@ class GlobalVars:
         settings = QSettings()
         if settings.contains('/QSWATPlus/SWATPlusDir'):
             SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
+            if not os.path.isdir(SWATPlusDir):
+                SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR 
         else:
             SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
-            if os.path.isdir(SWATPlusDir):
-                settings.setValue('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
         if not os.path.isdir(SWATPlusDir):
             QSWATUtils.error('''Cannot find SWATPlus directory, expected to be {0}.
 Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBatch)
-            self.SWATPlusDir = ''
-            return
+        else:
+            settings.setValue('/QSWATPlus/SWATPlusDir', SWATPlusDir)
         ## SWATPlus directory
         self.SWATPlusDir = SWATPlusDir
         ## Directory containing QSWAT plugin

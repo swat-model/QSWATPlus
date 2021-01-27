@@ -640,7 +640,7 @@ class CreateHRUs(QObject):
                             else:
                                 crop = cropNoData
                             # no data read from map is None or Nan if no noData value defined 
-                            if crop is None or math.isnan(crop) or crop <= cropNoData:  # use <= since may have been set to defaultNoData
+                            if crop is None or math.isnan(crop) or crop <= cropNoData < 0:  # use <= since may have been set to defaultNoData
                                 landuseNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -657,7 +657,7 @@ class CreateHRUs(QObject):
                                     soil = soilNoData 
                             else:
                                 soil = soilNoData
-                            if soil is None or math.isnan(soil) or soil == soilNoData:
+                            if soil is None or math.isnan(soil) or soil <= soilNoData < 0:
                                 soilNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -824,7 +824,7 @@ class CreateHRUs(QObject):
                             cropCol = cropColFun(col, x)
                             if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
                                 crop = cast(int, cropData[0, cropCol])
-                                if crop is None or math.isnan(crop) or crop < cropNoData: # may have been set to defaultNoData
+                                if crop is None or math.isnan(crop) or crop <= cropNoData < 0: # may have been set to defaultNoData
                                     crop = cropNoData
                             else:
                                 crop = cropNoData
@@ -837,7 +837,7 @@ class CreateHRUs(QObject):
                             soilCol = soilColFun(col, x)
                             if 0 <= soilCol < soilNumberCols and 0 <= soilRow < soilNumberRows:
                                 soil = cast(int, soilData[0, soilCol])
-                                if soil is None or math.isnan(soil) or soil < soilNoData: # may have been set to defaultNoData
+                                if soil is None or math.isnan(soil) or soil <= soilNoData < 0: # may have been set to defaultNoData
                                     soil = soilNoData
                             else:
                                 soil = soilNoData
@@ -3975,12 +3975,12 @@ class CreateHRUs(QObject):
                 floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
                 QSWATUtils.tryRemoveLayerAndFiles(floodShapefile, root)
                 # gdal_polygonize is broken in QGIS 3.4.14; use SAGA, or don't, as that fails on Ravn
-                params = {'INPUT': floodPath,
-                          'BAND': 1,
-                          'FIELD': 'DN',
-                          'EIGHT_CONNECTEDNESS': False,
-                          'OUTPUT': floodShapefile}
-                processing.run('gdal:polygonize', params, context=context)  # @UndefinedVariable
+#                 params = {'INPUT': floodPath,
+#                           'BAND': 1,
+#                           'FIELD': 'DN',
+#                           'EIGHT_CONNECTEDNESS': False,
+#                           'OUTPUT': floodShapefile}
+#                 processing.run('gdal:polygonize', params, context=context)  # @UndefinedVariable
                 # SAGA fails on Ravn example with floodplain, so back to GDAL above
 #                 params = {'GRID': floodPath,
 #                           'CLASS_ALL': 0,
@@ -3988,14 +3988,59 @@ class CreateHRUs(QObject):
 #                           'SPLIT': 0,
 #                           'POLYGONS': floodShapefile}
 #                 processing.run("saga:vectorisinggridclasses", params)
+#                 # gdal_polygonize is broken again in 3.10.13 so we'll try the home grown version
+                fDs = gdal.Open(floodPath, gdal.GA_ReadOnly)
+                if fDs is None:
+                    raise Exception('Cannot open watershed grid {0}'.format(floodPath))
+                fBand = fDs.GetRasterBand(1)
+                noData = fBand.GetNoDataValue()
+                transform = fDs.GetGeoTransform()
+                numCols = fDs.RasterXSize
+                numRows = fDs.RasterYSize
+                isConnected4 = True
+                shapes = Polygonize(isConnected4, numCols, noData, 
+                                    QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
+                for row in range(numRows):
+                    fBuffer = fBand.ReadAsArray(0, row, numCols, 1).astype(int)
+                    shapes.addRow(fBuffer.reshape([numCols]), row)
+                shapes.finish()
+                # create shapefile
+                fields = QgsFields()
+                fields.append(QgsField('DN', QVariant.Int))
+                writer = QgsVectorFileWriter(floodShapefile, "UTF-8", fields, 
+                                             QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+                if writer.hasError() != QgsVectorFileWriter.NoError:
+                    raise Exception('Cannot create flood shapefile {0}: {1}'
+                                     .format(floodShapefile, writer.errorMessage()))
+                # delete the writer to flush
+                if not writer.flushBuffer():
+                    raise Exception('Failed to complete creating flood shapefile {0}'.format(floodShapefile))
+                del writer
                 # the flood polygon can cause errors in calculating the difference and intersection, 
                 if not os.path.isfile(floodShapefile):
                     raise Exception('Failed to polygonize floodplain raster')
-                # so first try to fix its geometry
-                floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
-                QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
-                params = {'INPUT': floodShapefile, 'OUTPUT': floodFixed}
-                processing.run('native:fixgeometries', params, context=context)
+                floodlayer = QgsVectorLayer(floodShapefile, 'floodplain', 'ogr')
+                provider = floodlayer.dataProvider()
+                dnIndex = provider.fieldNameIndex('DN')
+                for dn in shapes.shapes:
+                    geometry = shapes.getGeometry(dn)
+                    geometry1 = geometry.makeValid()
+                    error = geometry1.lastError()
+                    if error != '':
+                        QSWATUtils.loginfo('Error in {0} forming geomtry for flood shapefile: {1}'.format(floodlayer, error))
+                    feature = QgsFeature(fields)
+                    # dn is a numpy.int32 so we need to convert it to a Python int
+                    feature.setAttribute(dnIndex, int(dn))
+                    feature.setGeometry(geometry1)
+                    if not provider.addFeatures([feature]):
+                        raise Exception('Unable to add feature to flood shapefile {0}'.format(floodShapefile))
+                # not necessary since we validated geometry 
+                floodFixed = floodShapefile       
+#                 # so first try to fix its geometry
+#                 floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
+#                 QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
+#                 params = {'INPUT': floodShapefile, 'OUTPUT': floodFixed}
+#                 processing.run('native:fixgeometries', params, context=context)
                 # upslope aquifers are subbasins minus the floodplain
                 upAqFile = QSWATUtils.tempFile('.shp')
                 processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)

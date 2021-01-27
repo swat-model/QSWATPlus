@@ -1680,9 +1680,9 @@ class ConvertFromArc(QObject):
                         minRec = row[3]
                         name = row[4]
                         order = row[5]
-                        if minRec == '':
+                        if minRec == '' or int(minRec) == 0:
                             if typ in pcpTmp:
-                                # HAWQS leaves this blank; find name in stations and assume order will be same as ID there
+                                # HAWQS leaves this blank or sets to zero; find name in stations and assume order will be same as ID there
                                 for staId, station in stations[typ].items():
                                     if name == station.name:
                                         minRec = staId

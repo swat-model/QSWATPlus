@@ -20,9 +20,9 @@
 """
 # Import the PyQt and QGIS libraries 
 from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
-from qgis.PyQt.QtGui import QColor, QDoubleValidator, QIntValidator
+from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsGradientColorRamp, QgsRendererRangeLabelFormat, QgsGraduatedSymbolRenderer, QgsLineSymbol, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
 from qgis.gui import * # @UnusedWildImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os
@@ -2282,10 +2282,15 @@ assumed that its crossing the lake boundary is an inaccuracy.
         assert self.drawOutletLayer is not None
         # need to commit first or appear to be no features
         self.drawOutletLayer.commitChanges()
-        # then start editing again
-        self.drawOutletLayer.startEditing()
         idIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._ID)
-        ptIdIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._POINTID)
+        ptIdIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._POINTID, ignoreMissing=True)
+        if ptIdIndex < 0:
+            ptIdIndex = QSWATTopology.makePositiveOutletIds(self.drawOutletLayer)
+            if ptIdIndex < 0:
+                QSWATUtils.error('Failed to add PointId field to inlets/outlets file {0}'.format(QSWATUtils.layerFilename(self.drawOutletLayer)), self._gv.isBatch)
+                return
+        # start editing again
+        self.drawOutletLayer.startEditing()
         # find maximum existing feature id
         maxId = 0
         for feature in self.drawOutletLayer.getFeatures():
@@ -3938,20 +3943,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             QSWATUtils.error('Failed to load grid streams shapefile {0}'.format(gridStreamsFile), self._gv.isBatch)
             return -1
         # make stream width dependent on drainage values (drainage is accumulation, ie number of dem cells draining to start of stream)
-        numClasses = 5
-        props = {'width_expression': QSWATTopology._PENWIDTH}
-        symbol = QgsLineSymbol.createSimple(props)
-        # ramp from light to darkish blue
-        color1 = QColor(166,206,227,255)
-        color2 = QColor(0,0,255,255)
-        ramp = QgsGradientColorRamp(color1, color2)
-        labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
-        renderer = QgsGraduatedSymbolRenderer.createRenderer(gridStreamsLayer, QSWATTopology._DRAINAGE,
-                                                               numClasses, QgsGraduatedSymbolRenderer.Jenks,
-                                                               symbol, ramp, labelFmt)
-        gridStreamsLayer.setRenderer(renderer)
-        gridStreamsLayer.setOpacity(1)
-        gridStreamsLayer.triggerRepaint()
+        FileTypes.colourStreams(gridStreamsLayer, QSWATTopology._PENWIDTH, QSWATTopology._DRAINAGE)
         treeModel = QgsLayerTreeModel(root)
         gridStreamsTreeLayer = root.findLayer(gridStreamsLayer.id())
         assert gridStreamsTreeLayer is not None
