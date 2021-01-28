@@ -3818,7 +3818,7 @@ class Visualise(QObject):
 #         for m, q85m in q85s.items():
 #             factor = 1 if minQ85 == 0 else math.sqrt(q85m / minQ85)
         for m, mean in means.items():
-            factor = 1 if mean == 0 else math.sqrt(mean / minMean)
+            factor = 1 if minMean == 0 else math.sqrt(mean / minMean)
             Qbm = self.QbResult * factor
             self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
             
