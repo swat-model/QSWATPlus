@@ -890,11 +890,12 @@ class Visualise(QObject):
             return ''
         
     def doClose(self) -> None:
-        """Close the db connection, timer, clean up from animation, and close the form."""
+        """Close the db connection, timer, clean up from animation, remove title, and close the form."""
         self.animateTimer.stop()
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
+        self.clearMapTitle()
         # remove animation layers
         proj = QgsProject.instance()
         for animation in QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, proj.layerTreeRoot()):

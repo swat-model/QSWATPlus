@@ -1,5 +1,5 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis version="3.10.13-A Coruña" projectname="">
+<qgis projectname="" version="3.10.14-A Coruña">
   <homePath path=""/>
   <title></title>
   <autotransaction active="0"/>
@@ -22,7 +22,7 @@
     <customproperties/>
     <custom-order enabled="0"/>
   </layer-tree-group>
-  <snapping-settings type="1" enabled="0" intersection-snapping="0" tolerance="0" mode="2" unit="2">
+  <snapping-settings tolerance="0" type="1" unit="2" mode="2" intersection-snapping="0" enabled="0">
     <individual-layer-settings/>
   </snapping-settings>
   <relations/>
@@ -112,7 +112,7 @@
     <abstract></abstract>
     <links/>
     <author>Chirs George</author>
-    <creation>2020-12-30T14:39:50</creation>
+    <creation>2021-01-28T17:14:42</creation>
   </projectMetadata>
   <Annotations/>
   <Layouts/>

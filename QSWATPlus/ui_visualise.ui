@@ -164,9 +164,6 @@
                     <family>MS Shell Dlg 2</family>
                    </font>
                   </property>
-                  <property name="toolTip">
-                   <string>List of variables to be included in results file.  One must be selected before you click Create.</string>
-                  </property>
                   <property name="editTriggers">
                    <set>QAbstractItemView::NoEditTriggers</set>
                   </property>

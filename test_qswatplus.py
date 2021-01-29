@@ -399,7 +399,7 @@ HashTable10['gis_routing'] = 'a024c45c32d01dd0706a3a38f51ad557'
 HashTable10['gis_water'] = '6f06be6293b2cec335d74b55bce9df35'
 HashTable10['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
 HashTable10['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
-HashTable10['plants_plt'] = 'a1833b4bd3476c69e37842a37c178f24'
+HashTable10['plants_plt'] = '1e1a769a5636ac74b0da12e29caae881'
 HashTable10['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 #===============================================================================
@@ -434,8 +434,6 @@ HashTable11['gis_routing'] = '4df6bb0e90212d92483da71e10e20665'
 HashTable11['gis_water'] = '353896e31f37eb9a67bbb37088723bbf'
 HashTable11['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
 HashTable11['soils_sol_layer'] = 'c827fbf53c8b43430157f4d1c76c6299'
-# HashTable11['plants_plt'] = 'f224b1a5bab859731996e1d07a6faa9b'
-# HashTable11['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 #===============================================================================
 # Test 12:
@@ -466,8 +464,6 @@ HashTable12['gis_routing'] = 'e6120ed1a8e05b1aa4d815d818ca882a'
 HashTable12['gis_water'] = '71ffa25b41d7c16f53fa464b6d8b31d5'
 HashTable12['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
 HashTable12['soils_sol_layer'] = 'c827fbf53c8b43430157f4d1c76c6299'
-# HashTable12['plants_plt'] = 'f224b1a5bab859731996e1d07a6faa9b'
-# HashTable12['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 #===============================================================================
 # Test 13:
@@ -500,8 +496,6 @@ HashTable13['gis_routing'] = '38debe3d3f5d70a044a17c104363f575'
 HashTable13['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable13['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
 HashTable13['soils_sol_layer'] = '1b1e425ca2cd8fd19d2027136a7ff833'
-# HashTable13['plants_plt'] = 'f224b1a5bab859731996e1d07a6faa9b'
-# HashTable13['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 #===============================================================================
 # Test 14:
@@ -532,8 +526,6 @@ HashTable14['gis_routing'] = '22b0ce0161ae320dec98c4a0e28af356'
 HashTable14['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable14['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
 HashTable14['soils_sol_layer'] = '1b1e425ca2cd8fd19d2027136a7ff833'
-# HashTable14['plants_plt'] = 'f224b1a5bab859731996e1d07a6faa9b'
-# HashTable14['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 # listen to the QGIS message log
 message_log = {}
