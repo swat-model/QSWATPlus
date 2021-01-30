@@ -335,7 +335,7 @@ class ConvertFromArc(QObject):
         
     def copyDbs(self):
         """Set up project and reference databases."""
-        projDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\QSWATPlusProj2018.sqlite')
+        projDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\QSWATPlusProj.sqlite')
         refDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\swatplus_datasets.sqlite')
         projFileTemplate = os.path.join(self.SWATPlusDir, r'Databases\example.qgs')
         shutil.copy(projDbTemplate, os.path.join(self.qProjDir, self.qProjName + '.sqlite'))

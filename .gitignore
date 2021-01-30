@@ -8,3 +8,7 @@
 **/__pycache__
 **/.mypy_cache
 *.c
+*.pyd
+*.so
+*.*~
+

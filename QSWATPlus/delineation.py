@@ -848,6 +848,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             return False
         QSWATUtils.removeLayer(self._gv.channelFile, root)
         QSWATUtils.removeLayer(self._gv.channelBasinFile, root)
+        # having this as a layer results in DSNODEIDs being set to zero
+        QSWATUtils.removeLayer(self._gv.snapFile, root)
         ordChannelFile = base + 'ordChannel' + suffix
         treeChannelFile = base + 'treeChannel.dat'
         coordChannelFile = base + 'coordChannel.dat'
@@ -1291,6 +1293,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if outletFile == '' or not os.path.exists(outletFile):
                 QSWATUtils.error('Please select an inlets/outlets file', self._gv.isBatch)
                 return
+            # remove any snapped inlets/outlets file that is visible: causes DSNODEIDs to be set to zero
+            QSWATUtils.removeLayerByLegend(QSWATUtils._SNAPPEDLEGEND, root.findLayers())
             self.runTauDEM(outletFile, True)
         
     def changeExisting(self) -> None:
@@ -1489,7 +1493,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 return
             QSWATUtils.copyPrj(demFile, channelFile)
         # load stream network
-        # load above fulklHRUs or hillshade or DEM
+        # load above fullHRUs or hillshade or DEM
         fullHRUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
         hillshadeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._HILLSHADELEGEND, root.findLayers())
         if fullHRUsLayer is not None:
@@ -1570,11 +1574,13 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     self.cleanUp(3)
                     return
             # for subbasins only need to consider inlets and outlets: lakes and point sources added to channels later
-            ioSnapFile = self.reduceToInletsOutlets
+            ioSnapFile = self.reduceToInletsOutlets(root)
             if ioSnapFile is None:
                 self.cleanUp(-1)
                 return
             QSWATUtils.removeLayer(streamFile, root)
+            # having this as a layer results in DSNODEIDs being set to zero
+            QSWATUtils.removeLayer(ioSnapFile, root)
             self.progress('StreamNet ...')
             ok = TauDEMUtils.runStreamNet(felFile, pFile, ad8File, srcStreamFile, ioSnapFile, ordStreamFile, treeStreamFile, coordStreamFile,
                                           streamFile, wStreamFile, False, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)
@@ -1584,6 +1590,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             QSWATUtils.copyPrj(demFile, streamFile)
             if not self._gv.useGridModel:
                 QSWATUtils.removeLayer(channelFile, root)
+                # having this as a layer results in DSNODEIDs being set to zero
+                QSWATUtils.removeLayer(self._gv.snapFile, root)
                 ok = TauDEMUtils.runStreamNet(felFile, pFile, ad8File, srcChannelFile, self._gv.snapFile, ordChannelFile, treeChannelFile, coordChannelFile,
                                               channelFile, wChannelFile, False, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)
                 if not ok:
@@ -3512,8 +3520,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         accArray = None
         return storeGrid, accTransform, minDrainArea, maxDrainArea
         
-    @property
-    def reduceToInletsOutlets(self) -> Optional[str]:
+    def reduceToInletsOutlets(self, root) -> Optional[str]:
         """Reduce inlets/outlets file to inlets and outlets only to delineate subbasins. Return reduced file."""
         if not self._dlg.useOutlets.isChecked():
             return None
@@ -3531,6 +3538,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fext = os.path.splitext(f)[1]
             shutil.copyfile(f, ioBase + fext)
         iOutlets: str = ioBase + '.shp'
+        # remove layer if any
+        QSWATUtils.removeLayer(iOutlets, root)
         ioLayer = QgsVectorLayer(iOutlets, 'inlets outlets only', 'ogr')
         inletIndex = self._gv.topo.getIndex(ioLayer, QSWATTopology._INLET)
         resIndex = self._gv.topo.getIndex(ioLayer, QSWATTopology._RES)

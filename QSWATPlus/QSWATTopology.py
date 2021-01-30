@@ -511,7 +511,8 @@ class QSWATTopology:
                     chLink = -1
                 elif dsNode not in dsNodeToLink:
                     if reportErrors:
-                        QSWATUtils.error('ID value {0} from inlets/outlets file {1} not found as DSNODEID in channels file {2}.  Will be ignored.'
+                        QSWATUtils.error("""ID value {0} from inlets/outlets file {1} not found as DSNODEID in channels file {2}.  Will be ignored.
+                        This can be caused by an occasional error in delineation: try rerunning 'Create watershed'."""
                                          .format(dsNode, QSWATUtils.layerFilename(outletLayer), 
                                                 QSWATUtils.layerFileInfo(channelLayer).filePath()), self.isBatch)
                     chLink = -1

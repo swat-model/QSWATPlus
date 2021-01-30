@@ -53,7 +53,7 @@ class Parameters:
     _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux or Mac
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'
     _DBDIR = 'Databases'
-    _DBPROJ = 'QSWATPlusProj2018.sqlite'
+    _DBPROJ = 'QSWATPlusProj.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
     _RESULTS = 'Results'
     _PLOTS = 'Plots'

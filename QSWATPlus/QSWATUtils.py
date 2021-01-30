@@ -317,6 +317,8 @@ class QSWATUtils:
         QgsProject.instance().removeMapLayers(lIds)
         for layer in layers:
             del layer
+        # wait for layers to be removed
+        QApplication.processEvents()
      
     @staticmethod
     def removeLayerByLegend(legend: str, treeLayers: List[QgsLayerTreeLayer]) -> None:
@@ -330,6 +332,8 @@ class QSWATUtils:
             if name.startswith(legend):
                 lIds.append(treeLayer.layerId())
         QgsProject.instance().removeMapLayers(lIds)
+        # wait for layers to be removed
+        QApplication.processEvents()
         
     @staticmethod
     def removeAllFeatures(layer: QgsVectorLayer) -> bool:

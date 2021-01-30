@@ -2954,10 +2954,10 @@ class CreateHRUs(QObject):
                 else:
                     # use Katrin's formula
                     upslopePercent = int(100 * lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea + downLsuData.cropSoilSlopeArea) + 0.5)
-                    if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
-                        wid = lsuData.waterBody.id
-                        wCat = 'RES' if lsuData.waterBody.isReservoir() else 'PND'
-                        if lsuData.cropSoilSlopeArea > lsuData.waterBody.originalArea:  # else all water
+                    if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown():
+                        wid = downLsuData.waterBody.id
+                        wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
+                        if downLsuData.cropSoilSlopeArea > downLsuData.waterBody.originalArea:  # else all water
                             self._gv.db.addToRouting(curs, lsuId, 'LSU', wid, wCat, QSWATTopology._SURFACE, upslopePercent)
                     else:
                         lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
