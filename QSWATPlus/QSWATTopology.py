@@ -22,7 +22,7 @@
 # Import the PyQt and QGIS libraries
 from PyQt5.QtCore import *  #   @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
-from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer  # @UnresolvedImport
+from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter  # @UnresolvedImport
 from osgeo import gdal  # type: ignore
 from numpy import * # @UnusedWildImport
 import os.path
@@ -2814,8 +2814,13 @@ class QSWATTopology:
         # make copy as template for stream results
         QSWATUtils.copyShapefile(rivs1File, Parameters._RIVS, gv.resultsDir)
         rivFile = QSWATUtils.join(gv.resultsDir, Parameters._RIVS + '.shp')
+        rivJson = QSWATUtils.join(gv.resultsDir, Parameters._RIVS + '.json')
         rivLayer = QgsVectorLayer(rivFile, 'Channels', 'ogr')
         provider = rivLayer.dataProvider()
+        exporter = QgsJsonExporter(rivLayer)
+        QSWATUtils.removeLayer(rivJson, root)
+        with open(rivJson, 'w') as jsonFile:
+            jsonFile.write(exporter.exportFeatures(provider.getFeatures()))
         # remove channels that are reservoirs or ponds
         exp = QgsExpression('"{0}" > 0 OR "{1}" > 0'.format(QSWATTopology._RESERVOIR, QSWATTopology._POND))
         idsToDelete: List[int] = []

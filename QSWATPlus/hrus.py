@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TY
 from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
 from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox
-from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext  # @UnresolvedImport
+from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsJsonExporter  # @UnresolvedImport
 # from qgis.gui import * # @UnusedWildImport
 import os.path
 from osgeo import gdal  # type: ignore
@@ -3196,7 +3196,7 @@ class CreateHRUs(QObject):
         self._gv.iface.setActiveLayer(actHRUsLayer)
         QSWATUtils.setLayerVisibility(fullHRUsLayer, False, root)
         # copy actual HRUs file as template for visualisation
-        self.createHrusResultsFile(actHRUsFile)
+        self.createHrusResultsFile(actHRUsFile, root)
             
     def findMerges(self, provider: QgsVectorDataProvider, hrusIndx: int, fidsToMerge: Set[int], fidsToBeMerged: Dict[int, int]) -> None:
         """Build table of HRU fids to merge."""
@@ -3332,12 +3332,18 @@ class CreateHRUs(QObject):
             QSWATUtils.error('Cannot parse {0} as an hru reference'.format(hru), self._gv.isBatch)
             return 0
         
-    def createHrusResultsFile(self, actHRUsFile: str) -> None:
+    def createHrusResultsFile(self, actHRUsFile: str, root: QgsLayerTree) -> None:
         """Copy actual hrus file to results folder; remove fields except HRUS."""
         QSWATUtils.copyShapefile(actHRUsFile, Parameters._HRUS, self._gv.resultsDir)
         hrusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.shp')
+        hrusJson = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.json')
         hrusLayer = QgsVectorLayer(hrusFile, 'hrus', 'ogr')
-        QSWATTopology.removeFields(hrusLayer.dataProvider(), [QSWATTopology._HRUS], hrusFile, self._gv.isBatch)
+        provider = hrusLayer.dataProvider()
+        exporter = QgsJsonExporter(hrusLayer)
+        QSWATUtils.removeLayer(hrusJson, root)
+        with open(hrusJson, 'w') as jsonFile:
+            jsonFile.write(exporter.exportFeatures(provider.getFeatures()))
+        QSWATTopology.removeFields(provider, [QSWATTopology._HRUS], hrusFile, self._gv.isBatch)
     
     def mergeLSUs(self, root: QgsLayerTree) -> bool:
         """Merge LSUs in lsus shapefile according to channel merges, making lsus2.  Return true if successful."""
@@ -3448,7 +3454,7 @@ class CreateHRUs(QObject):
                 fullLSUsLayer.setItemVisibilityChecked(False)
         return OK               
     
-    def writeSubbasinsAndLandscapeTables(self) -> bool:
+    def writeSubbasinsAndLandscapeTables(self, root: QgsLayerTree) -> bool:
         """Write gis_subbasins and gis_lsus tables in project database, 
         make subs1.shp in shapes directory, 
         copy subs1.shp and lsus2.shp as results templates to Results directory,
@@ -3493,15 +3499,27 @@ class CreateHRUs(QObject):
         # first relinquish all references to subs1File for changes to take effect
         del subs1Layer
         QSWATUtils.copyShapefile(subs1File, Parameters._SUBS, self._gv.resultsDir)
+        subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
+        subsJson = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.json')
+        subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
+        subsProvider = subsLayer.dataProvider()
+        exporter = QgsJsonExporter(subsLayer)
+        QSWATUtils.removeLayer(subsJson, root)
+        with open(subsJson, 'w') as jsonFile:
+            jsonFile.write(exporter.exportFeatures(subsProvider.getFeatures()))
         if not addToSubs1:
-            subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
-            subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
-            QSWATTopology.removeFields(subsLayer.dataProvider(), [QSWATTopology._SUBBASIN], subsFile, self._gv.isBatch)
+            QSWATTopology.removeFields(subsProvider, [QSWATTopology._SUBBASIN], subsFile, self._gv.isBatch)
         # copy lsus2 to results directory and remove fields other than LSUID
         QSWATUtils.copyShapefile(lsus2File, Parameters._LSUS, self._gv.resultsDir)
         lsusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.shp')
+        lsusJson = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.json')
         lsusLayer = QgsVectorLayer(lsusFile, 'LSUs', 'ogr')
-        QSWATTopology.removeFields(lsusLayer.dataProvider(), [QSWATTopology._LSUID], lsusFile, self._gv.isBatch)
+        lsusProvider = lsusLayer.dataProvider()
+        exporter = QgsJsonExporter(lsusLayer)
+        QSWATUtils.removeLayer(lsusJson, root)
+        with open(lsusJson, 'w') as jsonFile:
+            jsonFile.write(exporter.exportFeatures(lsusProvider.getFeatures()))
+        QSWATTopology.removeFields(lsusProvider, [QSWATTopology._LSUID], lsusFile, self._gv.isBatch)
         if addToSubs1:
             # add fields from gis_subbasins table to subs1
             subFields: List[QgsField] = []
@@ -3955,7 +3973,9 @@ class CreateHRUs(QObject):
             QSWATUtils.error('Cannot edit subbasins shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch)
             return
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
+        aqJson = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.json')
         QSWATUtils.tryRemoveLayerAndFiles(aqFile, root)
+        QSWATUtils.removeLayer(aqJson, root)
         # create context to make processing turn off detection of what it claims are invalid shapes
         # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
         context = QgsProcessingContext()
@@ -3967,6 +3987,9 @@ class CreateHRUs(QObject):
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
             aqProvider = aqLayer.dataProvider()
+            exporter = QgsJsonExporter(aqLayer)
+            with open(aqJson, 'w') as jsonFile:
+                jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
             QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
@@ -4073,6 +4096,9 @@ class CreateHRUs(QObject):
                 # merge adds some extra fields that we can lose:
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
                 aqProvider = aqLayer.dataProvider()
+                exporter = QgsJsonExporter(aqLayer)
+                with open(aqJson, 'w') as jsonFile:
+                    jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
                 QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
@@ -4955,7 +4981,7 @@ class HRUs(QObject):
 #                 if self._reportsCombo.findText(Parameters._HRUSITEM) < 0:
 #                     self._reportsCombo.addItem(Parameters._HRUSITEM)
 #                 time1 = time.process_time()
-#                 self.CreateHRUs.writeSubbasinsAndLandscapeTables()
+#                 self.CreateHRUs.writeSubbasinsAndLandscapeTables(root)
 #                 time2 = time.process_time()
 #                 QSWATUtils.loginfo('Writing subbasins and lsus tables took {0} seconds'.format(int(time2 - time1)))
 #             self._gv.writeProjectConfig(-1, 1)
@@ -5236,7 +5262,7 @@ class HRUs(QObject):
             self.CreateHRUs.printBasins(True, fullHRUsLayer)
             if not self.CreateHRUs.mergeLSUs(root):
                 QSWATUtils.error('Failed to create actual LSUs shapefile {0}'.format(self._gv.actLSUsFile), self._gv.isBatch)
-            if self.CreateHRUs.writeSubbasinsAndLandscapeTables():
+            if self.CreateHRUs.writeSubbasinsAndLandscapeTables(root):
                 # can now provide soil layer legend
                 soilLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.soilFile, None, None, None, None)[0]
                 if soilLayer is not None:
