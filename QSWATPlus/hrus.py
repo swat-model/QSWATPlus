@@ -3343,7 +3343,7 @@ class CreateHRUs(QObject):
         QSWATUtils.removeLayer(hrusJson, root)
         with open(hrusJson, 'w') as jsonFile:
             jsonFile.write(exporter.exportFeatures(provider.getFeatures()))
-        QSWATTopology.removeFields(provider, [QSWATTopology._HRUS], hrusFile, self._gv.isBatch)
+        QSWATTopology.removeFields(hrusLayer, [QSWATTopology._HRUS], hrusFile, self._gv.isBatch)
     
     def mergeLSUs(self, root: QgsLayerTree) -> bool:
         """Merge LSUs in lsus shapefile according to channel merges, making lsus2.  Return true if successful."""
@@ -3494,10 +3494,8 @@ class CreateHRUs(QObject):
         # 2. remove fields from copy except LSUID
         # 3. add fields from gis_lsus to lsus1, using same condition addToSubs1 to decide if this should be done
         if addToSubs1:
-            QSWATTopology.removeFields(subsProvider1, [QSWATTopology._POLYGONID, QSWATTopology._SUBBASIN], subs1File, self._gv.isBatch)
+            QSWATTopology.removeFields(subs1Layer, [QSWATTopology._POLYGONID, QSWATTopology._SUBBASIN], subs1File, self._gv.isBatch)
         # make copy as template for stream results
-        # first relinquish all references to subs1File for changes to take effect
-        del subs1Layer
         QSWATUtils.copyShapefile(subs1File, Parameters._SUBS, self._gv.resultsDir)
         subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
         subsJson = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.json')
@@ -3508,7 +3506,7 @@ class CreateHRUs(QObject):
         with open(subsJson, 'w') as jsonFile:
             jsonFile.write(exporter.exportFeatures(subsProvider.getFeatures()))
         if not addToSubs1:
-            QSWATTopology.removeFields(subsProvider, [QSWATTopology._SUBBASIN], subsFile, self._gv.isBatch)
+            QSWATTopology.removeFields(subsLayer, [QSWATTopology._SUBBASIN], subsFile, self._gv.isBatch)
         # copy lsus2 to results directory and remove fields other than LSUID
         QSWATUtils.copyShapefile(lsus2File, Parameters._LSUS, self._gv.resultsDir)
         lsusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.shp')
@@ -3519,7 +3517,7 @@ class CreateHRUs(QObject):
         QSWATUtils.removeLayer(lsusJson, root)
         with open(lsusJson, 'w') as jsonFile:
             jsonFile.write(exporter.exportFeatures(lsusProvider.getFeatures()))
-        QSWATTopology.removeFields(lsusProvider, [QSWATTopology._LSUID], lsusFile, self._gv.isBatch)
+        QSWATTopology.removeFields(lsusLayer, [QSWATTopology._LSUID], lsusFile, self._gv.isBatch)
         if addToSubs1:
             # add fields from gis_subbasins table to subs1
             subFields: List[QgsField] = []
@@ -3533,7 +3531,6 @@ class CreateHRUs(QObject):
             subFields.append(QgsField('ElevMin', QVariant.Double, len=20, prec=2))
             subFields.append(QgsField('ElevMax', QVariant.Double, len=20, prec=2))
             subFields.append(QgsField('WaterId', QVariant.Int))
-            subs1Layer = QgsVectorLayer(subs1File, 'Subbasins ({0})'.format(Parameters._SUBS1), 'ogr')
             subsProvider1 = subs1Layer.dataProvider()
             subsProvider1.addAttributes(subFields)
             subs1Layer.updateFields()
@@ -3990,7 +3987,7 @@ class CreateHRUs(QObject):
             exporter = QgsJsonExporter(aqLayer)
             with open(aqJson, 'w') as jsonFile:
                 jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
-            QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
+            QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
                 # first convert floodplain to polygons
@@ -4096,10 +4093,12 @@ class CreateHRUs(QObject):
                 # merge adds some extra fields that we can lose:
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
                 aqProvider = aqLayer.dataProvider()
+                # has odd fields like DN, layer and path we don't need in GeoJSON
+                QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER, Parameters._AREA, QSWATTopology._SUBBASIN], aqFile, self._gv.isBatch)
                 exporter = QgsJsonExporter(aqLayer)
                 with open(aqJson, 'w') as jsonFile:
                     jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
-                QSWATTopology.removeFields(aqProvider, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
+                QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
                                        .format(repr(ex)), self._gv.isBatch)
@@ -4138,7 +4137,7 @@ class CreateHRUs(QObject):
             tempLayer = QgsVectorLayer(tempDeepAqFile, 'temp', 'ogr')
             # add Aquifer field, set to number of outlet subbasin
             addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
-            QSWATTopology.removeFields(tempLayer.dataProvider(), [QSWATTopology._AQUIFER], tempDeepAqFile, self._gv.isBatch)
+            QSWATTopology.removeFields(tempLayer, [QSWATTopology._AQUIFER], tempDeepAqFile, self._gv.isBatch)
             aqIndex = 0   # only field left
             # dissolve on Aquifer field
             processing.run("native:dissolve", 

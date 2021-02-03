@@ -2672,7 +2672,7 @@ class QSWATTopology:
         addToRiv1 = rivs1Layer.featureCount() <= Parameters._RIVS1SUBS1MAX
         # remove fields apart from Channel, ChannelR and Subbasin
         if addToRiv1:
-            self.removeFields(provider1, [QSWATTopology._LINKNO, QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivs1File, self.isBatch)
+            self.removeFields(rivs1Layer, [QSWATTopology._LINKNO, QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivs1File, self.isBatch)
         if addToRiv1:
             fields = []
             fields.append(QgsField(QSWATTopology._AREAC, QVariant.Double, len=20, prec=0))
@@ -2831,7 +2831,7 @@ class QSWATTopology:
             QSWATUtils.error('Cannot edit streams results template {1}.'.format(rivFile), self.isBatch)
             return None
         # leave only the Channel, ChannelR and Subbasin attributes
-        self.removeFields(provider, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
+        self.removeFields(rivLayer, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
         # add PenWidth field to stream results template
         OK = provider.addAttributes([QgsField(QSWATTopology._PENWIDTH, QVariant.Double)])
         if not OK:
@@ -3252,9 +3252,10 @@ class QSWATTopology:
             return False
     
     @staticmethod
-    def removeFields(provider: QgsVectorDataProvider, keepFieldNames: List[str], fileName: str, isBatch: bool) -> None:
+    def removeFields(layer: QgsVectorLayer, keepFieldNames: List[str], fileName: str, isBatch: bool) -> None:
         """Remove fields other than keepFieldNames from shapefile fileName with provider."""
         toDelete = []
+        provider = layer.dataProvider()
         fields = provider.fields()
         keepLower = [name.casefold() for name in keepFieldNames]
         for idx in range(fields.count()):
@@ -3263,6 +3264,7 @@ class QSWATTopology:
                 toDelete.append(idx)
         if len(toDelete) > 0:
             OK = provider.deleteAttributes(toDelete)
+            layer.updateFields()
             if not OK:
                 QSWATUtils.error('Cannot remove fields from shapefile {0}'.format(fileName), isBatch)
     
