@@ -21,16 +21,18 @@
 """
  
 from PyQt5.QtCore import QObject, Qt, QVariant  # @UnresolvedImport
-from PyQt5.QtGui import *  # @UnusedWildImport
+# from PyQt5.QtGui import *  # @UnusedWildImport
 from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox  # @UnresolvedImport
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes  # @UnresolvedImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
+from typing import Set, Any, List, Dict, Union, Optional, Tuple, Callable, TYPE_CHECKING
 import sys
 import os
 import shutil
 import glob
 import csv
-from osgeo import gdal
+if not TYPE_CHECKING:
+    from osgeo import gdal
 import numpy
 import sqlite3
 import subprocess
@@ -38,22 +40,79 @@ import datetime
 import time
 import traceback
 
-from convertdialog import convertDialog  # @UnresolvedImport
+if not TYPE_CHECKING:
+    from convertdialog import convertDialog  # @UnresolvedImport
 from QSWATUtils import QSWATUtils  # @UnresolvedImport
 from DBUtils import DBUtils  # @UnresolvedImport
 from QSWATTopology import QSWATTopology  # @UnresolvedImport
 #from parameters import Parameters
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
-from QSWATPlus import QSWATPlus
+if not TYPE_CHECKING:
+    from QSWATPlus import QSWATPlus
 from parameters import Parameters  # @UnresolvedImport
 
 
 ## QApplication object needed 
 app = QgsApplication([], True)
 osGeo4wRoot = os.getenv('OSGEO4W_ROOT')
+assert osGeo4wRoot is not None
 app.setPrefixPath(osGeo4wRoot + r'\apps\qgis-ltr', True)
 app.initQgis()
+    
+class WeatherStation():
+    """Name, lat, long, etc for weather station."""
+    def __init__(self, name: str, latitude: float, longitude: float, elevation: float) -> None:
+        """Constructor."""
+        ## name
+        self.name = name
+        ## latitude
+        self.latitude = latitude
+        ## longitude
+        self.longitude = longitude
+        ## elevation
+        self.elevation = elevation
+        
+class GaugeStats():
+    """Number of precipitation gauges etc."""
+    def __init__(self) -> None:
+        ## number of .pcp files
+        self.nrgauge = 0
+        ## number of pcp records used
+        self.nrtot = 0
+        ## number of pcp records in each pcp file
+        self.nrgfil = 0
+        ## number of .tmp files
+        self.ntgauge = 0
+        ## number of tmp records used
+        self.nttot = 0
+        ## number of tmp records in each tmp file
+        self.ntgfil = 0
+        ## number of slr records in slr file
+        self.nstot = 0
+        ## number of hmd records in hmd file
+        self.nhtot = 0
+        ## number of wnd records in wnd file
+        self.nwtot = 0
+        
+    def setStats(self, qProjDir: str) -> None:
+        cioFile = os.path.join(qProjDir, r'csv\Project\cio.csv')
+        if not os.path.isfile(cioFile):
+            ConvertFromArc.error('No cio csv file {0} created'.format(cioFile))
+            return
+        with open(cioFile, 'r', newline='') as f:
+            reader = csv.reader(f)
+            next(reader) # skip headers
+            row = next(reader)
+            self.nrgauge = int(row[10])
+            self.nrtot = int(row[11])
+            self.nrgfil = int(row[12])
+            self.ntgauge = int(row[14])
+            self.nttot = int(row[15])
+            self.ntgfil = int(row[16])
+            self.nstot = int(row[18])
+            self.nhtot = int(row[20])
+            self.nwtot = int(row[22])
 
 class ConvertFromArc(QObject):
     """Convert ArcSWAT projects to SWAT+"""
@@ -61,7 +120,7 @@ class ConvertFromArc(QObject):
     _existingChoice = 1
     _noGISChoice = 2
     
-    def __init__(self, ConvertFromArcDir):
+    def __init__(self, ConvertFromArcDir: str) -> None:
         """Initialise class variables."""
         QObject.__init__(self)
         ## ConvertFromArc directory
@@ -71,9 +130,9 @@ class ConvertFromArc(QObject):
         ## plugin directory
         self.pluginDir = os.path.dirname(__file__)
         ## QGIS project
-        self.proj = None
+        self.proj: Optional[QgsProject] = None
         ## ArcSWAT project directory
-        self.arcProjDir = ''
+        self.arcProjDir: Optional[str] = ''
         ## ArcSWAT project name
         self.arcProjName = ''
         ## QSWAT+ project directory
@@ -83,7 +142,7 @@ class ConvertFromArc(QObject):
         ## DEM
         self.demFile = ''
         ## coordinate reference system
-        self.crs = None
+        self.crs: Optional[QgsCoordinateReferenceSystem] = None
         ## outlets
         self.outletFile = ''
 #         ## extra outlets
@@ -103,12 +162,12 @@ class ConvertFromArc(QObject):
         ## soil option reported in MasterProgress
         self.soilOption = ''
         ## soils used in model (no GIS option only)
-        self.usedSoils = set()
+        self.usedSoils: Set[str] = set()
         ## landuses used in model (no GIS option only)
-        self.usedLanduses = set()
+        self.usedLanduses: Set[str] = set()
         ## wgn stations stored as station id -> (lat, long)
-        self.wgnStations = dict()
-        self._dlg = convertDialog()
+        self.wgnStations: Dict[int, Tuple[float, float]] = dict()
+        self._dlg = convertDialog()  # type: ignore
         self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
         self._dlg.fullButton.clicked.connect(self.getChoice)
         self._dlg.existingButton.clicked.connect(self.getChoice)
@@ -116,16 +175,16 @@ class ConvertFromArc(QObject):
         ## choice of conversion
         self.choice = ConvertFromArc._fullChoice
         ## transform to projection from lat-long
-        self.transformFromDeg = None
+        self.transformFromDeg: Optional[QgsCoordinateTransform] = None
         ## transform to lat-long from projection
-        self.transformToLatLong = None
+        self.transformToLatLong: Optional[QgsCoordinateTransform] = None
         ## options for creating shapefiles
         self.vectorOptions = QgsVectorFileWriter.SaveVectorOptions()
         self.vectorOptions.ActionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
         self.vectorOptions.driverName = "ESRI Shapefile"
         self.vectorOptions.fileEncoding = "UTF-8"
         
-    def run(self):
+    def run(self) -> None:
         print("Converting from ArcSWAT")
         # QSettings does not seem to work 
 #         settings = QSettings()
@@ -173,7 +232,7 @@ class ConvertFromArc(QObject):
             if ConvertFromArc.question('Use {0} as new project name?'.format(self.arcProjName)) == QMessageBox.Yes:
                 self.qProjName = self.arcProjName
             else:
-                self.qProjName, ok = QInputDialog.getText(None, 'QSWATPlus project name',
+                self.qProjName, ok = QInputDialog.getText(None, 'QSWATPlus project name',    # type: ignore
                                                           'Please enter the new project name, starting with a letter:',
                                                           flags=Qt.MSWindowsFixedSizeDialogHint)
                 if not ok:
@@ -221,10 +280,11 @@ class ConvertFromArc(QObject):
             self.createGISTables()
         else:
             self.proj = QgsProject.instance()
+            assert self.proj is not None
             self.proj.read(qProjFile)
             self.proj.setTitle(self.qProjName)
             # avoids annoying gdal messages
-            gdal.UseExceptions()
+            gdal.UseExceptions()  # type: ignore
             print('Copying DEM ...')
             if not self.copyDEM():
                 return
@@ -250,6 +310,7 @@ class ConvertFromArc(QObject):
             self.createProjectConfig()
         else:
             # write fromArc flag to project file
+            assert self.proj is not None
             self.proj.writeEntry(self.qProjName, 'fromArc', self.choice)
             self.proj.write()
         print('Project converted')
@@ -286,7 +347,7 @@ class ConvertFromArc(QObject):
                 # print('Command: {0}'.format(command))
                 subprocess.run(command, shell=True)
  
-    def createSubDirectories(self):
+    def createSubDirectories(self) -> None:
         """Create subdirectories under QSWAT+ project's directory."""
         watershedDir = os.path.join(self.qProjDir, 'Watershed')
         ConvertFromArc.makeDirs(watershedDir)
@@ -304,6 +365,7 @@ class ConvertFromArc(QObject):
         ConvertFromArc.makeDirs(floodDir)
         scenariosDir = os.path.join(self.qProjDir, 'Scenarios')
         ConvertFromArc.makeDirs(scenariosDir)
+        assert self.arcProjDir is not None
         scensPattern = self.arcProjDir + '/Scenarios/*'
         for oldScenDir in glob.iglob(scensPattern):
             scen = os.path.split(oldScenDir)[1]
@@ -333,7 +395,7 @@ class ConvertFromArc(QObject):
         ConvertFromArc.makeDirs(refCsvDir)
         
         
-    def copyDbs(self):
+    def copyDbs(self) -> None:
         """Set up project and reference databases."""
         projDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\QSWATPlusProj.sqlite')
         refDbTemplate = os.path.join(self.SWATPlusDir, r'Databases\swatplus_datasets.sqlite')
@@ -342,9 +404,10 @@ class ConvertFromArc(QObject):
         shutil.copy(refDbTemplate, self.qProjDir)
         shutil.copy(projFileTemplate, os.path.join(self.qProjDir, self.qProjName + '.qgs'))
         
-    def setCrs(self):
+    def setCrs(self) -> bool:
         """Set CRS from DEM and set transform to lat-long."""
         """Copy ESRI DEM as GeoTiff into QSWAT project."""
+        assert self.arcProjDir is not None
         inDEM = os.path.join(self.arcProjDir, r'Watershed\Grid\sourcedem\hdr.adf')
         if not os.path.exists(inDEM):
             if self.choice == ConvertFromArc._noGISChoice:
@@ -357,14 +420,16 @@ class ConvertFromArc(QObject):
                 return False
         demLayer = QgsRasterLayer(inDEM, 'DEM')
         self.crs = demLayer.crs()
+        assert self.crs is not None
         crsLatLong = QgsCoordinateReferenceSystem('EPSG:4326')
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
         self.transformToLatLong = QgsCoordinateTransform(self.crs, crsLatLong, QgsProject.instance())
         return True
         
     
-    def copyDEM(self):
+    def copyDEM(self) -> bool:
         """Copy ESRI DEM as GeoTiff into QSWAT project."""
+        assert self.arcProjDir is not None
         inDEM = os.path.join(self.arcProjDir, r'Watershed\Grid\sourcedem\hdr.adf')
         if not os.path.exists(inDEM):
             ConvertFromArc.error('Cannot find DEM {0}'.format(inDEM))
@@ -377,6 +442,7 @@ class ConvertFromArc(QObject):
         demLayer = QgsRasterLayer(self.demFile, 'DEM')
         QSWATUtils.writePrj(self.demFile, demLayer)
         self.crs = demLayer.crs()
+        assert self.crs is not None
         # set up transform from lat-long
         crsLatLong = QgsCoordinateReferenceSystem('EPSG:4326')
         self.transformFromDeg = QgsCoordinateTransform(crsLatLong, self.crs, QgsProject.instance())
@@ -384,18 +450,18 @@ class ConvertFromArc(QObject):
         return True
         
     @staticmethod
-    def copyESRIGrid(inFile, outFile):
+    def copyESRIGrid(inFile: str, outFile: str) -> bool:
         """Copy ESRI grid to GeoTiff."""
         # use GDAL CreateCopy to ensure result is a GeoTiff
-        inDs = gdal.Open(inFile, gdal.GA_ReadOnly)
-        driver = gdal.GetDriverByName('GTiff')
+        inDs = gdal.Open(inFile, gdal.GA_ReadOnly)  # type: ignore
+        driver = gdal.GetDriverByName('GTiff')  # type: ignore
         outDs = driver.CreateCopy(outFile, inDs, 0)
         if outDs is None or not os.path.exists(outFile):
             ConvertFromArc.error('Failed to create dem in geoTiff format')
             return False
         return True
     
-    def createOutletShapefiles(self, isFull):
+    def createOutletShapefiles(self, isFull: bool) -> bool:
         """Create inlets\outlets file and extra inlets\outlets file.  Return true if OK.
         
         The inlets/outlets shapefile is created even if not isFull, although it is not recorded in the project file,
@@ -403,6 +469,7 @@ class ConvertFromArc(QObject):
         """
         if isFull:
             print('Creating inlets/outlets file ...')
+        assert self.arcProjDir is not None
         qOutlets = os.path.join(self.qProjDir, r'Watershed\Shapes\out.shp')
         rivsFile = ConvertFromArc.getMaxFileOrDir(os.path.join(self.arcProjDir, r'Watershed\Shapes'), 'riv', '.shp')
         prjFile = os.path.splitext(rivsFile)[0] + '.prj'
@@ -717,9 +784,10 @@ class ConvertFromArc(QObject):
 #         return subbasinsLayer
 #===============================================================================
     
-    def createExistingWatershed(self):
+    def createExistingWatershed(self) -> bool:
         """Make subbasin, watershed and channel shapefiles based on subs1.shp and riv1.shp."""
         # create subbasins shapefile
+        assert self.arcProjDir is not None
         arcShapesDir = os.path.join(self.arcProjDir, r'Watershed\Shapes')
         arcSubsFile = ConvertFromArc.getMaxFileOrDir(arcShapesDir, 'subs', '.shp')
         qShapesDir = os.path.join(self.qProjDir, r'Watershed\Shapes')
@@ -775,7 +843,7 @@ class ConvertFromArc(QObject):
         dropIndex = provider.fieldNameIndex(QSWATTopology._DROP)
         basinIndex = provider.fieldNameIndex(QSWATTopology._BASINNO)
         mmap = dict()
-        us = dict()
+        us: Dict[int, List[int]] = dict()
         outlets = []
         for f in provider.getFeatures():
             subbasin = f[subIndex]
@@ -796,7 +864,7 @@ class ConvertFromArc(QObject):
                             dropIndex : drop,
                             basinIndex : subbasin}
         # calculate stream orders
-        strahler = dict()
+        strahler: Dict[int, int] = dict()
         for link in outlets:
             ConvertFromArc.setStrahler(link, us, strahler)
         # update map with streamorders
@@ -810,7 +878,7 @@ class ConvertFromArc(QObject):
         return True
     
     @staticmethod
-    def setStrahler(link, us, strahler):
+    def setStrahler(link: int, us: Dict[int, List[int]], strahler: Dict[int, int]) -> int:
         """Define Strahler order in strahler map using upstream relation us, starting from link."""
         ups = us.get(link, [])
         if ups == []:
@@ -825,7 +893,7 @@ class ConvertFromArc(QObject):
         
     
     @staticmethod
-    def makeOutletFields():
+    def makeOutletFields() -> QgsFields:
         """Create fields for outlets file."""
         fields = QgsFields()
         fields.append(QgsField('ID', QVariant.Int))
@@ -834,7 +902,7 @@ class ConvertFromArc(QObject):
         fields.append(QgsField('PTSOURCE', QVariant.Int))
         return fields
         
-    def makeOutletFile(self, filePath, fields, prjFile, basinWanted=False):
+    def makeOutletFile(self, filePath: str, fields: QgsFields, prjFile: str, basinWanted: bool=False) -> bool:
         """Create filePath with fields needed for outlets file, 
         copying prjFile.  Return true if OK.
         """
@@ -851,8 +919,11 @@ class ConvertFromArc(QObject):
         shutil.copy(prjFile, os.path.splitext(filePath)[0] + '.prj')
         return True
     
-    def setDelinParams(self, isFull):
+    def setDelinParams(self, isFull: bool) -> None:
         """Write delineation parameters to project file."""
+        assert self.proj is not None
+        assert self.qProjName is not None
+        assert self.arcProjDir is not None
         self.proj.writeEntry(self.qProjName, 'delin/existingWshed', not isFull)
         if not isFull:
             self.proj.writeEntry(self.qProjName, 'delin/subbasins', self.proj.writePath(self.subbasinsFile))
@@ -894,8 +965,10 @@ class ConvertFromArc(QObject):
 #         self.proj.writeEntry(self.qProjName, 'delin/extraOutlets', self.proj.writePath(self.extraOutletFile))
         self.proj.write()
     
-    def copyLanduseAndSoil(self):
+    def copyLanduseAndSoil(self) -> None:
         """Copy landuse and soil rasters, add to project file, read MasterProgress, make lookup csv files."""
+        assert self.proj is not None
+        assert self.arcProjDir is not None
         landuseFile = ConvertFromArc.getMaxFileOrDir(os.path.join(self.arcProjDir, r'Watershed\Grid'), 'landuse', '')
         ConvertFromArc.copyFiles(landuseFile, os.path.join(self.qProjDir, r'Watershed\Rasters\Landuse'))
         self.landuseFile = os.path.join(self.qProjDir, r'Watershed\Rasters\Landuse\{0}\hdr.adf'.format(os.path.split(landuseFile)[1]))
@@ -912,8 +985,10 @@ class ConvertFromArc(QObject):
             self.proj.writeEntry(self.qProjName, 'soil/useSSURGO', True)
         self.proj.write()
         
-    def setLanduseAndSoilParams(self):
+    def setLanduseAndSoilParams(self) -> None:
         """Write landuse and parameters to project file, plus slope limits."""
+        assert self.proj is not None
+        assert self.arcProjDir is not None
         self.proj.writeEntry(self.qProjName, 'landuse/file', self.proj.writePath(self.landuseFile))
         self.proj.writeEntry(self.qProjName, 'soil/file', self.proj.writePath(self.soilFile))
         report = os.path.join(self.arcProjDir, r'Watershed\text\LandUseSoilsReport.txt')
@@ -922,7 +997,7 @@ class ConvertFromArc(QObject):
         self.proj.write()
         
     
-    def generateLookup(self, landuseOrSoil):
+    def generateLookup(self, landuseOrSoil: str) -> None:
         """Generate lookup table for landuse or soil if required."""
         msgBox = QMessageBox()
         msgBox.setWindowTitle('Generate {0} lookup csv file'.format(landuseOrSoil))
@@ -937,13 +1012,13 @@ class ConvertFromArc(QObject):
         """.format(landuseOrSoil)
         msgBox.setText(QSWATUtils.trans(text))
         msgBox.setInformativeText(QSWATUtils.trans(infoText))
-        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
         result = msgBox.exec_()
         if result == QMessageBox.Yes:
             print('Creating {0} lookup table ...'.format(landuseOrSoil))
             self.generateCsv(landuseOrSoil)
             
-    def generateCsv(self, landuseOrSoil):
+    def generateCsv(self, landuseOrSoil: str) -> None:
         """Generate landuse or soil lookup csv file by comparing percentages from report and raster."""
         percents = self.percentsFromReport(landuseOrSoil)
         if len(percents) == 0:
@@ -957,8 +1032,9 @@ class ConvertFromArc(QObject):
             return
         self.makeLookupCsv(percents, rasterPercents, landuseOrSoil)
     
-    def percentsFromReport(self, landuseOrSoil):
+    def percentsFromReport(self, landuseOrSoil: str) -> Dict[str, float]:
         """Generate and return map of value to percent for soil or landuse from landuse and soil report."""
+        assert self.arcProjDir is not None
         report = os.path.join(self.arcProjDir, r'Watershed\text\LandUseSoilsReport.txt')
         if not os.path.exists(report):
             ConvertFromArc.error('Cannot find {0}'.format(report))
@@ -969,7 +1045,7 @@ class ConvertFromArc(QObject):
             return ConvertFromArc.soilPercentsFromReport(report)
         
     @staticmethod
-    def landusePercentsFromReport(report):
+    def landusePercentsFromReport(report: str) -> Dict[str, float]:
         """Return percents of landuses."""
         with open(report, 'r') as reader:
             found = False
@@ -992,7 +1068,7 @@ class ConvertFromArc(QObject):
             return result
                 
     @staticmethod
-    def soilPercentsFromReport(report):
+    def soilPercentsFromReport(report: str) -> Dict[str, float]:
         """Return percents of soils."""
         with open(report, 'r') as reader:
             found = False
@@ -1014,7 +1090,7 @@ class ConvertFromArc(QObject):
             return result
         
     @staticmethod
-    def slopeBandsFromReport(report):
+    def slopeBandsFromReport(report: str) -> str:
         """Extract slope band limits from landuse and soils report."""
         with open(report, 'r') as reader:
             found = False
@@ -1039,16 +1115,16 @@ class ConvertFromArc(QObject):
                 result += fields[0].split('-')[0]
             return result      
     
-    def percentsFromRaster(self, raster):
+    def percentsFromRaster(self, raster: str) -> Dict[int, float]:
         """Return map of raster values to percents of raster cells with that value."""
-        counts = dict()
+        counts: Dict[int, int] = dict()
         total = 0
-        ds = gdal.Open(raster, gdal.GA_ReadOnly)
+        ds = gdal.Open(raster, gdal.GA_ReadOnly)  # type: ignore
         numRows = ds.RasterYSize
         numCols = ds.RasterXSize
         band = ds.GetRasterBand(1)
         noData = band.GetNoDataValue()
-        buff = numpy.empty([1, numCols], dtype=int)
+        buff = numpy.empty([1, numCols], dtype=int)  # type: ignore
         for row in range(numRows):
             buff = band.ReadAsArray(0, row, numCols, 1)
             for col in range(numCols):
@@ -1057,21 +1133,22 @@ class ConvertFromArc(QObject):
                     continue
                 total += 1
                 if val in counts:
-                    counts[val] += 1
+                    counts[val] += 1  # type: ignore
                 else:
-                    counts[val] = 1
+                    counts[val] = 1  # type: ignore
         # convert counts to percent
-        result = dict()
-        for val, count in counts.items():
-            result[val] = (float(count) / total) * 100
+        result: Dict[int, float] = dict()
+        for valu, count in counts.items():
+            result[valu] = (float(count) / total) * 100
         return result
     
-    def makeLookupCsv(self, percents, rasterPercents, landuseOrSoil):
+    def makeLookupCsv(self, percents: Dict[str, float], rasterPercents: Dict[int, float], landuseOrSoil: str) -> None:
         """
         Make csv file mapping value to category from percents mapping category to percent 
         and raster percents mapping value to percents by matching percents.
         """
-        # make ordered lists of pairs (percent, value) and (percent category
+        assert self.arcProjDir is not None
+        # make ordered lists of pairs (percent, value) and (percent category)
         values = ConvertFromArc.mapToOrderedPairs(rasterPercents)
         cats = ConvertFromArc.mapToOrderedPairs(percents)
         # reduce landuse raster values to number from MasterProgress
@@ -1120,7 +1197,7 @@ class ConvertFromArc(QObject):
                 ConvertFromArc.information('Warning: {0} percentages for {1} were less than 1'.format(underOneCount, landuseOrSoil))
      
     @staticmethod               
-    def percentMapToString(mmap):
+    def percentMapToString(mmap: Dict[int, float]) -> str:
         """Convert map of int -> float to string, using 2 decimal places."""
         result = '{'
         numItems = len(mmap)
@@ -1134,7 +1211,7 @@ class ConvertFromArc(QObject):
                 result += ', '    
         return result
                     
-    def createDbTables(self):
+    def createDbTables(self) -> None:
         """Creates gis_landexempt, gis_splithrus and gis_elevationbands tables,
         creates MonitoringPoint.csv,
         and reads MasterProgress table to set number of landuse classes and soil option.
@@ -1145,6 +1222,7 @@ class ConvertFromArc(QObject):
         
         This is a 64-bit program for which there is no Access driver.
         Instead use the AccessToCSV program to write csv files which are then read."""
+        assert self.arcProjDir is not None
         projCsvDir = os.path.join(self.qProjDir, r'csv\Project')
         arcProjDb = os.path.join(self.arcProjDir, self.arcProjName + '.mdb')
         # extract csv files 
@@ -1207,9 +1285,10 @@ class ConvertFromArc(QObject):
                 self.soilOption = data[6]
                 self.numLuClasses = int(data[7])
             
-    def createRefTables(self):
+    def createRefTables(self) -> None:
         """Create tables from crop, fert, pest, till, septwq, and urban tables, plus usersoil if needed, in project database."""
         print('Writing reference tables ...')
+        assert self.arcProjDir is not None
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
         arcRefDb = os.path.join(self.arcProjDir, 'SWAT2012.mdb')
         # extract csv files 
@@ -1231,7 +1310,7 @@ class ConvertFromArc(QObject):
                 self.createUsersoilTable(cursor, refCsvDir)
             qConn.commit()
             
-    def createPlantTable(self, cursor, refCsvDir):
+    def createPlantTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_plant in project database."""
         cropFile = os.path.join(refCsvDir, 'crop.csv')
         if not os.path.isfile(cropFile):
@@ -1248,7 +1327,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writePlantRow(num, row, cursor, sql)
             
-    def createFertTable(self, cursor, refCsvDir):
+    def createFertTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_fert in project database."""
         fertFile = os.path.join(refCsvDir, 'fert.csv')
         if not os.path.isfile(fertFile):
@@ -1265,7 +1344,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writeFertRow(num, row, cursor, sql)
             
-    def createPestTable(self, cursor, refCsvDir):
+    def createPestTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_pest in project database."""
         pestFile = os.path.join(refCsvDir, 'pest.csv')
         if not os.path.isfile(pestFile):
@@ -1282,7 +1361,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writePestRow(num, row, cursor, sql)
             
-    def createSeptTable(self, cursor, refCsvDir):
+    def createSeptTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_septwq in project database."""
         septwqFile = os.path.join(refCsvDir, 'septwq.csv')
         if not os.path.isfile(septwqFile):
@@ -1299,7 +1378,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writeSeptRow(num, row, cursor, sql)
             
-    def createTillTable(self, cursor, refCsvDir):
+    def createTillTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_till in project database."""
         tillFile = os.path.join(refCsvDir, 'till.csv')
         if not os.path.isfile(tillFile):
@@ -1316,7 +1395,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writeTillRow(num, row, cursor, sql)
             
-    def createUrbanTable(self, cursor, refCsvDir):
+    def createUrbanTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_urban in project database."""
         urbanFile = os.path.join(refCsvDir, 'urban.csv')
         if not os.path.isfile(urbanFile):
@@ -1333,7 +1412,7 @@ class ConvertFromArc(QObject):
                 num += 1
                 self.writeUrbanRow(num, row, cursor, sql)
             
-    def createUsersoilTable(self, cursor, refCsvDir):
+    def createUsersoilTable(self, cursor: Any, refCsvDir: str) -> None:
         """Create arc_usersoil in project database."""
         usersoilFile = os.path.join(refCsvDir, 'usersoil.csv')
         if not os.path.isfile(usersoilFile):
@@ -1348,7 +1427,7 @@ class ConvertFromArc(QObject):
             for row in reader:
                 cursor.execute(sql, tuple(row))
          
-    def writePlantRow(self, num, row, cursor, sql):
+    def writePlantRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of crop table using cursor and sql, using num for the first element.
         
         SWAT crop - QSWAT plant_lt relation (column numbers are zero-based)
@@ -1389,34 +1468,34 @@ class ConvertFromArc(QObject):
                 tuple(row[13:34]) + tuple(row[40:45]) + (12, 3, row[45], 0, 0, 0, 0, 0, 0, 0.5, 0, 0, 0, row[4])
         cursor.execute(sql, data)
             
-    def writeFertRow(self, num, row, cursor, sql):
+    def writeFertRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of fert table using cursor and sql, using num for the first element."""
         # columns 2-7 of new table same as columns 2:7 of fert, plus FERTNAME for description
         data = (num, row[2].lower()) + tuple(row[3:8]) + ('', row[11])
         cursor.execute(sql, data)
             
-    def writePestRow(self, num, row, cursor, sql):
+    def writePestRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of pest table using cursor and sql, using num for the first element."""
         data = (num, row[2].lower()) + tuple(row[3:7]) + (row[8], 0, 0, 0, 0, 0, 0, 0, 0, row[10])
         cursor.execute(sql, data)
             
-    def writeSeptRow(self, num, row, cursor, sql):
+    def writeSeptRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of septwq table using cursor and sql, using num for the first element."""
         data = (num, row[1].lower()) + tuple(row[4:7]) + tuple(row[8:12]) + tuple(row[13:16]) + (row[2],)
         cursor.execute(sql, data)
             
-    def writeTillRow(self, num, row, cursor, sql):
+    def writeTillRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of till table using cursor and sql, using num for the first element."""
         data = (num, row[2].lower()) + tuple(row[3:5]) + (row[7], 0, 0, row[5])
         cursor.execute(sql, data)
             
-    def writeUrbanRow(self, num, row, cursor, sql):
+    def writeUrbanRow(self, num: int, row: List[Any], cursor: Any, sql: str) -> None:
         """Write values from row of urban table using cursor and sql, using num for the first element."""
         # columns 2-10 of new table same as columns 4-12 of urban
         data = (num, row[2].lower()) + tuple(row[4:13]) + (row[18], row[3])
         cursor.execute(sql, data)
         
-    def createSoilTables(self):
+    def createSoilTables(self) -> None:
         """Write soils_sol and soils_sol_layer tables."""
         print('Writing soil tables ...')
         splitSTATSGO = False
@@ -1467,7 +1546,7 @@ class ConvertFromArc(QObject):
                 lid = 0 # last layer id used
                 for soil in self.usedSoils:
                     if splitSTATSGO:
-                        args = (soil[:5], soil[6:])  # note the plus sign must be skipped
+                        args: Tuple[str, ...] = (soil[:5], soil[6:])  # note the plus sign must be skipped
                     else:
                         args = (soil,)
                     row = readCursor.execute(selectSql, args).fetchone()
@@ -1483,9 +1562,9 @@ class ConvertFromArc(QObject):
             writeConn.commit()
     
     @staticmethod                    
-    def writeUsedSoilRow(sid, lid, name, row, cursor, insert, insertLayer):
+    def writeUsedSoilRow(sid: int, lid: int, name: str, row: List[Any], cursor: Any, insert: str, insertLayer: str) -> int:
         """Write data from one row of usersoil table to soils_sol and soils_sol_layer tables."""
-        cursor.execute(insert, (sid, name) + row[7:12] + (None,))
+        cursor.execute(insert, (sid, name) + tuple(row[7:12]) + (None,))
         startLayer1 = 12 # index of SOL_Z1
         layerWidth = 12 # number of entries per layer
         startCal = 132 # index of SOL_CAL1
@@ -1493,19 +1572,19 @@ class ConvertFromArc(QObject):
         for i in range(int(row[6])):
             lid += 1 
             startLayer = startLayer1 + i*layerWidth
-            cursor.execute(insertLayer, (lid, sid, i+1) +  row[startLayer:startLayer+layerWidth] +  (row[startCal+i], row[startPh+i]))
+            cursor.execute(insertLayer, (lid, sid, i+1) +  tuple(row[startLayer:startLayer+layerWidth]) +  (row[startCal+i], row[startPh+i]))
         return lid 
           
     @staticmethod        
-    def writeUsedSoilRowSeparate(sid, lid, name, row, cursor, insert, insertLayer, readCursor, sqlLayer, layerTable):
+    def writeUsedSoilRowSeparate(sid: int, lid: int, name: str, row: List[Any], cursor: Any, insert: str, insertLayer: str, readCursor: Any, sqlLayer: str, layerTable: str) -> int:
         """Write data from one row of usersoil table plus separate layer table 
         to soils_sol and soils_sol_layer tables.
         """
         # check whether there is a non-null description item
         if len(row) == 11:
-            cursor.execute(insert, (sid, name) +  row[6:] + (None,))
+            cursor.execute(insert, (sid, name) +  tuple(row[6:]) + (None,))
         else:
-            cursor.execute(insert, (sid, name) +  row[6:])
+            cursor.execute(insert, (sid, name) +  tuple(row[6:]))
         layerRows = readCursor.execute(sqlLayer, (row[0],)).fetchall()
         if layerRows is None or len(layerRows) == 0:
             ConvertFromArc.error('Failed to find soil layers in table {0} with soil_id {1}'.
@@ -1516,7 +1595,7 @@ class ConvertFromArc(QObject):
             cursor.execute(insertLayer, (lid, sid) + ro[2:])
         return lid
     
-    def createLanduseTables(self):
+    def createLanduseTables(self) -> None:
         """Write plants_plt and urban_urb tables."""
         print('Writing landuse tables ...')
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
@@ -1551,7 +1630,7 @@ class ConvertFromArc(QObject):
             projConn.commit()
         
     
-    def createProjectConfig(self):
+    def createProjectConfig(self) -> None:
         """Write project_config table to project database."""
         qProjDb = self.qProjName + '.sqlite'
         with sqlite3.connect(os.path.join(self.qProjDir, qProjDb)) as conn:
@@ -1559,7 +1638,7 @@ class ConvertFromArc(QObject):
             qRefDb = os.path.join(self.qProjDir, 'swatplus_datasets.sqlite')
             weatherDataDir = os.path.join(self.qProjDir, r'Scenarios\Default\TxtInOut')
             gisType = 'qgis'
-            gisVersion = QSWATPlus.__version__  # @UndefinedVariable
+            gisVersion = QSWATPlus.__version__  # type: ignore @UndefinedVariable 
             cursor.execute('DROP TABLE IF EXISTS project_config')
             cursor.execute(DBUtils._CREATEPROJECTCONFIG)
             cursor.execute(DBUtils._INSERTPROJECTCONFIG, 
@@ -1568,12 +1647,13 @@ class ConvertFromArc(QObject):
                             1, 1, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME, None, 0, 0))
             conn.commit()
             
-    def createWgnTables(self):
+    def createWgnTables(self) -> None:
         """Create tables wgn and wgn_mon in project database from ArcSWAT TxtInOut wgn files."""
+        assert self.arcProjDir is not None
         self.wgnStations = dict()
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
         pattern = os.path.join(self.arcProjDir, r'Scenarios\Default\TxtInOut\*.wgn')
-        stationNames = set()
+        stationNames: Set[str] = set()
         stationId = 0
         monId = 0
         with sqlite3.connect(qProjDb) as qConn:
@@ -1597,7 +1677,7 @@ class ConvertFromArc(QObject):
                         cursor.execute(ConvertFromArc._INSERTWGN, 
                                        (stationId, stationName, latitude, longitude, elev, rainYears))
                         self.wgnStations[stationId] = (latitude, longitude)
-                        arr = numpy.empty([14, 12], dtype=float)
+                        arr = numpy.empty([14, 12], dtype=float)  # type: ignore
                         for row in range(14):
                             line = wgnFile.readline()
                             for col in range(12):
@@ -1609,17 +1689,18 @@ class ConvertFromArc(QObject):
                                            (monId, stationId, col+1) + tuple(arr[:,col].astype(float).tolist()))
             qConn.commit()
                         
-    def createWeatherData(self):
+    def createWeatherData(self) -> None:
         """Create weather tables and files from ArcSWAT TxtInOut weather files."""
+        assert self.arcProjDir is not None
         qProjDb = os.path.join(self.qProjDir, self.qProjName + '.sqlite')
         arcTxtInOutDir = os.path.join(self.arcProjDir, r'Scenarios\Default\TxtInOut')
         if not os.path.isdir(arcTxtInOutDir):
             return
         qTextInOutDir = os.path.join(self.qProjDir, r'Scenarios\Default\TxtInOut')
-        gaugeStats = ConvertFromArc.GaugeStats()
+        gaugeStats = GaugeStats()
         gaugeStats.setStats(self.qProjDir)
         # map typ -> order in data file -> WeatherStation
-        stationTables = dict()
+        stationTables: Dict[str, Dict[int, WeatherStation]] = dict()
         self.populateWeatherTables(stationTables)
         with sqlite3.connect(qProjDb) as qConn:
             cursor = qConn.cursor()
@@ -1641,24 +1722,24 @@ class ConvertFromArc(QObject):
             self.writeWeatherStations(stationTables, cursor)
             qConn.commit()
             
-    def populateWeatherTables(self, stationTables):
+    def populateWeatherTables(self, stationTables: Dict[str, Dict[int, WeatherStation]]) -> None:
         """Fill stationTables from Subtyp and typ tables."""
         
-        def populateStations(typFile, typStations):
+        def populateStations(typFile: str, typStations: Dict[int, WeatherStation]) -> None:
             """Use typ.csv file to make map staId -> WeatherStation."""
             with open(typFile, 'r', newline='') as f:
                 reader = csv.reader(f)
                 next(reader)  # skip header row
                 for row in reader:
                     staId = int(row[0])
-                    station = ConvertFromArc.WeatherStation(row[1], float(row[2]), float(row[3]), float(row[4]))
+                    station = WeatherStation(row[1], float(row[2]), float(row[3]), float(row[4]))
                     typStations[staId] = station
             
         projCsvDir = os.path.join(self.qProjDir, r'csv\Project')
         pcpTmp = ['pcp', 'tmp']
         stations = dict()
         for typ in pcpTmp:
-            typStations = dict()
+            typStations: Dict[int, WeatherStation] = dict()
             stations[typ] = typStations
             typFile = os.path.join(projCsvDir, '{0}.csv'.format(typ))
             if os.path.isfile(typFile):
@@ -1668,7 +1749,7 @@ class ConvertFromArc(QObject):
                 return
         # important to do pcp and tmp first here as others use pcp or tmp station latitude etc
         for typ in ['pcp', 'tmp', 'hmd', 'slr', 'wnd']:
-            data = dict()
+            data: Dict[int, WeatherStation] = dict()
             # leave this entry as an empty table if no data of this typ, since passed to createWeatherTypeData later
             stationTables[typ] = data
             csvFile = os.path.join(projCsvDir, 'Sub{0}.csv'.format(typ.capitalize()))
@@ -1685,8 +1766,8 @@ class ConvertFromArc(QObject):
                                 # HAWQS leaves this blank or sets to zero; find name in stations and assume order will be same as ID there
                                 for staId, station in stations[typ].items():
                                     if name == station.name:
-                                        minRec = staId
-                                        order = staId
+                                        minRec = staId  # type: ignore
+                                        order = staId  # type: ignore
                                         break
                                 if minRec == '':
                                     ConvertFromArc.error('Cannot find station {0} in {1}* table'.format(name, typ))
@@ -1694,22 +1775,23 @@ class ConvertFromArc(QObject):
                             else:
                                 ConvertFromArc.error('MinRec field in table Sub{0} is blank'.format(typ.capitalize()))
                         else:
-                            minRec = int(minRec)
-                            order = int(order)
+                            minRec = int(minRec)  # type: ignore
+                            order = int(order)  # type: ignore
                         if order in data:
                             continue
                         if typ in pcpTmp:
-                            station = stations[typ][minRec]
+                            station = stations[typ][minRec]  # type: ignore
                         else:
                             if typ == 'slr':
                                 # order is order in tmp data
-                                station1 = stationTables['tmp'][order]
+                                station1 = stationTables['tmp'][order]  # type: ignore
                             else:
-                                station1 = stationTables['pcp'][order]
-                            station = ConvertFromArc.WeatherStation(name, station1.latitude, station1.longitude, station1.elevation) 
-                        data[order] = station
+                                station1 = stationTables['pcp'][order]  # type: ignore
+                            station = WeatherStation(name, station1.latitude, station1.longitude, station1.elevation) 
+                        data[order] = station  # type: ignore
             
-    def createWeatherTypeData(self, typ, descr, stationTable, numFiles, numRecords, arcTxtInOutDir, qTxtInOutDir):
+    def createWeatherTypeData(self, typ: str, descr: str, stationTable: Dict[int, WeatherStation], numFiles: int, numRecords: int, 
+                              arcTxtInOutDir: str, qTxtInOutDir: str) -> None:
         """Create typ data files files from ArcSWAT TxtInOut files."""
         if len(stationTable) == 0:
             # no weather data for this typ
@@ -1763,11 +1845,13 @@ class ConvertFromArc(QObject):
                             break
                         dates.append(line[:7])
                         if typ == 'tmp':
-                            nextData = [(float(line[start:start+numWidth]),
-                                         float(line[start+numWidth:start+width])) 
-                                         for start in [7+width*i for i in range(numRecords)]]
+                            nextData: Union[List[Tuple[float, float]], List[float]] = \
+                                [(float(line[start:start+numWidth]),
+                                  float(line[start+numWidth:start+width])) 
+                                    for start in [7+width*i for i in range(numRecords)]]
                         else:
-                            nextData = [float(line[start:start+width]) for start in [7+width*i for i in range(numRecords)]]
+                            nextData = [float(line[start:start+width]) 
+                                            for start in [7+width*i for i in range(numRecords)]]
                         data.append(nextData)
                     # write files
                     for order, station in stationTable.items():
@@ -1791,7 +1875,7 @@ class ConvertFromArc(QObject):
                                 f.write(date[:4])
                                 f.write(str(int(date[4:])).rjust(5))
                                 if typ == 'tmp':
-                                    maxx, minn = data[row][pos]
+                                    maxx, minn = data[row][pos]  # type: ignore
                                     f.write('{0:.1F}'.format(maxx).rjust(10))
                                     f.write('{0:.1F}\n'.format(minn).rjust(10))
                                 elif typ == 'pcp':
@@ -1803,10 +1887,10 @@ class ConvertFromArc(QObject):
             for name in sorted(stationNamesToSort):
                 staF.write('{0}.{1}\n'.format(name, typ))
                             
-    def writeWeatherStations(self, stationTables, cursor):
+    def writeWeatherStations(self, stationTables: Dict[str, Dict[int, WeatherStation]], cursor: Any) -> None:
         """Wtite entries for stations in weather_file and weather_sta_cli. """
         # dictionary collectedName -> typ -> WeatherStation
-        collectedStations = dict()
+        collectedStations: Dict[str, Dict[str, WeatherStation]] = dict()
         for typ, stations in stationTables.items():
             for station in stations.values():
                 # generate name from latitude and longitude enabling co-located stations of different types to be merged
@@ -1843,12 +1927,12 @@ class ConvertFromArc(QObject):
             cursor.execute(ConvertFromArc._INSERTWEATHERSTATION, 
                            (staId, collectedName, wgnId) + tuple(files) + (latitude, longitude))
                             
-    def nearestWgn(self, lat, lon):
+    def nearestWgn(self, lat: float, lon: float) -> int:
         """Return nearest wgn station id, or -1 if none.
         
         Uses sum of squares of latitude and longitude differences as the measure of proximity."""
         result = -1
-        currentMeasure = 64800  # 2 * 180 * 180  :  maximum possible value
+        currentMeasure = 64800.0  # 2 * 180 * 180  :  maximum possible value
         for stationId, (latitude, longitude) in self.wgnStations.items():
             latDiff = latitude - lat
             lonDiff = abs(longitude - lon)
@@ -1861,7 +1945,7 @@ class ConvertFromArc(QObject):
                 result = stationId
         return result
     
-    def createGISTables(self):
+    def createGISTables(self) -> None:
         """Create gis_channels, _lsus, _aquifers, _deep_aquifers, _points, _routing, _subbasins and _water 
         from csv files made from ArcSWAT project database"""
         # subasin - reach relation is 1-1, so use same number for each
@@ -1904,11 +1988,11 @@ class ConvertFromArc(QObject):
                         else:
                             # weather gauge: not included in gis_points
                             continue
-                        elev = row[8]
-                        if elev == '': # avoid null: arcSWAT only gives elevations to weather gauges
-                            elev = 0
+                        elevPt = row[8]
+                        if elevPt == '': # avoid null: arcSWAT only gives elevations to weather gauges
+                            elevPt = 0  # type: ignore
                         cursor.execute(ConvertFromArc._INSERTPOINTS, 
-                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elev,))
+                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elevPt,))
             # create x-y <-> lat-long functions from MonitoringPoint data if needed
             if self.transformFromDeg is None:
                 fromDeg, toDeg = ConvertFromArc.makeTransforms(transformTable)
@@ -1917,7 +2001,7 @@ class ConvertFromArc(QObject):
             cursor.execute('DROP TABLE IF EXISTS gis_subbasins')
             cursor.execute(ConvertFromArc._CREATELSUS)
             cursor.execute(ConvertFromArc._CREATESUBBASINS)
-            subbasinAreaLatLonElev = dict()
+            subbasinAreaLatLonElev: Dict[int, Tuple[float, float, float, float, float, float]] = dict()
             with open(os.path.join(self.qProjDir, r'csv\Project\Watershed.csv'), 'r', newline='') as f:
                 reader = csv.reader(f)
                 next(reader)  # skip header
@@ -1925,24 +2009,24 @@ class ConvertFromArc(QObject):
                     subbasin = int(row[3])
                     lsu = subbasin * 10
                     channel = subbasin
-                    area = row[4]
+                    area = float(row[4])
                     slo1 = row[5]
                     len1 = row[6]
                     sll = row[7]
                     csl = row[8]
                     wid1 = row[9]
                     dep1 = row[10]
-                    lat = row[11]
-                    lon = row[12]
-                    elev = row[13]
+                    lat = float(row[11])
+                    lon = float(row[12])
+                    elev = float(row[13])
                     elevmin = row[14]
                     elevmax = row[15]
-                    lonlat = QgsPointXY(float(lon), float(lat))
+                    lonlat = QgsPointXY(lon, lat)
                     if self.transformFromDeg is None:
                         xy = fromDeg(lonlat)
                     else:
                         xy = self.transformFromDeg.transform(lonlat)
-                    subbasinAreaLatLonElev[subbasin] = (float(area), xy.x(), xy.y(), lat, lon, float(elev))
+                    subbasinAreaLatLonElev[subbasin] = (area, xy.x(), xy.y(), lat, lon, elev)
                     waterId = 0
                     cursor.execute(ConvertFromArc._INSERTLSUS, 
                                    (lsu, QSWATUtils._NOLANDSCAPE, channel, area, slo1, len1, csl, wid1, dep1, lat, lon, elev))
@@ -1967,10 +2051,10 @@ class ConvertFromArc(QObject):
                     if maxEl == '':
                         maxEl = '0'
                     cursor.execute(ConvertFromArc._INSERTCHANNELS, 
-                                   (channel, subbasin) + (row[8], 0) + tuple(row[9:13]) + (minEl, maxEl, lat, lon))
+                                   (channel, subbasin) + (row[8], 0) + tuple(row[9:13]) + (minEl, maxEl, lat, lon))  # type: ignore
                     downstreamSubbasin[subbasin] = int(row[7])
             # calculate Strahler orders
-            us = dict()
+            us: Dict[int, List[int]] = dict()
             outlets = []
             for link, dsLink in downstreamSubbasin.items():
                 if dsLink > 0:
@@ -1978,16 +2062,16 @@ class ConvertFromArc(QObject):
                     ups.append(link)
                 else:
                     outlets.append(link)
-            strahler = dict()
+            strahler: Dict[int, int] = dict()
             for link in outlets:
                 ConvertFromArc.setStrahler(link, us, strahler)
             # update order in gis_channels table
             sql = 'UPDATE gis_channels SET strahler = ? WHERE id = ?'
-            for link, strahler in strahler.items():
-                cursor.execute(sql, (strahler, link))
+            for link, strahl in strahler.items():
+                cursor.execute(sql, (strahl, link))
             # gis_aquifers and gis_deep_aquifers
             deepAquifers = dict()
-            deepData = dict()
+            deepData: Dict[int, Tuple[float, float, float, float]] = dict()
             cursor.execute('DROP TABLE IF EXISTS gis_aquifers')
             cursor.execute('DROP TABLE IF EXISTS gis_deep_aquifers')
             cursor.execute(ConvertFromArc._CREATEAQUIFERS)
@@ -1997,7 +2081,7 @@ class ConvertFromArc(QObject):
                 deepAquifers[subbasin] = outletBasin
                 cursor.execute(ConvertFromArc._INSERTAQUIFERS,
                                (subbasin, 0, subbasin, outletBasin, area, lat, lon, elev))
-                (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(outletBasin, (0,0,0,0))
+                (deepArea, deepElevMoment, deepXMoment, deepYMoment) = deepData.setdefault(outletBasin, (0.0,0.0,0.0,0.0))
                 deepArea += area
                 deepElevMoment += elev * area
                 deepXMoment += x * area
@@ -2009,6 +2093,7 @@ class ConvertFromArc(QObject):
                 if self.transformFromDeg is None:
                     lonlat = toDeg(QgsPointXY(x, y))
                 else:
+                    assert self.transformToLatLong is not None
                     lonlat = self.transformToLatLong.transform(QgsPointXY(x, y))
                 cursor.execute(ConvertFromArc._INSERTDEEPAQUIFERS,
                                (outletBasin, outletBasin, deepArea, lonlat.y(), lonlat.x(), deepElevMoment / deepArea))
@@ -2152,13 +2237,13 @@ class ConvertFromArc(QObject):
             conn.commit()
             
     @staticmethod
-    def makeTransforms(transformTable):
+    def makeTransforms(transformTable: List[Tuple[float, float, float, float]]) -> Tuple[Callable[[QgsPointXY], QgsPointXY], Callable[[QgsPointXY], QgsPointXY]]:
         """Make lat-lon <-> x-y functions by linear interpolation using points from MonitoringPoint table"""
         
-        def maxSeparateXY():
+        def maxSeparateXY() -> Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]]:
             """Return two pairs of tuples from transformTable, first pair with maximum x seperation, second with maximum y separation."""
-            maxX = 0
-            maxY = 0
+            maxX = 0.0
+            maxY = 0.0
             currentX1 = None
             currentX2 = None
             currentY1 = None
@@ -2183,13 +2268,21 @@ class ConvertFromArc(QObject):
                         currentY2 = y2
                         currentLat1 = lat1
                         currentLat2 = lat2
+            assert currentX1 is not None
+            assert currentX2 is not None
+            assert currentY1 is not None
+            assert currentY2 is not None
+            assert currentLon1 is not None
+            assert currentLon2 is not None
+            assert currentLat1 is not None
+            assert currentLat2 is not None
             return ((currentX1, currentX2), (currentLon1, currentLon2), (currentY1, currentY2), (currentLat1, currentLat2))
         
-        def interpolate(pair1, pair2):
+        def interpolate(pair1: Tuple[float, float], pair2: Tuple[float, float]) -> Callable[[float], float]:
             """Return a function that interpolates from a value in domain of pair1 to a value in domain of pair2,
             assuming pair1 and pair2 define corresponding values in the two domains."""
             
-            def interp(x):
+            def interp(x: float) -> float:
                 a, b = pair1
                 p, q = pair2
                 frac = (x-a) / (b-a)
@@ -2197,10 +2290,10 @@ class ConvertFromArc(QObject):
             
             return interp
             
-        def interpolatePoint(pairH, pairV):
+        def interpolatePoint(pairH: Tuple[Tuple[float, float], Tuple[float, float]], pairV: Tuple[Tuple[float, float], Tuple[float, float]]) -> Callable[[QgsPointXY], QgsPointXY]:
             """Return a function that interpolates a point from a horizontal pair and a vertical pair."""
             
-            def interpt(pt):
+            def interpt(pt: QgsPointXY) -> QgsPointXY:
                 pairH1, pairH2 = pairH
                 funH = interpolate(pairH1, pairH2)
                 pairV1, pairV2 = pairV
@@ -2217,7 +2310,7 @@ class ConvertFromArc(QObject):
         return fromDeg, toDeg
             
     @staticmethod            
-    def findOutlet(basin, downBasins):
+    def findOutlet(basin: int, downBasins: Dict[int, int]) -> int:
         """downBasins maps basin to downstream basin or 0 if none.  Return final basin starting from basin."""
         downBasin = downBasins.get(basin, 0)
         if downBasin == 0:
@@ -2225,15 +2318,17 @@ class ConvertFromArc(QObject):
         else:
             return ConvertFromArc.findOutlet(downBasin, downBasins)
             
-    def createDataFiles(self):
+    def createDataFiles(self) -> None:
         """Create csv files from REC files identified in fig.fig file in each scenario."""
+        assert self.arcProjDir is not None
         scensPattern = self.arcProjDir + '/Scenarios/*'
         for arcScenDir in glob.iglob(scensPattern):
             scenario = os.path.split(arcScenDir)[1]
             self.createScenarioDataFiles(scenario)
         
-    def createScenarioDataFiles(self, scenario):
+    def createScenarioDataFiles(self, scenario: str) -> None:
         """Create csv files from REC files identified in fig.fig file."""
+        assert self.arcProjDir is not None
         arcTxtInOutDir = os.path.join(self.arcProjDir, r'Scenarios\{0}\TxtInOut'.format(scenario))
         qTextInOutDir = os.path.join(self.qProjDir, r'Scenarios\{0}\TxtInOut'.format(scenario))
         if not os.path.isdir(arcTxtInOutDir):
@@ -2282,7 +2377,7 @@ class ConvertFromArc(QObject):
                         vals = f.readline().split()
                         qConst.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},0,0,0,0,0,0,0\n'
                                          .format(name, vals[0], vals[1], vals[2], vals[3], vals[4], vals[7], vals[10], vals[5], vals[6], vals[8], vals[9]))
-            print('{0} written'.format(qConstFile))
+            # print('{0} written'.format(qConstFile))
         for datFile in recYear:
             qFile = os.path.join(qTextInOutDir, os.path.splitext(datFile)[0] + '.csv')
             with open(os.path.join(arcTxtInOutDir, datFile)) as f:
@@ -2299,7 +2394,7 @@ class ConvertFromArc(QObject):
                         year += 1
                         q.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},0,0,0,0,0,0,0\n'
                                 .format(vals[0], str(year), vals[1], vals[2], vals[3], vals[4], vals[5], vals[8], vals[11], vals[6], vals[7], vals[9], vals[10]))
-            print('{0} written'.format(qFile)) 
+            # print('{0} written'.format(qFile)) 
         for datFile in recOther:
             qFile = os.path.join(qTextInOutDir, os.path.splitext(datFile)[0] + '.csv')
             with open(os.path.join(arcTxtInOutDir, datFile)) as f:
@@ -2314,12 +2409,13 @@ class ConvertFromArc(QObject):
                             break
                         q.write('{0},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},0,0,0,0,0,0,0\n'
                                 .format(vals[1], vals[0], vals[2], vals[3], vals[4], vals[5], vals[6], vals[9], vals[12], vals[7], vals[8], vals[10], vals[11]))
-            print('{0} written'.format(qFile))
+            # print('{0} written'.format(qFile))
     
-    def setupTime(self):
+    def setupTime(self) -> None:
         """Read file.cio to setup start/finsh dates and nyskip."""
         print('Writing start/finish dates ...')
         # read file.cio
+        assert self.arcProjDir is not None
         cioFile = os.path.join(self.arcProjDir, r'Scenarios\Default\TxtInOut\file.cio')
         if not os.path.isfile(cioFile):
             return
@@ -2350,17 +2446,17 @@ class ConvertFromArc(QObject):
             cursor.execute(ConvertFromArc._INSERTTIMESIM, (1, idaf, iyr, idal, iyr + nbyr - 1, idt))
             cursor.execute(ConvertFromArc._INSERTPRINTPRT, (1, nyskip, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0))
             qConn.commit()
-                                 
+                
     @staticmethod 
-    def mapToOrderedPairs(mapping):
+    def mapToOrderedPairs(mapping: Dict[Any, float]) -> List[Tuple[float, Any]]:
         """If mapping is X to percent, create list of (percent, X) ordered by decreasing percent."""
-        result = []
+        result: List[Tuple[float, Any]] = []
         for x, percent in mapping.items():
             ConvertFromArc.insertSort(percent, x, result)
         return result
     
     @staticmethod
-    def insertSort(percent, x, result):
+    def insertSort(percent: float, x: Any, result: List[Tuple[float, Any]]) -> None:
         """Insert (percent, x) in result so percentages are ordered decxreasing."""
         for index in range(len(result)):
             nxt, _ = result[index]
@@ -2370,7 +2466,7 @@ class ConvertFromArc(QObject):
         result.append((percent, x))
         
     @staticmethod
-    def getMaxFileOrDir(direc, base, suffix):
+    def getMaxFileOrDir(direc: str, base: str, suffix: str) -> str:
         """Find and return the maximum file of the form 'direc\basensuffix' or 'direc\basen if suffix is empty."""
         num = 1
         current = os.path.join(direc, base + str(num) + suffix)
@@ -2382,7 +2478,7 @@ class ConvertFromArc(QObject):
             current = nxt
             
     @staticmethod
-    def copyFiles(inFile, saveDir):
+    def copyFiles(inFile: str, saveDir: str) -> None:
         """
         Copy files with same basename as infile to saveDir, 
         i.e. regardless of suffix.
@@ -2397,12 +2493,12 @@ class ConvertFromArc(QObject):
                 shutil.copy(f, saveDir)    
         
     @staticmethod
-    def makeDirs(direc):
+    def makeDirs(direc: str) -> None:
         """Make directory dir unless it already exists."""
         if not os.path.exists(direc):
             os.makedirs(direc)
         
-    def getChoice(self):
+    def getChoice(self) -> None:
         """Set choice from form."""
         if self._dlg.fullButton.isChecked():
             self.choice = ConvertFromArc._fullChoice
@@ -2412,7 +2508,7 @@ class ConvertFromArc(QObject):
             self.choice = ConvertFromArc._noGISChoice
         
     @staticmethod
-    def writeCsvFile(cursor, table, outFile):
+    def writeCsvFile(cursor: Any, table: str, outFile: str) -> None:
         """Write table to csv file outFile."""
         sql = 'SELECT * FROM {0}'.format(table)
         rows = cursor.execute(sql)
@@ -2423,7 +2519,7 @@ class ConvertFromArc(QObject):
                 writer.writerow(row)
         
     @staticmethod
-    def copyAllFiles(inDir, outDir):
+    def copyAllFiles(inDir: str, outDir: str) -> None:
         """Copy files (containing at least one .) from inDir to OutDir."""
         if os.path.exists(inDir):
             patt = inDir + '\*.*'
@@ -2431,18 +2527,18 @@ class ConvertFromArc(QObject):
                 shutil.copy(f, outDir)
                 
     @staticmethod
-    def question(msg):
+    def question(msg: str) -> QMessageBox.StandardButton:
         """Ask msg as a question, returning Yes or No."""
         questionBox = QMessageBox()
         questionBox.setWindowTitle('QSWATPlus')
         questionBox.setIcon(QMessageBox.Question)
-        questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
         questionBox.setText(QSWATUtils.trans(msg))
         result = questionBox.exec_()
-        return result
+        return result  # type: ignore
     
     @staticmethod
-    def error(msg):
+    def error(msg: str) -> None:
         """Report msg as an error."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('QSWATPlus')
@@ -2452,7 +2548,7 @@ class ConvertFromArc(QObject):
         return
     
     @staticmethod
-    def information(msg):
+    def information(msg: str) -> None:
         """Report msg."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('QSWATPlus')
@@ -2833,67 +2929,12 @@ class ConvertFromArc(QObject):
     """
     
     _INSERTDEEPAQUIFERS = 'INSERT INTO gis_deep_aquifers VALUES(?,?,?,?,?,?)'
-    
-    class WeatherStation():
-        """Name, lat, long, etc for weather station."""
-        def __init__(self, name, latitude, longitude, elevation):
-            """Constructor."""
-            ## name
-            self.name = name
-            ## latitude
-            self.latitude = latitude
-            ## longitude
-            self.longitude = longitude
-            ## elevation
-            self.elevation = elevation
-            
-    class GaugeStats():
-        """Number of precipitation gauges etc."""
-        def __init__(self):
-            ## number of .pcp files
-            self.nrgauge = 0
-            ## number of pcp records used
-            self.nrtot = 0
-            ## number of pcp records in each pcp file
-            self.nrgfil = 0
-            ## number of .tmp files
-            self.ntgauge = 0
-            ## number of tmp records used
-            self.nttot = 0
-            ## number of tmp records in each tmp file
-            self.ntgfil = 0
-            ## number of slr records in slr file
-            self.nstot = 0
-            ## number of hmd records in hmd file
-            self.nhtot = 0
-            ## number of wnd records in wnd file
-            self.nwtot = 0
-            
-        def setStats(self, qProjDir):
-            cioFile = os.path.join(qProjDir, r'csv\Project\cio.csv')
-            if not os.path.isfile(cioFile):
-                ConvertFromArc.error('No cio csv file {0} created'.format(cioFile))
-                return
-            with open(cioFile, 'r', newline='') as f:
-                reader = csv.reader(f)
-                next(reader) # skip headers
-                row = next(reader)
-                self.nrgauge = int(row[10])
-                self.nrtot = int(row[11])
-                self.nrgfil = int(row[12])
-                self.ntgauge = int(row[14])
-                self.nttot = int(row[15])
-                self.ntgfil = int(row[16])
-                self.nstot = int(row[18])
-                self.nhtot = int(row[20])
-                self.nwtot = int(row[22])
  
 if __name__ == '__main__':
     ## main program
     main = ConvertFromArc(sys.argv[1])
     try:
-        ## result ignored
-        _ = main.run()
+        main.run()
     except Exception:
         ConvertFromArc.exceptionError('Error')
     finally:

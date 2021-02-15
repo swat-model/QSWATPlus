@@ -68,3 +68,8 @@ QSWATTopology.py line 2011
 22/4/2020 #18
 Misplaced parenthesis.  Typecheck would find (should have been listed earlier, probably October 2019).
 QSWATtopology.py line 1516
+
+15/2/2021 # 19
+createUsersoilTable misspelt; 'usersoil' instead of 'arc_usersoil' in SQL
+One test run would have found these!  Should have been found and listed October 2019
+convertFromArc.py lines 1154, 1247
