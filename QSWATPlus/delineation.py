@@ -3520,7 +3520,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         accArray = None
         return storeGrid, accTransform, minDrainArea, maxDrainArea
         
-    def reduceToInletsOutlets(self, root) -> Optional[str]:
+    def reduceToInletsOutlets(self, root: QgsLayerTree) -> Optional[str]:
         """Reduce inlets/outlets file to inlets and outlets only to delineate subbasins. Return reduced file."""
         if not self._dlg.useOutlets.isChecked():
             return None

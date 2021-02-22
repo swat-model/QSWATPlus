@@ -242,7 +242,7 @@ class ConvertFromArc(QObject):
                     continue
             self.qProjDir = os.path.join(projParent, self.qProjName)
             if os.path.exists(self.qProjDir):
-                response = ConvertFromArc.question('Project directory {0} already exists.  Do you wish to delete it?'.format(self.qProjDir))
+                response = ConvertFromArc.question('Project directory {0} already exists.  Do you wish to delete it?  If so, make sure QGIS is not running on it or files will not be availble for rewriting.'.format(self.qProjDir))
                 if response != QMessageBox.Yes:
                     continue
                 try:
@@ -870,7 +870,10 @@ class ConvertFromArc(QObject):
         # update map with streamorders
         for fid in list(mmap.keys()):
             link = mmap[fid][linkIndex]
-            mmap[fid][orderIndex] = strahler[link]
+            order = strahler.get(link, 0)
+            if order == 0:
+                ConvertFromArc.error('Strahler order for link {0} not defined'.format(link))
+            mmap[fid][orderIndex] = order
         if not provider.changeAttributeValues(mmap):
             ConvertFromArc.error('Could not edit channels shapefile {0}'.format(qChanFile))
             return False
@@ -1228,7 +1231,7 @@ class ConvertFromArc(QObject):
         # extract csv files 
         toolPath = os.path.join(self.ConvertFromArcDir, 'AccessToCSV.exe')
         args = [toolPath, arcProjDb, 'LuExempt', 'SplitHrus', 'ElevationBand', 'MasterProgress', 'MonitoringPoint', 
-                'SubPcp', 'SubTmp', 'SubHmd', 'SubSlr', 'SubWnd', 'pcp*', 'tmp*', 'cio']
+                'SubPcp', 'SubTmp', 'SubHmd', 'SubSlr', 'SubWnd', 'pcp*', 'tmp*', 'hmd*', 'slr*', 'wnd*', 'cio']
         if self.choice == ConvertFromArc._noGISChoice:
             args.extend(['Reach', 'hrus', 'Watershed'])
         subprocess.run(args, cwd=projCsvDir)
@@ -1738,16 +1741,16 @@ class ConvertFromArc(QObject):
         projCsvDir = os.path.join(self.qProjDir, r'csv\Project')
         pcpTmp = ['pcp', 'tmp']
         stations = dict()
-        for typ in pcpTmp:
+        for typ in ['pcp', 'tmp', 'hmd', 'slr', 'wnd']:
             typStations: Dict[int, WeatherStation] = dict()
             stations[typ] = typStations
             typFile = os.path.join(projCsvDir, '{0}.csv'.format(typ))
             if os.path.isfile(typFile):
                 populateStations(typFile, typStations)
-            else:
+            elif typ in pcpTmp:  # can use tmp or pcp station details for hmd, slr and wnd
                 ConvertFromArc.error('Cannot find {0}* table'.format(typ))
                 return
-        # important to do pcp and tmp first here as others use pcp or tmp station latitude etc
+        # important to do pcp and tmp first here as others can use pcp or tmp station latitude etc
         for typ in ['pcp', 'tmp', 'hmd', 'slr', 'wnd']:
             data: Dict[int, WeatherStation] = dict()
             # leave this entry as an empty table if no data of this typ, since passed to createWeatherTypeData later
@@ -1782,7 +1785,11 @@ class ConvertFromArc(QObject):
                         if typ in pcpTmp:
                             station = stations[typ][minRec]  # type: ignore
                         else:
-                            if typ == 'slr':
+                            # try in own type data:
+                            typStations = stations.get(typ, None)
+                            if typStations is not None:
+                                station1 = typStations[minRec]
+                            elif typ == 'slr':
                                 # order is order in tmp data
                                 station1 = stationTables['tmp'][order]  # type: ignore
                             else:
@@ -1894,11 +1901,13 @@ class ConvertFromArc(QObject):
         for typ, stations in stationTables.items():
             for station in stations.values():
                 # generate name from latitude and longitude enabling co-located stations of different types to be merged
-                lat = int(round(station.latitude, 2) * 100)
+                precision = 3
+                factor = 10 ** precision
+                lat = int(round(station.latitude, 3) * factor)
                 latStr = '{0}n'.format(lat) if lat >= 0 else '{0}s'.format(abs(lat))
-                lon = int(round(station.longitude, 2) * 100)
-                if lon > 180:
-                    lon = lon - 360
+                lon = int(round(station.longitude, 3) * factor)
+                if lon > 180 * factor:
+                    lon = lon - 360 * factor
                 lonStr = '{0}e'.format(lon) if lon >= 0 else '{0}w'.format(abs(lon))
                 collectedName = 'sta' + lonStr + latStr
                 data = collectedStations.setdefault(collectedName, dict())
@@ -1969,7 +1978,23 @@ class ConvertFromArc(QObject):
                     reader = csv.reader(f)
                     next(reader)  # skip header
                     for row in reader:
-                        transformTable.append((float(row[4]), float(row[5]), float(row[6]), float(row[7])))
+                        x = float(row[4])
+                        y = float(row[5])
+                        latStr = row[6]
+                        lonStr = row[7]
+                        if latStr == '' or lonStr == '':
+                            if self.transformToLatLong is None:
+                                assert self.arcProjDir is not None
+                                inDEM = os.path.join(self.arcProjDir, r'Watershed\Grid\sourcedem\hdr.adf')
+                                ConvertFromArc.error('Cannot deal with MonitoringPoint table when Latitude or Longitude are blank when there is no DEM file {0}'.format(inDEM))
+                                return
+                            lonlat = self.transformToLatLong.transform(QgsPointXY(x, y))
+                            lon = lonlat.x()
+                            lat = lonlat.y()
+                        else:
+                            lat = float(latStr)
+                            lon = float(lonStr)
+                        transformTable.append((float(row[4]), float(row[5]), lat, lon))
                         ptNum += 1
                         subbasin = int(row[11])
                         arcType = row[10]
@@ -1988,11 +2013,13 @@ class ConvertFromArc(QObject):
                         else:
                             # weather gauge: not included in gis_points
                             continue
-                        elevPt = row[8]
-                        if elevPt == '': # avoid null: arcSWAT only gives elevations to weather gauges
-                            elevPt = 0  # type: ignore
+                        elevStr = row[8]
+                        if elevStr == '': # avoid null: arcSWAT only gives elevations to weather gauges
+                            elevPt = 0
+                        else:
+                            elevPt = float(elevStr)
                         cursor.execute(ConvertFromArc._INSERTPOINTS, 
-                                       (ptNum, subbasin, qType) + tuple(row[4:8]) + (elevPt,))
+                                       (ptNum, subbasin, qType, x, y, lat, lon, elevPt))
             # create x-y <-> lat-long functions from MonitoringPoint data if needed
             if self.transformFromDeg is None:
                 fromDeg, toDeg = ConvertFromArc.makeTransforms(transformTable)
