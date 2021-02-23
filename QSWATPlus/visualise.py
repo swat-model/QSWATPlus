@@ -3474,7 +3474,8 @@ class Visualise(QObject):
         mainOutlet = 0
         for ch, chR in downChannel.items():
             sub = channelToSubbasin[ch]
-            if chR == 0 or sub != channelToSubbasin[chR]:
+            subR = channelToSubbasin.get(chR, -1)  # chR may be a reservoir
+            if chR == 0 or (subR >= 0 and sub != subR):
                 self.subbasinOutletChannels[sub] = ch
             if chR == 0:
                 mainOutlet = sub

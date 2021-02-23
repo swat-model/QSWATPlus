@@ -73,3 +73,7 @@ QSWATtopology.py line 1516
 createUsersoilTable misspelt; 'usersoil' instead of 'arc_usersoil' in SQL
 One test run would have found these!  Should have been found and listed October 2019
 convertFromArc.py lines 1154, 1247
+
+23/2/2021 # 20
+Downstream channel does not exist when it is a reservoir
+visualise.py line 3477
