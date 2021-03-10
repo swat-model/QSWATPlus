@@ -95,7 +95,7 @@
             </sizepolicy>
            </property>
            <property name="currentIndex">
-            <number>0</number>
+            <number>1</number>
            </property>
            <widget class="QWidget" name="staticTab">
             <attribute name="title">
@@ -562,22 +562,22 @@ Can also be controlled manually by dragging or by using left and right arrows on
              <item row="1" column="0" colspan="2">
               <widget class="QGroupBox" name="groupBox">
                <property name="sizePolicy">
-                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
                  <horstretch>0</horstretch>
                  <verstretch>0</verstretch>
                 </sizepolicy>
                </property>
                <property name="minimumSize">
                 <size>
-                 <width>200</width>
+                 <width>300</width>
                  <height>0</height>
                 </size>
                </property>
                <property name="title">
                 <string>Animation mode</string>
                </property>
-               <layout class="QHBoxLayout" name="horizontalLayout_2">
-                <item>
+               <layout class="QGridLayout" name="gridLayout_22">
+                <item row="0" column="0">
                  <widget class="QRadioButton" name="canvasAnimation">
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
@@ -596,10 +596,10 @@ Can also be controlled manually by dragging or by using left and right arrows on
                   </property>
                  </widget>
                 </item>
-                <item>
+                <item row="0" column="1">
                  <widget class="QRadioButton" name="printAnimation">
                   <property name="sizePolicy">
-                   <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                   <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
                     <horstretch>0</horstretch>
                     <verstretch>0</verstretch>
                    </sizepolicy>
@@ -608,6 +608,19 @@ Can also be controlled manually by dragging or by using left and right arrows on
                    <string>Print composer</string>
                   </property>
                  </widget>
+                </item>
+                <item row="0" column="2">
+                 <spacer name="horizontalSpacer_8">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>91</width>
+                    <height>19</height>
+                   </size>
+                  </property>
+                 </spacer>
                 </item>
                </layout>
               </widget>
@@ -1245,35 +1258,25 @@ p, li { white-space: pre-wrap; }
                    <property name="title">
                     <string>Final selection</string>
                    </property>
-                   <widget class="QRadioButton" name="dQpPercentile">
-                    <property name="geometry">
-                     <rect>
-                      <x>10</x>
-                      <y>20</y>
-                      <width>82</width>
-                      <height>21</height>
-                     </rect>
-                    </property>
-                    <property name="text">
-                     <string>Percentile</string>
-                    </property>
-                    <property name="checked">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                   <widget class="QRadioButton" name="dQpMean">
-                    <property name="geometry">
-                     <rect>
-                      <x>10</x>
-                      <y>50</y>
-                      <width>91</width>
-                      <height>31</height>
-                     </rect>
-                    </property>
-                    <property name="text">
-                     <string>Mean</string>
-                    </property>
-                   </widget>
+                   <layout class="QGridLayout" name="gridLayout_21">
+                    <item row="0" column="0">
+                     <widget class="QRadioButton" name="dQpPercentile">
+                      <property name="text">
+                       <string>Percentile</string>
+                      </property>
+                      <property name="checked">
+                       <bool>true</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item row="1" column="0">
+                     <widget class="QRadioButton" name="dQpMean">
+                      <property name="text">
+                       <string>Mean</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
                   </widget>
                  </item>
                  <item row="2" column="0" colspan="5">

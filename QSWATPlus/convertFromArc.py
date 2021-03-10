@@ -913,8 +913,7 @@ class ConvertFromArc(QObject):
             QSWATUtils.removeFiles(filePath)
         if basinWanted:
             fields.append(QgsField('Subbasin', QVariant.Int))
-        # writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, self.crs, QgsCoordinateTransformContext(), self.vectorOptions)
-        writer = QgsVectorFileWriter(filePath, 'UTF-8', fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
+        writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, self.crs, QgsCoordinateTransformContext(), self.vectorOptions)
         if writer.hasError() != QgsVectorFileWriter.NoError:
             ConvertFromArc.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()))
             return False

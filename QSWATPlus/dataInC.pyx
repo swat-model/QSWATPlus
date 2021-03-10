@@ -262,7 +262,7 @@ cdef class LSUData:
     Note that pixels of landuse WATR appear in both the main LSU data and also in the water body component.
     A decision is made later according to the water role:
     if the water role is a reservoir or pond then the water body is added to the model as reservoir or pond, and WATR HRUs are removed.
-    If the water role ins _UNKNOWN then the water body is ignored and the WATR HRUs included. 
+    If the water role is _UNKNOWN then the water body is ignored and the WATR HRUs included. 
     """
     def __init__(self):
         """Initialise class variables."""
@@ -416,6 +416,42 @@ cdef class LSUData:
         for (hru, cellData) in self.hruMap.items():
             cellData.multiply(factor)
             self.hruMap[hru] = cellData
+            
+    cpdef void moveWaterToPond(self, float lakeArea, int waterLanduse):
+        """ If the lsu has a lake pond and a waterBody that is currently unknown (not otherwise marked as pond or reservoir)
+        then water up to the area of the lake is removed from water body and water HRUs and the crop HRUss increased to compensate."""
+        cdef:
+            double cropRedistributeFactor, waterRedistributeFactor
+            list waterHRUs = []
+            list cropHRUs = []
+            int crop
+            dict soilSlopeNumbers
+            dict slopeNumbers
+            int hruNum
+            CellData hru
+        
+        # ensure there are crop HRUs to be enlarged
+        if self.waterBody is not None and self.waterBody.isUnknown() and self.cropSoilSlopeArea > self.waterBody.area:
+            if self.waterBody.area <= lakeArea:
+                cropRedistributeFactor = self.cropSoilSlopeArea  / (self.cropSoilSlopeArea - self.waterBody.area)
+                self.removeWaterHRUs(waterLanduse)
+                self.waterBody = None
+                waterRedistributeFactor = 0  # will not be used since now no water HRUs, but should be defined
+            else:
+                waterRedistributeFactor = (self.waterBody.area - lakeArea) / self.waterBody.area
+                self.waterBody.multiply(waterRedistributeFactor)
+                cropRedistributeFactor = (self.cropSoilSlopeArea - self.waterBody.area + lakeArea) / (self.cropSoilSlopeArea - self.waterBody.area)
+            for crop, soilSlopeNumbers in self.cropSoilSlopeNumbers.items():
+                for slopeNumbers in soilSlopeNumbers.values():
+                    for hruNum in slopeNumbers.values():
+                        if crop == waterLanduse:
+                            waterHRUs.append(self.hruMap[hruNum])
+                        else:
+                            cropHRUs.append(self.hruMap[hruNum])
+            for hru in waterHRUs:
+                hru.multiply(waterRedistributeFactor)
+            for hru in cropHRUs:
+                hru.multiply(cropRedistributeFactor)
             
     cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 

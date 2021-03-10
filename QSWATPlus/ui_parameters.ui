@@ -144,6 +144,9 @@ p, li { white-space: pre-wrap; }
            <property name="toolTip">
             <string/>
            </property>
+           <property name="inputMethodHints">
+            <set>Qt::ImhFormattedNumbersOnly</set>
+           </property>
           </widget>
          </item>
          <item row="0" column="2">
@@ -166,6 +169,9 @@ p, li { white-space: pre-wrap; }
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="inputMethodHints">
+            <set>Qt::ImhFormattedNumbersOnly</set>
            </property>
           </widget>
          </item>
@@ -190,6 +196,9 @@ p, li { white-space: pre-wrap; }
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="inputMethodHints">
+            <set>Qt::ImhFormattedNumbersOnly</set>
+           </property>
           </widget>
          </item>
          <item row="1" column="2">
@@ -212,6 +221,9 @@ p, li { white-space: pre-wrap; }
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
+           </property>
+           <property name="inputMethodHints">
+            <set>Qt::ImhFormattedNumbersOnly</set>
            </property>
           </widget>
          </item>
@@ -251,6 +263,9 @@ p, li { white-space: pre-wrap; }
         <property name="toolTip">
          <string>All reach slopes will be multiplied by this factor.</string>
         </property>
+        <property name="inputMethodHints">
+         <set>Qt::ImhFormattedNumbersOnly</set>
+        </property>
         <property name="decimals">
          <number>1</number>
         </property>
@@ -288,6 +303,9 @@ p, li { white-space: pre-wrap; }
         </property>
         <property name="toolTip">
          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;All tributary slopes will be multiplied by this factor.  This affects subbasins and landscape units (if used).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="inputMethodHints">
+         <set>Qt::ImhFormattedNumbersOnly</set>
         </property>
         <property name="decimals">
          <number>1</number>
@@ -561,6 +579,9 @@ p, li { white-space: pre-wrap; }
      <property name="toolTip">
       <string>The amount in metres that DEM elevations are reduced along a 'burn-in' stream.</string>
      </property>
+     <property name="inputMethodHints">
+      <set>Qt::ImhFormattedNumbersOnly|Qt::ImhPreferNumbers</set>
+     </property>
     </widget>
    </item>
    <item row="6" column="4" colspan="3">
@@ -573,6 +594,9 @@ p, li { white-space: pre-wrap; }
      </property>
      <property name="toolTip">
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The percentage of water routed from upslope HRUs that goes to the channel (or reservoir).  The remainder is routed to the floodplain landscape unit. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="inputMethodHints">
+      <set>Qt::ImhFormattedNumbersOnly</set>
      </property>
     </widget>
    </item>

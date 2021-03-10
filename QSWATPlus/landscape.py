@@ -29,7 +29,7 @@
 from PyQt5.QtCore import Qt, QObject, QFileInfo
 from PyQt5.QtGui import QIntValidator, QDoubleValidator
 #from PyQt5.QtWidgets import *  # @UnusedWildImport
-from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes  # @UnresolvedImport
+from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes, QgsCoordinateTransformContext  # @UnresolvedImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os.path
 #import subprocess
@@ -434,9 +434,10 @@ class Landscape(QObject):
                 return
             fields = bufferShapefileLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(bufferShapefile, root)
+            QSWATUtils.removeLayer(bufferShapefile, root)
             fields = QgsFields()
-            writer = QgsVectorFileWriter(bufferShapefile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(bufferShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                         QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
                 return

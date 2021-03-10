@@ -205,10 +205,10 @@
          </sizepolicy>
         </property>
         <property name="toolTip">
-         <string>Click to run the SWAT editor</string>
+         <string>Click to run the SWAT+ editor</string>
         </property>
         <property name="text">
-         <string>Edit Inputs and Run SWAT</string>
+         <string>Edit Inputs and Run SWAT+</string>
         </property>
        </widget>
       </item>

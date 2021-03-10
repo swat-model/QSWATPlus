@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TY
 from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal
 from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox
-from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsJsonExporter  # @UnresolvedImport
+from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsJsonExporter, QgsCoordinateTransformContext  # @UnresolvedImport
 # from qgis.gui import * # @UnusedWildImport
 import os.path
 from osgeo import gdal  # type: ignore
@@ -1587,7 +1587,7 @@ class CreateHRUs(QObject):
                 return None
             fields = layer.fields()
         else:
-            QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullLSUsFile, root)
+            QSWATUtils.removeLayer(self._gv.fullLSUsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
@@ -1596,7 +1596,9 @@ class CreateHRUs(QObject):
             fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
             fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+#            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(self._gv.fullLSUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -1628,7 +1630,7 @@ class CreateHRUs(QObject):
                 return False
             fields = layer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(self._gv.fullHRUsFile, root)
+            QSWATUtils.removeLayer(self._gv.fullHRUsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
@@ -1642,7 +1644,8 @@ class CreateHRUs(QObject):
             fields.append(QgsField(QSWATTopology._HRUS, QVariant.String, len=20))
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(self._gv.fullHRUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(self._gv.fullHRUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch)
                 return False
@@ -3971,7 +3974,7 @@ class CreateHRUs(QObject):
             return
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
         aqJson = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.json')
-        QSWATUtils.tryRemoveLayerAndFiles(aqFile, root)
+        QSWATUtils.removeLayer(aqFile, root)
         QSWATUtils.removeLayer(aqJson, root)
         # create context to make processing turn off detection of what it claims are invalid shapes
         # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
@@ -3994,7 +3997,7 @@ class CreateHRUs(QObject):
                 floodFile = self._dlg.floodplainCombo.currentText()
                 floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
                 floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
-                QSWATUtils.tryRemoveLayerAndFiles(floodShapefile, root)
+                QSWATUtils.removeLayer(floodShapefile, root)
                 # gdal_polygonize is broken in QGIS 3.4.14; use SAGA, or don't, as that fails on Ravn
 #                 params = {'INPUT': floodPath,
 #                           'BAND': 1,
@@ -4029,8 +4032,8 @@ class CreateHRUs(QObject):
                 fields = QgsFields()
                 fields.append(QgsField('DN', QVariant.Int))
                 assert self._gv.crsProject is not None
-                writer = QgsVectorFileWriter(floodShapefile, "UTF-8", fields, 
-                                             QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+                writer = QgsVectorFileWriter.create(floodShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                                    QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
                 if writer.hasError() != QgsVectorFileWriter.NoError:
                     raise Exception('Cannot create flood shapefile {0}: {1}'
                                      .format(floodShapefile, writer.errorMessage()))
@@ -4131,7 +4134,7 @@ class CreateHRUs(QObject):
         try:
             # create deep aquifer file by dissolving subbasins file
             deepAqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._DEEPAQUIFERS + '.shp')
-            QSWATUtils.tryRemoveLayerAndFiles(deepAqFile, root)
+            QSWATUtils.removeLayer(deepAqFile, root)
             QSWATUtils.copyShapefile(subsFile, 'deep_temp', self._gv.resultsDir)
             tempDeepAqFile = QSWATUtils.join(self._gv.resultsDir, 'deep_temp.shp')
             tempLayer = QgsVectorLayer(tempDeepAqFile, 'temp', 'ogr')
@@ -4204,7 +4207,8 @@ class CreateHRUs(QObject):
             partNum += 1
             nextPartFile = gridBase + str(partNum) + '.shp'
             assert self._gv.crsProject is not None
-            writer = QgsVectorFileWriter(nextPartFile, "UTF-8", gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(nextPartFile, gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create partition shapefile {0}: {1}'.format(nextPartFile, writer.errorMessage()), self._gv.isBatch)
                 return
@@ -4316,12 +4320,13 @@ class CreateHRUs(QObject):
                                 self._gv.topo.foundReservoirs[channel] = (waterBody.id, self._gv.topo.pointId, resPt)
             self._db.hashDbTable(conn, 'gis_water')
         reservoirsFile = QSWATUtils.join(self._gv.shapesDir, 'reservoirs.shp')
-        # for some reason cannot rewrite this layer if rerun
-        # QGIS has a lock on the .shp and .dbf files from somewhere
-        # so instead always create a new file
-        reservoirsFileN, _ = QSWATUtils.nextFileName(reservoirsFile, 0)
-        if Delineation.createOutletFile(reservoirsFileN, self._gv.demFile, False, root, self._gv.isBatch):
-            self.addReservoirsToFile(self._gv.topo.chPointSources, self.mergees, self._gv.topo.foundReservoirs, reservoirsFileN, root)
+#         # for some reason cannot rewrite this layer if rerun
+#         # QGIS has a lock on the .shp and .dbf files from somewhere
+#         # so instead always create a new file
+#         reservoirsFileN, _ = QSWATUtils.nextFileName(reservoirsFile, 0)
+        QSWATUtils.removeLayer(reservoirsFile, root)
+        if Delineation.createOutletFile(reservoirsFile, self._gv.demFile, False, root, self._gv):
+            self.addReservoirsToFile(self._gv.topo.chPointSources, self.mergees, self._gv.topo.foundReservoirs, reservoirsFile, root)
             
     def addReservoirsToFile(self, ptSources: Dict[int, Tuple[int, QgsPointXY]], mergees: Set[int], 
                             reservoirs: Dict[int, Tuple[int, int, QgsPointXY]], outletFile: str, root: QgsLayerTree) -> None:
@@ -4412,8 +4417,6 @@ class CreateHRUs(QObject):
         
         If withHRUs, return updated and original values.
         Otherise return the original values, and first map is None
-        
-        Ignore WATR if there is a pond or reservoir in the LSU
         
         """
         result1: Optional[Dict[int, float]] = dict() if withHRUs else None
@@ -4531,7 +4534,7 @@ class CreateHRUs(QObject):
         percent of total1, , percent of total2 (unless zero)"""
         width1 = 30 if withHRUs else 15
         width2 = 23 if withHRUs else 15
-        area = areaSqM / 10000
+        area = areaSqM / 1E4
         channelId = 'Channel {0!s}'.format(SWATChannel)
         string0 = '{:.2F}'.format(area).rjust(15)
         if self._gv.useLandscapes:
@@ -5102,13 +5105,12 @@ class HRUs(QObject):
             self._dlg.progressBar.setValue(0)
             self._dlg.progressBar.setVisible(True)
             root = QgsProject.instance().layerTreeRoot()
-            QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullLSUsFile, root)
-            QSWATUtils.tryRemoveLayerAndFiles(self._gv.actLSUsFile, root)
+            QSWATUtils.removeLayer(self._gv.fullLSUsFile, root)
+            QSWATUtils.removeLayer(self._gv.actLSUsFile, root)
             if self._dlg.generateFullHRUs.isChecked():
                 self.CreateHRUs.fullHRUsWanted = True
                 QSWATUtils.removeLayer(self._gv.fullHRUsFile, root)
-                #QSWATUtils.tryRemoveLayerAndFiles(self._gv.fullHRUsFile, root)
-                QSWATUtils.tryRemoveLayerAndFiles(self._gv.actHRUsFile, root)
+                QSWATUtils.removeLayer(self._gv.actHRUsFile, root)
             else:
                 # remove any full and actual HRUs layers and files
                 self.CreateHRUs.fullHRUsWanted = False
@@ -5116,12 +5118,12 @@ class HRUs(QObject):
                 if treeLayer is not None:
                     fullHRUsLayer = treeLayer.layer()
                     fullHRUsFile = QSWATUtils.layerFileInfo(fullHRUsLayer).absoluteFilePath()
-                    QSWATUtils.tryRemoveLayerAndFiles(fullHRUsFile, root)
+                    QSWATUtils.removeLayer(fullHRUsFile, root)
                     treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
                     if treeLayer is not None:
                         actHRUsLayer = treeLayer.layer()
                         actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
-                        QSWATUtils.tryRemoveLayerAndFiles(actHRUsFile, root)
+                        QSWATUtils.removeLayer(actHRUsFile, root)
             time1 = time.process_time()
             OK = self.CreateHRUs.generateBasins(self._dlg.progressBar, root)
             time2 = time.process_time()

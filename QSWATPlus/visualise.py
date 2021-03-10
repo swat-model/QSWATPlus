@@ -65,7 +65,7 @@ class Visualise(QObject):
     _MINIMA = 'Minima'
     _AREA = 'AREAkm2'
     _MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-    _NORTHARROW = 'apps/qgis/svg/wind_roses/WindRose_01.svg'
+    _NORTHARROW = 'wind_roses/WindRose_01.svg'
     _EFLOWTABLE = 'channel_sdmorph_day'
     
     def __init__(self, gv: GlobalVars):
@@ -2079,11 +2079,7 @@ class Visualise(QObject):
         self.animationTemplate = QSWATUtils.join(self._gv.resultsDir, 'AnimationTemplate.qpt')
         # make substitution table
         subs = dict()
-        northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), Visualise._NORTHARROW)
-        if not os.path.isfile(northArrow):
-            # may be qgis-ltr for example
-            northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
-            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+        northArrow = self.findNorthArrow()
         if not os.path.isfile(northArrow):
             QSWATUtils.error('Failed to find north arrow {0}.  You will need to repair the layout.'.format(northArrow), self._gv.isBatch)
         subs['%%NorthArrow%%'] = northArrow
@@ -2373,11 +2369,14 @@ class Visualise(QObject):
                 QSWATUtils.error('Failed with result {1} to save layout as image file {0}'.format(nextStillFile, res), self._gv.isBatch)
         else:
             # tempting bot omits canvas title
-            # canvas.saveAsImage(nextStillFile)
-            canvasId = canvas.winId()
-            screen = QGuiApplication.primaryScreen()
-            pixMap = screen.grabWindow(canvasId)
-            pixMap.save(nextStillFile)
+            # but on Mac the alternative grabs the whole screen
+            if Parameters._ISMAC:
+                canvas.saveAsImage(nextStillFile)
+            else:
+                canvasId = canvas.winId()
+                screen = QGuiApplication.primaryScreen()
+                pixMap = screen.grabWindow(canvasId)
+                pixMap.save(nextStillFile)
         
         # no longer used
     #===========================================================================
@@ -2581,11 +2580,7 @@ class Visualise(QObject):
         templateOut = QSWATUtils.join(self._gv.resultsDir, self.title + templ)
         # make substitution table
         subs = dict()
-        northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), Visualise._NORTHARROW)
-        if not os.path.isfile(northArrow):
-            # may be qgis-ltr for example
-            northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
-            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+        northArrow = self.findNorthArrow()
         if not os.path.isfile(northArrow):
             QSWATUtils.error('Failed to find north arrow {0}.  You will need to repair the layout.'.format(northArrow), self._gv.isBatch)
         subs['%%NorthArrow%%'] = northArrow
@@ -2666,6 +2661,18 @@ class Visualise(QObject):
         # the pointer gets reused and there is a 'destroyed by C==' error
         # This prevents the reuse.
         layout = None  # type: ignore
+        
+    def findNorthArrow(self):
+        """Find and return northarrow svg file."""
+        if Parameters._ISWIN:
+            QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW))
+            if not os.path.isfile(northArrow):
+                # may be qgis-ltr for example
+                northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
+                northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+        else:  # Linux and Mac
+            northArrow = QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW)
+        return northArrow
         
     @staticmethod
     def replaceInLine(inLine: str, table: Dict[str, str]) -> str:
@@ -2950,7 +2957,11 @@ class Visualise(QObject):
         elif Parameters._ISLINUX:
             subprocess.call(('xdg-open', self.videoFile))
         else:
-            os.system('open {0}'.format(self.videoFile))
+            # default on Mac is Preview which shows all pngs as thumbnails and does not animate
+            # so use Safari
+            import webbrowser
+            w = webbrowser.get('safari')
+            w.open('file://{0}'.format(self.videoFile))
     
     def changeSummary(self) -> None:
         """Flag change to summary method."""
@@ -3346,16 +3357,22 @@ class Visualise(QObject):
         if self.mapTitle is not None:
             scene.removeItem(self.mapTitle)
             self.mapTitle = None
-        for item in scene.items():
-            # testing by isinstance is insufficient as a MapTitle item can have a wrappertype
-            # and the test returns false
-            #if isinstance(item, MapTitle):
-            try:
-                isMapTitle = item.identifyMapTitle() == 'MapTitle'
-            except Exception:
-                isMapTitle = False
-            if isMapTitle:
-                scene.removeItem(item)
+            # scene.items() causes a crash for some users.
+            # this code seems unnecessary in any case
+#         for item in scene.items():
+#             # testing by isinstance is insufficient as a MapTitle item can have a wrappertype
+#             # and the test returns false
+#             #if isinstance(item, MapTitle):
+#             try:
+#                 if item is None:
+#                     isMapTitle = False
+#                 else:
+#                     isMapTitle = item.identifyMapTitle() == 'MapTitle'
+#             except Exception:
+#                 isMapTitle = False
+#             if isMapTitle:
+#                 scene.removeItem(item)
+#         self.mapTitle = None
         canvas.refresh()
 
     def setAnimateLayer(self) -> None:
@@ -3429,6 +3446,13 @@ class Visualise(QObject):
                     os.remove(f)
                 except Exception:
                     pass
+            if Parameters._ISMAC:  #also need to remove .pgw files
+                pattern = QSWATUtils.join(self._gv.pngDir, '*.pgw')
+                for f in glob.iglob(pattern):
+                    try:
+                        os.remove(f)
+                    except Exception:
+                        pass
         self.currentStillNumber = 0
         
     def setSubbasinOutletChannels(self) -> None:

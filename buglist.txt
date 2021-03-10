@@ -77,3 +77,7 @@ convertFromArc.py lines 1154, 1247
 23/2/2021 # 20
 Downstream channel does not exist when it is a reservoir
 visualise.py line 3477
+
+10/3/21 # 21
+scene.items() crashes on some machines
+visualise.py line 3360

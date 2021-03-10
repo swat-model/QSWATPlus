@@ -24,7 +24,7 @@ from PyQt5.QtCore import *  # @UnusedWildImport
 from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
 from PyQt5.QtWidgets import * # @UnusedWildImport
 from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import ( Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange)  # @UnresolvedImport @UnusedImport
+from qgis.core import ( Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks)  # @UnresolvedImport @UnusedImport
                         
                         
                         
@@ -98,7 +98,8 @@ class QSWATUtils:
     def qgisName() -> str:
         """QGIS name as used in QGIS prefix path.
         
-        Find it using the path of qgis.  It is the name of the directory following 'apps"""
+        Find it using the path of qgis.  It is the name of the directory following 'apps'
+        This only seems to work on Windows"""
         try:
             import qgis
             dirs = qgis.__file__.split('/')  # @UndefinedVariable
@@ -1610,7 +1611,7 @@ class FileTypes:
 #         renderer.setSourceColorRamp(ramp)
 #         renderer.setClassificationMethod(method)
 #         renderer.updateColorRamp(ramp)
-        # these functions are deprecated, but alternative above causes crash later
+        # these functions are deprecated, but alternative above causes crash in triggerRepaint
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
         renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, drainage,
                                                                numClasses, QgsGraduatedSymbolRenderer.Jenks,

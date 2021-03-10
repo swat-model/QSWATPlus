@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_64"
 #define MyAppVersion "2.0"
-#define MyAppSubVersion "4"
+#define MyAppSubVersion "5"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -64,11 +64,11 @@ var
   QGISDirectory: String;
   MainQGISPluginDirResult: String;
 begin
-  if DirExists(ExpandConstant('{pf64}/QGIS 3.10')) then begin
-    QGISDirectory := ExpandConstant('{pf64}/QGIS 3.10');
+  if DirExists(ExpandConstant('{pf64}/QGIS 3.16')) then begin
+    QGISDirectory := ExpandConstant('{pf64}/QGIS 3.16');
   end else 
-    if DirExists(ExpandConstant('{pf64}/QGIS 3.16')) then begin
-      QGISDirectory := ExpandConstant('{pf64}/QGIS 3.16');
+    if DirExists(ExpandConstant('{pf64}/QGIS 3.18')) then begin
+      QGISDirectory := ExpandConstant('{pf64}/QGIS 3.18');
     end else 
       if DirExists(ExpandConstant('{sd}/OSGeo4W64')) then begin
         QGISDirectory := ExpandConstant('{sd}/OSGeo4W64');

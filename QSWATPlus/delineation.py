@@ -551,7 +551,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             # create an inlets/outlets file
             outletsFile = QSWATUtils.join(self._gv.shapesDir, 'madeoutlets.shp')
             root = QgsProject.instance().layerTreeRoot()
-            if not Delineation.createOutletFile(outletsFile, self._gv.demFile, False, root, self._gv.isBatch):
+            if not Delineation.createOutletFile(outletsFile, self._gv.demFile, False, root, self._gv):
                 return False
             outletsLayer = QgsVectorLayer(outletsFile, 'Outlets', 'ogr')
             outletsProvider = outletsLayer.dataProvider()
@@ -602,7 +602,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                 return False 
             snapFile = QSWATUtils.join(self._gv.shapesDir, 'madeoutlets_snap.shp')
             # since we used channel end points for outlets snap file will be identical to outlets file
-            QSWATUtils.removeLayerAndFiles(snapFile, root)
+            QSWATUtils.removeLayer(snapFile, root)
             QSWATUtils.copyShapefile(outletsFile, 'madeoutlets_snap', self._gv.shapesDir)
             self._gv.outletFile = outletsFile
             self._gv.snapFile = snapFile
@@ -2211,7 +2211,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # our outlet file may already be called drawoutlets.shp
             if QSWATUtils.samePath(drawOutletFile, self._gv.outletFile):
                 drawOutletFile = QSWATUtils.join(self._gv.shapesDir, 'drawoutlets1.shp')
-            if not Delineation.createOutletFile(drawOutletFile, self._gv.demFile, False, root, self._gv.isBatch):
+            if not Delineation.createOutletFile(drawOutletFile, self._gv.demFile, False, root, self._gv):
                 return
             self.drawOutletLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(),
                                                                           drawOutletFile, FileTypes._OUTLETS, self._gv,
@@ -3243,7 +3243,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = subbasinsLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(subbasinsFile, root)
+            QSWATUtils.removeLayer(subbasinsFile, root)
             # create shapefile
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
@@ -3254,8 +3254,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             else:
                 fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
-            writer = QgsVectorFileWriter(subbasinsFile, "UTF-8", fields, 
-                                         QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(subbasinsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create watershed shapefile {0}: {1}'. \
                                  format(subbasinsFile, writer.errorMessage()), self._gv.isBatch)
@@ -3789,14 +3789,15 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return
             fields = gridLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(gridFile, root)
+            QSWATUtils.removeLayer(gridFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DOWNID, QVariant.Int))
             fields.append(QgsField(Parameters._AREA, QVariant.Double))
             fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
             fields.append(QgsField(QSWATTopology._LAKEID, QVariant.Int))
-            writer = QgsVectorFileWriter(gridFile, "UTF-8", fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(gridFile, fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid shapefile {0}: {1}'.format(gridFile, writer.errorMessage()), self._gv.isBatch)
                 return
@@ -3883,7 +3884,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return -1
             fields = gridStreamsLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(gridStreamsFile, root)
+            QSWATUtils.removeLayer(gridStreamsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
@@ -3891,7 +3892,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DRAINAGE, QVariant.Double))
             fields.append(QgsField(QSWATTopology._PENWIDTH, QVariant.Double))
-            writer = QgsVectorFileWriter(gridStreamsFile, "UTF-8", fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(gridStreamsFile, fields, QgsWkbTypes.LineString, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create streams shapefile {0}: {1}'.format(gridStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return -1
@@ -4018,13 +4020,14 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return None
             fields = drainStreamsLayer.fields()
         else:
-            QSWATUtils.removeLayerAndFiles(drainStreamsFile, root)
+            QSWATUtils.removeLayer(drainStreamsFile, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
             fields.append(QgsField(QSWATTopology._DSNODEID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
-            writer = QgsVectorFileWriter(drainStreamsFile, "UTF-8", fields, QgsWkbTypes.LineString, self._gv.crsProject, 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(drainStreamsFile, fields, QgsWkbTypes.LineString, self._gv.crsProject, 
+                                                QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
                 QSWATUtils.error('Cannot create grid streams shapefile {0}: {1}'.format(drainStreamsFile, writer.errorMessage()), self._gv.isBatch)
                 return None
@@ -4260,7 +4263,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         except Exception:
             QSWATUtils.error('Cannot parse snap threshold {0} as integer.'.format(self._dlg.snapThreshold.text()), self._gv.isBatch)
             return False
-        if not Delineation.createOutletFile(snapFile, outletFile, False, root, self._gv.isBatch):
+        if not Delineation.createOutletFile(snapFile, outletFile, False, root, self._gv):
             return False
         if self._gv.isBatch:
             QSWATUtils.information('Snap threshold: {0!s} metres'.format(snapThreshold), self._gv.isBatch)
@@ -4336,7 +4339,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     
     
     @staticmethod
-    def createOutletFile(filePath: str, sourcePath: str, basinWanted: bool, root: QgsLayerTree, isBatch: bool) -> bool:
+    def createOutletFile(filePath: str, sourcePath: str, basinWanted: bool, root: QgsLayerTree, gv: GlobalVars) -> bool:
         """Create filePath with fields needed for outlets file, 
         copying .prj from sourcePath, and adding Subbasin field if wanted.
         """
@@ -4349,7 +4352,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 outletLayer = QgsVectorLayer(filePath, FileTypes.legend(ft), 'ogr')
             return cast(bool, QSWATUtils.removeAllFeatures(outletLayer))
         else:
-            QSWATUtils.removeLayerAndFiles(filePath, root)
+            QSWATUtils.removeLayer(filePath, root)
             fields = QgsFields()
             fields.append(QgsField(QSWATTopology._ID, QVariant.Int))
             fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))
@@ -4358,9 +4361,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
             fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
             if basinWanted:
                 fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            writer = QgsVectorFileWriter(filePath, "UTF-8", fields, QgsWkbTypes.Point, QgsCoordinateReferenceSystem(), 'ESRI Shapefile')
+            writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, gv.crsProject, 
+                                                QgsCoordinateTransformContext(), gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), isBatch)
+                QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), gv.isBatch)
                 return False
             writer.flushBuffer()
             QSWATUtils.copyPrj(sourcePath, filePath)

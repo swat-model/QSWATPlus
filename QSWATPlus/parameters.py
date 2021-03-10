@@ -52,6 +52,7 @@ class Parameters:
     _TAUDEMDIR = 'TauDEM5Bin'
     _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux or Mac
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'
+    _SVGDIR = 'apps/qgis/svg' if _ISWIN else '/usr/share/qgis/svg' if _ISLINUX else '/Applications/QGIS-LTR.app/Contents/Resources/svg'
     _DBDIR = 'Databases'
     _DBPROJ = 'QSWATPlusProj.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
@@ -357,6 +358,38 @@ class Parameters:
 
     def saveProj(self) -> None:
         """Write parameter data to project file."""
+        burninDepth = float(self._dlg.burninDepth.text())
+        if burninDepth == 0:
+            QSWATUtils.error('Stream burn-in depth may not be set to zero', self.isBatch)
+            return
+        widthMult = float(self._dlg.widthMult.text())
+        if widthMult == 0:
+            QSWATUtils.error('Channel width multiplier may not be set to zero', self.isBatch)
+            return
+        depthMult = float(self._dlg.depthMult.text())
+        if depthMult == 0:
+            QSWATUtils.error('Channel depth multiplier may not be set to zero', self.isBatch)
+            return
+        reachSlopeMultiplier = self._dlg.reachSlopeMultiplier.value()
+        if reachSlopeMultiplier == 0:
+            QSWATUtils.error('Reach slopes multiplier may not be set to zero', self.isBatch)
+            return
+        tributarySlopeMultiplier = self._dlg.tributarySlopeMultiplier.value()
+        if tributarySlopeMultiplier == 0:
+            QSWATUtils.error('Tributary slopes multiplier may not be set to zero', self.isBatch)
+            return
+        meanSlopeMultiplier = self._dlg.meanSlopeMultiplier.value()
+        if meanSlopeMultiplier == 0:
+            QSWATUtils.error('Mean slopes multiplier may not be set to zero', self.isBatch)
+            return
+        mainLengthMultiplier = self._dlg.mainLengthMultiplier.value()
+        if mainLengthMultiplier == 0:
+            QSWATUtils.error('Main channel length multiplier may not be set to zero', self.isBatch)
+            return
+        tributaryLengthMultiplier = self._dlg.tributaryLengthMultiplier.value()
+        if tributaryLengthMultiplier == 0:
+            QSWATUtils.error('Tributary channel length multiplier may not be set to zero', self.isBatch)
+            return
         proj = QgsProject.instance()
         title = proj.title()
         proj.writeEntry(title, 'params/burninDepth', self._dlg.burninDepth.text())
@@ -369,16 +402,14 @@ class Parameters:
         proj.writeEntry(title, 'params/meanSlopeMultiplier', self._dlg.meanSlopeMultiplier.text())
         proj.writeEntry(title, 'params/mainLengthMultiplier', self._dlg.mainLengthMultiplier.text())
         proj.writeEntry(title, 'params/tributaryLengthMultiplier', self._dlg.tributaryLengthMultiplier.text())
-        upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
+        upslopeHRUDrain = float(self._dlg.upslopeHRUDrain.text())
         if 0 <= upslopeHRUDrain <= 100:
             proj.writeEntry(title, 'params/upslopeHRUDrain', self._dlg.upslopeHRUDrain.text())
         proj.write()
         if self._gv is not None:
-            self._gv.burninDepth = int(self._dlg.burninDepth.text())
+            self._gv.burninDepth = burninDepth
             # update channel widths and depths in affected tables
-            widthMult = float(self._dlg.widthMult.text())
             widthExp = float(self._dlg.widthExp.text())
-            depthMult = float(self._dlg.depthMult.text())
             depthExp = float(self._dlg.depthExp.text())
             if abs(self._gv.channelWidthMultiplier - widthMult) > .005 \
                 or abs(self._gv.channelWidthExponent - widthExp) > .005 \
@@ -391,21 +422,21 @@ class Parameters:
             self._gv.channelDepthExponent = depthExp
             # update slope values in affected tables
             # avoid real equality test
-            if abs(self._gv.reachSlopeMultiplier - self._dlg.reachSlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeReachSlopes(self._dlg.reachSlopeMultiplier.value(), self._gv.reachSlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.tributarySlopeMultiplier - self._dlg.tributarySlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeTributarySlopes(self._dlg.tributarySlopeMultiplier.value(), self._gv.tributarySlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.meanSlopeMultiplier - self._dlg.meanSlopeMultiplier.value()) > 0.05:
-                self._gv.db.changeMeanSlopes(self._dlg.meanSlopeMultiplier.value(), self._gv.meanSlopeMultiplier, self._gv.shapesDir)
-            if abs(self._gv.mainLengthMultiplier - self._dlg.mainLengthMultiplier.value()) > 0.05:
-                self._gv.db.changeMainLengths(self._dlg.mainLengthMultiplier.value(), self._gv.mainLengthMultiplier, self._gv.shapesDir)
-            if abs(self._gv.tributaryLengthMultiplier - self._dlg.tributaryLengthMultiplier.value()) > 0.05:
-                self._gv.db.changeTributaryLengths(self._dlg.tributaryLengthMultiplier.value(), self._gv.tributaryLengthMultiplier, self._gv.shapesDir)
-            self._gv.reachSlopeMultiplier = self._dlg.reachSlopeMultiplier.value()
-            self._gv.tributarySlopeMultiplier = self._dlg.tributarySlopeMultiplier.value()
-            self._gv.meanSlopeMultiplier = self._dlg.meanSlopeMultiplier.value()
-            self._gv.mainLengthMultiplier = self._dlg.mainLengthMultiplier.value()
-            self._gv.tributaryLengthMultiplier = self._dlg.tributaryLengthMultiplier.value() 
+            if abs(self._gv.reachSlopeMultiplier - reachSlopeMultiplier) > 0.05:
+                self._gv.db.changeReachSlopes(reachSlopeMultiplier, self._gv.reachSlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.tributarySlopeMultiplier - tributarySlopeMultiplier) > 0.05:
+                self._gv.db.changeTributarySlopes(tributarySlopeMultiplier, self._gv.tributarySlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.meanSlopeMultiplier - meanSlopeMultiplier) > 0.05:
+                self._gv.db.changeMeanSlopes(meanSlopeMultiplier, self._gv.meanSlopeMultiplier, self._gv.shapesDir)
+            if abs(self._gv.mainLengthMultiplier - mainLengthMultiplier) > 0.05:
+                self._gv.db.changeMainLengths(mainLengthMultiplier, self._gv.mainLengthMultiplier, self._gv.shapesDir)
+            if abs(self._gv.tributaryLengthMultiplier - tributaryLengthMultiplier) > 0.05:
+                self._gv.db.changeTributaryLengths(tributaryLengthMultiplier, self._gv.tributaryLengthMultiplier, self._gv.shapesDir)
+            self._gv.reachSlopeMultiplier = reachSlopeMultiplier
+            self._gv.tributarySlopeMultiplier = tributarySlopeMultiplier
+            self._gv.meanSlopeMultiplier = meanSlopeMultiplier
+            self._gv.mainLengthMultiplier = mainLengthMultiplier
+            self._gv.tributaryLengthMultiplier = tributaryLengthMultiplier 
             # update upslopeHRUDrain       
             upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
             if upslopeHRUDrain != self._gv.upslopeHRUDrain:
