@@ -1072,7 +1072,7 @@ class QSWATUtils:
     def landscapeUnitId(SWATChannel: int, landscape: int) -> int:
         """Calculate landscape unit id from SWAT channel and landscape."""
         
-        # SWATVhannel is alreay unique across the watershed
+        # SWATChannel is alreay unique across the watershed
         # Currently landscape ia zero (no landscape division)
         # else 1 (floodplain) or 2 (upslope)
         # This method allows for further landscape divisions in future, e.g.left/right

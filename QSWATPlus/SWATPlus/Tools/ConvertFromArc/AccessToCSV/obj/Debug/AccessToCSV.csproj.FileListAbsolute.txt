@@ -9,3 +9,8 @@ C:\Users\Public\QSWATPlus\Tools\AccessToCSV\obj\Debug\AccessToCSV.pdb
 C:\AccessToCSV.exe
 C:\Users\Public\QSWATPlus\Tools\AccessToCSV.exe
 C:\Users\Public\QSWATPlus\Tools\AccessToCSV.pdb
+C:\SWAT\SWATPlus\Tools\ConvertFromArc\AccessToCSV\obj\Debug\AccessToCSV.exe
+C:\SWAT\SWATPlus\Tools\ConvertFromArc\AccessToCSV\obj\Debug\AccessToCSV.pdb
+C:\SWAT\SWATPlus\Tools\ConvertFromArc\AccessToCSV\obj\Debug\AccessToCSV.csprojResolveAssemblyReference.cache
+C:\SWAT\SWATPlus\Tools\ConvertFromArc\AccessToCSV.exe
+C:\SWAT\SWATPlus\Tools\ConvertFromArc\AccessToCSV.pdb

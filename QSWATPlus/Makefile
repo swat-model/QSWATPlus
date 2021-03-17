@@ -88,7 +88,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	METADATA = metadatamac3_64.txt
 	PLUGINNAME = QSWATPlusMac3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-37m-darwin.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-darwin.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	EXTRAPACKAGES = imageio
 	QGISDIR = Library/Application Support/QGIS/QGIS3/profiles/default
@@ -99,7 +99,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 #	METADATA = metadatamac3_32.txt
 #	PLUGINNAME = QSWATPlusMac3_32
 #	DOXYGEN = doxygen
-#	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-36m-i386-mac-gnu.so)
+#	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-darwin.so)
 #	BAT_FILES = 
 #	EXTRAPACKAGES = imageio
 #	QGISDIR=Library/Application Support/QGIS/QGIS3/profiles/default

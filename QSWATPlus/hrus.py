@@ -224,6 +224,14 @@ class CreateHRUs(QObject):
             if not floodDs:
                 QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch)
                 return False
+        if self._gv.wetlandPlayaFile != '':
+            wpDs = gdal.Open(self._gv.wetlandPlayaFile, gdal.GA_ReadOnly)
+            if not wpDs:
+                QSWATUtils.error('Cannot open wetlandPlaya file {0}'.format(self._gv.wetlandPlayaFile), self._gv.isBatch)
+                return False
+            useWetlandPlaya = True
+        else:
+            useWetlandPlaya = False
         # Loop reading grids is MUCH slower if these are not stored locally
         if not self._gv.existingWshed:
             distStNumberRows: int = distStDs.RasterYSize
@@ -308,7 +316,8 @@ class CreateHRUs(QObject):
         elevationBand = elevationDs.GetRasterBand(1)
         if self._gv.useLandscapes:
             floodBand = floodDs.GetRasterBand(1)
-        
+        if useWetlandPlaya:
+            wpBand = wpDs.GetRasterBand(1)
         elevationNoData: float = elevationBand.GetNoDataValue()
         # guard against DEM with no nodata value
         if elevationNoData is None:
@@ -337,6 +346,8 @@ class CreateHRUs(QObject):
         if self._gv.useLandscapes:
             floodNoData: int = floodBand.GetNoDataValue()
             self._gv.floodNoData = floodNoData
+        if useWetlandPlaya:
+            wpNoData = wpBand.GetNoDataValue()
         
         # counts to calculate landuse and soil overlaps
         landuseCount = 0
@@ -466,6 +477,9 @@ class CreateHRUs(QObject):
         if self._gv.useLandscapes:
             floodCurrentRow = -1
             floodData = numpy.empty([floodReadRows, floodNumberCols], dtype=int)  # type: ignore
+        # wetlandPlaya raster has same size and origin as elevation raster
+        if useWetlandPlaya:
+            wpData = numpy.empty([elevationReadRows, elevationNumberCols], dtype=int)  # type: ignore
         progressCount = 0
         
         with self._db.conn as conn:
@@ -532,6 +546,8 @@ class CreateHRUs(QObject):
                                 hruShapes.addRow(hruRows[rowNum], elevationCurrentRow + rowNum)
                             hruRows.fill(-1)
                         elevationData = elevationBand.ReadAsArray(0, elevationTopRow, elevationNumberCols, min(elevationReadRows, elevationNumberRows - elevationTopRow))
+                        if useWetlandPlaya:
+                            wpData = wpBand.ReadAsArray(0, elevationTopRow, elevationNumberCols, min(elevationReadRows, elevationNumberRows - elevationTopRow))
                         elevationCurrentRow = elevationTopRow
                     topY = QSWATTopology.rowToY(elevationTopRow, elevationTransform)
                     cropTopRow = cropRowFun(elevationTopRow, topY)
@@ -632,14 +648,22 @@ class CreateHRUs(QObject):
                                     channelLandscapeCropSoilSlopeNumbers = dict()
                                     subbasinChannelLandscapeCropSoilSlopeNumbers[subbasin] = channelLandscapeCropSoilSlopeNumbers
                             x = QSWATTopology.colToX(col, elevationTransform)
-                            if 0 <= cropRow - cropTopRow < cropActReadRows:
-                                cropCol = cropColFun(col, x)
-                                if 0 <= cropCol < cropNumberCols:
-                                    crop: int = cast(int, cropData[cropRow - cropTopRow, cropCol])
+                            crop = -1
+                            if useWetlandPlaya:
+                                wpVal = cast(int, wpData[row - elevationTopRow, col])
+                                if wpVal == QSWATTopology._WETLANDTYPE:
+                                    crop = self._gv.db.wetlandCrop
+                                elif wpVal == QSWATTopology._PLAYATYPE:
+                                    crop = self._gv.db.playaCrop
+                            if crop < 0:
+                                if 0 <= cropRow - cropTopRow < cropActReadRows:
+                                    cropCol = cropColFun(col, x)
+                                    if 0 <= cropCol < cropNumberCols:
+                                        crop = cast(int, cropData[cropRow - cropTopRow, cropCol])
+                                    else:
+                                        crop = cropNoData 
                                 else:
-                                    crop = cropNoData 
-                            else:
-                                crop = cropNoData
+                                    crop = cropNoData
                             # no data read from map is None or Nan if no noData value defined 
                             if crop is None or math.isnan(crop) or crop <= cropNoData < 0:  # use <= since may have been set to defaultNoData
                                 landuseNoDataCount += 1
@@ -770,6 +794,8 @@ class CreateHRUs(QObject):
                     if 0 <= elevationRow < elevationNumberRows and elevationRow != elevationCurrentRow:
                         elevationCurrentRow = elevationRow
                         elevationData = elevationBand.ReadAsArray(0, elevationRow, elevationNumberCols, 1)
+                        if useWetlandPlaya:
+                            wpData = wpBand.ReadAsArray(0, elevationRow, elevationNumberCols, 1)
                     if self._gv.useLandscapes:
                         floodRow = floodRowFun(row, y)
                         if 0 <= floodRow < floodNumberRows and floodRow != floodCurrentRow:
@@ -822,13 +848,30 @@ class CreateHRUs(QObject):
                             else:
                                 distSt = distStNoData
                                 distCh = distChNoData
-                            cropCol = cropColFun(col, x)
-                            if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
-                                crop = cast(int, cropData[0, cropCol])
-                                if crop is None or math.isnan(crop) or crop <= cropNoData < 0: # may have been set to defaultNoData
-                                    crop = cropNoData
+                            elevationCol = elevationColFun(col, x)
+                            if 0 <= elevationCol < elevationNumberCols and 0 <= elevationRow < elevationNumberRows:
+                                elevation = cast(float, elevationData[0, elevationCol])
+                                if useWetlandPlaya:
+                                    wpVal = cast(int, wpData[0, elevationCol])
                             else:
-                                crop = cropNoData
+                                elevation = elevationNoData
+                                wpVal = wpNoData
+                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                                elev = int(elevation * self._gv.verticalFactor)
+                            crop = -1
+                            if useWetlandPlaya:
+                                if wpVal == QSWATTopology._WETLANDTYPE:
+                                    crop = self._gv.db.wetlandCrop
+                                elif wpVal == QSWATTopology._PLAYATYPE:
+                                    crop = self._gv.db.playaCrop
+                            if crop < 0:
+                                cropCol = cropColFun(col, x)
+                                if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
+                                    crop = cast(int, cropData[0, cropCol])
+                                    if crop is None or math.isnan(crop) or crop <= cropNoData < 0: # may have been set to defaultNoData
+                                        crop = cropNoData
+                                else:
+                                    crop = cropNoData
                             if crop == cropNoData:
                                 landuseNoDataCount += 1
                             else:
@@ -857,13 +900,6 @@ class CreateHRUs(QObject):
                                 slope = self._db.slopeIndex(slopeValue * 100)
                             else:
                                 slope = slopeBandsNoData
-                            elevationCol = elevationColFun(col, x)
-                            if 0 <= elevationCol < elevationNumberCols and 0 <= elevationRow < elevationNumberRows:
-                                elevation = cast(float, elevationData[0, elevationCol])
-                            else:
-                                elevation = elevationNoData
-                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
-                                elev = int(elevation * self._gv.verticalFactor)
                             if self._gv.useLandscapes:
                                 floodCol = floodColFun(col, x)
                                 if 0 <= floodCol < floodNumberCols and 0 <= floodRow < floodNumberRows:
@@ -2680,9 +2716,10 @@ class CreateHRUs(QObject):
             fw.writeLine('Number of subbasins: {0!s}'.format(len(self.basins)))
             fw.writeLine('Number of channels: {0!s}'.format(self.countChannels()))
             fw.writeLine('Number of LSUs: {0!s}'.format(self.countLsus()))
-            numLakes = len(self._gv.topo.lakesData)
+            (numRes, numPond, numWetland, numPlaya) = self.countLakes()
+            numLakes = numRes + numPond + numWetland + numPlaya
             if numLakes > 0:
-                fw.writeLine('Number of lakes: {0!s}'.format(numLakes))
+                fw.writeLine('Number of lakes: {0!s}: {1!s} reservoirs, {2!s} ponds, {3!s} wetlands, {4!s} playas'.format(numLakes, numRes, numPond, numWetland, numPlaya))
             if withHRUs:
                 fw.writeLine('Number of HRUs: {0!s}'.format(self.countHRUs()))
             if withHRUs and self.isMultiple:
@@ -2704,7 +2741,7 @@ class CreateHRUs(QObject):
             if lakesArea > 0:
                 fw.writeLine('')
                 if lakesArea > 0:
-                    fw.writeLine('Area of watershed includes lakes; other areas do not include lakes.')
+                    fw.writeLine('Area of watershed includes lakes that are reservoirs or ponds; other areas do not include such lakes.')
 #                     subsString = ''
 #                 else:
 #                     subsString = 'watershed, '
@@ -2745,7 +2782,7 @@ class CreateHRUs(QObject):
             self.printSlopeAreas(slopeAreas, originalSlopeAreas, basinHa, 0, fw)
             if lakesArea > 0:
                 fw.writeLine('')
-                self.printLakeArea(lakesArea, basinHa, 0, withHRUs, fw)
+                self.printLakeArea((lakesArea, ''), basinHa, 0, withHRUs, fw)
             if waterBodiesArea > 0:
                 fw.writeLine('')
                 self.printWaterArea(waterBodiesArea, basinHa, 0, withHRUs, fw)
@@ -3015,13 +3052,13 @@ class CreateHRUs(QObject):
                         cellData.actHRUNum = self.HRUNum
                         luse = self._db.getLanduseCode(crop)
                         # replace WATR with WETN
-                        if luse == 'WATR':
+                        if luse.upper() == 'WATR':
                             luse = 'WETN'
                         snam = self._db.getSoilName(soil)
                         slp = self._db.slopeRange(slope)
                         cropSoilSlope = luse + '/' + snam + '/' + slp
                         # replace BARR with None (to make NULL)
-                        if luse == 'BARR':
+                        if luse.upper() == 'BARR':
                             luse = None
                         # use cellArea rather than cellCount to calculate means
                         # cellCounts are integer and inaccurate (even zero) for small HRUs
@@ -3139,7 +3176,7 @@ class CreateHRUs(QObject):
             # FullHRUS file created before channel merging, so based on original channels, which might have been merged
             targetChannel = self._gv.topo.finalTarget(channel, self.mergedChannels)
             lsuData = basinData.getLsus()[targetChannel][category]
-            if lsuData.waterBody is not None and origCropCode == 'WATR' and not lsuData.waterBody.isUnknown():
+            if lsuData.waterBody is not None and origCropCode.upper() == 'WATR' and not lsuData.waterBody.isUnknown():
                 if lsuData.waterBody.isReservoir():
                     hruNum: Optional[str] = 'RES {0}'.format(lsuData.waterBody.id)
                 else:
@@ -3993,115 +4030,146 @@ class CreateHRUs(QObject):
             QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
-                # first convert floodplain to polygons
-                floodFile = self._dlg.floodplainCombo.currentText()
-                floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
-                floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
-                QSWATUtils.removeLayer(floodShapefile, root)
-                # gdal_polygonize is broken in QGIS 3.4.14; use SAGA, or don't, as that fails on Ravn
-#                 params = {'INPUT': floodPath,
-#                           'BAND': 1,
-#                           'FIELD': 'DN',
-#                           'EIGHT_CONNECTEDNESS': False,
-#                           'OUTPUT': floodShapefile}
-#                 processing.run('gdal:polygonize', params, context=context)  # @UndefinedVariable
-                # SAGA fails on Ravn example with floodplain, so back to GDAL above
-#                 params = {'GRID': floodPath,
-#                           'CLASS_ALL': 0,
-#                           'CLASS_ID': 1,
-#                           'SPLIT': 0,
-#                           'POLYGONS': floodShapefile}
-#                 processing.run("saga:vectorisinggridclasses", params)
-#                 # gdal_polygonize is broken again in 3.10.13 so we'll try the home grown version
-                fDs = gdal.Open(floodPath, gdal.GA_ReadOnly)
-                if fDs is None:
-                    raise Exception('Cannot open watershed grid {0}'.format(floodPath))
-                fBand = fDs.GetRasterBand(1)
-                noData = fBand.GetNoDataValue()
-                transform = fDs.GetGeoTransform()
-                numCols = fDs.RasterXSize
-                numRows = fDs.RasterYSize
-                isConnected4 = True
-                shapes = Polygonize(isConnected4, numCols, noData, 
-                                    QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
-                for row in range(numRows):
-                    fBuffer = fBand.ReadAsArray(0, row, numCols, 1).astype(int)
-                    shapes.addRow(fBuffer.reshape([numCols]), row)
-                shapes.finish()
-                # create shapefile
+                # merge shapes in actual LSUs file that have same subbasin and same landscape
+                actLSUsLayer = QgsVectorLayer(self._gv.actLSUsFile, 'lsus', 'ogr')
                 fields = QgsFields()
-                fields.append(QgsField('DN', QVariant.Int))
+                fields.append(QgsField(QSWATTopology._AQUIFER, QVariant.Int))
                 assert self._gv.crsProject is not None
-                writer = QgsVectorFileWriter.create(floodShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+                writer = QgsVectorFileWriter.create(aqFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                     QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
                 if writer.hasError() != QgsVectorFileWriter.NoError:
-                    raise Exception('Cannot create flood shapefile {0}: {1}'
-                                     .format(floodShapefile, writer.errorMessage()))
+                    raise Exception('Cannot create aquifers shapefile {0}: {1}'. \
+                                     format(aqFile, writer.errorMessage()))
+                    return
+                for basin in self.basins:
+                    SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
+                    if SWATBasin > 0:
+                        floodExp = QgsExpression('"Subbasin" = {0} AND "Landscape" = \'Floodplain\''.format(SWATBasin))
+                        upExp = QgsExpression('"Subbasin" = {0} AND "Landscape" = \'Upslope\''.format(SWATBasin))
+                        floodAqGeom = QgsGeometry.unaryUnion([feature.geometry() for feature in actLSUsLayer.getFeatures(QgsFeatureRequest(floodExp))])
+                        upAqGeom = QgsGeometry.unaryUnion([feature.geometry() for feature in actLSUsLayer.getFeatures(QgsFeatureRequest(upExp))])
+                        floodAq = QgsFeature(fields)
+                        floodAq.setGeometry(floodAqGeom)
+                        floodAq[0] = SWATBasin * 10 + QSWATUtils._FLOODPLAIN
+                        upAq = QgsFeature(fields)
+                        upAq.setGeometry(upAqGeom)
+                        upAq[0] = SWATBasin * 10 + QSWATUtils._UPSLOPE
+                        writer.addFeatures([floodAq, upAq])
                 # delete the writer to flush
                 if not writer.flushBuffer():
-                    raise Exception('Failed to complete creating flood shapefile {0}'.format(floodShapefile))
+                    raise Exception('Failed to write aquifers shapefile {0}'.format(aqFile))
                 del writer
-                # the flood polygon can cause errors in calculating the difference and intersection, 
-                if not os.path.isfile(floodShapefile):
-                    raise Exception('Failed to polygonize floodplain raster')
-                floodlayer = QgsVectorLayer(floodShapefile, 'floodplain', 'ogr')
-                provider = floodlayer.dataProvider()
-                dnIndex = provider.fieldNameIndex('DN')
-                for dn in shapes.shapes:
-                    geometry = shapes.getGeometry(dn)
-                    geometry1 = geometry.makeValid()
-                    error = geometry1.lastError()
-                    if error != '':
-                        QSWATUtils.loginfo('Error in {0} forming geomtry for flood shapefile: {1}'.format(floodlayer, error))
-                    feature = QgsFeature(fields)
-                    # dn is a numpy.int32 so we need to convert it to a Python int
-                    feature.setAttribute(dnIndex, int(dn))
-                    feature.setGeometry(geometry1)
-                    if not provider.addFeatures([feature]):
-                        raise Exception('Unable to add feature to flood shapefile {0}'.format(floodShapefile))
-                # not necessary since we validated geometry 
-                floodFixed = floodShapefile       
-#                 # so first try to fix its geometry
-#                 floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
-#                 QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
-#                 params = {'INPUT': floodShapefile, 'OUTPUT': floodFixed}
-#                 processing.run('native:fixgeometries', params, context=context)
-                # upslope aquifers are subbasins minus the floodplain
-                upAqFile = QSWATUtils.tempFile('.shp')
-                processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)
-                # add Aquifer field and set number to 10 * subbasin + 2
-                upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
-                addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._UPSLOPE)
-                # QgsProject.instance().addMapLayer(upAqLayer)
-                # downslope aquifers are subbasins intersected with floodplain
-                downAqFile = QSWATUtils.tempFile('.shp')
-                processing.run("native:intersection", 
-                               {'INPUT': subsFile, 'OVERLAY': floodFixed, 'INPUT_FIELDS': [], 
-                                'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
-                # add Aquifer field and set number to 10 * subbasin + 1
-                downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
-                addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._FLOODPLAIN)
-                # QgsProject.instance().addMapLayer(downAqLayer)
-                # merge up and down aquifers
-                # even with no invalid filter dissolve can lose some shapes
-#                 bothAqFile = QSWATUtils.tempFile('.shp')
-#                 processing.run("native:mergevectorlayers", 
-#                                {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': bothAqFile}, context=context)
-#                 QgsProject.instance().addMapLayer( QgsVectorLayer(bothAqFile, 'BothAquifers', 'ogr'))
-#                 processing.run("native:dissolve", 
-#                               {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile}, context=context):
-                processing.run("native:mergevectorlayers", 
-                               {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': aqFile}, context=context) 
-                # QgsProject.instance().addMapLayer( QgsVectorLayer(aqFile, 'Aquifers', 'ogr'))
-                # merge adds some extra fields that we can lose:
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
                 aqProvider = aqLayer.dataProvider()
-                # has odd fields like DN, layer and path we don't need in GeoJSON
-                QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER, Parameters._AREA, QSWATTopology._SUBBASIN], aqFile, self._gv.isBatch)
+                
+#                 # first convert floodplain to polygons
+#                 floodFile = self._dlg.floodplainCombo.currentText()
+#                 floodPath = QSWATUtils.join(self._gv.floodDir, floodFile)
+#                 floodShapefile = QSWATUtils.join(self._gv.shapesDir, 'flood.shp')
+#                 QSWATUtils.removeLayer(floodShapefile, root)
+#                 # gdal_polygonize is broken in QGIS 3.4.14; use SAGA, or don't, as that fails on Ravn
+# #                 params = {'INPUT': floodPath,
+# #                           'BAND': 1,
+# #                           'FIELD': 'DN',
+# #                           'EIGHT_CONNECTEDNESS': False,
+# #                           'OUTPUT': floodShapefile}
+# #                 processing.run('gdal:polygonize', params, context=context)  # @UndefinedVariable
+#                 # SAGA fails on Ravn example with floodplain, so back to GDAL above
+# #                 params = {'GRID': floodPath,
+# #                           'CLASS_ALL': 0,
+# #                           'CLASS_ID': 1,
+# #                           'SPLIT': 0,
+# #                           'POLYGONS': floodShapefile}
+# #                 processing.run("saga:vectorisinggridclasses", params)
+# #                 # gdal_polygonize is broken again in 3.10.13 so we'll try the home grown version
+#                 fDs = gdal.Open(floodPath, gdal.GA_ReadOnly)
+#                 if fDs is None:
+#                     raise Exception('Cannot open watershed grid {0}'.format(floodPath))
+#                 fBand = fDs.GetRasterBand(1)
+#                 noData = fBand.GetNoDataValue()
+#                 transform = fDs.GetGeoTransform()
+#                 numCols = fDs.RasterXSize
+#                 numRows = fDs.RasterYSize
+#                 isConnected4 = True
+#                 shapes = Polygonize(isConnected4, numCols, noData, 
+#                                     QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
+#                 for row in range(numRows):
+#                     fBuffer = fBand.ReadAsArray(0, row, numCols, 1).astype(int)
+#                     shapes.addRow(fBuffer.reshape([numCols]), row)
+#                 shapes.finish()
+#                 # create shapefile
+#                 fields = QgsFields()
+#                 fields.append(QgsField('DN', QVariant.Int))
+#                 assert self._gv.crsProject is not None
+#                 writer = QgsVectorFileWriter.create(floodShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
+#                                                     QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
+#                 if writer.hasError() != QgsVectorFileWriter.NoError:
+#                     raise Exception('Cannot create flood shapefile {0}: {1}'
+#                                      .format(floodShapefile, writer.errorMessage()))
+#                 # delete the writer to flush
+#                 if not writer.flushBuffer():
+#                     raise Exception('Failed to complete creating flood shapefile {0}'.format(floodShapefile))
+#                 del writer
+#                 # the flood polygon can cause errors in calculating the difference and intersection, 
+#                 if not os.path.isfile(floodShapefile):
+#                     raise Exception('Failed to polygonize floodplain raster')
+#                 floodlayer = QgsVectorLayer(floodShapefile, 'floodplain', 'ogr')
+#                 provider = floodlayer.dataProvider()
+#                 dnIndex = provider.fieldNameIndex('DN')
+#                 for dn in shapes.shapes:
+#                     geometry = shapes.getGeometry(dn)
+#                     geometry1 = geometry.makeValid()
+#                     error = geometry1.lastError()
+#                     if error != '':
+#                         QSWATUtils.loginfo('Error in {0} forming geomtry for flood shapefile: {1}'.format(floodlayer, error))
+#                     feature = QgsFeature(fields)
+#                     # dn is a numpy.int32 so we need to convert it to a Python int
+#                     feature.setAttribute(dnIndex, int(dn))
+#                     feature.setGeometry(geometry1)
+#                     if not provider.addFeatures([feature]):
+#                         raise Exception('Unable to add feature to flood shapefile {0}'.format(floodShapefile))
+#                 # not necessary since we validated geometry 
+#                 floodFixed = floodShapefile       
+# #                 # so first try to fix its geometry
+# #                 floodFixed = QSWATUtils.join(self._gv.shapesDir, 'floodFixed.shp')
+# #                 QSWATUtils.tryRemoveLayerAndFiles(floodFixed, root)
+# #                 params = {'INPUT': floodShapefile, 'OUTPUT': floodFixed}
+# #                 processing.run('native:fixgeometries', params, context=context)
+#                 # upslope aquifers are subbasins minus the floodplain
+#                 upAqFile = QSWATUtils.tempFile('.shp')
+#                 processing.run("native:difference", {'INPUT': subsFile, 'OVERLAY': floodFixed, 'OUTPUT': upAqFile}, context=context)
+#                 # add Aquifer field and set number to 10 * subbasin + 2
+#                 upAqLayer = QgsVectorLayer(upAqFile, 'UpAquifers', 'ogr')
+#                 addNewField(upAqLayer, upAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._UPSLOPE)
+#                 # QgsProject.instance().addMapLayer(upAqLayer)
+#                 # downslope aquifers are subbasins intersected with floodplain
+#                 downAqFile = QSWATUtils.tempFile('.shp')
+#                 processing.run("native:intersection", 
+#                                {'INPUT': subsFile, 'OVERLAY': floodFixed, 'INPUT_FIELDS': [], 
+#                                 'OVERLAY_FIELDS': [], 'OUTPUT': downAqFile}, context=context)
+#                 # add Aquifer field and set number to 10 * subbasin + 1
+#                 downAqLayer = QgsVectorLayer(downAqFile, 'DownAquifers', 'ogr')
+#                 addNewField(downAqLayer, downAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x + QSWATUtils._FLOODPLAIN)
+#                 # QgsProject.instance().addMapLayer(downAqLayer)
+#                 # merge up and down aquifers
+#                 # even with no invalid filter dissolve can lose some shapes
+# #                 bothAqFile = QSWATUtils.tempFile('.shp')
+# #                 processing.run("native:mergevectorlayers", 
+# #                                {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': bothAqFile}, context=context)
+# #                 QgsProject.instance().addMapLayer( QgsVectorLayer(bothAqFile, 'BothAquifers', 'ogr'))
+# #                 processing.run("native:dissolve", 
+# #                               {'INPUT': bothAqFile, 'FIELD': [QSWATTopology._AQUIFER], 'OUTPUT': aqFile}, context=context):
+#                 processing.run("native:mergevectorlayers", 
+#                                {'LAYERS': [upAqFile, downAqFile], 'CRS': None, 'OUTPUT': aqFile}, context=context) 
+#                 # QgsProject.instance().addMapLayer( QgsVectorLayer(aqFile, 'Aquifers', 'ogr'))
+#                 # merge adds some extra fields that we can lose:
+#                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
+#                 aqProvider = aqLayer.dataProvider()
+#                 # has odd fields like DN, layer and path we don't need in GeoJSON
+#                 QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER, Parameters._AREA, QSWATTopology._SUBBASIN], aqFile, self._gv.isBatch)
                 exporter = QgsJsonExporter(aqLayer)
                 with open(aqJson, 'w') as jsonFile:
                     jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
-                QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
                                        .format(repr(ex)), self._gv.isBatch)
@@ -4253,12 +4321,15 @@ class CreateHRUs(QObject):
             curs.execute(self._db._WATERCREATESQL)
             # add lakes 
             for lakeId, lakeData in self._gv.topo.lakesData.items():
-                lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
-                lsuId = 0  # no LSU for a lake
+                lCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE \
+                        else None
+                if lCat is None:
+                    continue  # don't include wetlands and playas
+                lsuId = 0  # no LSU for a reservoir or pond lake
                 (subbasin, _, _, _) = lakeData.outPoint
                 # out point may have no subbasin if internal to lake
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
-                areaHa = lakeData.area / 1E4
+                areaHa = lakeData.overrideArea / 1E4
                 centroid = lakeData.centroid
                 centroidll = self._gv.topo.pointToLatLong(centroid)
                 elev = lakeData.elevation
@@ -4497,18 +4568,39 @@ class CreateHRUs(QObject):
         return (result1, result2)
     
     def totalLakesArea(self) -> float:
-        """Return total lakes area in square metres."""
+        """Return total reservoir and pond lakes area in square metres."""
         result = 0.0
         for lakeData in self._gv.topo.lakesData.values():
-            result += lakeData.area
+            if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+                result += lakeData.area
         return result
     
-    def getLakeAreas(self) -> Dict[int, float]:
-        """Return map of lake id to lake area in square metres."""
-        result: Dict[int, float] = dict()
+    def getLakeAreas(self) -> Dict[int, Tuple[float, str]]:
+        """Return map of reservoir and pond lake id to lake area in square metres and category."""
+        result: Dict[int, Tuple[float, str]] = dict()
         for lakeId, lakeData in self._gv.topo.lakesData.items():
-            result[lakeId] = lakeData.area
+            if lakeData.waterRole == QSWATTopology._RESTYPE:
+                result[lakeId] = (lakeData.area, 'reservoir')
+            elif lakeData.waterRole == QSWATTopology._PONDTYPE:
+                result[lakeId] = (lakeData.area, 'pond')
         return result
+    
+    def countLakes(self) -> Tuple[int, int, int, int]:
+        """Return number of reservoirs, ponds, wetlands and playas in lakes shapefile."""
+        numRes = 0
+        numPond = 0
+        numWetland = 0
+        numPlaya = 0
+        for lakedata in self._gv.topo.lakesData.values():
+            if lakedata.waterRole == QSWATTopology._RESTYPE:
+                numRes += 1
+            elif lakedata.waterRole == QSWATTopology._PONDTYPE:
+                numPond += 1
+            elif lakedata.waterRole == QSWATTopology._WETLANDTYPE:
+                numWetland += 1
+            else:
+                numPlaya += 1
+        return (numRes, numPond, numWetland, numPlaya)
     
     def totalWaterBodiesArea(self) -> float:
         """Return total water bodies (reservoirs and ponds) area in square metres across all subbasins."""
@@ -4589,6 +4681,8 @@ class CreateHRUs(QObject):
             original = originalCropAreas
         for (crop, areaM) in main.items():
             landuseCode = self._db.getLanduseCode(crop)
+            if landuseCode.upper() == 'WATR':
+                landuseCode = 'WETN'
             area = areaM / 10000
             string0 = '{:.2F}'.format(area).rjust(15)
             if original is not None:
@@ -4616,6 +4710,8 @@ class CreateHRUs(QObject):
             for (crop, areaM) in original.items():
                 if crop not in main:
                     landuseCode = self._db.getLanduseCode(crop)
+                    if landuseCode.upper() == 'WATR':
+                        landuseCode = 'WETN'
                     originalArea = areaM / 10000
                     fw.write(landuseCode.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
                     if total1 > 0:
@@ -4728,11 +4824,12 @@ class CreateHRUs(QObject):
                         fw.write('({:.2F})'.format(opercent2).rjust(23))
                     fw.writeLine('')
                     
-    def printLakeArea(self, area: float, total: float, num: int, withHRUs: bool, fw: fileWriter) -> None:
+    def printLakeArea(self, areaCat: Tuple[float, str], total: float, num: int, withHRUs: bool, fw: fileWriter) -> None:
         """Print a line for lake num (or lakes if num is zero) with area in hectares and percent of total."""
+        area, category = areaCat
         areaHa = area / 1E4
         if total > 0:
-            string0 = 'Lake {0}'.format(num) if num > 0 else 'Lakes'
+            string0 = 'Lake {0} ({1})'.format(num, category) if num > 0 else 'Lakes (reservoirs and ponds)'
             string1 = '{:.2F}'.format(areaHa).rjust(15)
             percent = (areaHa / total) * 100
             just2 = 30 if withHRUs else 15
@@ -5187,7 +5284,7 @@ class HRUs(QObject):
                 return False
         else: # doing tryRun and table already read from project file
             self.landuseTable = table
-        return cast(bool, self._db.populateLanduseCodes(self.landuseTable))
+        return cast(bool, self._db.populateLanduseCodes(self.landuseTable, self._gv.useGridModel))
         
     def initSoils(self, table: str) -> bool:
         """Set up soil lookup tables."""
@@ -5210,7 +5307,7 @@ class HRUs(QObject):
                 return False
         else: # doing tryRun and table already read from project file
             self.soilTable = table
-        return cast(bool, self._db.populateSoilNames(self.soilTable))
+        return cast(bool, self._db.populateSoilNames(self.soilTable, self._gv.useGridModel))
     
     def calcHRUs(self) -> None:
         """Create HRUs."""

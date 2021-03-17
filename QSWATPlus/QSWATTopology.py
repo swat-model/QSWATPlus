@@ -70,8 +70,11 @@ class QSWATTopology:
     ## and must not be -1 since this indicates a 'not found' in most gets, or a main outlet
     _NOBASIN = -2
     
+    # lake water roles
     _RESTYPE = 1
     _PONDTYPE = 2
+    _WETLANDTYPE = 3
+    _PLAYATYPE = 4
     
     # flow types (hyd_typ in gis_routing)
     _TOTAL = 'tot'
@@ -699,6 +702,7 @@ class QSWATTopology:
         lakesProvider = lakesLayer.dataProvider()
         lakeIdIndex = lakesProvider.fieldNameIndex(QSWATTopology._LAKEID)
         lakeResIndex = lakesProvider.fieldNameIndex(QSWATTopology._RES)
+        lakeAreaIndex = lakesProvider.fieldNameIndex(Parameters._AREA)
         if lakeResIndex < 0:
             QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
                                    format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
@@ -748,11 +752,24 @@ class QSWATTopology:
             lakeGeom = lake.geometry()
             lakeRect = lakeGeom.boundingBox()
             lakeId = int(lake[lakeIdIndex])
+            lakeCentroid = lakeGeom.centroid().asPoint()
+            lakeArea = lakeGeom.area() * areaFactor
+            lakeOverrideArea = lakeArea
             if lakeResIndex < 0:
                 waterRole = QSWATTopology._RESTYPE
             else:
                 waterRole = lake[lakeResIndex]
-            lakeData = LakeData(lakeGeom.area() * areaFactor, lakeGeom.centroid().asPoint(), waterRole)
+            if lakeAreaIndex >= 0:
+                try:
+                    lakeOverrideArea = float(lake[lakeAreaIndex]) * 1E4  # convert ha to m^2
+                except:
+                    pass
+            lakeData = LakeData(lakeArea, lakeOverrideArea, lakeCentroid, waterRole)
+            # reservoirs and ponds are removed from subbasins and LSUs maps; wetlands and playas will make HRUs
+            if waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                lakeData.elevation = QSWATTopology.valueAtPoint(lakeCentroid, demLayer)
+                self.lakesData[lakeId] = lakeData
+                continue
             totalElevation = 0.0
             elevPointCount = 0
             # the area removed from channel basins that intersect wih the lake
@@ -1068,9 +1085,9 @@ class QSWATTopology:
 #                 return True
 #         return False
 
-    def addGridLakes(self, gridLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer, 
+    def addGridReservoirsAndPonds(self, gridLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer, 
                      gv: Any, reportErrors: bool=True) -> int: 
-        """Add lakes when using grid model.  Return number of lakes (which may be zero) or -1 if error.""" 
+        """Add reservoir and pond lakes when using grid model.  Return number of lakes (which may be zero) or -1 if error.""" 
         gridProvider =  gridLayer.dataProvider()
         gridPolyIndex = gridProvider.fieldNameIndex(QSWATTopology._POLYGONID)
         gridDownIndex = gridProvider.fieldNameIndex(QSWATTopology._DOWNID)
@@ -1084,7 +1101,7 @@ class QSWATTopology:
         channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
         channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
         channelWSNOIndex = channelsProvider.fieldNameIndex(QSWATTopology._WSNO)
-        # the drainage field may no exist if we are using grid or table drainage: deal with this later
+        # the drainage field may not exist if we are using grid or table drainage: deal with this later
         streamDrainageIndex = channelsProvider.fieldNameIndex(QSWATTopology._DRAINAGE)
         polysIntoLake: Dict[int, int] = dict()
         polysInsidelake: Dict[int, int] = dict()
@@ -1141,7 +1158,7 @@ class QSWATTopology:
         exitData: Dict[int, Dict[int, Tuple[int, float, QgsPointXY, float]]] = dict()
         for lakeId, (waterRole, area, xMoment, yMoment) in lakeAreaData.items():
             centroid = QgsPointXY(float(xMoment) / area, float(yMoment) / area)
-            self.lakesData[lakeId] = LakeData(area, centroid, waterRole)
+            self.lakesData[lakeId] = LakeData(area, area, centroid, waterRole)  # overridearea TODO:
             totalElevation[lakeId] = 0
             exitData[lakeId] = dict()
         # convert wsnos to links and complete LakesData
@@ -1277,7 +1294,35 @@ class QSWATTopology:
                 self.lakesData[lakeId].elevation = float(totalElev) /  numInLinks
             else:
                 self.lakesData[lakeId].elevation = self.lakesData[lakeId].outPoint[3]
-        return len(self.lakesData) 
+        return len(self.lakesData)
+    
+    def addGridWetlandsAndPlayas(self, lakesLayer: QgsVectorLayer, demLayer: QgsRasterLayer, gv: Any) -> None: 
+        """Add wetlands and playas to grid model."""
+        lakeIdIndex = self.getIndex(lakesLayer, QSWATTopology._LAKEID)
+        lakeResIndex = self.getIndex(lakesLayer, QSWATTopology._RES)
+        if lakeResIndex < 0:
+            # cannot be anything but reservoirs, so nothing to do
+            return
+        lakeAreaIndex = self.getIndex(lakesLayer, Parameters._AREA, ignoreMissing=True)
+        areaFactor = gv.horizontalFactor * gv.horizontalFactor
+        for lake in lakesLayer.getFeatures():
+            waterRole = lake[lakeResIndex]
+            if waterRole not in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                continue
+            lakeGeom = lake.geometry()
+            lakeId = int(lake[lakeIdIndex])
+            lakeCentroid = lakeGeom.centroid().asPoint()
+            lakeArea = lakeGeom.area() * areaFactor
+            lakeOverrideArea = lakeArea
+            if lakeAreaIndex >= 0:
+                try:
+                    lakeOverrideArea = float(lake[lakeAreaIndex]) * 1E4  # convert ha to m^2
+                except:
+                    pass
+            lakeData = LakeData(lakeArea, lakeOverrideArea, lakeCentroid, waterRole)
+            lakeData.elevation = QSWATTopology.valueAtPoint(lakeCentroid, demLayer)
+            self.lakesData[lakeId] = lakeData
+        
     
     def addExistingLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer, 
                          gv: Any, reportErrors: bool=True) -> bool:
@@ -1292,6 +1337,7 @@ class QSWATTopology:
         if lakeResIndex < 0:
             QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
                                    format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
+        lakeAreaIndex = self.getIndex(lakesLayer, Parameters._AREA, ignoreMissing=True)
         channelLinkIndex = self.getIndex(channelsLayer, QSWATTopology._LINKNO)
         channelDsLinkIndex = self.getIndex(channelsLayer, QSWATTopology._DSLINKNO)
         channelBasinIndex = self.getIndex(channelsLayer, QSWATTopology._BASINNO)
@@ -1320,7 +1366,13 @@ class QSWATTopology:
             geom = lake.geometry()
             area = geom.area() * areaFactor
             centroid = geom.centroid().asPoint()
-            self.lakesData[lakeId] = LakeData(area, centroid, waterRole)
+            overrideArea = area
+            if lakeAreaIndex >= 0:
+                try:
+                    overrideArea = float(lake[lakeAreaIndex]) * 1E4  # convert ha to m^2
+                except:
+                    pass
+            self.lakesData[lakeId] = LakeData(area, overrideArea, centroid, waterRole)
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
@@ -1341,15 +1393,20 @@ class QSWATTopology:
                                      gv.isBatch, reportErrors=reportErrors)
                     self.lakesData = dict()
                     return False
-                geom = channel.geometry()
-                reachData = self.getReachData(geom, demLayer)
-                assert reachData is not None
-                point = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                elev = reachData.lowerZ
-                data.elevation += elev
-                self.pointId += 1
-                data.inChLinks[chLink] = (self.pointId, point, elev)
-                self.chLinkIntoLake[chLink] = lakeIn
+                if data.waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                    QSWATUtils.information('Channel with LINKNO {0} flows into {1} lake {2}.  This is ignored.'.
+                                           format(chLink, QSWATTopology.lakeCategory(data.waterRole), lakeIn), 
+                                           gv.isBatch, reportErrors=reportErrors)
+                else:
+                    geom = channel.geometry()
+                    reachData = self.getReachData(geom, demLayer)
+                    assert reachData is not None
+                    point = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                    elev = reachData.lowerZ
+                    data.elevation += elev
+                    self.pointId += 1
+                    data.inChLinks[chLink] = (self.pointId, point, elev)
+                    self.chLinkIntoLake[chLink] = lakeIn
             elif lakeWithin > 0:
                 data = self.lakesData.get(lakeWithin, None)
                 if data is None:
@@ -1358,20 +1415,25 @@ class QSWATTopology:
                                      gv.isBatch, reportErrors=reportErrors)
                     self.lakesData = dict()
                     return False
-                data.lakeChLinks.add(chLink)
-                self.chLinkInsideLake[chLink] = lakeWithin
-                if dsLink < 0:
-                    # watershed outlet
-                    geom = channel.geometry()
-                    reachData = self.getReachData(geom, demLayer)
-                    assert reachData is not None
-                    subbasin = channel[channelBasinIndex]
-                    data.outChLink = -1
-                    point = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                    elev = reachData.lowerZ
-                    self.pointId += 1
-                    data.outPoint = (subbasin, self.pointId, point, elev)
-                    self.outletsInLake[subbasin] = lakeWithin
+                if data.waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                    QSWATUtils.information('Channel with LINKNO {0} inside {1} lake {2}.  This is ignored.'.
+                                           format(chLink, QSWATTopology.lakeCategory(data.waterRole), lakeIn), 
+                                           gv.isBatch, reportErrors=reportErrors)
+                else:
+                    data.lakeChLinks.add(chLink)
+                    self.chLinkInsideLake[chLink] = lakeWithin
+                    if dsLink < 0:
+                        # watershed outlet
+                        geom = channel.geometry()
+                        reachData = self.getReachData(geom, demLayer)
+                        assert reachData is not None
+                        subbasin = channel[channelBasinIndex]
+                        data.outChLink = -1
+                        point = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                        elev = reachData.lowerZ
+                        self.pointId += 1
+                        data.outPoint = (subbasin, self.pointId, point, elev)
+                        self.outletsInLake[subbasin] = lakeWithin
             if lakeOut > 0:
                 data = self.lakesData.get(lakeOut, None)
                 if data is None:
@@ -1380,30 +1442,40 @@ class QSWATTopology:
                                      gv.isBatch, reportErrors=reportErrors)
                     self.lakesData = dict()
                     return False
-                if lakeMain == lakeOut:
-                    # lake's main outlet
-                    # channel leaves lake at upper end
-                    geom = channel.geometry()
-                    reachData = self.getReachData(geom, demLayer)
-                    assert reachData is not None
-                    subbasin = channel[channelBasinIndex]
-                    data.outChLink = chLink
-                    point = QgsPointXY(reachData.upperX, reachData.upperY)
-                    elev = reachData.upperZ
-                    self.pointId += 1
-                    data.outPoint = (subbasin, self.pointId, point, elev)
-                    self.chLinkFromLake[chLink] = lakeOut
+                if data.waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                    QSWATUtils.information('Channel with LINKNO {0} flows out of {1} lake {2}.  This is ignored.'.
+                                           format(chLink, QSWATTopology.lakeCategory(data.waterRole), lakeIn), 
+                                           gv.isBatch, reportErrors=reportErrors)
                 else:
-                    # other outlet
-                    data.otherOutChLinks.add(chLink)
+                    if lakeMain == lakeOut:
+                        # lake's main outlet
+                        # channel leaves lake at upper end
+                        geom = channel.geometry()
+                        reachData = self.getReachData(geom, demLayer)
+                        assert reachData is not None
+                        subbasin = channel[channelBasinIndex]
+                        data.outChLink = chLink
+                        point = QgsPointXY(reachData.upperX, reachData.upperY)
+                        elev = reachData.upperZ
+                        self.pointId += 1
+                        data.outPoint = (subbasin, self.pointId, point, elev)
+                        self.chLinkFromLake[chLink] = lakeOut
+                    else:
+                        # other outlet
+                        data.otherOutChLinks.add(chLink)
         # define lake elevation
         for data in self.lakesData.values():
-            numInflows = len(data.inChLinks)
-            data.elevation = data.outPoint[3] if numInflows == 0 else float(data.elevation) / numInflows
+            if data.waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                data.elevation = QSWATTopology.valueAtPoint(data.centroid, demLayer)
+            else:
+                numInflows = len(data.inChLinks)
+                data.elevation = data.outPoint[3] if numInflows == 0 else float(data.elevation) / numInflows
         return True
                     
     def isLakeInletOrOutlet(self, chLink: int) -> bool:
         for lakeData in self.lakesData.values():
+            if lakeData.waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                continue
             if chLink in lakeData.inChLinks or chLink == lakeData.outChLink or chLink in lakeData.otherOutChLinks:
                 return True
         return False
@@ -1455,11 +1527,17 @@ class QSWATTopology:
             for lakeId, lakeData in self.lakesData.items():
                 point = lakeData.outPoint[2]
                 if point is None:
-                    QSWATUtils.loginfo('No outpoint for lake {0}'.format(lakeId))
+                    if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+                        QSWATUtils.loginfo('No outpoint for lake {0}'.format(lakeId))
+                    x = 0
+                    y = 0
                 else:
-                    curs.execute(db._INSERTLAKESDATA, (lakeId, lakeData.outPoint[0], lakeData.waterRole, lakeData.area, lakeData.elevation, lakeData.outChLink,
-                                          lakeData.outPoint[1], lakeData.outPoint[2].x(), lakeData.outPoint[2].y(),
-                                          lakeData.outPoint[3], lakeData.centroid.x(), lakeData.centroid.y()))
+                    x = lakeData.outPoint[2].x()
+                    y = lakeData.outPoint[2].y()
+                curs.execute(db._INSERTLAKESDATA, (lakeId, lakeData.outPoint[0], lakeData.waterRole, lakeData.area, 
+                                                   lakeData.overrideArea, lakeData.elevation, lakeData.outChLink,
+                                                   lakeData.outPoint[1], x, y,
+                                                   lakeData.outPoint[3], lakeData.centroid.x(), lakeData.centroid.y()))
                 # QSWATUtils.loginfo(str(lakeData.inChLinks.keys()))
                 # QSWATUtils.loginfo(str(lakeData.lakeChLinks))
                 for chLink, (pointId, pt, elev) in lakeData.inChLinks.items():
@@ -1505,7 +1583,7 @@ class QSWATTopology:
                 for lakeRow in curs.execute(lakeSql).fetchall():
                     lakeId = int(lakeRow['id'])
                     self.waterBodyId = max(self.waterBodyId, lakeId)
-                    self.lakesData[lakeId] = LakeData(lakeRow['area'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy']), lakeRow['role'])
+                    self.lakesData[lakeId] = LakeData(lakeRow['area'], lakeRow['overridearea'], QgsPointXY(lakeRow['centroidx'], lakeRow['centroidy']), lakeRow['role'])
                     outChLink = lakeRow['outlink']
                     self.lakesData[lakeId].outChLink = outChLink
                     self.chLinkFromLake[outChLink] = lakeId
@@ -2402,25 +2480,26 @@ class QSWATTopology:
                 self.addPoint(curs, subbasin, pointId, pt, elev, 'P')
             # Add lakes
             for lake in self.lakesData.values():
-                # outlet from lake
-                subbasin, pointId, pt, elev = lake.outPoint
-                assert elev is not None
-                chLink = lake.outChLink
-                # unnecessary as will be in self.outlets
-                #if not useGridModel and chLink == -1:
-                #    # main outlet was moved inside lake, but reservoir point will still be routed to it
-                #    # so add its definition
-                #    (outletId, outPt, _) = self.outlets[subbasin]
-                #    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
-                self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
-                waterAdded.append(pointId)
-                # inlets to lake.  These are outlets from streams in grid models, so not necessary
-                if not useGridModel:
-                    for chLink, (pointId, pt, elev) in lake.inChLinks.items():
-                        chBasin = self.chLinkToChBasin[chLink]
-                        subbasin = self.chBasinToSubbasin[chBasin]
-                        assert elev is not None
-                        self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                if lake.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+                    # outlet from lake
+                    subbasin, pointId, pt, elev = lake.outPoint
+                    assert elev is not None
+                    chLink = lake.outChLink
+                    # unnecessary as will be in self.outlets
+                    #if not useGridModel and chLink == -1:
+                    #    # main outlet was moved inside lake, but reservoir point will still be routed to it
+                    #    # so add its definition
+                    #    (outletId, outPt, _) = self.outlets[subbasin]
+                    #    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
+                    self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
+                    waterAdded.append(pointId)
+                    # inlets to lake.  These are outlets from streams in grid models, so not necessary
+                    if not useGridModel:
+                        for chLink, (pointId, pt, elev) in lake.inChLinks.items():
+                            chBasin = self.chLinkToChBasin[chLink]
+                            subbasin = self.chBasinToSubbasin[chBasin]
+                            assert elev is not None
+                            self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
             for chLink, (pointId, pt, _) in self.chLinkToWater.items():
                 # reservoir points at lake outlets can appear here 
                 # but already added from lakesdata
@@ -3212,9 +3291,9 @@ class QSWATTopology:
                             else:
                                 self.db.addToRouting(curs, ptsrcId, ptCat, SWATChannel, chCat, QSWATTopology._TOTAL, 100)
                             routedPoints.append(ptsrcId)
-                # route lakes without outlet channels to main outlet points
+                # route reservoir and pond lakes without outlet channels to main outlet points
                 for lakeId, lakeData in self.lakesData.items():
-                    if lakeData.outChLink == -1:
+                    if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE} and lakeData.outChLink == -1:
                         (subbasin, lakeOutletId, _, _) = lakeData.outPoint
                         (outletId, _, _) = self.outlets[subbasin]
                         wCat = resCat if lakeData.waterRole == 1 else pondCat
@@ -4326,3 +4405,13 @@ class QSWATTopology:
         QSWATUtils.loginfo('Failed to reach lake perimeter in {0} steps.'.format(maxSteps))
         return pt, False        
             
+    @staticmethod 
+    def lakeCategory(waterRole: int) -> str:
+        if waterRole == QSWATTopology._RESTYPE:
+            return 'reservoir'
+        elif waterRole == QSWATTopology._PONDTYPE:
+            return 'pond'
+        elif waterRole == QSWATTopology._WETLANDTYPE:
+            return 'wetland'
+        else:
+            return 'playa'

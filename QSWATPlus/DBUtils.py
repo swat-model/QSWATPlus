@@ -144,6 +144,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.defaultLanduse = -1
         ## code used for WATR, or -1 if WATR not in landuse table
         self.waterLanduse = -1
+        ## crop value that will translate to WETN
+        self.wetlandCrop = -1
+        ## crop value that will translate to PLAYA
+        self.playaCrop = -1
         ## Map of soil id  to soil name
         self.soilNames: Dict[int, str] = dict()
         ## Soil categories may not translate 1-1 into soils.
@@ -478,25 +482,31 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             if not (isProjDb or isRefDb):
                 conn.close()
             
-    def populateLanduseCodes(self, landuseTable: str) -> bool:
+    def populateLanduseCodes(self, landuseTable: str, useGridModel: bool) -> bool:
         """Collect landuse codes from landuseTable and create lookup tables."""
         OK = True
         self.landuseCodes.clear()
         self._landuseTranslate.clear()
         self.landuseIds.clear()
         self.urbanIds.clear()
+        self.wetlandCrop = -1
+        self.playaCrop = -1
+        maxId = 0
         with self.conn as conn:
             try:
                 sql = self.sqlSelect(landuseTable, 'LANDUSE_ID, SWAT_CODE', '', '')
                 for row in conn.execute(sql):
                     nxt = int(row['LANDUSE_ID'])
+                    maxId = max(maxId, nxt)
                     landuseCode = row['SWAT_CODE']
                     if nxt == 0:
                         self.defaultLanduse = nxt
-                        QSWATUtils.loginfo('Default landuse set to {0}'.format(landuseCode))
+                        if useGridModel:
+                            QSWATUtils.loginfo('Default landuse set to {0}'.format(landuseCode))
                     elif self.defaultLanduse < 0:
                         self.defaultLanduse = nxt
-                        QSWATUtils.loginfo('Default landuse set to {0}'.format(landuseCode))
+                        if useGridModel:
+                            QSWATUtils.loginfo('Default landuse set to {0}'.format(landuseCode))
                     # check if code already defined
                     equiv = nxt
                     for (key, code) in self.landuseCodes.items():
@@ -505,10 +515,24 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             break
                     if equiv == nxt:
                         # landuseCode was not already defined
+                        if landuseCode.upper() == 'WETN':
+                            self.wetlandCrop = nxt
+                        elif landuseCode.upper() == 'PLAYA':
+                            self.playaCrop = nxt
                         if not self.storeLanduseCode(nxt, landuseCode):
                             OK = False
                     else:
                         self.storeLanduseTranslate(nxt, equiv)
+                if self.wetlandCrop < 0:
+                    maxId += 1
+                    self.wetlandCrop = maxId
+                    if not self.storeLanduseCode(maxId, 'WETN'):
+                        OK = False
+                if self.playaCrop < 0:
+                    maxId += 1
+                    self.playaCrop = maxId
+                    if not self.storeLanduseCode(maxId, 'PLAYA'):
+                        OK = False
             except Exception:
                 QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(landuseTable, self.dbFile), self.isBatch)
                 return False
@@ -624,7 +648,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.storeLanduseCode(cat, landuseCode)
         return cat
     
-    def populateSoilNames(self, soilTable: str) -> bool:
+    def populateSoilNames(self, soilTable: str, useGridModel: bool) -> bool:
         """Store names for soil categories."""
         self.soilNames.clear()
         self.soilTranslate.clear()
@@ -652,10 +676,12 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     soilName = row[nameHead].strip()
                     if nxt == 0:
                         self.defaultSoil = nxt
-                        QSWATUtils.loginfo('Default soil set to {0}'.format(soilName))
+                        if useGridModel:
+                            QSWATUtils.loginfo('Default soil set to {0}'.format(soilName))
                     elif self.defaultSoil < 0:
                         self.defaultSoil = nxt
-                        QSWATUtils.loginfo('Default soil set to {0}'.format(soilName))
+                        if useGridModel:
+                            QSWATUtils.loginfo('Default soil set to {0}'.format(soilName))
                     if firstRow and self.useSTATSGO:
                         firstRow = False
                         # determine what kind of name is being used
@@ -1177,7 +1203,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """Put all landuse codes except WATR from landuse values vals in combo box."""
         for i in vals:
             code = self.getLanduseCode(i)
-            include = includeWATR if code == 'WATR' else True
+            include = includeWATR if code.upper() == 'WATR' else True
             if include:
                 # avoid duplicates
                 if combo.findText(code) < 0:
@@ -2980,6 +3006,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     subbasin   INTEGER,
     role       INTEGER,
     area       REAL,
+    overridearea REAL,
     meanelev   REAL,
     outlink    INTEGER,
     outletid   INTEGER,
@@ -2991,7 +3018,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     )
     """
     
-    _INSERTLAKESDATA = 'INSERT INTO LAKESDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?)' 
+    _INSERTLAKESDATA = 'INSERT INTO LAKESDATA VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)' 
     
     _CREATELAKELINKS = \
     """

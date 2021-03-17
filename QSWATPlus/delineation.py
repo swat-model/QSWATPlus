@@ -472,7 +472,8 @@ class Delineation(QObject):
         self._dlg.setCursor(Qt.WaitCursor)
         self._gv.topo.lakesData.clear()
         if self._gv.useGridModel:
-            self._gv.topo.addGridLakes(subbasinsLayer, streamsLayer, demLayer, self._gv)
+            self._gv.topo.addGridReservoirsAndPonds(subbasinsLayer, streamsLayer, demLayer, self._gv)
+            self._gv.topo.addGridWetlandsAndPlayas(lakesLayer, demLayer, self._gv)
         else:
             if self._gv.existingWshed:
                 lakesLayer.setLabelsEnabled(True)
@@ -492,7 +493,7 @@ class Delineation(QObject):
         self._gv.iface.mapCanvas().refresh()
         
     def splitChannelsByLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer) -> bool:
-        """Split channels crossing lake boundaries into two, entering/leaving and within.  
+        """Split channels crossing reservoir or pond lake boundaries into two, entering/leaving and within.  
         Then rerun channel basins calculation to split into areas draining to channels and areas draining to lakes.
         
         Not used with grid models or existing watersheds."""
@@ -543,14 +544,20 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                                    .format(lakeId, chLink, int(crossingPointMoved2.x()), int(crossingPointMoved2.y())))
             return currentPointId
         
-        lakeIdIndex = self.identifyLakes(lakesLayer)
+        lakeIdIndex, hasResOrPond, hasWetlandOrPlaya = self.identifyLakes(lakesLayer)
+        root = QgsProject.instance().layerTreeRoot()
+        if hasWetlandOrPlaya:
+            self._gv.wetlandPlayaFile = self.createWetlandPlayaFile(self._gv.lakeFile, demLayer, root)
+        else:
+            self._gv.wetlandPlayaFile = ''
+        if not hasResOrPond:  # nothing to do
+            return True
         lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
         if lakeIdIndex < 0:
             return False
         if not self._dlg.useOutlets.isChecked():
             # create an inlets/outlets file
             outletsFile = QSWATUtils.join(self._gv.shapesDir, 'madeoutlets.shp')
-            root = QgsProject.instance().layerTreeRoot()
             if not Delineation.createOutletFile(outletsFile, self._gv.demFile, False, root, self._gv):
                 return False
             outletsLayer = QgsVectorLayer(outletsFile, 'Outlets', 'ogr')
@@ -650,6 +657,8 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
         geoMap: Dict[int, QgsGeometry] = dict()
         lakesToRemove: List[int] = []
         for lake in lakeProvider.getFeatures():
+            if lakeResIndex >= 0 and lake[lakeResIndex] in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                continue
             lakeId = lake[lakeIdIndex]
             geom = lake.geometry()
             if geom.type() != QgsWkbTypes.PolygonGeometry:
@@ -696,8 +705,13 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
 #             return False
         newPoints: List[QgsFeature] = []
         for lake in lakeProvider.getFeatures():
+            if lakeResIndex >= 0 and lake[lakeResIndex] in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                continue
             lakeId = lake[lakeIdIndex]
-            res = 2 if lakeResIndex >= 0 and lake[lakeResIndex] == 2 else 1  # default to reservoir
+            if lakeResIndex < 0:
+                res = QSWATTopology._RESTYPE  # default to reservoir
+            else:
+                res = lake[lakeResIndex]
             geom = geoMap[lake.id()]
             self._gv.topo.lakeInlets[lakeId] = set()
             self._gv.topo.lakeOutlets[lakeId] = set()
@@ -885,41 +899,58 @@ assumed that its crossing the lake boundary is an inaccuracy.
         self.lakePointsAdded = True
         return True
     
-    def identifyLakes(self, lakesLayer: QgsVectorLayer) -> int:
+    def identifyLakes(self, lakesLayer: QgsVectorLayer) -> Tuple[int, bool, bool]:
         """If necessary add an id attribute to the lakes shapefile.  Number lakes with water body ids.
-        label lakes with the id value.  Add lake ids to lake ids combo.  Return the index to the id attribute."""
+        label lakes with the id value.  Add lake ids to lake ids combo.  Return the index to the id attribute.
+        Also return true second result if lakes include reservoirs or ponds, 
+        and true third result if they include wetlands or playas."""
         lakeProvider = lakesLayer.dataProvider()
         # label lakes with water body numbers
         lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
-        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([lakeIdIndex])
+        lakeResIndex = lakeProvider.fieldNameIndex(QSWATTopology._RES)
+        request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
         lakeIds: List[int] = []
+        hasResOrPond = lakeResIndex < 0   # sence default is reservoir
+        hasWetlandOrPlaya = False
         if lakeIdIndex < 0:
             if not lakeProvider.addAttributes([QgsField(QSWATTopology._LAKEID, QVariant.Int)]):
                 QSWATUtils.error('Unable to edit lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
-                return -1
+                return -1, False, False
             lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
             attMap: Dict[int, Dict[int, Any]] = dict()
             self._gv.topo.waterBodyId = self.getMaxWaterId()
             for lake in lakeProvider.getFeatures(request):
+                if not hasResOrPond:
+                    if lake[lakeResIndex] in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+                        hasResOrPond = True
+                if not hasWetlandOrPlaya:
+                    if lakeResIndex >= 0 and lake[lakeResIndex] in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                        hasWetlandOrPlaya = True  
                 self._gv.topo.waterBodyId += 1
                 attMap[lake.id()] = {lakeIdIndex: self._gv.topo.waterBodyId}
                 lakeIds.append(self._gv.topo.waterBodyId)
             if not lakeProvider.changeAttributeValues(attMap):
                 QSWATUtils.error('Unable to update lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
-                return -1
+                return -1, False, False
             lakesLayer.updateFields()
         else:
             for lake in lakeProvider.getFeatures(request):
                 lakeId = lake[lakeIdIndex]
+                if not hasResOrPond:
+                    if lake[lakeResIndex] in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+                        hasResOrPond = True
+                if not hasWetlandOrPlaya:
+                    if lakeResIndex >= 0 and lake[lakeResIndex] in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                        hasWetlandOrPlaya = True  
                 try:
                     intLakeId = int(lakeId)
                 except Exception:
                     QSWATUtils.error('LakeId {0} cannot be parsed as an integer'.format(lakeId), self._gv.isBatch)
-                    return -1
+                    return -1, False, False
                 if lakeId in lakeIds:
                     QSWATUtils.error('LakeId {0} appears at least twice in {1}: LakeId values must be unique'.
                                      format(lakeId, QSWATUtils.layerFilename(lakesLayer)), self._gv.isBatch)
-                    return -1  
+                    return -1, False, False  
                 ListFuns.insertIntoSortedList(intLakeId, lakeIds, True)
                 self._gv.topo.waterBodyId = max(self._gv.topo.waterBodyId, intLakeId)
         if self._gv.useGridModel:
@@ -928,7 +959,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         else:
             lakesLayer.setLabelsEnabled(True)
             lakesLayer.triggerRepaint()
-        return lakeIdIndex
+        return lakeIdIndex, hasResOrPond, hasWetlandOrPlaya
     
     def getMaxWaterId(self) -> int:
         """Return maximum of 0 and reservoir or pond id values in inlets/outlets file if any."""
@@ -958,10 +989,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
         
     
     def makeGridLakes(self, lakesLayer: QgsVectorLayer, gridLayer: QgsVectorLayer) -> None:
-        """Convert lakes into collections of grid cells and mark the cells with the lake id and RES value."""
+        """Convert reservoir and pond lakes into collections of grid cells and mark the cells with the lake id and RES value."""
         if self.gridLakesAdded:
             return
-        lakeIdIndex = self.identifyLakes(lakesLayer)
+        lakeIdIndex, _, _ = self.identifyLakes(lakesLayer)
         if lakeIdIndex < 0:
             return
         lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
@@ -988,6 +1019,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 waterRole = QSWATTopology._RESTYPE
             else:
                 waterRole = lake[lakeResIndex]
+                if waterRole in {QSWATTopology._WETLANDTYPE, QSWATTopology._PLAYATYPE}:
+                    continue
             lakeGeom = lake.geometry()
             lakeBox = lakeGeom.boundingBox()
             for cell in gridLayer.getFeatures():
@@ -2412,11 +2445,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 subLayer = streamsLayer
             else:
                 subLayer = None
-        (lakesFile, lakesLayer) = QSWATUtils.openAndLoadFile(root, FileTypes._LAKES, self._dlg.selectLakes, self._gv.shapesDir, 
+        (lakeFile, lakesLayer) = QSWATUtils.openAndLoadFile(root, FileTypes._LAKES, self._dlg.selectLakes, self._gv.shapesDir, 
                                                            self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME, runFix=True)
-        if lakesFile and lakesLayer:
+        if lakeFile and lakesLayer:
             lakesLayer.setLabelsEnabled(False)
-            self._gv.lakeFile = lakesFile
+            self._gv.lakeFile = lakeFile
             self.lakesDone = False
             self.lakePointsAdded = False
             if self._gv.useGridModel:
@@ -2487,7 +2520,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if demLayer is None:
             QSWATUtils.error('DEM layer not found.', self._gv.isBatch)
             return
-        self._gv.topo.addGridLakes(gridLayer, streamsLayer, demLayer, self._gv)
+        self._gv.topo.addGridReservoirsAndPonds(gridLayer, streamsLayer, demLayer, self._gv)
             
     def addLakeCells(self) -> None:
         """Allow user to add cells to lake."""
@@ -2549,7 +2582,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if demLayer is None:
             QSWATUtils.error('DEM layer not found.', self._gv.isBatch)
             return
-        self._gv.topo.addGridLakes(gridLayer, streamsLayer, demLayer, self._gv)
+        self._gv.topo.addGridReservoirsAndPonds(gridLayer, streamsLayer, demLayer, self._gv)
         
 #=======not used========================================================================
 #     def addPointSources(self):
@@ -3351,6 +3384,29 @@ If you want to start again from scratch, reload the lakes shapefile."""
         assert os.path.exists(wFile)
         QSWATUtils.copyPrj(basinsShapefile, wFile)
         return wFile
+    
+    def createWetlandPlayaFile(self, lakeFile: str, demLayer: QgsRasterLayer, root: QgsLayerTree) -> str:
+        """Create raster of Wetland and Playa lakes."""
+        demPath = QSWATUtils.layerFileInfo(demLayer).canonicalFilePath()
+        wpFile: str = os.path.splitext(demPath)[0] + 'wetlandPlaya.tif'
+        shapeBase = os.path.splitext(lakeFile)[0]
+        # if basename of wFile is used rasterize fails
+        baseName = os.path.basename(shapeBase)
+        QSWATUtils.tryRemoveLayerAndFiles(wpFile, root)
+        xSize = demLayer.rasterUnitsPerPixelX()
+        ySize = demLayer.rasterUnitsPerPixelY()
+        extent = demLayer.extent()
+        # need to use extent to align basin raster cells with DEM
+        where = 'RES > 2'  # wetland is 3, playa is 4
+        command = 'gdal_rasterize -a {0} -tr {1!s} {2!s} -te {6} {7} {8} {9} -a_nodata -9999 -ot Int32 -where "{10}" -l "{3}" "{4}" "{5}"' \
+        .format(QSWATTopology._RES, xSize, ySize, baseName, lakeFile, wpFile,
+                extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum(), where)
+        QSWATUtils.loginfo(command)
+        os.system(command)
+        assert os.path.exists(wpFile)
+        QSWATUtils.copyPrj(lakeFile, wpFile)
+        return wpFile
+        
     
     def createGridShapefile(self, pFile: str, ad8File: str, wFile: str) -> None:
         """Create grid shapefile for watershed."""

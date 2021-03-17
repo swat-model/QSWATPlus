@@ -2662,21 +2662,22 @@ class Visualise(QObject):
         # This prevents the reuse.
         layout = None  # type: ignore
         
-    def findNorthArrow(self):
+    def findNorthArrow(self) -> str:
         """Find and return northarrow svg file."""
+        northArrow = ''  # for mypy
         if Parameters._ISWIN:
-            QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW))
+            northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW))
             if not os.path.isfile(northArrow):
                 # may be qgis-ltr for example
-                northArrowRel = Visualise._NORTHARROW.replace('qgis', QSWATUtils.qgisName(), 1)
-                northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), northArrowRel)
+                svgDir = Parameters._SVGDIR[:].replace('qgis', QSWATUtils.qgisName(), 1)
+                northArrow = QSWATUtils.join(os.getenv('OSGEO4W_ROOT'), QSWATUtils.join(svgDir, Visualise._NORTHARROW))
         else:  # Linux and Mac
             northArrow = QSWATUtils.join(Parameters._SVGDIR, Visualise._NORTHARROW)
         return northArrow
         
     @staticmethod
     def replaceInLine(inLine: str, table: Dict[str, str]) -> str:
-        """Use table of replacements to replace keys with itsms in returned line."""
+        """Use table of replacements to replace keys with items in returned line."""
         for patt, sub in table.items():
             inLine = inLine.replace(patt, sub)
         return inLine

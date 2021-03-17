@@ -188,6 +188,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.soilFile = ''
         ## path of floodplain raster
         self.floodFile = ''
+        ## path of raster generated from wetaland and playa lakes
+        self.wetlandPlayaFile = ''
         ## Nodata value for DEM
         self.elevationNoData = 0.0
         ## DEM horizontal block size

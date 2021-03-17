@@ -680,6 +680,9 @@ class QSWATPlus(QObject):
                     else:
                         QSWATUtils.loginfo('demProcessed failed: no channel basins without lakes raster')
                         return False
+                wetlandPlayaFile = os.path.splitext(self._gv.demFile)[0] + 'wetlandPlaya.tif'
+                if QSWATUtils.isUpToDate(lakeFile, wetlandPlayaFile):
+                    self._gv.wetlandPlayaFile = wetlandPlayaFile
         snapLayer = outletLayer if snapFile == '' else QgsVectorLayer(self._gv.snapFile, 'Snapped outlets', 'ogr')
         chanLayer = streamLayer if self._gv.useGridModel else channelLayer
         if self._gv.existingWshed:

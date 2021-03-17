@@ -2151,7 +2151,7 @@ class ConvertFromArc(QObject):
                     self.usedSoils.add(soil)
                     area = float(row[8])
                     _, x, y, lat, lon, elev = subbasinAreaLatLonElev[subbasin]
-                    if landuse == 'WATR':
+                    if landuse.upper() == 'WATR':
                         if subbasin in reservoirSubbasins:
                             wtype = 'RES'
                         else:

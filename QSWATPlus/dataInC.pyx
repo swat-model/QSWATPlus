@@ -1204,28 +1204,31 @@ cdef class LakeData:
         public tuple outPoint
         public set otherOutChLinks
         public double area
+        public double overrideArea
         public double elevation
         public object centroid
         public int waterRole
         
-    def __init__(self, area, centroid, waterRole):
+    def __init__(self, area, overrideArea, centroid, waterRole):
         ## linknos of inflowing channels mapped to point id, point and elevation of channel outlet
         self.inChLinks = dict()
         ## linknos of channels within lake
         self.lakeChLinks = set()
         ## linkno of outflowing stream. -1 means no outlet stream; outlet is a main outlet
         self.outChLink = -1
-        ## subbasin, point id, point and elevation of outflow point
+        ## subbasin, point id, point and elevation of outflow point (only used for reservoirs and ponds)
         self.outPoint = (-1, -1, None, 0)
         ## linknos of other outflowing channels
         self.otherOutChLinks = set()
         ## area in square metres
         self.area = area
-        ## elvation (mean elevation of incoming stream outlets)
+        ## override area from Lakes shapefile area field (defaults to area)
+        self.overrideArea = overrideArea
+        ## elvation (mean elevation of incoming stream outlets, else outlet if no inlets, else elevation of centroid for wetland and playa)
         self.elevation = 0
         ##centroid
         self.centroid = centroid
-        ## pond or reservoir
+        ## reservoir, pond, wetland or playa
         self.waterRole = waterRole
         
         
