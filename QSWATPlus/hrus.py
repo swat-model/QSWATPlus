@@ -224,14 +224,14 @@ class CreateHRUs(QObject):
             if not floodDs:
                 QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch)
                 return False
-        if self._gv.wetlandPlayaFile != '':
-            wpDs = gdal.Open(self._gv.wetlandPlayaFile, gdal.GA_ReadOnly)
+        if self._gv.playaFile != '':
+            wpDs = gdal.Open(self._gv.playaFile, gdal.GA_ReadOnly)
             if not wpDs:
-                QSWATUtils.error('Cannot open wetlandPlaya file {0}'.format(self._gv.wetlandPlayaFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot open wetlandPlaya file {0}'.format(self._gv.playaFile), self._gv.isBatch)
                 return False
-            useWetlandPlaya = True
+            usePlaya = True
         else:
-            useWetlandPlaya = False
+            usePlaya = False
         # Loop reading grids is MUCH slower if these are not stored locally
         if not self._gv.existingWshed:
             distStNumberRows: int = distStDs.RasterYSize
@@ -316,7 +316,7 @@ class CreateHRUs(QObject):
         elevationBand = elevationDs.GetRasterBand(1)
         if self._gv.useLandscapes:
             floodBand = floodDs.GetRasterBand(1)
-        if useWetlandPlaya:
+        if usePlaya:
             wpBand = wpDs.GetRasterBand(1)
         elevationNoData: float = elevationBand.GetNoDataValue()
         # guard against DEM with no nodata value
@@ -346,7 +346,7 @@ class CreateHRUs(QObject):
         if self._gv.useLandscapes:
             floodNoData: int = floodBand.GetNoDataValue()
             self._gv.floodNoData = floodNoData
-        if useWetlandPlaya:
+        if usePlaya:
             wpNoData = wpBand.GetNoDataValue()
         
         # counts to calculate landuse and soil overlaps
@@ -478,7 +478,7 @@ class CreateHRUs(QObject):
             floodCurrentRow = -1
             floodData = numpy.empty([floodReadRows, floodNumberCols], dtype=int)  # type: ignore
         # wetlandPlaya raster has same size and origin as elevation raster
-        if useWetlandPlaya:
+        if usePlaya:
             wpData = numpy.empty([elevationReadRows, elevationNumberCols], dtype=int)  # type: ignore
         progressCount = 0
         
@@ -546,7 +546,7 @@ class CreateHRUs(QObject):
                                 hruShapes.addRow(hruRows[rowNum], elevationCurrentRow + rowNum)
                             hruRows.fill(-1)
                         elevationData = elevationBand.ReadAsArray(0, elevationTopRow, elevationNumberCols, min(elevationReadRows, elevationNumberRows - elevationTopRow))
-                        if useWetlandPlaya:
+                        if usePlaya:
                             wpData = wpBand.ReadAsArray(0, elevationTopRow, elevationNumberCols, min(elevationReadRows, elevationNumberRows - elevationTopRow))
                         elevationCurrentRow = elevationTopRow
                     topY = QSWATTopology.rowToY(elevationTopRow, elevationTransform)
@@ -649,11 +649,9 @@ class CreateHRUs(QObject):
                                     subbasinChannelLandscapeCropSoilSlopeNumbers[subbasin] = channelLandscapeCropSoilSlopeNumbers
                             x = QSWATTopology.colToX(col, elevationTransform)
                             crop = -1
-                            if useWetlandPlaya:
+                            if usePlaya:
                                 wpVal = cast(int, wpData[row - elevationTopRow, col])
-                                if wpVal == QSWATTopology._WETLANDTYPE:
-                                    crop = self._gv.db.wetlandCrop
-                                elif wpVal == QSWATTopology._PLAYATYPE:
+                                if wpVal == QSWATTopology._PLAYATYPE:
                                     crop = self._gv.db.playaCrop
                             if crop < 0:
                                 if 0 <= cropRow - cropTopRow < cropActReadRows:
@@ -794,7 +792,7 @@ class CreateHRUs(QObject):
                     if 0 <= elevationRow < elevationNumberRows and elevationRow != elevationCurrentRow:
                         elevationCurrentRow = elevationRow
                         elevationData = elevationBand.ReadAsArray(0, elevationRow, elevationNumberCols, 1)
-                        if useWetlandPlaya:
+                        if usePlaya:
                             wpData = wpBand.ReadAsArray(0, elevationRow, elevationNumberCols, 1)
                     if self._gv.useLandscapes:
                         floodRow = floodRowFun(row, y)
@@ -851,7 +849,7 @@ class CreateHRUs(QObject):
                             elevationCol = elevationColFun(col, x)
                             if 0 <= elevationCol < elevationNumberCols and 0 <= elevationRow < elevationNumberRows:
                                 elevation = cast(float, elevationData[0, elevationCol])
-                                if useWetlandPlaya:
+                                if usePlaya:
                                     wpVal = cast(int, wpData[0, elevationCol])
                             else:
                                 elevation = elevationNoData
@@ -859,10 +857,8 @@ class CreateHRUs(QObject):
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 elev = int(elevation * self._gv.verticalFactor)
                             crop = -1
-                            if useWetlandPlaya:
-                                if wpVal == QSWATTopology._WETLANDTYPE:
-                                    crop = self._gv.db.wetlandCrop
-                                elif wpVal == QSWATTopology._PLAYATYPE:
+                            if usePlaya:
+                                if wpVal == QSWATTopology._PLAYATYPE:
                                     crop = self._gv.db.playaCrop
                             if crop < 0:
                                 cropCol = cropColFun(col, x)
@@ -2741,7 +2737,7 @@ class CreateHRUs(QObject):
             if lakesArea > 0:
                 fw.writeLine('')
                 if lakesArea > 0:
-                    fw.writeLine('Area of watershed includes lakes that are reservoirs or ponds; other areas do not include such lakes.')
+                    fw.writeLine('Area of watershed includes lakes that are reservoirs, ponds or wetlands; other areas do not include such lakes.')
 #                     subsString = ''
 #                 else:
 #                     subsString = 'watershed, '
@@ -3003,7 +2999,7 @@ class CreateHRUs(QObject):
                         lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                         if lake > 0:
                             lakeData = self._gv.topo.lakesData[lake]
-                            lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                            lCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE else 'WETL'
                             self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, QSWATTopology._SURFACE, upslopePercent)
                         else:
                             self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._SURFACE, upslopePercent)
@@ -3019,7 +3015,7 @@ class CreateHRUs(QObject):
                     lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
                     if lake > 0:
                         lakeData = self._gv.topo.lakesData[lake]
-                        lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                        lCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE else 'WETL'
                         self._gv.db.addToRouting(curs, lsuId, 'LSU', lake, lCat, QSWATTopology._TOTAL, 100)
                     else: 
                         self._gv.db.addToRouting(curs, lsuId, 'LSU', SWATChannel, 'CH', QSWATTopology._TOTAL, 100)
@@ -3037,7 +3033,7 @@ class CreateHRUs(QObject):
         lake = self._gv.topo.surroundingLake(SWATChannel, self._gv.useGridModel)
         if lake > 0:
             lakeData = self._gv.topo.lakesData[lake]
-            lCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+            lCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE else 'WETL'
         floodTarget, floodCat = (lake, lCat) if lake > 0 else (wid, wCat) if wid > 0 else (SWATChannel, 'CH')
         arlsuHa = float(lsuData.area) / 1E4
         routeWaterAsWaterBody = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
@@ -3051,9 +3047,9 @@ class CreateHRUs(QObject):
                         cellData = lsuData.hruMap[landscape_hru]
                         cellData.actHRUNum = self.HRUNum
                         luse = self._db.getLanduseCode(crop)
-                        # replace WATR with WETN
+                        # replace WATR with WETW
                         if luse.upper() == 'WATR':
-                            luse = 'WETN'
+                            luse = 'WETW'
                         snam = self._db.getSoilName(soil)
                         slp = self._db.slopeRange(slope)
                         cropSoilSlope = luse + '/' + snam + '/' + slp
@@ -3949,7 +3945,7 @@ class CreateHRUs(QObject):
                                     self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
                                 else:
                                     lakeData = self._gv.topo.lakesData[lakeId]
-                                    wCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                                    wCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE else 'WETL'
                                     self._gv.db.addToRouting(cursor, aqId, 'AQU', lakeId, wCat, QSWATTopology._TOTAL, 100)
                         else:
                             cursor.execute(DBUtils._INSERTAQUIFERS,
@@ -3963,7 +3959,7 @@ class CreateHRUs(QObject):
                                 self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
                             else:
                                 lakeData = self._gv.topo.lakesData[lakeId]
-                                wCat = 'RES' if lakeData.waterRole == 1 else 'PND'
+                                wCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE else 'WETL'
                                 self._gv.db.addToRouting(cursor, aqId, 'AQU', lakeId, wCat, QSWATTopology._TOTAL, 100)
                         # route recharge to deep aquifer
                         self._gv.db.addToRouting(cursor, aqId, 'AQU', deepAquiferId, 'DAQ', QSWATTopology._RECHARGE, 100)
@@ -4322,10 +4318,10 @@ class CreateHRUs(QObject):
             # add lakes 
             for lakeId, lakeData in self._gv.topo.lakesData.items():
                 lCat = 'RES' if lakeData.waterRole == QSWATTopology._RESTYPE else 'PND' if lakeData.waterRole == QSWATTopology._PONDTYPE \
-                        else None
+                        else 'WETL' if lakeData.waterRole == QSWATTopology._WETLANDTYPE else None
                 if lCat is None:
-                    continue  # don't include wetlands and playas
-                lsuId = 0  # no LSU for a reservoir or pond lake
+                    continue  # don't include playas
+                lsuId = 0  # no LSU for a reservoir, pond or wetland lake
                 (subbasin, _, _, _) = lakeData.outPoint
                 # out point may have no subbasin if internal to lake
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
@@ -4568,21 +4564,23 @@ class CreateHRUs(QObject):
         return (result1, result2)
     
     def totalLakesArea(self) -> float:
-        """Return total reservoir and pond lakes area in square metres."""
+        """Return total reservoir, pond and wetland lakes area in square metres."""
         result = 0.0
         for lakeData in self._gv.topo.lakesData.values():
-            if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE}:
+            if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE, QSWATTopology._WETLANDTYPE}:
                 result += lakeData.area
         return result
     
     def getLakeAreas(self) -> Dict[int, Tuple[float, str]]:
-        """Return map of reservoir and pond lake id to lake area in square metres and category."""
+        """Return map of reservoir, pond and wetland lake id to lake area in square metres and category."""
         result: Dict[int, Tuple[float, str]] = dict()
         for lakeId, lakeData in self._gv.topo.lakesData.items():
             if lakeData.waterRole == QSWATTopology._RESTYPE:
                 result[lakeId] = (lakeData.area, 'reservoir')
             elif lakeData.waterRole == QSWATTopology._PONDTYPE:
                 result[lakeId] = (lakeData.area, 'pond')
+            elif lakeData.waterRole == QSWATTopology._WETLANDTYPE:
+                result[lakeId] = (lakeData.area, 'wetland')
         return result
     
     def countLakes(self) -> Tuple[int, int, int, int]:
@@ -4682,7 +4680,7 @@ class CreateHRUs(QObject):
         for (crop, areaM) in main.items():
             landuseCode = self._db.getLanduseCode(crop)
             if landuseCode.upper() == 'WATR':
-                landuseCode = 'WETN'
+                landuseCode = 'WETW'
             area = areaM / 10000
             string0 = '{:.2F}'.format(area).rjust(15)
             if original is not None:
@@ -4711,7 +4709,7 @@ class CreateHRUs(QObject):
                 if crop not in main:
                     landuseCode = self._db.getLanduseCode(crop)
                     if landuseCode.upper() == 'WATR':
-                        landuseCode = 'WETN'
+                        landuseCode = 'WETW'
                     originalArea = areaM / 10000
                     fw.write(landuseCode.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
                     if total1 > 0:
@@ -4829,7 +4827,7 @@ class CreateHRUs(QObject):
         area, category = areaCat
         areaHa = area / 1E4
         if total > 0:
-            string0 = 'Lake {0} ({1})'.format(num, category) if num > 0 else 'Lakes (reservoirs and ponds)'
+            string0 = 'Lake {0} ({1})'.format(num, category) if num > 0 else 'Lakes (reservoirs, ponds and wetlands)'
             string1 = '{:.2F}'.format(areaHa).rjust(15)
             percent = (areaHa / total) * 100
             just2 = 30 if withHRUs else 15
@@ -5437,6 +5435,9 @@ class HRUs(QObject):
             self._dlg.selectUsersoilTableLabel.setVisible(False)
             self._db.usersoilTable = 'statsgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
+            if not os.path.isfile(self._db.soildatabase):
+                QSWATUtils.information('To use STATSGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
+                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch)
         elif self._dlg.SSURGOButton.isChecked():
             self._dlg.dbLabel.setText('Select landuse database')
             self._db.useSTATSGO = False
@@ -5447,6 +5448,9 @@ class HRUs(QObject):
             self._dlg.selectUsersoilTableLabel.setVisible(False)
             self._db.usersoilTable = 'ssurgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
+            if not os.path.isfile(self._db.soildatabase):
+                QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
+                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch)
             
     def selectPlantSoilDatabase(self) -> None:
         """Allow user to select plant and soil database."""

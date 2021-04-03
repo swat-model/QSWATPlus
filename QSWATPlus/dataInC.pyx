@@ -419,7 +419,7 @@ cdef class LSUData:
             
     cpdef void moveWaterToPond(self, float lakeArea, int waterLanduse):
         """ If the lsu has a lake pond and a waterBody that is currently unknown (not otherwise marked as pond or reservoir)
-        then water up to the area of the lake is removed from water body and water HRUs and the crop HRUss increased to compensate."""
+        then water up to the area of the lake is removed from water body and water HRUs and the crop HRUs increased to compensate."""
         cdef:
             double cropRedistributeFactor, waterRedistributeFactor
             list waterHRUs = []
@@ -456,7 +456,7 @@ cdef class LSUData:
     cpdef void redistributeNodataAndWater(self, int chLink, int lscape, list chLinksByLakes, int waterLanduse):
         """Add nodata areas proportionately to originalareas. 
          
-        Also removes water body if not a separate reservoir or pond 
+        Also removes water body if not a separate reservoir, pond or wetland
         and channel flows into or is inside lake and lscape is nolandscape or floodplain."""
         cdef:
             double areaToRedistribute, redistributeFactor
@@ -466,7 +466,7 @@ cdef class LSUData:
         if self.waterBody is not None and self.cropSoilSlopeArea > self.waterBody.originalArea and \
             self.waterBody.isUnknown() and chLink in chLinksByLakes and \
             lscape in {0, 1}:  # {QSWATUtils._NOLANDSCAPE, QSWATUtils._FLOODPLAIN}
-            # self.removeWaterHRUs(waterLanduse)
+            self.removeWaterHRUs(waterLanduse)
             self.waterBody = None
         areaToRedistribute = self.area - self.cropSoilSlopeArea
         if self.area > areaToRedistribute > 0:
@@ -1216,7 +1216,7 @@ cdef class LakeData:
         self.lakeChLinks = set()
         ## linkno of outflowing stream. -1 means no outlet stream; outlet is a main outlet
         self.outChLink = -1
-        ## subbasin, point id, point and elevation of outflow point (only used for reservoirs and ponds)
+        ## subbasin, point id, point and elevation of outflow point (only used for reservoirs, ponds and wetlands)
         self.outPoint = (-1, -1, None, 0)
         ## linknos of other outflowing channels
         self.otherOutChLinks = set()
@@ -1224,7 +1224,7 @@ cdef class LakeData:
         self.area = area
         ## override area from Lakes shapefile area field (defaults to area)
         self.overrideArea = overrideArea
-        ## elvation (mean elevation of incoming stream outlets, else outlet if no inlets, else elevation of centroid for wetland and playa)
+        ## elvation (mean elevation of incoming stream outlets, else outlet if no inlets, else elevation of centroid for playa)
         self.elevation = 0
         ##centroid
         self.centroid = centroid

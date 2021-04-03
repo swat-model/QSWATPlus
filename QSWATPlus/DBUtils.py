@@ -144,9 +144,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.defaultLanduse = -1
         ## code used for WATR, or -1 if WATR not in landuse table
         self.waterLanduse = -1
+        ## crop value that will translate to WETM
+        self.floodWetlandCrop = -1
         ## crop value that will translate to WETN
-        self.wetlandCrop = -1
-        ## crop value that will translate to PLAYA
+        self.upslopeWetlandCrop = -1
+        ## crop value that will translate to WETW
         self.playaCrop = -1
         ## Map of soil id  to soil name
         self.soilNames: Dict[int, str] = dict()
@@ -372,8 +374,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
         elif sourceCategory == 'SUB': table = None  # gis_subbasins defined after routing
         elif sourceCategory == 'AQU': table = None  # gis_aquifers no need for this because of code structure
-        elif sourceCategory == 'DAQ': table = None  # gis_deep_no need for this because of code structure
-        elif sourceCategory == 'RES' or sourceCategory == 'PND': table = 'gis_water'
+        elif sourceCategory == 'DAQ': table = None  # gis_deep no need for this because of code structure
+        elif sourceCategory in {'RES', 'PND', 'WETL'}: table = 'gis_water'
         else: table = None
         if table is not None:
             self.checkKeyInTable(table, sourceId)
@@ -489,7 +491,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self._landuseTranslate.clear()
         self.landuseIds.clear()
         self.urbanIds.clear()
-        self.wetlandCrop = -1
+        self.floodWetlandCrop = -1
+        self.upslopeWetlandCrop = -1
         self.playaCrop = -1
         maxId = 0
         with self.conn as conn:
@@ -515,23 +518,30 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             break
                     if equiv == nxt:
                         # landuseCode was not already defined
+                        if landuseCode.upper() == 'WETM':
+                            self.floodWetlandCrop = nxt
                         if landuseCode.upper() == 'WETN':
-                            self.wetlandCrop = nxt
-                        elif landuseCode.upper() == 'PLAYA':
+                            self.upslopeWetlandCrop = nxt
+                        elif landuseCode.upper() == 'WETW':
                             self.playaCrop = nxt
                         if not self.storeLanduseCode(nxt, landuseCode):
                             OK = False
                     else:
                         self.storeLanduseTranslate(nxt, equiv)
-                if self.wetlandCrop < 0:
+                if self.floodWetlandCrop < 0:
                     maxId += 1
-                    self.wetlandCrop = maxId
+                    self.floodWetlandCrop = maxId
+                    if not self.storeLanduseCode(maxId, 'WETM'):
+                        OK = False
+                if self.upslopeWetlandCrop < 0:
+                    maxId += 1
+                    self.upslopeWetlandCrop = maxId
                     if not self.storeLanduseCode(maxId, 'WETN'):
                         OK = False
                 if self.playaCrop < 0:
                     maxId += 1
                     self.playaCrop = maxId
-                    if not self.storeLanduseCode(maxId, 'PLAYA'):
+                    if not self.storeLanduseCode(maxId, 'WETW'):
                         OK = False
             except Exception:
                 QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(landuseTable, self.dbFile), self.isBatch)
@@ -566,11 +576,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             self.landuseIds[landuseCat] = -1
             return True
         elif landuseCode.upper() == 'WATR':
-            # no longer in plant table; replaced by WETN later
+            # no longer in plant table; replaced by WETW later
             # but needed for now as may form pond, reservoir or be added to lake
             self.landuseCodes[landuseCat] = landuseCode
             self.landuseIds[landuseCat] = 0
-            self.waterLanduse = landuseCat  # TODO: should use a set of water landuses
+            self.waterLanduse = landuseCat
             return True
         database = self.plantSoilDatabase
         isProjDb = filecmp.cmp(database, self.dbFile)
@@ -1082,7 +1092,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             for crop in self.landuseVals:
                 name = self.getLanduseCode(crop)
                 if name.upper() == 'BARR' or name.upper() == 'WATR':
-                    # BARR will become NULL later, WATR will become WETN; neither in plant table
+                    # BARR will become NULL later, WATR will become WETW; neither in plant table
                     continue
                 args = (name,)
                 # look first in plantTable
@@ -2790,7 +2800,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             for sid, data in sourceDdata.items():
                 for hydTyp, percent in data.items():
                     if int(percent + 0.5) != 100:
-                        if percent == 0 and scat in {'RES', 'PND'}:
+                        if percent == 0 and scat in {'RES', 'PND', 'WETL'}:
                             # an unused lake exit: ignore
                             pass
                         else:

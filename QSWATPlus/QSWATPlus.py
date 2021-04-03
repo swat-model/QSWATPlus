@@ -69,7 +69,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.0.5'
+    __version__ = '2.0.6'
 
     def __init__(self, iface):
         """Constructor."""
@@ -680,9 +680,9 @@ class QSWATPlus(QObject):
                     else:
                         QSWATUtils.loginfo('demProcessed failed: no channel basins without lakes raster')
                         return False
-                wetlandPlayaFile = os.path.splitext(self._gv.demFile)[0] + 'wetlandPlaya.tif'
-                if QSWATUtils.isUpToDate(lakeFile, wetlandPlayaFile):
-                    self._gv.wetlandPlayaFile = wetlandPlayaFile
+                playaFile = os.path.splitext(self._gv.demFile)[0] + 'playa.tif'
+                if QSWATUtils.isUpToDate(lakeFile, playaFile):
+                    self._gv.playaFile = playaFile
         snapLayer = outletLayer if snapFile == '' else QgsVectorLayer(self._gv.snapFile, 'Snapped outlets', 'ogr')
         chanLayer = streamLayer if self._gv.useGridModel else channelLayer
         if self._gv.existingWshed:

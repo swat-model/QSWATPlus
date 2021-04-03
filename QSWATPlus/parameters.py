@@ -120,6 +120,8 @@ class Parameters:
     _ACRESTOSQMETRES = 4046.8564
     _SQMETRESTOSQFEET = 10.763910
     
+    _DEFAULTFONTSIZE = 12 if _ISMAC else 10
+    
     ## maximum number of features for adding data to rivs1 and subs1 files
     _RIVS1SUBS1MAX = 100000
     
@@ -354,7 +356,7 @@ class Parameters:
         if settings.contains('/QSWATPlus/FontSize'):
             self._dlg.pointSizeBox.setValue(int(settings.value('/QSWATPlus/FontSize')))
         else:
-            self._dlg.pointSizeBox.setValue(10)
+            self._dlg.pointSizeBox.setValue(Parameters._DEFAULTFONTSIZE)
 
     def saveProj(self) -> None:
         """Write parameter data to project file."""

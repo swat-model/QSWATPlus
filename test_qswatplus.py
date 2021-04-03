@@ -97,41 +97,78 @@ QCoreApplication.setApplicationName('QGIS3')
 #===============================================================================
 
 HashTable1 = dict()
-HashTable1['gis_channels'] = '7a5164d491bbbae74cb51741767fe873'
-HashTable1['gis_points'] = '6a8773238af3410a0a2260bf62285811'
-HashTable1['BASINSDATA'] = '64fe9b6ed9272914603daef10988e8e0'
-HashTable1['LSUSDATA'] = 'faa84f3455976ec8e42ec2e7dd630391'
-HashTable1['HRUSDATA'] = '172b964393f5120ec201150a63cf41cd'
-HashTable1['WATERDATA'] = '114e03e1996124d1a1361216c15eb41d'
-HashTable1['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
-HashTable1['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable1['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable1['gis_subbasins'] = '713d4705f214ddc78045f349ad8c1f89'
-HashTable1['gis_lsus'] = '18db6950fe57aa652f4c295c1a6a11a9'
-HashTable1['gis_hrus'] = '383f1bf808340268c3359a7de2761ad3'
-HashTable1['gis_routing'] = 'bc87cfc432f6de16c94f0f2f9c60ab8b'
-HashTable1['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
-HashTable1['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
+if Parameters._ISWIN:
+    HashTable1['gis_channels'] = '7a5164d491bbbae74cb51741767fe873'
+    HashTable1['gis_points'] = '6a8773238af3410a0a2260bf62285811'
+    HashTable1['BASINSDATA'] = '64fe9b6ed9272914603daef10988e8e0'
+    HashTable1['LSUSDATA'] = 'faa84f3455976ec8e42ec2e7dd630391'
+    HashTable1['HRUSDATA'] = '172b964393f5120ec201150a63cf41cd'
+    HashTable1['WATERDATA'] = '114e03e1996124d1a1361216c15eb41d'
+    HashTable1['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
+    HashTable1['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['gis_subbasins'] = '713d4705f214ddc78045f349ad8c1f89'
+    HashTable1['gis_lsus'] = '18db6950fe57aa652f4c295c1a6a11a9'
+    HashTable1['gis_hrus'] = '1836a24d85570173607f8acdfbc99efe'
+    HashTable1['gis_routing'] = 'bc87cfc432f6de16c94f0f2f9c60ab8b'
+    HashTable1['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
+    HashTable1['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
 
-# tables after adjusting parameters
-HashTable1a = dict()
-HashTable1a['gis_channels'] = '7b6ffd6f32b721be41e26cfdf36a2efd'
-HashTable1a['gis_points'] = HashTable1['gis_points']
-HashTable1a['BASINSDATA'] = HashTable1['BASINSDATA']
-HashTable1a['LSUSDATA'] = HashTable1['LSUSDATA']
-HashTable1a['HRUSDATA'] = HashTable1['HRUSDATA']
-HashTable1a['WATERDATA'] = HashTable1['WATERDATA']
-HashTable1a['gis_elevationbands'] = HashTable1['gis_elevationbands']
-HashTable1a['gis_landexempt'] = HashTable1['gis_landexempt']
-HashTable1a['gis_splithrus'] = HashTable1['gis_splithrus']
-HashTable1a['gis_subbasins'] = '2a8c5924e768ee09da447808a6a4c878'
-HashTable1a['gis_lsus'] = '50fb091e9d1b184ac0ccc9845d546a99'
-HashTable1a['gis_hrus'] = '23620bdc8b65976b72cd026942bd26c3'
-HashTable1a['gis_routing'] = HashTable1['gis_routing']
-HashTable1a['gis_water'] = HashTable1['gis_water']
-HashTable1a['soils_sol'] = HashTable1['soils_sol']
-HashTable1a['soils_sol_layer'] = HashTable1['soils_sol_layer']
+    # tables after adjusting parameters
+    HashTable1a = dict()
+    HashTable1a['gis_channels'] = '7b6ffd6f32b721be41e26cfdf36a2efd'
+    HashTable1a['gis_points'] = HashTable1['gis_points']
+    HashTable1a['BASINSDATA'] = HashTable1['BASINSDATA']
+    HashTable1a['LSUSDATA'] = HashTable1['LSUSDATA']
+    HashTable1a['HRUSDATA'] = HashTable1['HRUSDATA']
+    HashTable1a['WATERDATA'] = HashTable1['WATERDATA']
+    HashTable1a['gis_elevationbands'] = HashTable1['gis_elevationbands']
+    HashTable1a['gis_landexempt'] = HashTable1['gis_landexempt']
+    HashTable1a['gis_splithrus'] = HashTable1['gis_splithrus']
+    HashTable1a['gis_subbasins'] = '2a8c5924e768ee09da447808a6a4c878'
+    HashTable1a['gis_lsus'] = '50fb091e9d1b184ac0ccc9845d546a99'
+    HashTable1a['gis_hrus'] = 'fe063eda81c424711f4c43485de8a8f1'
+    HashTable1a['gis_routing'] = HashTable1['gis_routing']
+    HashTable1a['gis_water'] = HashTable1['gis_water']
+    HashTable1a['soils_sol'] = HashTable1['soils_sol']
+    HashTable1a['soils_sol_layer'] = HashTable1['soils_sol_layer']
+elif Parameters._ISLINUX:
+    HashTable1['gis_channels'] = '43ddf95de066c4e3424cd72757549e2e'
+    HashTable1['gis_points'] = '48b27308d98f89285853c8404dcc6c15'
+    HashTable1['BASINSDATA'] = '64fe9b6ed9272914603daef10988e8e0'
+    HashTable1['LSUSDATA'] = '6e97376328807b675ee3d503b4e5a981'
+    HashTable1['HRUSDATA'] = 'c57ae0744297d997a727bb5b2f831561'
+    HashTable1['WATERDATA'] = '114e03e1996124d1a1361216c15eb41d'
+    HashTable1['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
+    HashTable1['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['gis_subbasins'] = '261182c2bd84e6248b6e7980d440c4e7'
+    HashTable1['gis_lsus'] = 'b4e7e02febfbf2e0a403981cd6ecde34'
+    HashTable1['gis_hrus'] = '1c4f8ee6786422ec7269607c1d56f9e5'
+    HashTable1['gis_routing'] = 'bc87cfc432f6de16c94f0f2f9c60ab8b'
+    HashTable1['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
+    HashTable1['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
+
+    # tables after adjusting parameters
+    HashTable1a = dict()
+    HashTable1a['gis_channels'] = '6b141cde71d3502f1e9dca3408579900'
+    HashTable1a['gis_points'] = HashTable1['gis_points']
+    HashTable1a['BASINSDATA'] = HashTable1['BASINSDATA']
+    HashTable1a['LSUSDATA'] = HashTable1['LSUSDATA']
+    HashTable1a['HRUSDATA'] = HashTable1['HRUSDATA']
+    HashTable1a['WATERDATA'] = HashTable1['WATERDATA']
+    HashTable1a['gis_elevationbands'] = HashTable1['gis_elevationbands']
+    HashTable1a['gis_landexempt'] = HashTable1['gis_landexempt']
+    HashTable1a['gis_splithrus'] = HashTable1['gis_splithrus']
+    HashTable1a['gis_subbasins'] = '3f01208b7153133fe465c85b04f64a4d'
+    HashTable1a['gis_lsus'] = '9e9e81429876a4f92e49118344511096'
+    HashTable1a['gis_hrus'] = '0e4285a46289de2da35f4df7ef9e09e0'
+    HashTable1a['gis_routing'] = HashTable1['gis_routing']
+    HashTable1a['gis_water'] = HashTable1['gis_water']
+    HashTable1a['soils_sol'] = HashTable1['soils_sol']
+    HashTable1a['soils_sol_layer'] = HashTable1['soils_sol_layer']
 
 #===============================================================================
 # Test2:
@@ -148,22 +185,40 @@ HashTable1a['soils_sol_layer'] = HashTable1['soils_sol_layer']
 #===============================================================================
 
 HashTable2 = dict()
-HashTable2['gis_channels'] = 'e158955fd751174ff89700af2d1e5502'
-HashTable2['gis_points'] = '2abc7bcc0a415947607532bf31a2d1d1'
-HashTable2['BASINSDATA'] = 'e99dbf8ce6dcec169bf7164838d522b9'
-HashTable2['LSUSDATA'] = '4505259e202d14faa084725ad1eae9c1'
-HashTable2['HRUSDATA'] = 'b1bc7aee4568f45c80f7432846e6c9c9'
-HashTable2['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable2['gis_elevationbands'] = 'e28ea4b5a684d867dc6c949393312a79'
-HashTable2['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable2['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable2['gis_subbasins'] = 'c8f28fc43e87cd72aae029d99949262f'
-HashTable2['gis_lsus'] = 'a79585cc3a4885a2d501170f8d5b9fd4'
-HashTable2['gis_hrus'] = '566ca1abe05d68d8e0d9ed14a6e698cf'
-HashTable2['gis_routing'] = 'daac50c0e601e04f47c0dee7d680f75b'
-HashTable2['gis_water'] = '9c34064431f5979bc9c21b7610fe3027'
-HashTable2['soils_sol'] = 'e6a7ef3e63d6fc82468a367a33edde66'
-HashTable2['soils_sol_layer'] = 'c5c1f8179ca7054fe29165f9015b8e64'
+if Parameters._ISWIN:
+    HashTable2['gis_channels'] = 'e158955fd751174ff89700af2d1e5502'
+    HashTable2['gis_points'] = '2abc7bcc0a415947607532bf31a2d1d1'
+    HashTable2['BASINSDATA'] = 'e99dbf8ce6dcec169bf7164838d522b9'
+    HashTable2['LSUSDATA'] = '4505259e202d14faa084725ad1eae9c1'
+    HashTable2['HRUSDATA'] = 'b1bc7aee4568f45c80f7432846e6c9c9'
+    HashTable2['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_elevationbands'] = 'e28ea4b5a684d867dc6c949393312a79'
+    HashTable2['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_subbasins'] = 'c8f28fc43e87cd72aae029d99949262f'
+    HashTable2['gis_lsus'] = 'a79585cc3a4885a2d501170f8d5b9fd4'
+    HashTable2['gis_hrus'] = '566ca1abe05d68d8e0d9ed14a6e698cf'
+    HashTable2['gis_routing'] = 'daac50c0e601e04f47c0dee7d680f75b'
+    HashTable2['gis_water'] = '9c34064431f5979bc9c21b7610fe3027'
+    HashTable2['soils_sol'] = 'e6a7ef3e63d6fc82468a367a33edde66'
+    HashTable2['soils_sol_layer'] = 'c5c1f8179ca7054fe29165f9015b8e64'
+else:
+    HashTable2['gis_channels'] = 'd6e10850e509e34635bc5c279f2700d1'
+    HashTable2['gis_points'] = '5116e8933d8fca6bd0be3de191296ae7'
+    HashTable2['BASINSDATA'] = 'aee0cbd8be405bd40678ebddab871fac'
+    HashTable2['LSUSDATA'] = '8b9ce2b4069dca3c21be2cf6362b9f40'
+    HashTable2['HRUSDATA'] = '3e19713a6a985fdc1c8d92a14859f63b'
+    HashTable2['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_elevationbands'] = 'e28ea4b5a684d867dc6c949393312a79'
+    HashTable2['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
+    HashTable2['gis_subbasins'] = '58ce262bcc4864d0ec665f6989718b2a'
+    HashTable2['gis_lsus'] = '447634aaf2778be4024f3adbefc36f5f'
+    HashTable2['gis_hrus'] = 'd6aa394a60547745b9fd2723e081adca'
+    HashTable2['gis_routing'] = '7247699894bf482d9a80f507856d3ad6'
+    HashTable2['gis_water'] = '4069f4babd327b6bc4022c2ac618fe22'
+    HashTable2['soils_sol'] = 'e6a7ef3e63d6fc82468a367a33edde66'
+    HashTable2['soils_sol_layer'] = 'c5c1f8179ca7054fe29165f9015b8e64'
 
 #===============================================================================
 # Test3:
@@ -399,7 +454,7 @@ HashTable10['gis_routing'] = 'a024c45c32d01dd0706a3a38f51ad557'
 HashTable10['gis_water'] = '6f06be6293b2cec335d74b55bce9df35'
 HashTable10['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
 HashTable10['soils_sol_layer'] = '3169334ef95be1d6af6428d672e3d069'
-HashTable10['plants_plt'] = '50668faef8fab9b533aec8b6cbe65342'
+HashTable10['plants_plt'] = '2d5760caa564675307518e64b32fb65a'
 HashTable10['urban_urb'] = '94ab13b7ddfd02b2aedde8912744ac17'
 
 #===============================================================================
@@ -418,8 +473,8 @@ HashTable11 = dict()
 HashTable11['gis_channels'] = 'a3774d2ac25186f355d81c7e4c7e6be7'
 HashTable11['gis_points'] = '097fe6e5a88d337924e8ac2b3785d5c3'
 HashTable11['BASINSDATA'] = '189866165b3890ab06af6e3ecc3732e8'
-HashTable11['LSUSDATA'] = 'fa6d5b4111e9cf0f1c52fa75a6606360'
-HashTable11['HRUSDATA'] = '474829ec06cb245054dafc7c4e5d2ec2'
+HashTable11['LSUSDATA'] = '44aeeddf822a8711922f06be989d7bd5'
+HashTable11['HRUSDATA'] = '8daea2fc9f0f98ee3ae24649e461f3e9'
 HashTable11['WATERDATA'] = '1b14393e25e608734794c06b6566d507'
 HashTable11['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable11['LAKELINKS'] = '4ad9b335aa9d58735e72bb6ff13829b1'
@@ -429,8 +484,8 @@ HashTable11['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable11['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable11['gis_subbasins'] = '59e616fa38700e714aa777c8e64660fd'
 HashTable11['gis_lsus'] = 'e09b645a65864996e87c9a8e33ba58d2'
-HashTable11['gis_hrus'] = 'fb31c81004dc785940e4ae4240632474'
-HashTable11['gis_routing'] = '4df6bb0e90212d92483da71e10e20665'
+HashTable11['gis_hrus'] = '1c175b94a541d4cfe1240385ed967021'
+HashTable11['gis_routing'] = '969a6bfbccb086365b9d0342058b6197'
 HashTable11['gis_water'] = '967e5788e2848115d73f60a6c018b439'
 HashTable11['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
 HashTable11['soils_sol_layer'] = 'c827fbf53c8b43430157f4d1c76c6299'
@@ -448,8 +503,8 @@ HashTable12 = dict()
 HashTable12['gis_channels'] = '6579fbe1f395fe0361086e7e12f9d9a9'
 HashTable12['gis_points'] = '2de34e7bd261688707c2a57f709971a1'
 HashTable12['BASINSDATA'] = '1d3d581fe0af032035596098d13a346e'
-HashTable12['LSUSDATA'] = '012031881901ff4dfd80cd155b6bbe94'
-HashTable12['HRUSDATA'] = '71348f650bc85e908c44af77df8d67ae'
+HashTable12['LSUSDATA'] = '4806de09669f6dc6020312cbcec1e6b3'
+HashTable12['HRUSDATA'] = 'fec97ea34f1012d14ef5404cb5812b52'
 HashTable12['WATERDATA'] = 'f15f76124d5b1ea8d42aeedf3319edf5'
 HashTable12['LAKEBASINS'] = 'e7688062747109e112d2222049e80839'
 HashTable12['LAKELINKS'] = '7010664035f83e4c00a61befb37f3f88'
@@ -459,8 +514,8 @@ HashTable12['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable12['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable12['gis_subbasins'] = 'b82333676d7c9eebcdbbe2242406aac1'
 HashTable12['gis_lsus'] = '682d9cce2a84185c51e354650093ab23'
-HashTable12['gis_hrus'] = '22472bf484ef5e4709dd0e22ae5c9428'
-HashTable12['gis_routing'] = 'e6120ed1a8e05b1aa4d815d818ca882a'
+HashTable12['gis_hrus'] = '44459fee3bb6c367cf6374247a45a567'
+HashTable12['gis_routing'] = '7ac5115c06539bf9075fe8928015ff68'
 HashTable12['gis_water'] = '44d71a339adc80a88685ee52c3203827'
 HashTable12['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
 HashTable12['soils_sol_layer'] = 'c827fbf53c8b43430157f4d1c76c6299'
@@ -480,8 +535,8 @@ HashTable13 = dict()
 HashTable13['gis_channels'] = '422b701dcc42812fd30a6bfec7311cbc'
 HashTable13['gis_points'] = '41b193731d59631fdebffbada777a7d0'
 HashTable13['BASINSDATA'] = '8bbf7fc105ef7636aefb4db1b98a81d2'
-HashTable13['LSUSDATA'] = '8d19d4117e4270ce77e20bdbb4ff5513'
-HashTable13['HRUSDATA'] = '7e4cabc0ee6d0c0529acdcc18afc392e'
+HashTable13['LSUSDATA'] = 'f259779714b336cda73f299a60ac7620'
+HashTable13['HRUSDATA'] = '584864eba34575cb45c745578e2717ae'
 HashTable13['WATERDATA'] = '2cb16454f19787e3a73ea64c54fc56a2'
 HashTable13['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['LAKELINKS'] = 'dd0489e1966de42004b976e18ac62425'
@@ -491,7 +546,7 @@ HashTable13['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['gis_subbasins'] = '1d20a2a3e11618240af9c454ad3f18fc'
 HashTable13['gis_lsus'] = '1ae7c75ce5bad016c731653ce53b8ce9'
-HashTable13['gis_hrus'] = '8a410b37696b006de1b85290eb9aa756'
+HashTable13['gis_hrus'] = 'f3a7f3c0089f87dbeca54ad20602c992'
 HashTable13['gis_routing'] = '38debe3d3f5d70a044a17c104363f575'
 HashTable13['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable13['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
@@ -510,8 +565,8 @@ HashTable14 = dict()
 HashTable14['gis_channels'] = 'c63fcd667ccbf8ec17931035bc78a8a6'
 HashTable14['gis_points'] = '9e67c65443e95c07bfdbad12419527fe'
 HashTable14['BASINSDATA'] = 'ecd89b8d77d9922c445d9e22cc669042'
-HashTable14['LSUSDATA'] = '355cc0b511c2024b1fabc082c4138786'
-HashTable14['HRUSDATA'] = 'd2abeef61999578e6b3d8ea71f8bff64'
+HashTable14['LSUSDATA'] = 'ebcc220dfb75388e1a3fd7f8734dbaab'
+HashTable14['HRUSDATA'] = '25b5de709dc35c69af54c427693df3bb'
 HashTable14['WATERDATA'] = 'e91c10bfa2d51b6fe53f7402a060dc83'
 HashTable14['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['LAKELINKS'] = 'f1434cb64d547ab7cd4e496447fb07ef'
@@ -521,7 +576,7 @@ HashTable14['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['gis_subbasins'] = 'aeb4293fb339bf59e9303ec16e6695ad'
 HashTable14['gis_lsus'] = '0aae520a3ec4b54605dc35135bb6e664'
-HashTable14['gis_hrus'] = 'd1d4eb73ba210d0144e136bad0f03a22'
+HashTable14['gis_hrus'] = 'c707dd32f3250adaae40c37f39794c49'
 HashTable14['gis_routing'] = '22b0ce0161ae320dec98c4a0e28af356'
 HashTable14['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable14['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
@@ -748,7 +803,7 @@ class TestQswat(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
         numLayers = len(list(QgsProject.instance().mapLayers().values()))
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(12)
+        self.delin._dlg.numProcesses.setValue(12 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM,
                                                          self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
@@ -951,7 +1006,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable3)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable3)
         self.assertTrue(self.dlg.hrusButton.isEnabled(), 'HRUs button not enabled')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
         self.hrus.init()
@@ -1096,7 +1152,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable4)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable4)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1207,7 +1264,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable5)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable5)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1228,7 +1286,7 @@ class TestQswat(unittest.TestCase):
         # listener = Listener(self.delin, self.hrus, self.hrus.CreateHRUs)
         numLayers = len(list(QgsProject.instance().mapLayers().values()))
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(12)
+        self.delin._dlg.numProcesses.setValue(12 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM,
                                                          self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
@@ -1338,7 +1396,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable6)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable6)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1352,7 +1411,7 @@ class TestQswat(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
         numLayers = len(list(QgsProject.instance().mapLayers().values()))
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(12)
+        self.delin._dlg.numProcesses.setValue(12 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM,
                                                          self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
@@ -1432,7 +1491,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable7)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable7)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1540,7 +1600,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable8)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable8)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1643,7 +1704,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable9)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable9)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1762,7 +1824,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable10)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable10)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1777,7 +1840,7 @@ class TestQswat(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
         numLayers = len(QgsProject.instance().mapLayers().values())
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(6)
+        self.delin._dlg.numProcesses.setValue(6 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM, self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
         self.assertTrue(demLayer and loaded, 'Failed to load DEM {0}'.format(self.delin._dlg.selectDem.text()))
@@ -1870,7 +1933,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable11)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable11)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -1913,7 +1977,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(channelLayer and loaded, 'Failed to load channels shapefile'.format(channelFile))
         self.delin._dlg.selectStreams.setText(channelFile)
         self.plugin._gv.channelFile = channelFile
-        self.delin._dlg.numProcesses.setValue(6)
+        self.delin._dlg.numProcesses.setValue(6 if Parameters._ISWIN else 4)
         self.delin._dlg.useOutlets.setChecked(False)
         QtTest.QTest.mouseClick(self.delin._dlg.existRunButton, Qt.LeftButton)
         QSWATUtils.copyFiles(QFileInfo(os.path.join(self.dataDir, 'Ravn2.shp')), self.plugin._gv.shapesDir)
@@ -1986,7 +2050,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable12)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable12)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -2001,7 +2066,7 @@ class TestQswat(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
         numLayers = len(QgsProject.instance().mapLayers().values())
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(8)
+        self.delin._dlg.numProcesses.setValue(8 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM, self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
         self.assertTrue(demLayer and loaded, 'Failed to load DEM {0}'.format(self.delin._dlg.selectDem.text()))
@@ -2102,7 +2167,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable13)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable13)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
@@ -2116,7 +2182,7 @@ class TestQswat(unittest.TestCase):
         QgsProject.instance().removeAllMapLayers()
         numLayers = len(QgsProject.instance().mapLayers().values())
         self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
-        self.delin._dlg.numProcesses.setValue(10)
+        self.delin._dlg.numProcesses.setValue(10 if Parameters._ISWIN else 4)
         demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM, self.plugin._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)
         self.assertTrue(demLayer and loaded, 'Failed to load DEM {0}'.format(self.delin._dlg.selectDem.text()))
@@ -2229,7 +2295,8 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
-        self.checkHashes(HashTable14)
+        if Parameters._ISWIN:
+            self.checkHashes(HashTable14)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
         
