@@ -1690,7 +1690,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
         subbasinsFile = shapesBase + 'subbasins.shp'
         self.createWatershedShapefile(wStreamFile, subbasinsFile, FileTypes._SUBBASINS, root)
         self._gv.subbasinsFile = subbasinsFile
-        self._gv.subsNoLakesFile = subbasinsFile
         if not self._gv.useGridModel:
             wshedFile = shapesBase + 'wshed.shp'
             self.createWatershedShapefile(wChannelFile, wshedFile, FileTypes._WATERSHED, root)

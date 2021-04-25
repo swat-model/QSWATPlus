@@ -44,7 +44,7 @@ class Parameters:
     _ISMAC = platform.system() == 'Darwin'
     _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else os.path.expanduser('~') + '/SWATPlus'
     if not os.path.isdir(_SWATPLUSDEFAULTDIR) and (_ISLINUX or _ISMAC):
-        _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/Users/Shared/SWATPlus'
+        _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWATPlus'
     _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'SWATPlusEditor' if _ISLINUX else 'SWATPlusEditor.app/Contents/MacOS/SWATPlusEditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
@@ -160,9 +160,19 @@ class Parameters:
         
         settings = QSettings()
         ## SWATPlus directory
-        self.SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
+        self.SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', '')
+        if self.SWATPlusDir == '':
+            self.SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
+        elif not os.path.isdir(self.SWATPlusDir):
+            settings.remove('/QSWATPlus/SWATPlusDir')
+            self.SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
         ## mpiexec directory
-        self.mpiexecDir = settings.value('/QSWATPlus/mpiexecDir', Parameters._MPIEXECDEFAULTDIR)
+        self.mpiexecDir = settings.value('/QSWATPlus/mpiexecDir', '')
+        if self.mpiexecDir == '':
+            self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
+        elif not os.path.isdir(self.mpiexecDir):
+            settings.remove('/QSWATPlus/SWATPlusDir')
+            self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
         ## number of MPI processes
         self.numProcesses = settings.value('/QSWATPlus/NumProcesses', '')
         self._gv = gv

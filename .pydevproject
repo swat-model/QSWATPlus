@@ -24,7 +24,7 @@
     
     
     
-    <pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">python3_pf</pydev_property>
+    <pydev_property name="org.python.pydev.PYTHON_PROJECT_INTERPRETER">python3_64_pf</pydev_property>
                 
 
 

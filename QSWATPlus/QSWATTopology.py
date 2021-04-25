@@ -251,8 +251,8 @@ class QSWATTopology:
         self.demNodata: float = 0
         ## DEM extent
         self.demExtent = None
-        ## map from subbasin to outlet pointId, point, and channel draining to it
-        self.outlets: Dict[int, Tuple[int, QgsPointXY, int]] = dict()
+        ## map from subbasin to outlet pointId, point, and channel(s) draining to it
+        self.outlets: Dict[int, Tuple[int, QgsPointXY, List[int]]] = dict()
         ## map from subbasin to inlet pointId and point (not used with grid models)
         self.inlets: Dict[int, Tuple[int, QgsPointXY]] = dict()
         ## map from channel links to point sources
@@ -579,12 +579,13 @@ class QSWATTopology:
                         elif isReservoir: typ = 'Reservoir'
                         elif isPond: typ = 'Pond'
                         else: typ = 'Outlet'
-                        msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(typ, dsNode)
-                        if reportErrors:
-                            QSWATUtils.error(msg, self.isBatch)
-                        else:
-                            QSWATUtils.loginfo(msg)
-                        return False
+                        if typ != 'Outlet':
+                            msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(typ, dsNode)
+                            if reportErrors:
+                                QSWATUtils.error(msg, self.isBatch)
+                            else:
+                                QSWATUtils.loginfo(msg)
+                            return False
         time4 = time.process_time()
         QSWATUtils.loginfo('Topology setup for inlets/outlets took {0} seconds'.format(int(time4 - time3)))
         # add any extra reservoirs and point sources
@@ -914,7 +915,7 @@ class QSWATTopology:
             # we don't need to exclude outlets created to split channels flowing into and out of lake
             # because the outlets map is made from the streams before lake inlets and outlets are added to the snap file
             # and the augmented snapfile is only used to make channels
-            for subbasin, (pointId, pt, ch) in self.outlets.items():
+            for subbasin, (pointId, pt, chs) in self.outlets.items():
                 if QSWATTopology.polyContains(pt, lakeGeom, lakeRect) and \
                     QSWATTopology.isWatershedOutlet(pointId, channelsProvider, channelDsLinkIndex):
                     if not os.path.exists(gv.pFile):
@@ -948,7 +949,7 @@ class QSWATTopology:
                         QSWATUtils.loginfo('Outlet of lake {0} set to ({1}, {2})'.
                                            format(lakeId, int(lakeOutlet.x()), int(lakeOutlet.y())))
                         # update outlets map 
-                        self.outlets[subbasin] = (pointId, lakeOutlet, ch) 
+                        self.outlets[subbasin] = (pointId, lakeOutlet, chs) 
                     else:
                         QSWATUtils.loginfo('Outlet of lake {0} set to internal point ({1}, {2})'.
                                            format(lakeId, int(lakeOutlet.x()), int(lakeOutlet.y())))
@@ -1010,9 +1011,9 @@ class QSWATTopology:
                             lakeAttMap[outLinkId][channelLakeWithinIndex] = lakeId
                             # check if this point now inside the lake is a subbasin outlet
                             subbasin = self.chBasinToSubbasin[outBasin]
-                            (_, _, outChannel) = self.outlets[subbasin]
-                            if outChannel == outLink:
-                                # subbasin outlet has moved inside the lake
+                            (_, _, outChannels) = self.outlets[subbasin]
+                            if outLink in outChannels:
+                                 # subbasin outlet has moved inside the lake
                                 self.outletsInLake[subbasin] = lakeId
                             QSWATUtils.loginfo('Channel link {0} channel basin {1} moved inside lake {2}'.
                                                format(outLink, outBasin, lakeId))
@@ -1647,7 +1648,7 @@ class QSWATTopology:
                         val = int(raster.read(row, col))
                         if val == raster.noData:
                             continue
-                        elif val in self.chBasinAreas:
+                        if val in self.chBasinAreas:
                             self.chBasinAreas[val] += unitArea
                         else:
                             self.chBasinAreas[val] = unitArea
@@ -1950,8 +1951,10 @@ class QSWATTopology:
             self.strahler[link] = order
             return order
         
-        for _,_,link in self.outlets.values():
-            setStrahlerLink(link)
+        for _,_,links in self.outlets.values():
+            for link in links:
+                setStrahlerLink(link)
+        pass
             
     def setStrahlerFromGrid(self, us: Dict[int, List[int]]) -> None:
         """Set Strahler orders for channels using upstream map us.
@@ -2419,7 +2422,7 @@ class QSWATTopology:
             curs.execute(self.db._POINTSCREATESQL)
             waterAdded: List[int] = []
             # Add outlets from streams
-            for subbasin, (pointId, pt, chLink) in self.outlets.items():
+            for subbasin, (pointId, pt, _) in self.outlets.items():
                 if subbasin in self.upstreamFromInlets:
                     continue # excluded
                 elev = QSWATTopology.valueAtPoint(pt, demLayer)
@@ -3164,8 +3167,8 @@ class QSWATTopology:
                             self.db.addToRouting(curs, inletId, ptCat, wid, wCat, QSWATTopology._TOTAL, 100)
                         else:
                             self.db.addToRouting(curs, inletId, ptCat, SWATChannel, chCat, QSWATTopology._TOTAL, 100)
-                    (pointId, _, outletChannel) = self.outlets[subbasin]
-                    if channel == outletChannel or gv.useGridModel:
+                    (pointId, _, outletChannels) = self.outlets[subbasin]
+                    if channel in outletChannels or gv.useGridModel:
                         # subbasin outlet: channel routes to outlet point of subbasin; outlet routes to downstream channel
                         # but with some exceptions:
                         # - if the channel is replaced by a reservoir, this is routed to the outlet instead
@@ -3308,17 +3311,18 @@ class QSWATTopology:
                             routedPoints.append(outletId)
                 # route subbasin to outlet points
                 # or to lake if outlet in lake
-                for subbasin, (pointId, _, chLink) in self.outlets.items():
+                for subbasin, (pointId, _, chLinks) in self.outlets.items():
                     SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
                     if SWATBasin == 0:
                         continue
-                    SWATChannel = self.channelToSWATChannel[chLink]
+                    # with grid models chLinks is always a singleton list
                     if gv.useGridModel:
-                        if chLink in self.chLinkInsideLake or chLink in self.chLinkFromLake:
+                        if chLinks[0] in self.chLinkInsideLake or chLinks[0] in self.chLinkFromLake:
                             continue
                     lakeId = self.outletsInLake.get(subbasin, -1)
+                    # if one chLink is inside lake, all will be, since they share their outlet point
                     if lakeId < 0:
-                        lakeId = self.chLinkInsideLake.get(chLink, -1)
+                        lakeId = self.chLinkInsideLake.get(chLinks[0], -1)
                     if lakeId < 0:
                         self.db.addToRouting(curs, SWATBasin, subbasinCat, pointId, ptCat, QSWATTopology._TOTAL, 100)
                     else:
@@ -3966,7 +3970,17 @@ class QSWATTopology:
                 self.downSubbasins[subbasin] = dsSubbasin
                 # collect the basin's outlet location:
                 outletId, outletPt = chOutlets[chLink]
-                self.outlets[subbasin] = (outletId, outletPt, chLink)
+                existOutlets = self.outlets.get(subbasin, None)
+                if existOutlets is None:
+                    self.outlets[subbasin] = (outletId, outletPt, [chLink])
+                else:
+                    outletid0, outletPt0, chLinks = existOutlets
+                    if not QSWATTopology.coincidentPoints(outletPt0, outletPt, self.xThreshold, self.yThreshold):
+                        QSWATUtils.error('Polygon {0} has separate outlets at ((1}, {2}) and ({3}, {4}): ignoring second'.
+                                         format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y()), self.isBatch)
+                    else:
+                        chOutlets[chLink] = outletid0, outletPt0
+                        self.outlets[subbasin] = outletid0, outletPt0, chLinks + [chLink]
                 if not useGridModel:
 #                     self.extraResPoints[subbasin] = chResPoints[chLink]
 #                     self.extraPtSrcPoints[subbasin] = chSources[chLink]

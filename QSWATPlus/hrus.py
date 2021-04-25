@@ -3937,10 +3937,11 @@ class CreateHRUs(QObject):
                             if downAqId in aquiferData:
                                 self._gv.db.addToRouting(cursor, aqId, 'AQU', downAqId, 'AQU', QSWATTopology._TOTAL, 100)
                             else:
-                                pointId, _, chLink = self._gv.topo.outlets[basin]
+                                pointId, _, chLinks = self._gv.topo.outlets[basin]
                                 lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                                # all chLinks will share a common outlet, so sufficient to check one
                                 if lakeId < 0:
-                                    lakeId = self._gv.topo.chLinkInsideLake.get(chLink, -1)
+                                    lakeId = self._gv.topo.chLinkInsideLake.get(chLinks[0], -1)
                                 if lakeId < 0:
                                     self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
                                 else:
@@ -3951,10 +3952,11 @@ class CreateHRUs(QObject):
                             cursor.execute(DBUtils._INSERTAQUIFERS,
                                            (aqId, landscape, SWATBasin, deepAquiferId, area / 1E4, centroidll.y(), centroidll.x(), elev))
                             # route total flow to subbasin outlet
-                            pointId, _, chLink = self._gv.topo.outlets[basin]
+                            pointId, _, chLinks = self._gv.topo.outlets[basin]
                             lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                            # all chLinks will share a common outlet, so sufficient to check one
                             if lakeId < 0:
-                                lakeId = self._gv.topo.chLinkInsideLake.get(chLink, -1)
+                                lakeId = self._gv.topo.chLinkInsideLake.get(chLinks[0], -1)
                             if lakeId < 0:
                                 self._gv.db.addToRouting(cursor, aqId, 'AQU', pointId, 'PT', QSWATTopology._TOTAL, 100)
                             else:
@@ -3986,25 +3988,22 @@ class CreateHRUs(QObject):
         self.progress('Writing aquifers and deep aquifers tables ...')
         if os.path.isfile(self._gv.subsNoLakesFile):
             subsFile = self._gv.subsNoLakesFile
+            subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
+            subsProvider = subsLayer.dataProvider()
+            # remove features with 0 subbasin value (subbasins upstream from inlets)
+            exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
+            idsToDelete: List[int] = []
+            for feature in subsProvider.getFeatures(QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry)):
+                idsToDelete.append(feature.id())
+            OK = subsProvider.deleteFeatures(idsToDelete)
+            if not OK:
+                QSWATUtils.error('Cannot edit aquifers shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch)
+                return
         else:
-            subsFile = self._gv.subbasinsFile
-        # remove features with 0 subbasin value (subbasins upstream from inlets)
-        subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
-#         if self._gv.useGridModel:
-#             numGridCells = subsLayer.featureCount()
-#             if numGridCells > Parameters._RIVS1SUBS1MAX:
-#                 # aquifers layer will take time to computs and would be too detailed for useful display
-#                 QSWATUtils.loginfo('Too many grid cells ({0}) to generate aquifers shapefiles'.format(numGridCells))
-#                 return
-        subsProvider = subsLayer.dataProvider()
-        exp = QgsExpression('"{0}" = 0'.format(QSWATTopology._SUBBASIN))
-        idsToDelete: List[int] = []
-        for feature in subsProvider.getFeatures(QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry)):
-            idsToDelete.append(feature.id())
-        OK = subsProvider.deleteFeatures(idsToDelete)
-        if not OK:
-            QSWATUtils.error('Cannot edit subbasins shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch)
-            return
+            # use subs1 as already has basins upstream from inlets removed
+            subsFile = QSWATUtils.join(self._gv.shapesDir, Parameters._SUBS1 + '.shp')
+            subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
+            subsProvider = subsLayer.dataProvider()
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
         aqJson = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.json')
         QSWATUtils.removeLayer(aqFile, root)
@@ -4019,11 +4018,11 @@ class CreateHRUs(QObject):
             QSWATUtils.copyShapefile(subsFile, Parameters._AQUIFERS, self._gv.resultsDir)
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
+            QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
             aqProvider = aqLayer.dataProvider()
             exporter = QgsJsonExporter(aqLayer)
             with open(aqJson, 'w') as jsonFile:
                 jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
-            QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
         else:
             try:
                 # merge shapes in actual LSUs file that have same subbasin and same landscape
