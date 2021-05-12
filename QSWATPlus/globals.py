@@ -74,7 +74,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Path of template reference database
         self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREF)
         ## Directory of TauDEM executables
-        self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)
+        self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)[0]
         ## Path of mpiexec
         self.mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
         proj: QgsProject = QgsProject.instance()

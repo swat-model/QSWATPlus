@@ -27,7 +27,7 @@ from qgis.core import * # @UnusedWildImport
 import os.path
 import subprocess
 import webbrowser
-from typing import Optional, List, Tuple, Union
+from typing import Optional, List, Tuple
 
 from .QSWATUtils import QSWATUtils  # type: ignore
 from .parameters import Parameters  # type: ignore
@@ -162,10 +162,6 @@ class TauDEMUtils:
                     break
         if not needToRun:
             return True
-        # remove outFiles so any error will be reported
-        root = QgsProject.instance().layerTreeRoot()
-        for (pid, fileName) in outFiles:
-            QSWATUtils.tryRemoveLayerAndFiles(fileName, root)
         commands: List[str] = []
         settings = QSettings()
         if hasQGIS:
@@ -177,14 +173,30 @@ class TauDEMUtils:
                 commands.append(mpiexecPath)
                 commands.append('-np') # -n acceptable in Windows but only -np in OpenMPI
                 commands.append(str(numProcesses))
-        TauDEMDir = TauDEMUtils.findTauDEMDir(settings, hasQGIS)
+        TauDEMDir, is539 = TauDEMUtils.findTauDEMDir(settings, hasQGIS)
         if TauDEMDir == '':
             return False
+        if is539:  # which implies _ISWIN
+            # pass StreamNet a directory rather than shapefile so shapefile created as a directory
+            # this prevents problem that .shp cannot be deleted, but GDAL then complains that the .shp file is not a directory
+            # also have to set -netlyr parameter to stop TauDEM failing to parse filename without .shp as a layer name
+            # TauDEM version 5.1.2 does not support -netlyr parameter
+            if command == 'streamnet':
+                # make copy so can rewrite
+                outFilesCopy = outFiles[:]
+                outFiles = []
+                for (pid, outFile) in outFilesCopy:
+                    if pid == '-net':
+                        streamDir = QSWATUtils.shapefileToDir(outFile)
+                        outFiles.append((pid, streamDir))
+                    else:
+                        outFiles.append((pid, outFile))
+                inParms.append(('-netlyr', os.path.split(streamDir)[1]))
         commands.append(QSWATUtils.join(TauDEMDir, command))
         for (pid, fileName) in inFiles:
             if not os.path.exists(fileName):
                 TauDEMUtils.error('''File {0} does not exist.
-Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
+Have you installed SWAT+ as a different directory from C:/SWAT/SWATPlus?
 If so use the QSWAT+ Parameters form to set the correct location.'''.format(fileName), hasQGIS)
                 return False
             commands.append(pid)
@@ -194,6 +206,13 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
             # allow for parameter which is flag with no value
             if not parm == '':
                 commands.append(parm)
+        # remove outFiles so any error will be reported
+        root = QgsProject.instance().layerTreeRoot()
+        for (_, fileName) in outFiles:
+            if os.path.isdir(fileName):
+                QSWATUtils.tryRemoveShapefileLayerAndDir(fileName, root)
+            else:
+                QSWATUtils.tryRemoveLayerAndFiles(fileName, root)
         for (pid, fileName) in outFiles:
             commands.append(pid)
             commands.append(fileName)
@@ -210,7 +229,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
                                 shell=True, 
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
-                                universal_newlines=True)    # text=True) only in python 3.7     
+                                universal_newlines=True)    # text=True) only in python 3.7 
         if hasQGIS:
             assert output is not None
             output.append(proc.stdout)
@@ -225,7 +244,6 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
         msg = command + ' created '
         for (pid, fileName) in outFiles:
             if QSWATUtils.isUpToDate(baseFile, fileName):
-                QSWATUtils.copyPrj(baseFile, fileName)
                 msg += fileName
                 msg += ' '
             else:
@@ -244,32 +262,54 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
         return ok
 
     @staticmethod
-    def findTauDEMDir(settings: QSettings, hasQGIS: bool) -> str:
-        """Find and return path of TauDEM directory."""
+    def findTauDEMDir(settings: QSettings, hasQGIS: bool) -> Tuple[str, bool]:
+        """Find and return path of TauDEM directory, plus flag indicating if 539 directory used."""
+        is539 = False
         SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir', Parameters._SWATPLUSDEFAULTDIR)
-        TauDEMDir: str = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
-        if not os.path.isdir(TauDEMDir):
+        TauDEMDir: str = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEM539DIR) if Parameters._ISWIN else QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
+        if os.path.isdir(TauDEMDir):
+            is539 = Parameters._ISWIN
+        else:
             if Parameters._ISWIN:
-                TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEMDIR)
-                if not os.path.isdir(TauDEMDir2):
-                    TauDEMDir2 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEMDIR)  # path from QSWAT
+                TauDEMDir2 = QSWATUtils.join(SWATPlusDir, Parameters._TAUDEMDIR)
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
                 else:
-                    TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
-Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
-                    return  ''
+                    TauDEMDir3 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEM539DIR)
+                    if os.path.isdir(TauDEMDir3):
+                        TauDEMDir = TauDEMDir3
+                        is539 = True
+                    else:
+                        TauDEMDir4 = QSWATUtils.join(r'C:\SWAT\SWATPlus', Parameters._TAUDEMDIR)
+                        if os.path.isdir(TauDEMDir4):
+                            TauDEMDir = TauDEMDir4
+                        else:
+                            TauDEMDir5 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEM539DIR)  # path from QSWAT
+                            if os.path.isdir(TauDEMDir5):
+                                TauDEMDir = TauDEMDir5
+                                is539 = True
+                            else:
+                                TauDEMDir6 = QSWATUtils.join(r'C:\SWAT\SWATEditor', Parameters._TAUDEMDIR)
+                                if os.path.isdir(TauDEMDir6):
+                                    TauDEMDir = TauDEMDir6
+                                else:
+                                    TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1}, {2}, {3} or {4}.  
+            Have you installed SWAT+ as a different directory from C:/SWAT/SWATPlus?
+            If so use the QSWAT+ Parameters form to set the correct location.'''.
+            format(TauDEMDir, TauDEMDir2, TauDEMDir3, TauDEMDir4, TauDEMDir5, TauDEMDir6), hasQGIS)
+                                    return  '', False
             else:
                 TauDEMDir2 = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._TAUDEMDIR)
                 if os.path.isdir(TauDEMDir2):
                     TauDEMDir = TauDEMDir2
+                    # should be suitable for Linux and Mac but in batch Linux fails to make the directory
+                    # is539 = True
                 else:
                     TauDEMUtils.error('''Cannot find TauDEM directory as {0} or {1}.  
 Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
-                    return ''
+                    return '', False
         QSWATUtils.loginfo('TauDEM directory is {0}'.format(TauDEMDir))
-        return TauDEMDir
+        return TauDEMDir, is539
     
     @staticmethod
     def findMPIExecPath(settings: QSettings) -> str:
@@ -288,7 +328,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
     def taudemHelp() -> None:
         """Display TauDEM help file."""
         settings = QSettings()
-        TauDEMDir = TauDEMUtils.findTauDEMDir(settings, False)
+        TauDEMDir, _ = TauDEMUtils.findTauDEMDir(settings, False)
         if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
             os.startfile(taudemHelpFile)  # @UndefinedVariable since not defined in Linux

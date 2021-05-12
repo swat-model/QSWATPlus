@@ -1544,9 +1544,8 @@ class Visualise(QObject):
                 return False
             if nextResultsFile == self.resultsFile:
                 # remove existing layer so new one replaces it
-                QSWATUtils.tryRemoveLayerAndFiles(self.resultsFile, root)
+                QSWATUtils.removeLayer(self.resultsFile, root)
             else:
-                QSWATUtils.tryRemoveFiles(nextResultsFile)
                 self.resultsFile = nextResultsFile
         else:
             self.resultsFile = nextResultsFile

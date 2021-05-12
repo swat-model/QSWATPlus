@@ -5370,9 +5370,9 @@ class HRUs(QObject):
                     self.completed = True
                     self._gv.writeProjectConfig(-1, 1)
                     self._dlg.readFromPrevious.setEnabled(True)
-                    msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.HRUNum, 
+                    msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.countHRUs(), 
                                                                                                 self.CreateHRUs.countChannels(), 
-                                                                                                len(self._gv.topo.subbasinToSWATBasin))
+                                                                                                len(self.CreateHRUs.basins))
                     self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)  # type: ignore
                     if self._gv.isBatch:
                         print(msg)

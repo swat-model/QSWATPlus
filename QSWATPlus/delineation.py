@@ -22,7 +22,7 @@
 from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateReferenceSystem, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
 from qgis.gui import * # @UnusedWildImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os
@@ -868,13 +868,15 @@ assumed that its crossing the lake boundary is an inaccuracy.
         ordChannelFile = base + 'ordChannel' + suffix
         treeChannelFile = base + 'treeChannel.dat'
         coordChannelFile = base + 'coordChannel.dat'
-        base, ext = os.path.splitext(self._gv.channelFile)
-        self._gv.channelFile = base + '1' + ext
+        # if channel shapefile already exists and is a directory, set path to .shp
+        self._gv.channelFile = QSWATUtils.dirToShapefile(self._gv.channelFile)
         ok = TauDEMUtils.runStreamNet(self._gv.felFile, self._gv.pFile, self._gv.ad8File, self._gv.srcChannelFile, self._gv.snapFile, ordChannelFile, treeChannelFile, coordChannelFile,
                                       self._gv.channelFile, self._gv.channelBasinFile, False, numProcesses, self._dlg.taudemOutput, mustRun=mustRun)
         if not ok:
             self.cleanUp(3)
             return False
+        # if channel shapefile is a directory, set path to .shp, since not done earlier if channel did not exist then
+        self._gv.channelFile = QSWATUtils.dirToShapefile(self._gv.channelFile)
         QSWATUtils.removeLayer(self._gv.wshedFile, root)
         self.createWatershedShapefile(self._gv.channelBasinFile, self._gv.wshedFile, FileTypes._WATERSHED, root)
         # make demLayer (or hillshadelayer if exists) active so channelsLayer loads above it and below outlets
@@ -1498,6 +1500,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 return
         ordStreamFile = base + 'ordStream' + suffix
         streamFile = shapesBase + 'stream.shp'
+        # if stream shapefile already exists and is a directory, set path to .shp
+        streamFile = QSWATUtils.dirToShapefile(streamFile)
         treeStreamFile = base + 'treeStream.dat'
         coordStreamFile = base + 'coordStream.dat'
         wStreamFile = base + 'wStream' + suffix
@@ -1510,12 +1514,17 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not ok:
             self.cleanUp(3)
             return
+        # if stream shapefile is a directory, set path to .shp, since not done earlier if streamFile did not exist then
+        streamFile = QSWATUtils.dirToShapefile(streamFile)
         QSWATUtils.copyPrj(demFile, streamFile)
+        QSWATUtils.copyPrj(demFile, wStreamFile)
         if not self._gv.useGridModel:
             ordChannelFile = base + 'ordChannel' + suffix
             treeChannelFile = base + 'treeChannel.dat'
             coordChannelFile = base + 'coordChannel.dat'
             channelFile = shapesBase + 'channel.shp'
+            # if channel shapefile already exists and is a directory, set path to .shp
+            channelFile = QSWATUtils.dirToShapefile(channelFile)
             wChannelFile = base + 'wChannel' + suffix
             QSWATUtils.removeLayer(ordChannelFile, root)
             QSWATUtils.removeLayer(channelFile, root)
@@ -1525,7 +1534,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if not ok:
                 self.cleanUp(3)
                 return
+            # if stream shapefile is a directory, set path to .shp, since not done earlier if streamFile did not exist then
+            channelFile = QSWATUtils.dirToShapefile(channelFile)
             QSWATUtils.copyPrj(demFile, channelFile)
+            QSWATUtils.copyPrj(demFile, wChannelFile)
         # load stream network
         # load above fullHRUs or hillshade or DEM
         fullHRUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
@@ -1622,6 +1634,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 self.cleanUp(3)
                 return
             QSWATUtils.copyPrj(demFile, streamFile)
+            QSWATUtils.copyPrj(demFile, wStreamFile)
             if not self._gv.useGridModel:
                 QSWATUtils.removeLayer(channelFile, root)
                 # having this as a layer results in DSNODEIDs being set to zero
@@ -1632,6 +1645,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     self.cleanUp(3)
                     return
                 QSWATUtils.copyPrj(demFile, channelFile)
+                QSWATUtils.copyPrj(demFile, wChannelFile)
             self._gv.srcChannelFile = '' if self._gv.useGridModel else srcChannelFile
             # load above demLayer (or hillshadelayer if exists) so streamLayer loads above it and below outlets
             # (or use Full HRUs layer if there is one)

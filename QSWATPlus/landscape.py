@@ -408,6 +408,7 @@ class Landscape(QObject):
                                                                                           self._gv.ad8File), self._gv.isBatch)
             return False
         QSWATUtils.copyPrj(self._gv.felFile, channelFile)
+        QSWATUtils.copyPrj(self._gv.felFile, wChannelFile)
         self._gv.channelFile = channelFile
         return True
                 

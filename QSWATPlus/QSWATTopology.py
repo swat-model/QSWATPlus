@@ -88,12 +88,15 @@ class QSWATTopology:
     _USLINKNO1 = 'USLINKNO1'
     _USLINKNO2 = 'USLINKNO2'
     _DSNODEID = 'DSNODEID'
-    _DRAINAREA = 'DS_Cont_Ar' if Parameters._ISWIN else 'DSContArea'
+    _DRAINAREA = 'DSContArea'
+    _DRAINAREA2 = 'DS_Cont_Ar' # for tauDEM pre 5.3.9 on Windows 
     _DRAINAGE = 'Drainage'
-    _ORDER = 'Order' if Parameters._ISWIN else 'strmOrder'
+    _ORDER =  'strmOrder'
+    _ORDER2 = 'Order' # for tauDEM pre 5.3.9 on Windows
     _LENGTH = 'Length'
     _MAGNITUDE = 'Magnitude'
-    _DROP = 'Drop' if Parameters._ISWIN else 'strmDrop'
+    _DROP = 'strmDrop'
+    _DROP2 = 'Drop' # for tauDEM pre 5.3.9 on Windows
     _SLOPE = 'Slope'
     _STRAIGHTL = 'Straight_L' if Parameters._ISWIN else 'StraightL'
     _USCONTAR = 'US_Cont_Ar' if Parameters._ISWIN else 'USContArea'
@@ -382,6 +385,7 @@ class QSWATTopology:
         ignoreWithExisting = existing or not reportErrors
         ignoreWithGrid = useGridModel or not reportErrors
         ignoreWithGridOrExisting = ignoreWithGrid or ignoreWithExisting
+        ignoreWithGridOrExistingOrWin = ignoreWithGridOrExisting or Parameters._ISWIN
         self.channelIndex = self.getIndex(channelLayer, QSWATTopology._LINKNO, ignoreMissing=ignoreError)
         if self.channelIndex < 0:
             QSWATUtils.loginfo('No LINKNO field in channels layer')
@@ -395,10 +399,16 @@ class QSWATTopology:
         if wsnoIndex < 0:
             QSWATUtils.loginfo('No WSNO field in channels layer')
             return False
-        orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER, ignoreMissing=ignoreWithGridOrExisting)
-        drainAreaIndex = self.getIndex(channelLayer, QSWATTopology._DRAINAREA, ignoreMissing=ignoreWithGridOrExisting)
+        orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER, ignoreMissing=ignoreWithGridOrExistingOrWin)
+        if orderIndex < 0 and ignoreWithGridOrExistingOrWin:
+            orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER2, ignoreMissing=ignoreWithGridOrExisting)
+        drainAreaIndex = self.getIndex(channelLayer, QSWATTopology._DRAINAREA, ignoreMissing=ignoreWithGridOrExistingOrWin)
+        if drainAreaIndex < 0 and ignoreWithGridOrExistingOrWin:
+            drainAreaIndex = self.getIndex(channelLayer, QSWATTopology._DRAINAREA2, ignoreMissing=ignoreWithGridOrExisting)
         lengthIndex = self.getIndex(channelLayer, QSWATTopology._LENGTH, ignoreMissing=ignoreWithGridOrExisting)
-        dropIndex = self.getIndex(channelLayer, QSWATTopology._DROP, ignoreMissing=ignoreWithGridOrExisting)
+        dropIndex = self.getIndex(channelLayer, QSWATTopology._DROP, ignoreMissing=ignoreWithGridOrExistingOrWin)
+        if dropIndex < 0 and ignoreWithGridOrExistingOrWin:
+            dropIndex = self.getIndex(channelLayer, QSWATTopology._DROP2, ignoreMissing=ignoreWithGridOrExisting)
         polyIndex = self.getIndex(subbasinsLayer, QSWATTopology._POLYGONID, ignoreMissing=ignoreError)
         if polyIndex < 0:
             QSWATUtils.loginfo('No POLYGONID field in subbasins layer')
@@ -1013,7 +1023,7 @@ class QSWATTopology:
                             subbasin = self.chBasinToSubbasin[outBasin]
                             (_, _, outChannels) = self.outlets[subbasin]
                             if outLink in outChannels:
-                                 # subbasin outlet has moved inside the lake
+                                # subbasin outlet has moved inside the lake
                                 self.outletsInLake[subbasin] = lakeId
                             QSWATUtils.loginfo('Channel link {0} channel basin {1} moved inside lake {2}'.
                                                format(outLink, outBasin, lakeId))

@@ -49,6 +49,7 @@ class Parameters:
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
     _MPIEXECDEFAULTDIR = r'C:\Program Files\Microsoft MPI\Bin' if _ISWIN else '/usr/bin' if _ISLINUX else '/usr/local/bin'
+    _TAUDEM539DIR = 'TauDEM539Bin'
     _TAUDEMDIR = 'TauDEM5Bin'
     _TAUDEMHELP = 'TauDEM_Tools.chm'  # not used in Linux or Mac
     _TAUDEMDOCS = 'http://hydrology.usu.edu/taudem/taudem5/documentation.html'

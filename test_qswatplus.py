@@ -101,15 +101,15 @@ if Parameters._ISWIN:
     HashTable1['gis_channels'] = '7a5164d491bbbae74cb51741767fe873'
     HashTable1['gis_points'] = '6a8773238af3410a0a2260bf62285811'
     HashTable1['BASINSDATA'] = '64fe9b6ed9272914603daef10988e8e0'
-    HashTable1['LSUSDATA'] = 'faa84f3455976ec8e42ec2e7dd630391'
-    HashTable1['HRUSDATA'] = '172b964393f5120ec201150a63cf41cd'
+    HashTable1['LSUSDATA'] = '6e97376328807b675ee3d503b4e5a981'
+    HashTable1['HRUSDATA'] = 'c57ae0744297d997a727bb5b2f831561'
     HashTable1['WATERDATA'] = '114e03e1996124d1a1361216c15eb41d'
     HashTable1['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
     HashTable1['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable1['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-    HashTable1['gis_subbasins'] = '713d4705f214ddc78045f349ad8c1f89'
-    HashTable1['gis_lsus'] = '18db6950fe57aa652f4c295c1a6a11a9'
-    HashTable1['gis_hrus'] = '1836a24d85570173607f8acdfbc99efe'
+    HashTable1['gis_subbasins'] = 'be54ab63103d1cb87cea9db574a6936b'
+    HashTable1['gis_lsus'] = '9e8ca3df21de619fbc31453c496a6fb5'
+    HashTable1['gis_hrus'] = 'af71c8a6a010050b155ad06709b62ff8'
     HashTable1['gis_routing'] = 'bc87cfc432f6de16c94f0f2f9c60ab8b'
     HashTable1['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
@@ -126,9 +126,9 @@ if Parameters._ISWIN:
     HashTable1a['gis_elevationbands'] = HashTable1['gis_elevationbands']
     HashTable1a['gis_landexempt'] = HashTable1['gis_landexempt']
     HashTable1a['gis_splithrus'] = HashTable1['gis_splithrus']
-    HashTable1a['gis_subbasins'] = '2a8c5924e768ee09da447808a6a4c878'
-    HashTable1a['gis_lsus'] = '50fb091e9d1b184ac0ccc9845d546a99'
-    HashTable1a['gis_hrus'] = 'fe063eda81c424711f4c43485de8a8f1'
+    HashTable1a['gis_subbasins'] = '5b45d91c887e37818e3cd6e08f50a701'
+    HashTable1a['gis_lsus'] = 'd5e32963e9d1bf250ebcf6aacd5e22d1'
+    HashTable1a['gis_hrus'] = 'e835aa0e4f83e41bf9a7632b5aefe6fb'
     HashTable1a['gis_routing'] = HashTable1['gis_routing']
     HashTable1a['gis_water'] = HashTable1['gis_water']
     HashTable1a['soils_sol'] = HashTable1['soils_sol']
@@ -189,15 +189,15 @@ if Parameters._ISWIN:
     HashTable2['gis_channels'] = 'e158955fd751174ff89700af2d1e5502'
     HashTable2['gis_points'] = '2abc7bcc0a415947607532bf31a2d1d1'
     HashTable2['BASINSDATA'] = 'e99dbf8ce6dcec169bf7164838d522b9'
-    HashTable2['LSUSDATA'] = '4505259e202d14faa084725ad1eae9c1'
-    HashTable2['HRUSDATA'] = 'b1bc7aee4568f45c80f7432846e6c9c9'
+    HashTable2['LSUSDATA'] = '57c049129508e19525d3cff70b067988'
+    HashTable2['HRUSDATA'] = '332aa8de3feacf41af49aff5d66a527f'
     HashTable2['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable2['gis_elevationbands'] = 'e28ea4b5a684d867dc6c949393312a79'
     HashTable2['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable2['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-    HashTable2['gis_subbasins'] = 'c8f28fc43e87cd72aae029d99949262f'
-    HashTable2['gis_lsus'] = 'a79585cc3a4885a2d501170f8d5b9fd4'
-    HashTable2['gis_hrus'] = '566ca1abe05d68d8e0d9ed14a6e698cf'
+    HashTable2['gis_subbasins'] = '16148f2ccc85fb1e38ed0f1c58f176ee'
+    HashTable2['gis_lsus'] = 'c53179e26a253c22f2b478c5e65abb67'
+    HashTable2['gis_hrus'] = '66dd607714f9ef547e3f693a4c642d22'
     HashTable2['gis_routing'] = 'daac50c0e601e04f47c0dee7d680f75b'
     HashTable2['gis_water'] = '9c34064431f5979bc9c21b7610fe3027'
     HashTable2['soils_sol'] = 'e6a7ef3e63d6fc82468a367a33edde66'
@@ -237,14 +237,14 @@ HashTable3 = dict()
 # HashTable3['gis_channels'] = '5265c40eb6e13d298a4dae6adb7f8809'  # unreliable
 # HashTable3['gis_points'] = '74f4adad3f70a25c503db31af93e9ae9'
 HashTable3['BASINSDATA'] = '0959c4d9bdf4324560d65a7c5f09b846'
-HashTable3['LSUSDATA'] = 'd3763eab4b0c3b1d49db552e5b6464c0'
-HashTable3['HRUSDATA'] = '49f32047d2795e2fea089e5d50ae2a0a'
+HashTable3['LSUSDATA'] = '8efdfdf5110773a2e60fde3faf013c31'
+HashTable3['HRUSDATA'] = '0a8131619a83d7d965f34c4f2e86728e'
 HashTable3['WATERDATA'] = 'ef4821139bebc7985aad316ccfef45ba'
 HashTable3['gis_elevationbands'] = '7cb4deff34d859f54f9167b411613eeb'
 HashTable3['gis_landexempt'] = '843f4dfbcb5fa16105cdd5b8108f3d5f'
 HashTable3['gis_splithrus'] = '1221c315567ad59dbf8976f1c56c46b4'
 # HashTable3['gis_subbasins'] = 'b97f84dd210b4aa89234225d92662f27'
-HashTable3['gis_lsus'] = '38a0d309713522667f6b598f8c2cc08e'
+HashTable3['gis_lsus'] = 'a8df5a1bf7a5550ee108238b472c8b28'
 # HashTable3['gis_hrus'] = 'f537ccd8d6180721090f0a8cb1bae2a2'
 # HashTable3['gis_routing'] = '72cf3f50dacf291a169ca616eec1a8d4'
 HashTable3['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -267,15 +267,15 @@ HashTable4 = dict()
 HashTable4['gis_channels'] = '4f706efd5078bcac36d36c1ae37ba0c0'
 HashTable4['gis_points'] = '8cdbd48802bc4a00c088f4a753522f59'
 HashTable4['BASINSDATA'] = '73184ab8f497da5a8c8538b3c5c67dae'
-HashTable4['LSUSDATA'] = 'dd565ac2711005cabded7fcf49c1aa25'
-HashTable4['HRUSDATA'] = '42dcc500361635b882ab7a40d1b111c2'
+HashTable4['LSUSDATA'] = 'a8795398f694738e791a0305da0fcee0'
+HashTable4['HRUSDATA'] = '75420ba95708822d4f4a112919a9dc14'
 HashTable4['WATERDATA'] = 'dda430a94d7dda7aa6a6cbeaccbbd868'
 HashTable4['gis_elevationbands'] = '1a7d614a51eaa888311d51fad468f2a8'
 HashTable4['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable4['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable4['gis_subbasins'] = 'ecbc50eafee324528ad4eafcad8684a1'
-HashTable4['gis_lsus'] = '3905699bdfeedba1ac52b153a406dd21'
-HashTable4['gis_hrus'] = '02bc990166a6d75a5bf78064eae8e18b'
+HashTable4['gis_subbasins'] = '4dc655983360b9fd5cd8e6635ede7705'
+HashTable4['gis_lsus'] = '9cfa7ec56a262fe6b87fa7a7a68009d1'
+HashTable4['gis_hrus'] = '142a26e8d7493a639f4773099e54d241'
 HashTable4['gis_routing'] = '39d0dbfa2527d24a03410b4119d39f5f'
 HashTable4['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable4['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
@@ -295,14 +295,14 @@ HashTable5 = dict()
 # HashTable5['gis_channels'] = 'd9c1689f457b9f5c65840b9365a16ce7'  # unreliable
 # HashTable5['gis_points'] = '333172d7cef8aebc7321c448d7fbf87e'
 HashTable5['BASINSDATA'] = '21cc9d4542fdfd063be39dec2dce7d53'
-HashTable5['LSUSDATA'] = 'c4e1ed41239be70510c15944156c861d'
-HashTable5['HRUSDATA'] = 'd2938d60afcb861b2b947b5ba1cac024'
+HashTable5['LSUSDATA'] = '0b0b816493f1082e33275c835b3e6bc3'
+HashTable5['HRUSDATA'] = 'dc41bc62aa94287f160f5284761c45b5'
 HashTable5['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable5['gis_elevationbands'] = 'd0eb386ed677c19696a7eadbe8bc4b3a'
 HashTable5['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable5['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 # HashTable5['gis_subbasins'] = '35545a9ad2419293b459d608d9725041'
-HashTable5['gis_lsus'] = 'f1a82893447f46698f81aa96c79aef27'
+HashTable5['gis_lsus'] = '1ab8f6b91f4ddb448c0aa326996c8204'
 # HashTable5['gis_hrus'] = '91e65917d5015e31c186be4e306abce4'
 # HashTable5['gis_routing'] = '16ac5808a8d2abd6a5f497c5c215cfc4'
 HashTable5['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
@@ -325,15 +325,15 @@ HashTable6 = dict()
 HashTable6['gis_channels'] = '7bf47fb4f0a1fb1d2059cf46730b54dd'
 HashTable6['gis_points'] = 'f22e3d64d0e4a73a04951e4a47c4ca6e'
 HashTable6['BASINSDATA'] = 'f3372dc8d572fbad502bff676f73c81d'
-HashTable6['LSUSDATA'] = '6efe6b6b67cb6215db5e240a3458606b'
-HashTable6['HRUSDATA'] = '276ad563cbe5a0b3619e95baa589aaed'
+HashTable6['LSUSDATA'] = '77e782bb0afd79f1d441886004d5d1df'
+HashTable6['HRUSDATA'] = '8c1430d3903cd13cb3850b5e3416cd07'
 HashTable6['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['gis_elevationbands'] = 'dda5bc5d2accf787c577a8b00c392ce7'
 HashTable6['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable6['gis_subbasins'] = 'd382b65281283977156415894d39370d'
-HashTable6['gis_lsus'] = 'ff70c47e2b81f65c6c9a6eeac82786c9'
-HashTable6['gis_hrus'] = '0a7d82506d98f0d8d750cc439ffc3494'
+HashTable6['gis_subbasins'] = '8331e023226501d029e05384db54af81'
+HashTable6['gis_lsus'] = '356a1eacbfd5c234d77a03ebb3667125'
+HashTable6['gis_hrus'] = '4e09994e2f66e0331628d10883e1df79'
 HashTable6['gis_routing'] = '18de4620fa93bba768ad1be6acd872c8'
 HashTable6['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['soils_sol'] = '8f96b3ce8c689509a56b1741a1814053'
@@ -354,15 +354,15 @@ HashTable7 = dict()
 HashTable7['gis_channels'] = 'effab59038e9f1cbb2c712ef33ba8b13'
 HashTable7['gis_points'] = 'a6546e8afe4dc238d2a48e305057c5d1'
 HashTable7['BASINSDATA'] = '0606c7097d128699daa1aa5f84ff1991'
-HashTable7['LSUSDATA'] = '0e7ec2b8a5736fe6c5c345ddc5b406c2'
-HashTable7['HRUSDATA'] = '5ef23a5556f4eff29d611ec3ae88d290'
+HashTable7['LSUSDATA'] = 'e8587b7bfde9f2c83eb00871945673fc'
+HashTable7['HRUSDATA'] = '63086e7031841d7d0dfb537347e90a83'
 HashTable7['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable7['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable7['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable7['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable7['gis_subbasins'] = '650ccfaf996cbbb1a4c191cb29631856'
-HashTable7['gis_lsus'] = '00fe79ad358ef0789950f49dc6327a4a'
-HashTable7['gis_hrus'] = '1781f793e392bd051850a46a7ebc05f6'
+HashTable7['gis_subbasins'] = '487a0aeb4db7ebcf160af2a67aadc828'
+HashTable7['gis_lsus'] = 'eb89cbc190393b7e3a329d50445e888e'
+HashTable7['gis_hrus'] = '09ea6fc3dbb05f6911821a0ac73228d9'
 HashTable7['gis_routing'] = '470bec874bbc252c2fc14987acc02b95'
 HashTable7['gis_water'] = 'fb8d22795c61bab78aed70fd597fe40e'
 HashTable7['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
@@ -383,15 +383,15 @@ HashTable8 = dict()
 HashTable8['gis_channels'] = 'b9531948dc4254bbaaf1f96d88affd41'
 HashTable8['gis_points'] = '3728417c73c135183dd8a5c42a948246'
 HashTable8['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable8['LSUSDATA'] = 'ed831231dcd9bd805e3abbfb76aa2d0e'
-HashTable8['HRUSDATA'] = 'a934f39d4c1866df2a1d2d68e1b52858'
+HashTable8['LSUSDATA'] = '1041a5b25159dcf8fa503283bb2f0c5f'
+HashTable8['HRUSDATA'] = '1c44274bc32a0acab932310d86d4cfb8'
 HashTable8['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable8['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable8['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable8['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable8['gis_subbasins'] = '414a1f8ba4f5667a1cfa68fca060eb8a'
-HashTable8['gis_lsus'] = '8f72ea360f0631a4846bf34a2825d051'
-HashTable8['gis_hrus'] = '6ebc2d579b7f23511d174992edd03917'
+HashTable8['gis_subbasins'] = '094465c45207d26372e6f1ce4d896060'
+HashTable8['gis_lsus'] = 'f97ecc36922e41755fec4b4eb1ae1b97'
+HashTable8['gis_hrus'] = '81bf5e40d9995ad8d5a6efee08d10d08'
 HashTable8['gis_routing'] = 'de73bcc67504fdf3326a48d67c179dc4'
 HashTable8['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable8['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
@@ -412,15 +412,15 @@ HashTable9 = dict()
 HashTable9['gis_channels'] = 'eeb54283fc500238a519a3125f172060'
 HashTable9['gis_points'] = 'b64f740e161326588c7fcb327d39be44'
 HashTable9['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable9['LSUSDATA'] = 'a0e180469723c1c96f2a1ef8b700e512'
-HashTable9['HRUSDATA'] = 'a934f39d4c1866df2a1d2d68e1b52858'
+HashTable9['LSUSDATA'] = '73a57478d8ff4b0ca66615fcba35169b'
+HashTable9['HRUSDATA'] = '1c44274bc32a0acab932310d86d4cfb8'
 HashTable9['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable9['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable9['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable9['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable9['gis_subbasins'] = '414a1f8ba4f5667a1cfa68fca060eb8a'
-HashTable9['gis_lsus'] = '89d452b1997dc7abb011909bef7dcedc'
-HashTable9['gis_hrus'] = '6ebc2d579b7f23511d174992edd03917'
+HashTable9['gis_subbasins'] = '094465c45207d26372e6f1ce4d896060'
+HashTable9['gis_lsus'] = 'e9884296148f1daab508873f0945c699'
+HashTable9['gis_hrus'] = '81bf5e40d9995ad8d5a6efee08d10d08'
 HashTable9['gis_routing'] = '6bd6797de18c0af22b94f3fd0b949689'
 HashTable9['gis_water'] = '6f06be6293b2cec335d74b55bce9df35'
 HashTable9['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
@@ -441,15 +441,15 @@ HashTable10 = dict()
 HashTable10['gis_channels'] = '9a512056fa101943d4d56b6824fa93b3'
 HashTable10['gis_points'] = 'a66758a1493dae020d1cec94dc2d5e22'
 HashTable10['BASINSDATA'] = 'dd19435c0ae94a1305d791ba69cf6d19'
-HashTable10['LSUSDATA'] = '0b2478cc4f238fa7ed29e2944261c52c'
-HashTable10['HRUSDATA'] = '93a2d272a141ce6c8fc9b3163cc90fa6'
+HashTable10['LSUSDATA'] = '9482a3213f206608d87e687fed873f0c'
+HashTable10['HRUSDATA'] = '3c37d9c7dc6776910248bf79a511ec0a'
 HashTable10['WATERDATA'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable10['gis_subbasins'] = '414a1f8ba4f5667a1cfa68fca060eb8a'
-HashTable10['gis_lsus'] = '37f9529763ecde9c241a8418211ebc60'
-HashTable10['gis_hrus'] = '269a9affa7ef134c36d126970683fc33'
+HashTable10['gis_subbasins'] = '094465c45207d26372e6f1ce4d896060'
+HashTable10['gis_lsus'] = '71c319e6d0f981da88326cf7a3d88717'
+HashTable10['gis_hrus'] = '0171dfd23dc4e81fc37b5a2a1be47170'
 HashTable10['gis_routing'] = 'a024c45c32d01dd0706a3a38f51ad557'
 HashTable10['gis_water'] = '6f06be6293b2cec335d74b55bce9df35'
 HashTable10['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
@@ -473,8 +473,8 @@ HashTable11 = dict()
 HashTable11['gis_channels'] = 'a3774d2ac25186f355d81c7e4c7e6be7'
 HashTable11['gis_points'] = '097fe6e5a88d337924e8ac2b3785d5c3'
 HashTable11['BASINSDATA'] = '189866165b3890ab06af6e3ecc3732e8'
-HashTable11['LSUSDATA'] = '44aeeddf822a8711922f06be989d7bd5'
-HashTable11['HRUSDATA'] = '8daea2fc9f0f98ee3ae24649e461f3e9'
+HashTable11['LSUSDATA'] = '990921eb30f15a073b056e69c5e03f4a'
+HashTable11['HRUSDATA'] = 'b22c167007eb61e2efaa51fa697cb88d'
 HashTable11['WATERDATA'] = '1b14393e25e608734794c06b6566d507'
 HashTable11['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable11['LAKELINKS'] = '4ad9b335aa9d58735e72bb6ff13829b1'
@@ -482,9 +482,9 @@ HashTable11['LAKESDATA'] = 'd134901417c1c80cdc302007547adb93'
 HashTable11['gis_elevationbands'] = 'c015d42982021c705249f2755571e58a'
 HashTable11['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable11['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable11['gis_subbasins'] = '59e616fa38700e714aa777c8e64660fd'
-HashTable11['gis_lsus'] = 'e09b645a65864996e87c9a8e33ba58d2'
-HashTable11['gis_hrus'] = '1c175b94a541d4cfe1240385ed967021'
+HashTable11['gis_subbasins'] = 'b2fc399dc99abce340662282f6164c18'
+HashTable11['gis_lsus'] = 'bf2e4a27a73b82adb177d985aafbcd8b'
+HashTable11['gis_hrus'] = '93ee96afd0ca96c66a9a1ecbcd459750'
 HashTable11['gis_routing'] = '969a6bfbccb086365b9d0342058b6197'
 HashTable11['gis_water'] = '967e5788e2848115d73f60a6c018b439'
 HashTable11['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
@@ -503,8 +503,8 @@ HashTable12 = dict()
 HashTable12['gis_channels'] = '6579fbe1f395fe0361086e7e12f9d9a9'
 HashTable12['gis_points'] = '2de34e7bd261688707c2a57f709971a1'
 HashTable12['BASINSDATA'] = '1d3d581fe0af032035596098d13a346e'
-HashTable12['LSUSDATA'] = '4806de09669f6dc6020312cbcec1e6b3'
-HashTable12['HRUSDATA'] = 'fec97ea34f1012d14ef5404cb5812b52'
+HashTable12['LSUSDATA'] = 'e74cf8d68f33198e3d0a0a99af2fb4c0'
+HashTable12['HRUSDATA'] = '2d0251879d40c8bcd54e548ff74669fc'
 HashTable12['WATERDATA'] = 'f15f76124d5b1ea8d42aeedf3319edf5'
 HashTable12['LAKEBASINS'] = 'e7688062747109e112d2222049e80839'
 HashTable12['LAKELINKS'] = '7010664035f83e4c00a61befb37f3f88'
@@ -512,9 +512,9 @@ HashTable12['LAKESDATA'] = '0c1bd39307c718adebacf5e1a7b655ed'
 HashTable12['gis_elevationbands'] = 'c015d42982021c705249f2755571e58a'
 HashTable12['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable12['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable12['gis_subbasins'] = 'b82333676d7c9eebcdbbe2242406aac1'
-HashTable12['gis_lsus'] = '682d9cce2a84185c51e354650093ab23'
-HashTable12['gis_hrus'] = '44459fee3bb6c367cf6374247a45a567'
+HashTable12['gis_subbasins'] = 'c74e2c19021e94c94af12abfc11e96f2'
+HashTable12['gis_lsus'] = '87c1d5b10cfa19402c98594867bd7642'
+HashTable12['gis_hrus'] = 'f53deae16d97c2baf8794d0a632df744'
 HashTable12['gis_routing'] = '7ac5115c06539bf9075fe8928015ff68'
 HashTable12['gis_water'] = '44d71a339adc80a88685ee52c3203827'
 HashTable12['soils_sol'] = 'b3b85be1e12b4dd9d67b11ae14187822'
@@ -535,8 +535,8 @@ HashTable13 = dict()
 HashTable13['gis_channels'] = '422b701dcc42812fd30a6bfec7311cbc'
 HashTable13['gis_points'] = '41b193731d59631fdebffbada777a7d0'
 HashTable13['BASINSDATA'] = '8bbf7fc105ef7636aefb4db1b98a81d2'
-HashTable13['LSUSDATA'] = 'f259779714b336cda73f299a60ac7620'
-HashTable13['HRUSDATA'] = '584864eba34575cb45c745578e2717ae'
+HashTable13['LSUSDATA'] = 'c8fce11b4312e8aaf699307ca422f8ae'
+HashTable13['HRUSDATA'] = '2f293678bf7f198014c6a61960f1ca48'
 HashTable13['WATERDATA'] = '2cb16454f19787e3a73ea64c54fc56a2'
 HashTable13['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['LAKELINKS'] = 'dd0489e1966de42004b976e18ac62425'
@@ -544,9 +544,9 @@ HashTable13['LAKESDATA'] = '6853ee17cf96cd5e8a2e576a900af977'
 HashTable13['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable13['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable13['gis_subbasins'] = '1d20a2a3e11618240af9c454ad3f18fc'
-HashTable13['gis_lsus'] = '1ae7c75ce5bad016c731653ce53b8ce9'
-HashTable13['gis_hrus'] = 'f3a7f3c0089f87dbeca54ad20602c992'
+HashTable13['gis_subbasins'] = 'd5f1600fc04cb260de9bacffdabfd474'
+HashTable13['gis_lsus'] = 'fa6322f3751a530dee9ea729c3cdf596'
+HashTable13['gis_hrus'] = '36afab7e43129723d042d0ae84b46a31'
 HashTable13['gis_routing'] = '38debe3d3f5d70a044a17c104363f575'
 HashTable13['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable13['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
@@ -565,8 +565,8 @@ HashTable14 = dict()
 HashTable14['gis_channels'] = 'c63fcd667ccbf8ec17931035bc78a8a6'
 HashTable14['gis_points'] = '9e67c65443e95c07bfdbad12419527fe'
 HashTable14['BASINSDATA'] = 'ecd89b8d77d9922c445d9e22cc669042'
-HashTable14['LSUSDATA'] = 'ebcc220dfb75388e1a3fd7f8734dbaab'
-HashTable14['HRUSDATA'] = '25b5de709dc35c69af54c427693df3bb'
+HashTable14['LSUSDATA'] = '26fdf0c9a164b0ff14d29a5138a99079'
+HashTable14['HRUSDATA'] = 'a4b859e4d47bab9567ee42ece47ac74f'
 HashTable14['WATERDATA'] = 'e91c10bfa2d51b6fe53f7402a060dc83'
 HashTable14['LAKEBASINS'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['LAKELINKS'] = 'f1434cb64d547ab7cd4e496447fb07ef'
@@ -574,9 +574,9 @@ HashTable14['LAKESDATA'] = '6853ee17cf96cd5e8a2e576a900af977'
 HashTable14['gis_elevationbands'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable14['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
-HashTable14['gis_subbasins'] = 'aeb4293fb339bf59e9303ec16e6695ad'
-HashTable14['gis_lsus'] = '0aae520a3ec4b54605dc35135bb6e664'
-HashTable14['gis_hrus'] = 'c707dd32f3250adaae40c37f39794c49'
+HashTable14['gis_subbasins'] = '4ffb23ff00bdc8493ca753fc302604fb'
+HashTable14['gis_lsus'] = '244ec01dd70b67436009f80bd462c5fc'
+HashTable14['gis_hrus'] = '015996e743b0a9193a8e0ae937dd48bc'
 HashTable14['gis_routing'] = '22b0ce0161ae320dec98c4a0e28af356'
 HashTable14['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable14['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
@@ -733,6 +733,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 25, 'Subbasin count is {0} instead of 25'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 259, 'Channel count is {0} instead of 259'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 259, 'LSU count is {0} instead of 259'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 848, 'HRU count is {0} instead of 848'.format(self.hrus.CreateHRUs.countHRUs()))
         self.checkHashes(HashTable1)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.assertTrue(self.dlg.paramsButton.isEnabled(), 'Parameters button not enabled')
@@ -895,6 +899,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 25, 'Subbasin count is {0} instead of 25'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 242, 'Channel count is {0} instead of 242'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 242, 'LSU count is {0} instead of 242'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 319, 'HRU count is {0} instead of 319'.format(self.hrus.CreateHRUs.countHRUs()))
         self.checkHashes(HashTable2)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
@@ -1006,6 +1014,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 26, 'Subbasin count is {0} instead of 26'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 329, 'Channel count is {0} instead of 329'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 329, 'LSU count is {0} instead of 329'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 479, 'HRU count is {0} instead of 479'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable3)
         self.assertTrue(self.dlg.hrusButton.isEnabled(), 'HRUs button not enabled')
@@ -1036,6 +1048,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(hrudlg.targetSlider.value() == 100, 'Area slider set to wrong value: {0}'.format(hrudlg.targetSlider.value()))
         self.assertTrue(hrudlg.createButton.isEnabled(), 'Create button not enabled')
         QtTest.QTest.mouseClick(hrudlg.createButton, Qt.LeftButton)
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 26, 'Subbasin count after rerun is {0} instead of 26'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 329, 'Channel count after rerun is {0} instead of 329'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 329, 'LSU count is {0} instead of 329'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 479, 'HRU count after rerun is {0} instead of 479'.format(self.hrus.CreateHRUs.countHRUs()))
         #====This test does not work, because HRU numbering can change, and perhaps numerical accuracy also
         # # check tables again to confirm recalculating HRUs from saved data made no difference
         # self.checkHashes(HashTable3)
@@ -1152,6 +1168,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 25, 'Subbasin count is {0} instead of 25'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 93, 'Channel count is {0} instead of 93'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 93, 'LSU count is {0} instead of 93'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 220, 'HRU count is {0} instead of 220'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable4)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1264,6 +1284,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 134, 'Subbasin count is {0} instead of 134'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 140, 'Channel count is {0} instead of 140'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 140, 'LSU count is {0} instead of 140'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 170, 'HRU count is {0} instead of 170'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable5)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1396,6 +1420,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 41, 'Subbasin count is {0} instead of 41'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 127, 'Channel count is {0} instead of 127'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 253, 'LSU count is {0} instead of 253'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 253, 'HRU count is {0} instead of 253'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable6)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1491,6 +1519,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 35161, 'Subbasin count is {0} instead of 35161'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 35161, 'Channel count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 35161, 'LSU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 35161, 'HRU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable7)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1600,6 +1632,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 35161, 'Subbasin count is {0} instead of 35161'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 35161, 'Channel count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 35161, 'LSU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 36672, 'HRU count is {0} instead of 36672'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable8)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1704,6 +1740,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 35161, 'Subbasin count is {0} instead of 35161'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 35161, 'Channel count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 35161, 'LSU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 36672, 'HRU count is {0} instead of 36672'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable9)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1824,6 +1864,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 35161, 'Subbasin count is {0} instead of 35161'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 35161, 'Channel count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 35161, 'LSU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 47014, 'HRU count is {0} instead of 47104'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable10)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -1933,6 +1977,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 5, 'Subbasin count is {0} instead of 5'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 75, 'Channel count is {0} instead of 75'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 75, 'LSU count is {0} instead of 75'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 500, 'HRU count is {0} instead of 500'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable11)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -2050,6 +2098,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 5, 'Subbasin count is {0} instead of 5'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 74, 'Channel count is {0} instead of 74'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 74, 'LSU count is {0} instead of 74'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 500, 'HRU count is {0} instead of 500'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable12)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -2167,6 +2219,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 5319, 'Subbasin count is {0} instead of 5319'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 5310, 'Channel count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 5310, 'LSU count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 5310, 'HRU count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable13)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
@@ -2295,6 +2351,10 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 5319, 'Subbasin count is {0} instead of 5319'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 5310, 'Channel count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 5310, 'LSU count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 5310, 'HRU count is {0} instead of 5310'.format(self.hrus.CreateHRUs.countHRUs()))
         if Parameters._ISWIN:
             self.checkHashes(HashTable14)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')

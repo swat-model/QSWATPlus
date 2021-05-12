@@ -290,6 +290,8 @@ class QSWATUtils:
     def removeLayerAndFiles(fileName: str, root: QgsLayerTreeGroup) -> None:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
         QSWATUtils.removeFiles(fileName)
@@ -298,9 +300,19 @@ class QSWATUtils:
     def tryRemoveLayerAndFiles(fileName: str, root: QgsLayerTreeGroup) -> None:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix, but allow deletions to fail.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
         QSWATUtils.tryRemoveFiles(fileName)
+        
+    @staticmethod 
+    def tryRemoveShapefileLayerAndDir(direc: str, root: QgsLayerTreeGroup) -> None:
+        """Remove directory containing shapefile and any layers."""
+        base = os.path.split(direc)[1]
+        shapefile = QSWATUtils.join(direc, base + '.shp')
+        QSWATUtils.removeLayer(shapefile, root)
+        shutil.rmtree(direc, ignore_errors=True)
           
     @staticmethod  
     def removeLayer(fileName: str, root: QgsLayerTreeGroup) -> None:
@@ -390,13 +402,15 @@ class QSWATUtils:
         """
         Delete all files with same root as fileName, 
         i.e. regardless of suffix.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf.
         """
         # wait for layers to be removed
         QApplication.processEvents()
         pattern = os.path.splitext(fileName)[0] + '.*'
         for f in glob.iglob(pattern):
             os.remove(f)
-                
+            
     @staticmethod
     def tryRemoveFiles(fileName: str) -> None:
         """
@@ -408,7 +422,9 @@ class QSWATUtils:
             
     @staticmethod
     def tryRemoveFilePattern(pattern: str) -> None:
-        """Delete all files matching pattern, allowing deletions to fail."""
+        """Delete all files matching pattern, allowing deletions to fail.
+        
+        Do not use with shapefiles: removes some but leaves .shp and .dbf."""
         # wait for layers to be removed
         QApplication.processEvents()
         for f in glob.iglob(pattern):
@@ -568,11 +584,35 @@ class QSWATUtils:
 #                 QSWATUtils.information('{0} the extent of {0} does not seem adequate to cover the watershed.  Have you clipped it too much?'.format(fileName),
 #                                        gv.isBatch)
 #         return
-            
+        
+    @staticmethod 
+    def dirToShapefile(path: str) -> str:
+        """If path is P/X.shp and P/X is a directory, return P/X/X.shp,
+        else return path."""
+        base = os.path.splitext(path)[0]
+        if os.path.isdir(base):
+            baseName = os.path.split(base)[1]
+            return QSWATUtils.join(base, baseName + '.shp')
+        return path
+    
+    @staticmethod 
+    def shapefileToDir(path: str) -> str:
+        """If path has form P/X/X.shp result is P/X, else path is Z.shp and result is Z.  Result directory created if necessary. """
+        dir0 = os.path.splitext(path)[0]
+        dir1, dir0Name = os.path.split(dir0)
+        dir1Name = os.path.split(dir1)[1]
+        if dir1Name == dir0Name:
+            outDir = dir1
+        else:
+            outDir = dir0
+        if not os.path.isdir(outDir):
+            os.mkdir(outDir)
+        return outDir
+
     @staticmethod        
     def getLayerByFilename(treeLayers: List[QgsLayerTreeLayer], fileName: str, ft: int, gv: Any, 
-                           subLayer: Optional[QgsLayerTreeLayer], groupName: Optional[str], clipToDEM: bool =False) \
-                            -> Tuple[Optional[QgsMapLayer], bool]:
+                           subLayer: Optional[QgsLayerTreeLayer], groupName: Optional[str], 
+                           clipToDEM: bool =False) -> Tuple[Optional[QgsMapLayer], bool]:
         """
         Return map layer for this fileName and flag to indicate if new layer, 
         loading it if necessary if groupName is not None.
@@ -738,16 +778,16 @@ class QSWATUtils:
         
     @staticmethod    
     def openAndLoadFile(root: QgsLayerTreeGroup, ft: int,
-                        box: QTextEdit, saveDir: str, gv: Any, 
+                        box: QLineEdit, saveDir: str, gv: Any, 
                         subLayer: QgsLayerTreeLayer, groupName: str, clipToDEM: bool=False, runFix: bool=False) \
                             -> Tuple[Optional[str], Optional[QgsMapLayer]]:
         """
-        Use dialog to open file of FileType ft chosen by user, 
+        Use dialog to open file of FileType ft chosen by user (or get from box if is batch, intended for testing), 
         add a layer for it if necessary, 
         clip if clipToDEM is true and substantially larger than DEM,
         run geometry fix if runFix is true,
-        copy files to saveDir, write path to box,
-        and return file path and layer.
+        copy files to saveDir, or to directory within saveDir if makeDir is true, write path to box,
+        and return file (or directory if makeDir is true) path and layer.
         """
         settings: QSettings = QSettings()
         if settings.contains('/QSWATPlus/LastInputPath'):
@@ -755,16 +795,20 @@ class QSWATUtils:
         else:
             path = ''
         title: str = QSWATUtils.trans(FileTypes.title(ft))
-        inFileName, _ = QFileDialog.getOpenFileName(None, title, path, FileTypes.filter(ft))
+        if gv.isBatch:
+            # filename in box
+            inFileName = box.text()
+        else:
+            inFileName, _ = QFileDialog.getOpenFileName(None, title, path, FileTypes.filter(ft))
         #QSWATUtils.information('File is |{0}|'.format(inFileName), False)
         if inFileName is not None and inFileName != '':
             settings.setValue('/QSWATPlus/LastInputPath', os.path.dirname(str(inFileName)))
             # copy to saveDir if necessary
             inInfo: QFileInfo = QFileInfo(inFileName)
+            inFile: str = inInfo.fileName()
             inDir: QDir = inInfo.absoluteDir()
             outDir: QDir = QDir(saveDir)
             if inDir != outDir:
-                inFile: str = inInfo.fileName()
                 if inFile == 'sta.adf' or inFile == 'hdr.adf':
                     # ESRI grid - whole directory will be copied to saveDir
                     inDirName: str = inInfo.dir().dirName()
@@ -798,9 +842,9 @@ class QSWATUtils:
                         QSWATUtils.fixGeometry(inFileName, saveDir)
                     else:
                         QSWATUtils.copyFiles(inInfo, saveDir)
+            # even if runFix is true, has already neen stored in project folder 
+            # and so fixing geometry should be unnecessary
             else:
-                # even if runFix is true, has already neen stored in project folder 
-                # and so fixing geometry should be unnecessary
                 outFileName = inFileName
             if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER:
                 # not to be loaded into QGIS
