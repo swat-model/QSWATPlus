@@ -2830,16 +2830,30 @@ If you want to start again from scratch, reload the lakes shapefile."""
         lengthField = self._gv.topo.getIndex(streamLayer, QSWATTopology._LENGTH, ignoreMissing=True)
         magnitudeField = self._gv.topo.getIndex(streamLayer, QSWATTopology._MAGNITUDE, ignoreMissing=True)
         ds_cont_arField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DRAINAREA, ignoreMissing=True)
+        if ds_cont_arField < 0:
+            ds_cont_arField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DRAINAREA2, ignoreMissing=True)
         dropField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DROP, ignoreMissing=True)
+        if dropField < 0:
+            dropField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DROP2, ignoreMissing=True)
         slopeField = self._gv.topo.getIndex(streamLayer, QSWATTopology._SLOPE, ignoreMissing=True)
         straight_lField = self._gv.topo.getIndex(streamLayer, QSWATTopology._STRAIGHTL, ignoreMissing=True)
+        if straight_lField < 0:
+            straight_lField = self._gv.topo.getIndex(streamLayer, QSWATTopology._STRAIGHTL2, ignoreMissing=True)
         us_cont_arField = self._gv.topo.getIndex(streamLayer, QSWATTopology._USCONTAR, ignoreMissing=True)
+        if us_cont_arField < 0:
+            us_cont_arField = self._gv.topo.getIndex(streamLayer, QSWATTopology._USCONTAR2, ignoreMissing=True)
         wsnoField = self._gv.topo.getIndex(streamLayer, QSWATTopology._WSNO)
         if wsnoField < 0:
             return
         dout_endField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTEND, ignoreMissing=True)
+        if dout_endField < 0:
+            dout_endField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTEND2, ignoreMissing=True)
         dout_startField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTSTART, ignoreMissing=True)
+        if dout_startField < 0:
+            dout_startField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTSTART2, ignoreMissing=True)
         dout_midField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTMID, ignoreMissing=True)
+        if dout_midField < 0:
+            dout_midField = self._gv.topo.getIndex(streamLayer, QSWATTopology._DOUTMID2, ignoreMissing=True)
         basinField = self._gv.topo.getIndex(channelLayer, QSWATTopology._BASINNO, ignoreMissing=True)
         if outletLayer is not None:
             nodeidField = self._gv.topo.getIndex(outletLayer, QSWATTopology._ID, ignoreMissing=True)
