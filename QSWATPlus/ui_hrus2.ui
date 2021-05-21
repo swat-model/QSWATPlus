@@ -32,7 +32,7 @@
          </sizepolicy>
         </property>
         <property name="currentIndex">
-         <number>1</number>
+         <number>0</number>
         </property>
         <widget class="QWidget" name="tab">
          <attribute name="title">
@@ -196,19 +196,6 @@ p, li { white-space: pre-wrap; }
             </property>
            </widget>
           </item>
-          <item row="14" column="0" colspan="4">
-           <widget class="QLabel" name="progressLabel1">
-            <property name="minimumSize">
-             <size>
-              <width>100</width>
-              <height>0</height>
-             </size>
-            </property>
-            <property name="text">
-             <string>dummy text        </string>
-            </property>
-           </widget>
-          </item>
           <item row="1" column="8">
            <widget class="QPushButton" name="selectLanduseButton">
             <property name="sizePolicy">
@@ -234,13 +221,6 @@ p, li { white-space: pre-wrap; }
             </property>
             <property name="browseButton" stdset="0">
              <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item row="0" column="0" colspan="4">
-           <widget class="QLabel" name="selectLanduseLabel">
-            <property name="text">
-             <string>Select landuse map</string>
             </property>
            </widget>
           </item>
@@ -759,6 +739,26 @@ p, li { white-space: pre-wrap; }
             </property>
             <property name="toolTip">
              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing plantl attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            </property>
+           </widget>
+          </item>
+          <item row="14" column="0" colspan="3">
+           <widget class="QLabel" name="progressLabel1">
+            <property name="minimumSize">
+             <size>
+              <width>100</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>dummy text        </string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="0" colspan="3">
+           <widget class="QLabel" name="selectLanduseLabel">
+            <property name="text">
+             <string>Select landuse map</string>
             </property>
            </widget>
           </item>
@@ -1463,7 +1463,7 @@ particularly when it is small or there are landuses being split or exempt from r
             </property>
            </widget>
           </item>
-          <item row="5" column="0">
+          <item row="5" column="0" colspan="3">
            <widget class="QLabel" name="progressLabel2">
             <property name="text">
              <string>dummy text</string>
