@@ -46,8 +46,8 @@ from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
 from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .jenks import jenks    # type: ignore @UnresolvedImport
-from .globals import GlobalVars  # type: ignore @UnusedImport
+from .jenks import jenks    # type: ignore # @UnresolvedImport 
+from .globals import GlobalVars  # type: ignore # @UnusedImport 
 # from .images2gif import writeGif
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport
@@ -733,7 +733,7 @@ class Visualise(QObject):
             self.setDates()
             return True
         except Exception:
-            QSWATUtils.exceptionError('Failed to read {0}: {1}'.format(prtFile), self._gv.isBatch)
+            QSWATUtils.exceptionError('Failed to read {0}: {1}'.format(prtFile, traceback.format_exc()), self._gv.isBatch)
             return False
         
     def setDates(self) -> None:
@@ -1071,7 +1071,7 @@ class Visualise(QObject):
                             if isDaily:
                                 ref = 'day {0!s}'.format(tim)
                             else:
-                                ref = 'month (0!s)'.format(tim)
+                                ref = 'month {0!s}'.format(tim)
                             QSWATUtils.error(u'Insufficient data for {0} for year {1} for plot {2!s}'.format(ref, year, i+1), self._gv.isBatch)
                             return
                         val = yearData[tim]
@@ -3568,6 +3568,7 @@ class Visualise(QObject):
             if len(l) > 0:
                 l.sort()
                 percentile = Visualise.percentile(l, (100 - self._dlg.QqSpin.value()) / 100)
+                assert percentile is not None
                 self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(percentile)))
 #         QqStore = QSWATUtils.join(self._gv.resultsDir, 'q{0!s}.txt'.format(self._dlg.QqSpin.value()))
 #         with open(QqStore, 'w', newline='') as f:

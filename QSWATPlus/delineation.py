@@ -33,8 +33,8 @@ import math
 import time
 from osgeo import gdal, ogr  # type: ignore
 import csv
-import processing  # type: ignore @UnresolvedImport
-from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
+import processing  # type: ignore # @UnresolvedImport 
+from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport
 import traceback
 from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
 
@@ -43,12 +43,12 @@ from .delineationdialog import DelineationDialog  # type: ignore
 from .TauDEMUtils import TauDEMUtils  # type: ignore
 from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns, MapFuns  # type: ignore
 from .QSWATTopology import QSWATTopology  # type: ignore
-from .globals import GlobalVars  # type: ignore @UnusedImport
+from .globals import GlobalVars  # type: ignore #  @UnusedImport 
 from .landscape import Landscape  # type: ignore
 from .outletsdialog import OutletsDialog  # type: ignore
 from .selectsubs import SelectSubbasins  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .polygonizeInC2 import Polygonize  # type: ignore  @UnresolvedImport
+from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport   
 
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport
@@ -1298,7 +1298,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if channelFile and channelLayer:
             fileType = QgsWkbTypes.geometryType(channelLayer.dataProvider().wkbType())
             if fileType != QgsWkbTypes.LineGeometry:
-                QSWATUtils.error('{0} file {} is not a line shapefile'.format(strng, self._dlg.selectStreams.text()), self._gv.isBatch)
+                QSWATUtils.error('{0} file {1} is not a line shapefile'.format(strng, self._dlg.selectStreams.text()), self._gv.isBatch)
             else:
                 self._gv.channelFile = channelFile
                 if self._dlg.useGrid:
@@ -3324,7 +3324,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             # delete the writer to flush
             if not writer.flushBuffer():
                 typ = 'subbasins' if ft == FileTypes._SUBBASINS else 'watershed'
-                QSWATUtils.error('Failed to complete creating {0} shapefile {i}'.format(typ, subbasinsFile), self._gv.isBatch)
+                QSWATUtils.error('Failed to complete creating {0} shapefile {1}'.format(typ, subbasinsFile), self._gv.isBatch)
             del writer
             # wFile may not have a .prj (being a .tif) so use DEM's
             QSWATUtils.copyPrj(self._gv.demFile, subbasinsFile)

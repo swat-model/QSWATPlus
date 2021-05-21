@@ -25,7 +25,7 @@ from PyQt5.QtGui import * # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 from .exemptdialog import ExemptDialog
-from .QSWATUtils import ListFuns
+from .QSWATUtils import ListFuns # type: ignore 
 
 class Exempt:
     """Allow user to define landuses to be exempt from removal as under threshold."""

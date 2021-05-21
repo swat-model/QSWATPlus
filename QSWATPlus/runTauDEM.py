@@ -24,7 +24,7 @@ import os
 from osgeo import gdal, ogr
 from .TauDEMUtils import TauDEMUtils
 from .QSWATTopology import QSWATTopology
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 from .parameters import Parameters
 
 def main(demFile, outletFile):

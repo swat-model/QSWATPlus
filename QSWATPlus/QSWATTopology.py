@@ -20,8 +20,8 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  #   @UnusedWildImport
-from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
+from PyQt5.QtCore import QSettings, QVariant
+#from PyQt5.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter  # @UnresolvedImport
 from osgeo import gdal  # type: ignore
 from numpy import * # @UnusedWildImport
@@ -35,11 +35,11 @@ from typing import Set, List, Dict, Tuple, Iterable, Iterator, cast, Any, Option
 #     from globals import Any
 
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes, ListFuns  # type: ignore  @UnusedImport
-    from .DBUtils import DBUtils  # type: ignore  @UnusedImport
-    from .parameters import Parameters  # type: ignore  @UnusedImport
-    from .raster import Raster  # type: ignore  @UnusedImport
-    from .dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # type: ignore  @UnusedImport @UnresolvedImport
+    from .QSWATUtils import QSWATUtils, FileTypes, ListFuns   # type: ignore # @UnusedImport
+    from .DBUtils import DBUtils  # type: ignore  # @UnusedImport  
+    from .parameters import Parameters  # type: ignore #  @UnusedImport  
+    from .raster import Raster  # type: ignore  # @UnusedImport  
+    from .dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # type: ignore #  @UnusedImport @UnresolvedImport  
 except:
     # used by convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes, ListFuns  # @UnresolvedImport @Reimport
@@ -207,9 +207,9 @@ class QSWATTopology:
         # complete
         self.channelSlopes: Dict[int, float] = dict()
         ## numpy array of total area draining to downstream end of channel in square metres
-        self.drainAreas: numpy.ndarray[float] = None  # type: ignore @UndefinedVariable
+        self.drainAreas: numpy.ndarray[float] = None  # type: ignore # @UndefinedVariable  
         ## numpy array of Strahler order of channels
-        self.strahler: numpy.ndarray[int] = None  # type: ignore @UndefinedVariable
+        self.strahler: numpy.ndarray[int] = None  # type: ignore # @UndefinedVariable 
         ## map of lake id to ids of points added to split channels entering lakes
         self.lakeInlets: Dict[int, List[int]] = dict()
         ## map of lake id to ids of points added to split channels leaving lakes
@@ -2100,7 +2100,7 @@ class QSWATTopology:
                     return
                 point = line[numPoints // 2]
                 wVal = QSWATTopology.valueAtPoint(point, wLayer)
-                if wVal is None or math.isclose(wVal, wNoData, rel_tol=1e-06):  # type: ignore outside watershed
+                if wVal is None or math.isclose(wVal, wNoData, rel_tol=1e-06):  # type: ignore # outside watershed  
                     basin = -1
                 else:
                     basin = cast(int, wVal)
@@ -2927,7 +2927,7 @@ class QSWATTopology:
             idsToDelete.append(feature.id())
         OK = provider.deleteFeatures(idsToDelete)
         if not OK:
-            QSWATUtils.error('Cannot edit streams results template {1}.'.format(rivFile), self.isBatch)
+            QSWATUtils.error('Cannot edit streams results template {0}.'.format(rivFile), self.isBatch)
             return None
         # leave only the Channel, ChannelR and Subbasin attributes
         self.removeFields(rivLayer, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
@@ -3993,7 +3993,7 @@ class QSWATTopology:
                 else:
                     outletid0, outletPt0, chLinks = existOutlets
                     if not QSWATTopology.coincidentPoints(outletPt0, outletPt, self.xThreshold, self.yThreshold):
-                        QSWATUtils.error('Polygon {0} has separate outlets at ((1}, {2}) and ({3}, {4}): ignoring second'.
+                        QSWATUtils.error('Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second'.
                                          format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y()), self.isBatch)
                     else:
                         chOutlets[chLink] = outletid0, outletPt0

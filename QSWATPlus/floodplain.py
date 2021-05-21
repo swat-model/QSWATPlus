@@ -30,7 +30,7 @@ from osgeo import gdal
 # import numpy as np
 import math
 import time
-from .QSWATUtils import QSWATUtils, FileTypes  # fileWriter
+from .QSWATUtils import QSWATUtils, FileTypes  # fileWriter type: ignore 
 from .QSWATTopology import QSWATTopology
 import numpy
 import traceback

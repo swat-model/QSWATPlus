@@ -1,5 +1,5 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis saveUserFull="Chirs George" projectname="" saveUser="Chirs George" saveDateTime="2021-03-10T18:43:42" version="3.16.5-Hannover">
+<qgis version="3.16.6-Hannover" saveUser="Chris" saveDateTime="2021-05-20T15:12:55" saveUserFull="Chris" projectname="">
   <homePath path=""/>
   <title></title>
   <autotransaction active="0"/>
@@ -22,7 +22,7 @@
     <customproperties/>
     <custom-order enabled="0"/>
   </layer-tree-group>
-  <snapping-settings intersection-snapping="0" type="1" self-snapping="0" enabled="0" unit="2" minScale="0" scaleDependencyMode="0" maxScale="0" mode="2" tolerance="0">
+  <snapping-settings intersection-snapping="0" tolerance="12" enabled="0" self-snapping="0" unit="1" type="1" minScale="0" maxScale="0" mode="2" scaleDependencyMode="0">
     <individual-layer-settings/>
   </snapping-settings>
   <relations/>
@@ -55,8 +55,8 @@
   <legend updateDrawingOrder="true"/>
   <mapViewDocks/>
   <mapViewDocks3D/>
-  <main-annotation-layer refreshOnNotifyMessage="" type="annotation" autoRefreshEnabled="0" autoRefreshTime="0" refreshOnNotifyEnabled="0">
-    <id>Annotations_3c8b569a_8162_44e1_831b_763cc3c6f819</id>
+  <main-annotation-layer autoRefreshTime="0" autoRefreshEnabled="0" refreshOnNotifyEnabled="0" refreshOnNotifyMessage="" type="annotation">
+    <id>Annotations_586d326b_3323_4b1f_923e_fa4aed918b3a</id>
     <datasource></datasource>
     <keywordList>
       <value></value>
@@ -125,8 +125,8 @@
       <Ellipsoid type="QString">EPSG:7030</Ellipsoid>
     </Measure>
     <Measurement>
-      <AreaUnits type="QString">m2</AreaUnits>
-      <DistanceUnits type="QString">meters</DistanceUnits>
+      <AreaUnits type="QString"></AreaUnits>
+      <DistanceUnits type="QString"></DistanceUnits>
     </Measurement>
     <PAL>
       <CandidatesLinePerCM type="double">5</CandidatesLinePerCM>
@@ -154,9 +154,9 @@
   </properties>
   <dataDefinedServerProperties>
     <Option type="Map">
-      <Option value="" name="name" type="QString"/>
+      <Option name="name" value="" type="QString"/>
       <Option name="properties"/>
-      <Option value="collection" name="type" type="QString"/>
+      <Option name="type" value="collection" type="QString"/>
     </Option>
   </dataDefinedServerProperties>
   <visibility-presets/>
@@ -169,27 +169,40 @@
     <title></title>
     <abstract></abstract>
     <links/>
-    <author>Chirs George</author>
-    <creation>2021-03-10T18:43:05</creation>
+    <author>Chris</author>
+    <creation>2021-05-20T15:11:31</creation>
   </projectMetadata>
   <Annotations/>
   <Layouts/>
   <Bookmarks/>
   <ProjectViewSettings UseProjectScales="0">
     <Scales/>
+    <DefaultViewExtent ymin="-1" xmax="1.85563909774436109" ymax="1" xmin="-1.85563909774436109">
+      <spatialrefsys>
+        <wkt>GEOGCRS["WGS 84",DATUM["World Geodetic System 1984",ELLIPSOID["WGS 84",6378137,298.257223563,LENGTHUNIT["metre",1]]],PRIMEM["Greenwich",0,ANGLEUNIT["degree",0.0174532925199433]],CS[ellipsoidal,2],AXIS["geodetic latitude (Lat)",north,ORDER[1],ANGLEUNIT["degree",0.0174532925199433]],AXIS["geodetic longitude (Lon)",east,ORDER[2],ANGLEUNIT["degree",0.0174532925199433]],USAGE[SCOPE["unknown"],AREA["World"],BBOX[-90,-180,90,180]],ID["EPSG",4326]]</wkt>
+        <proj4>+proj=longlat +datum=WGS84 +no_defs</proj4>
+        <srsid>3452</srsid>
+        <srid>4326</srid>
+        <authid>EPSG:4326</authid>
+        <description>WGS 84</description>
+        <projectionacronym>longlat</projectionacronym>
+        <ellipsoidacronym>EPSG:7030</ellipsoidacronym>
+        <geographicflag>true</geographicflag>
+      </spatialrefsys>
+    </DefaultViewExtent>
   </ProjectViewSettings>
-  <ProjectTimeSettings frameRate="1" timeStep="1" timeStepUnit="h" cumulativeTemporalRange="0"/>
+  <ProjectTimeSettings cumulativeTemporalRange="0" timeStepUnit="h" frameRate="1" timeStep="1"/>
   <ProjectDisplaySettings>
     <BearingFormat id="bearing">
       <Option type="Map">
-        <Option value="" name="decimal_separator" type="QChar"/>
-        <Option value="6" name="decimals" type="int"/>
-        <Option value="0" name="direction_format" type="int"/>
-        <Option value="0" name="rounding_type" type="int"/>
-        <Option value="false" name="show_plus" type="bool"/>
-        <Option value="true" name="show_thousand_separator" type="bool"/>
-        <Option value="false" name="show_trailing_zeros" type="bool"/>
-        <Option value="" name="thousand_separator" type="QChar"/>
+        <Option name="decimal_separator" value="" type="QChar"/>
+        <Option name="decimals" value="6" type="int"/>
+        <Option name="direction_format" value="0" type="int"/>
+        <Option name="rounding_type" value="0" type="int"/>
+        <Option name="show_plus" value="false" type="bool"/>
+        <Option name="show_thousand_separator" value="true" type="bool"/>
+        <Option name="show_trailing_zeros" value="false" type="bool"/>
+        <Option name="thousand_separator" value="" type="QChar"/>
       </Option>
     </BearingFormat>
   </ProjectDisplaySettings>

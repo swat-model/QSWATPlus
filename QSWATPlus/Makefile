@@ -113,14 +113,14 @@ PY_FILES = \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
 	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
-	ui_convert.py ui_graph.py
+	ui_convert.py ui_graph.py hrus2.py
 
 PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
 
 UI_FILES = ui_qswat.ui ui_delineation.ui ui_hrus.ui ui_outlets.ui ui_exempt.ui ui_split.ui ui_selectlu.ui ui_parameters.ui ui_elevationbands.ui \
-			ui_selectsubs.ui ui_landscape.ui ui_about.ui ui_visualise.ui ui_graph.ui ui_convert.ui ui_exporttable.ui
+			ui_selectsubs.ui ui_landscape.ui ui_about.ui ui_visualise.ui ui_graph.ui ui_convert.ui ui_exporttable.ui ui_hrus2.ui
 
 QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml flood.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \

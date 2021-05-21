@@ -25,7 +25,7 @@ from PyQt5.QtGui import *  # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 # from multiprocessing import Pool
 import time
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 
 
     

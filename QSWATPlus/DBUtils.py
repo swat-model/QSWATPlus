@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from PyQt5.QtCore import Qt, QSettings
+#from PyQt5.QtGui import *  # @UnusedWildImport 
+from PyQt5.QtWidgets import QFileDialog, QComboBox, QListWidget
 from qgis.core import * # @UnusedWildImport
 import os.path
 import shutil
@@ -36,15 +36,15 @@ import traceback
 from typing import Set, Any, List, Dict, Iterable, Optional, Tuple  # @UnusedImport @Reimport
 
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
-    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore @UnresolvedImport
-    from .parameters import Parameters  # type: ignore
+    from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore # @UnusedImport
+    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore # @UnresolvedImport @UnusedImport
+    from .parameters import Parameters  # type: ignore # @UnusedImport
 except:
     # used by convertFromArc
-    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport
-    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport
-    from parameters import Parameters  # @UnresolvedImport
-
+    from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
+    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport @Reimport
+    from parameters import Parameters  # @UnresolvedImport @Reimport
+    
 class DBUtils:
     
     """Functions for interacting with project and reference databases."""

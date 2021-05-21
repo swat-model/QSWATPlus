@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  #  @UnusedWildImport
-from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
-from PyQt5.QtWidgets import *  #  @UnusedWildImport
+from PyQt5.QtCore import Qt, QSettings
+from PyQt5.QtGui import QTextCursor
+from PyQt5.QtWidgets import QTextEdit
 from qgis.core import * # @UnusedWildImport
 import os.path
 import subprocess
@@ -293,7 +293,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
                                 if os.path.isdir(TauDEMDir6):
                                     TauDEMDir = TauDEMDir6
                                 else:
-                                    TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1}, {2}, {3} or {4}.  
+                                    TauDEMUtils.error('''Cannot find TauDEM directory as {0}, {1}, {2}, {3}, {4} or {5}.  
             Have you installed SWAT+ as a different directory from C:/SWAT/SWATPlus?
             If so use the QSWAT+ Parameters form to set the correct location.'''.
             format(TauDEMDir, TauDEMDir2, TauDEMDir3, TauDEMDir4, TauDEMDir5, TauDEMDir6), hasQGIS)

@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from PyQt5.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QVariant, QTextStream, QIODevice
+from PyQt5.QtGui import QColor 
+from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
 from PyQt5.QtXml import * # @UnusedWildImport
 from qgis.core import ( Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks)  # @UnresolvedImport @UnusedImport
                         
@@ -41,7 +41,7 @@ from osgeo import gdal, ogr  # type: ignore
 from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic, cast
 from builtins import int
 import traceback
-import processing  # type: ignore @UnresolvedImport
+import processing   # type: ignore # @UnresolvedImport
 
 class QSWATUtils:
     """Various utilities."""
@@ -653,7 +653,7 @@ class QSWATUtils:
             root: QgsLayerTreeGroup = proj.layerTreeRoot()
             group: Optional[QgsLayerTreeGroup] = root.findGroup(groupName)
             if group is None:
-                QSWATUtils.information('Internal error: cannot find group {0].'.format(groupName), gv.isBatch)
+                QSWATUtils.information('Internal error: cannot find group {0}.'.format(groupName), gv.isBatch)
                 return None, False
             if subLayer is None:
                 index: int = 0
@@ -725,7 +725,7 @@ class QSWATUtils:
         QSWATUtils.loginfo('Moving {0} to group {1}'.format(layer.name(), groupName))
         group: Optional[QgsLayerTreeGroup] = root.findGroup(groupName)
         if group is None:
-            QSWATUtils.information('Internal error: cannot find group {0].'.format(groupName), gv.isBatch)
+            QSWATUtils.information('Internal error: cannot find group {0}.'.format(groupName), gv.isBatch)
             return layer
         layerId: str = layer.id()
         # redundant code, but here to make a fast exit from usual situation of already in right group

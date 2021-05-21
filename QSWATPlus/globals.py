@@ -20,8 +20,8 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # type: ignore  @UnusedWildImport 
+from PyQt5.QtCore import QFileInfo, QPoint, QSettings
+#from PyQt5.QtGui import *  # @UnusedWildImport type: ignore 
 from PyQt5.QtWidgets import QComboBox
 from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter  # @UnusedImport @UnresolvedImport
 from qgis.gui import QgisInterface  # @UnresolvedImport
@@ -29,12 +29,12 @@ import os.path
 # import xml.etree.ElementTree as ET
 from typing import Dict, List, Set, Optional, TYPE_CHECKING  # @UnusedImport
 
-from .QSWATTopology import QSWATTopology  # type: ignore  @UnusedImport
-from .QSWATUtils import QSWATUtils  # type: ignore  @UnusedImport
-from .DBUtils import DBUtils  # type: ignore  @UnusedImport
-from .TauDEMUtils import TauDEMUtils  # type: ignore  @UnusedImport
-from .parameters import Parameters  # type: ignore  @UnusedImport
-from .raster import Raster  # type: ignore  @UnusedImport
+from .QSWATTopology import QSWATTopology  # type: ignore #  @UnusedImport 
+from .QSWATUtils import QSWATUtils  # type: ignore #  @UnusedImport 
+from .DBUtils import DBUtils  # type: ignore #  @UnusedImport 
+from .TauDEMUtils import TauDEMUtils  # type: ignore  # @UnusedImport 
+from .parameters import Parameters  # type: ignore # @UnusedImport 
+from .raster import Raster  # type: ignore # @UnusedImport 
 
 if TYPE_CHECKING:
     from QSWATTopology import QSWATTopology  # @UnresolvedImport @Reimport

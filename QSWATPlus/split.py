@@ -27,7 +27,7 @@ from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 from .splitdialog import SplitDialog
 from .selectlu import Selectlu
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 
 class Split:
     

@@ -27,7 +27,7 @@ import webbrowser
 
 # Import the code for the dialog
 from .aboutdialog import aboutDialog
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 from .globals import GlobalVars
 
 class AboutQSWAT:

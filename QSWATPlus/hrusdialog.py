@@ -26,7 +26,7 @@ from PyQt5 import uic
 from PyQt5 import QtWidgets
 
 pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_hrus.ui'), 
+FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_hrus2.ui'), 
                                from_imports=True, 
                                import_from=os.path.basename(pdir))
 

@@ -33,14 +33,14 @@ from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVect
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
 import os.path
 #import subprocess
-import processing  # type: ignore @UnresolvedImport
-from processing.core.Processing import Processing  # type: ignore @UnresolvedImport @UnusedImport
+import processing  # @UnresolvedImport type: ignore 
+from processing.core.Processing import Processing  #  @UnresolvedImport @UnusedImport type: ignore
 import time
 from osgeo import gdal
 
 from .TauDEMUtils import TauDEMUtils
 from .QSWATTopology import QSWATTopology
-from .QSWATUtils import QSWATUtils, FileTypes
+from .QSWATUtils import QSWATUtils, FileTypes # type: ignore
 from .landscapedialog import LandscapeDialog
 from .floodplain import Floodplain
 from .parameters import Parameters

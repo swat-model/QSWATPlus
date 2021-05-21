@@ -34,7 +34,7 @@ import atexit
 from .QSWATPlus import QSWATPlus
 from .delineation import Delineation
 from .hrus import HRUs
-from .QSWATUtils import QSWATUtils
+from .QSWATUtils import QSWATUtils # type: ignore 
 from .parameters import Parameters
 
 osGeo4wRoot = os.getenv('OSGEO4W_ROOT')

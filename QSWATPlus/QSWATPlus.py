@@ -40,7 +40,7 @@ except:
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport
+    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport type: ignore 
 except:
     # for convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
@@ -48,7 +48,7 @@ try:
     txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
     txt = 'HRUs'
-    from .hrus import HRUs
+    from .hrus2 import HRUs
     txt = 'QSWATTopology'
     from .QSWATTopology import QSWATTopology
     txt = 'GlobalVars'
