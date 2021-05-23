@@ -4953,23 +4953,23 @@ class HRUs(QObject):
         self._dlg.cancelButton.clicked.connect(self._dlg.close)
         self._dlg.areaVal.textChanged.connect(self.readAreaThreshold)
         self._dlg.areaSlider.valueChanged.connect(self.changeAreaThreshold)
-        self._dlg.landuseVal_2.textChanged.connect(self.readLanduseThreshold)
-        self._dlg.landuseSlider_2.valueChanged.connect(self.changeLanduseThreshold)
-        self._dlg.soilVal_2.textChanged.connect(self.readSoilThreshold)
-        self._dlg.soilSlider_2.valueChanged.connect(self.changeSoilThreshold)
+        self._dlg.landuseVal.textChanged.connect(self.readLanduseThreshold)
+        self._dlg.landuseSlider.valueChanged.connect(self.changeLanduseThreshold)
+        self._dlg.soilVal.textChanged.connect(self.readSoilThreshold)
+        self._dlg.soilSlider.valueChanged.connect(self.changeSoilThreshold)
         self._dlg.targetVal.textChanged.connect(self.readTargetThreshold)
         self._dlg.targetSlider.valueChanged.connect(self.changeTargetThreshold)
-        self._dlg.slopeVal_2.textChanged.connect(self.readSlopeThreshold)
-        self._dlg.slopeSlider_2.valueChanged.connect(self.changeSlopeThreshold)
-        self._dlg.landuseButton_2.clicked.connect(self.setLanduseThreshold)
-        self._dlg.soilButton_2.clicked.connect(self.setSoilThreshold)
+        self._dlg.slopeVal.textChanged.connect(self.readSlopeThreshold)
+        self._dlg.slopeSlider.valueChanged.connect(self.changeSlopeThreshold)
+        self._dlg.landuseButton.clicked.connect(self.setLanduseThreshold)
+        self._dlg.soilButton.clicked.connect(self.setSoilThreshold)
         self._dlg.exemptButton.clicked.connect(self.doExempt)
         self._dlg.splitButton.clicked.connect(self.doSplit)
         self._dlg.elevBandsButton.clicked.connect(self.doElevBands)
         self._dlg.HRUsTab.currentChanged.connect(self.switchTabs)
         
     def switchTabs(self, i):
-        QSWATUtils.information('Switched to tab {}'.format(i), False)
+        #QSWATUtils.information('Switched to tab {}'.format(i), False)
         self.progress('')
         
     def initFloodplain(self) -> None:
@@ -5324,8 +5324,8 @@ class HRUs(QObject):
         time1 = time.process_time()
         try:
             self._dlg.setCursor(Qt.WaitCursor)
-            self._dlg.slopeSlider_2.setEnabled(False)
-            self._dlg.slopeVal_2.setEnabled(False)
+            self._dlg.slopeSlider.setEnabled(False)
+            self._dlg.slopeVal.setEnabled(False)
             self._dlg.areaGroup.setEnabled(False)
             self._dlg.targetGroup.setEnabled(False)
             self._dlg.landuseSoilSlopeGroup.setEnabled(False)
@@ -5444,7 +5444,6 @@ class HRUs(QObject):
             self._dlg.selectSoilTable.setEnabled(True)
             self._dlg.selectUsersoilTable.setVisible(False)
             self._dlg.selectUsersoilTableLabel.setVisible(False)
-            self._db.usersoilTable = 'statsgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use STATSGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
@@ -5457,7 +5456,6 @@ class HRUs(QObject):
             self._dlg.selectSoilTable.setEnabled(False)
             self._dlg.selectUsersoilTable.setVisible(False)
             self._dlg.selectUsersoilTableLabel.setVisible(False)
-            self._db.usersoilTable = 'ssurgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
@@ -5548,14 +5546,14 @@ class HRUs(QObject):
             if self._dlg.filterLanduseButton.isChecked():
                 self._dlg.stackedWidget.setCurrentIndex(0)
                 self._dlg.landuseSoilSlopeGroup.setEnabled(True)
-                self._dlg.landuseSlider_2.setEnabled(True)
-                self._dlg.landuseVal_2.setEnabled(True)
-                self._dlg.landuseButton_2.setEnabled(True)
-                self._dlg.soilSlider_2.setEnabled(False)
-                self._dlg.soilVal_2.setEnabled(False)
-                self._dlg.soilButton_2.setEnabled(False)
-                self._dlg.slopeSlider_2.setEnabled(False)
-                self._dlg.slopeVal_2.setEnabled(False)
+                self._dlg.landuseSlider.setEnabled(True)
+                self._dlg.landuseVal.setEnabled(True)
+                self._dlg.landuseButton.setEnabled(True)
+                self._dlg.soilSlider.setEnabled(False)
+                self._dlg.soilVal.setEnabled(False)
+                self._dlg.soilButton.setEnabled(False)
+                self._dlg.slopeSlider.setEnabled(False)
+                self._dlg.slopeVal.setEnabled(False)
                 self._dlg.areaGroup.setEnabled(False)
                 self._dlg.targetGroup.setEnabled(False)
                 self._dlg.createButton.setEnabled(False)
@@ -5585,14 +5583,14 @@ class HRUs(QObject):
             return
         self.CreateHRUs.useArea = self._dlg.areaButton.isChecked()
         if self.CreateHRUs.useArea:
-            self._dlg.landuseLabel_2.setText('Landuse (ha)')
-            self._dlg.soilLabel_2.setText('Soil (ha)')
-            self._dlg.slopeLabel_2.setText('Slope (ha)')
+            self._dlg.landuseLabel.setText('Landuse (ha)')
+            self._dlg.soilLabel.setText('Soil (ha)')
+            self._dlg.slopeLabel.setText('Slope (ha)')
             self._dlg.areaLabel.setText('Area (ha)')
         else:
-            self._dlg.landuseLabel_2.setText('Landuse (%)')
-            self._dlg.soilLabel_2.setText('Soil (%)')
-            self._dlg.slopeLabel_2.setText('Slope (%)')
+            self._dlg.landuseLabel.setText('Landuse (%)')
+            self._dlg.soilLabel.setText('Soil (%)')
+            self._dlg.slopeLabel.setText('Slope (%)')
             self._dlg.areaLabel.setText('Area (%)')
         if self.CreateHRUs.isArea:
             displayMaxArea = int(self.CreateHRUs.maxLandscapeArea()) if self.CreateHRUs.useArea else 100
@@ -5620,10 +5618,10 @@ class HRUs(QObject):
                 self._dlg.targetSlider.setValue(int(self.CreateHRUs.targetVal))
         else:
             minCropVal = int(self.CreateHRUs.minMaxCropVal(self.CreateHRUs.useArea))
-            self._dlg.landuseMax_2.setText(str(minCropVal))
-            self._dlg.landuseSlider_2.setMaximum(minCropVal)
+            self._dlg.landuseMax.setText(str(minCropVal))
+            self._dlg.landuseSlider.setMaximum(minCropVal)
             if 0 <= self.CreateHRUs.landuseVal <= minCropVal:
-                self._dlg.landuseSlider_2.setValue(int(self.CreateHRUs.landuseVal))
+                self._dlg.landuseSlider.setValue(int(self.CreateHRUs.landuseVal))
             
     def getLanduseFile(self) -> None:
         """Load landuse file."""
@@ -5752,65 +5750,65 @@ class HRUs(QObject):
         
     def readLanduseThreshold(self) -> None:
         """Read landuse value."""
-        string = self._dlg.landuseVal_2.text()
+        string = self._dlg.landuseVal.text()
         if string == '':
             return
         try:
             val = int(string)
             # allow values outside slider range
-            if self._dlg.landuseSlider_2.minimum() <= val <= self._dlg.landuseSlider_2.maximum():
-                self._dlg.landuseSlider_2.setValue(val)
+            if self._dlg.landuseSlider.minimum() <= val <= self._dlg.landuseSlider.maximum():
+                self._dlg.landuseSlider.setValue(val)
             self.CreateHRUs.landuseVal = val
-            self._dlg.landuseVal_2.moveCursor(QTextCursor.End)
+            self._dlg.landuseVal.moveCursor(QTextCursor.End)
         except Exception:
             return
         
     def changeLanduseThreshold(self) -> None:
         """Change landuse value and slider."""
-        val = self._dlg.landuseSlider_2.value()
-        self._dlg.landuseVal_2.setText(str(val))
+        val = self._dlg.landuseSlider.value()
+        self._dlg.landuseVal.setText(str(val))
         self.CreateHRUs.landuseVal = val
         
     def readSoilThreshold(self) -> None:
         """Read soil value."""
-        string = self._dlg.soilVal_2.text()
+        string = self._dlg.soilVal.text()
         if string == '':
             return
         try:
             val = int(string)
             # allow values outside slider range
-            if self._dlg.soilSlider_2.minimum() <= val <= self._dlg.soilSlider_2.maximum():
-                self._dlg.soilSlider_2.setValue(val)
+            if self._dlg.soilSlider.minimum() <= val <= self._dlg.soilSlider.maximum():
+                self._dlg.soilSlider.setValue(val)
             self.CreateHRUs.soilVal = val
-            self._dlg.soilVal_2.moveCursor(QTextCursor.End)
+            self._dlg.soilVal.moveCursor(QTextCursor.End)
         except Exception:
             return
         
     def changeSoilThreshold(self) -> None:
         """Change soil value and slider."""
-        val = self._dlg.soilSlider_2.value()
-        self._dlg.soilVal_2.setText(str(val))
+        val = self._dlg.soilSlider.value()
+        self._dlg.soilVal.setText(str(val))
         self.CreateHRUs.soilVal = val
         
     def readSlopeThreshold(self) -> None:
         """Read slope value."""
-        string = self._dlg.slopeVal_2.text()
+        string = self._dlg.slopeVal.text()
         if string == '':
             return
         try:
             val = int(string)
             # allow values outside slider range
-            if self._dlg.slopeSlider_2.minimum() <= val <= self._dlg.slopeSlider_2.maximum():
-                self._dlg.slopeSlider_2.setValue(val)
+            if self._dlg.slopeSlider.minimum() <= val <= self._dlg.slopeSlider.maximum():
+                self._dlg.slopeSlider.setValue(val)
             self.CreateHRUs.slopeVal = val
-            self._dlg.slopeVal_2.moveCursor(QTextCursor.End)
+            self._dlg.slopeVal.moveCursor(QTextCursor.End)
         except Exception:
             return
         
     def changeSlopeThreshold(self) -> None:
         """Change slope value and slider."""
-        val = self._dlg.slopeSlider_2.value()
-        self._dlg.slopeVal_2.setText(str(val))
+        val = self._dlg.slopeSlider.value()
+        self._dlg.slopeVal.setText(str(val))
         self.CreateHRUs.slopeVal = val
         
     def readTargetThreshold(self) -> None:
@@ -5838,33 +5836,33 @@ class HRUs(QObject):
             minSoilVal = int(self.CreateHRUs.minMaxSoilArea())
         else:
             minSoilVal = int(self.CreateHRUs.minMaxSoilPercent(self.CreateHRUs.landuseVal))
-        self._dlg.landuseSlider_2.setEnabled(False)
-        self._dlg.landuseVal_2.setEnabled(False)
-        self._dlg.landuseButton_2.setEnabled(False)
-        self._dlg.soilSlider_2.setEnabled(True)
-        self._dlg.soilVal_2.setEnabled(True)
-        self._dlg.soilButton_2.setEnabled(True)
-        self._dlg.soilSlider_2.setMaximum(minSoilVal)
-        self._dlg.soilMax_2.setText(str(minSoilVal))
+        self._dlg.landuseSlider.setEnabled(False)
+        self._dlg.landuseVal.setEnabled(False)
+        self._dlg.landuseButton.setEnabled(False)
+        self._dlg.soilSlider.setEnabled(True)
+        self._dlg.soilVal.setEnabled(True)
+        self._dlg.soilButton.setEnabled(True)
+        self._dlg.soilSlider.setMaximum(minSoilVal)
+        self._dlg.soilMax.setText(str(minSoilVal))
         if 0 <= self.CreateHRUs.soilVal <= minSoilVal:
-            self._dlg.soilSlider_2.setValue(int(self.CreateHRUs.soilVal))
+            self._dlg.soilSlider.setValue(int(self.CreateHRUs.soilVal))
         
     def setSoilThreshold(self) -> None:
         """Set threshold for slope according to landuse and soil values."""
-        self._dlg.soilSlider_2.setEnabled(False)
-        self._dlg.soilVal_2.setEnabled(False)
-        self._dlg.soilButton_2.setEnabled(False)
+        self._dlg.soilSlider.setEnabled(False)
+        self._dlg.soilVal.setEnabled(False)
+        self._dlg.soilButton.setEnabled(False)
         if len(self._db.slopeLimits) > 0:
             if self.CreateHRUs.useArea:
                 minSlopeVal = int(self.CreateHRUs.minMaxSlopeArea())
             else:
                 minSlopeVal = int(self.CreateHRUs.minMaxSlopePercent(self.CreateHRUs.landuseVal, self.CreateHRUs.soilVal))
-            self._dlg.slopeSlider_2.setEnabled(True)
-            self._dlg.slopeVal_2.setEnabled(True)
-            self._dlg.slopeSlider_2.setMaximum(minSlopeVal)
-            self._dlg.slopeMax_2.setText(str(minSlopeVal))
+            self._dlg.slopeSlider.setEnabled(True)
+            self._dlg.slopeVal.setEnabled(True)
+            self._dlg.slopeSlider.setMaximum(minSlopeVal)
+            self._dlg.slopeMax.setText(str(minSlopeVal))
             if 0 <= self.CreateHRUs.slopeVal <=  minSlopeVal:
-                self._dlg.slopeSlider_2.setValue(int(self.CreateHRUs.slopeVal))
+                self._dlg.slopeSlider.setValue(int(self.CreateHRUs.slopeVal))
         self._dlg.createButton.setEnabled(True)
         
     def insertSlope(self) -> None:
@@ -6004,10 +6002,9 @@ class HRUs(QObject):
         if found and usersoilTable != '':
             self._db.usersoilTable = usersoilTable
         else:
-            if self._db.useSSURGO:
-                self._db.usersoilTable = 'ssurgo'
-            elif self._db.useSTATSGO:
-                self._db.usersoilTable = 'statsgo'
+            # usersoilTable only used for user-chosen tables
+            if self._db.useSSURGO or self._db.useSTATSGO:
+                self._db.usersoilTable = ''
             else:
                 self._db.usersoilTable = 'usersoil'
         useLandscapes, found = proj.readBoolEntry(title, 'lsu/useLandscapes', False)
@@ -6092,13 +6089,13 @@ class HRUs(QObject):
             self._dlg.areaVal.setText(str(self.CreateHRUs.areaVal))
         self.CreateHRUs.landuseVal, found = proj.readNumEntry(title, 'hru/landuseVal', 0)
         if found and self.CreateHRUs.landuseVal > 0:
-            self._dlg.landuseVal_2.setText(str(self.CreateHRUs.landuseVal))
+            self._dlg.landuseVal.setText(str(self.CreateHRUs.landuseVal))
         self.CreateHRUs.soilVal, found = proj.readNumEntry(title, 'hru/soilVal', 0)
         if found and self.CreateHRUs.soilVal > 0:
-            self._dlg.soilVal_2.setText(str(self.CreateHRUs.soilVal))
+            self._dlg.soilVal.setText(str(self.CreateHRUs.soilVal))
         self.CreateHRUs.slopeVal, found = proj.readNumEntry(title, 'hru/slopeVal', 0)
         if found and self.CreateHRUs.slopeVal > 0:
-            self._dlg.slopeVal_2.setText(str(self.CreateHRUs.slopeVal))
+            self._dlg.slopeVal.setText(str(self.CreateHRUs.slopeVal))
         self.CreateHRUs.targetVal, found = proj.readNumEntry(title, 'hru/targetVal', 0)
         if found and self.CreateHRUs.targetVal > 0:
             self._dlg.targetVal.setText(str(self.CreateHRUs.targetVal))

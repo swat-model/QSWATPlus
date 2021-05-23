@@ -196,7 +196,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.plantTable = ''
         ## urban landuse properties table
         self.urbanTable = ''
-        ## soil properties (usersoil) table
+        ## soil properties (usersoil) table; overridden by 'statsgo' or 'ssurgo' if their flags set
         self.usersoilTable = ''
         ## flag to show if landuse and soil database has been selected by user, or defined in project file
         self.plantSoilDatabaseSelected = False
@@ -275,7 +275,6 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
 #         except Exception as ex:
 #             QSWATUtils.error('Failed to connect to database {0}'.format(db, repr(ex)), self.isBatch)
 #         return None
-
 
     def createRoutingTable(self) -> bool:
         """Create gis_routing table.
@@ -413,6 +412,15 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         else:
             for warning in warnings:
                 QSWATUtils.information(warning, self.isBatch)
+                 
+    def getUsersoilTable(self):
+        """Return usersoil table."""
+        if self.useSSURGO:
+            return 'ssurgo'
+        elif self.useSTATSGO:
+            return 'statsgo'
+        else:
+            return self.usersoilTable
     
     @staticmethod
     def sqlSelect(table: str, selection: str, order: str, where: str) -> str:
@@ -908,19 +916,20 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # need to read columns using numeric indices
         # so cannot use sqlite3.Row which returns rows as dictionaries with arbitrary order
         conn.row_factory = lambda _,row : row
+        usersoilTable = self.getUsersoilTable()
         try:
             # single usersoil table has 152 columns, one with separate layer table has 11: 
             # we leave room for expansion by using 20 as limit
-            columnCount = DBUtils.countCols(self.usersoilTable, conn)
+            columnCount = DBUtils.countCols(usersoilTable, conn)
             if columnCount < 0:
-                QSWATUtils.error('Could not find table {0} in soil database {1}'.format(self.usersoilTable, database), self.isBatch)
+                QSWATUtils.error('Could not find table {0} in soil database {1}'.format(usersoilTable, database), self.isBatch)
                 return False
             hasSeparateLayerTable = columnCount < 20
             if hasSeparateLayerTable:
-                layerTable = self.usersoilTable + '_layer'
+                layerTable = usersoilTable + '_layer'
                 if not self.hasTableConn(conn, layerTable):
                     QSWATUtils.error('Table {0} has {1} columns but cannot find layer table {2} in soil database {3}'.
-                                    format(self.usersoilTable, columnCount, layerTable, database), self.isBatch)
+                                    format(usersoilTable, columnCount, layerTable, database), self.isBatch)
                     return False
                 sqlLayer = self.sqlSelect(layerTable, '*', 'layer_num', 'soil_id=?')
             readCursor = conn.cursor()
@@ -937,19 +946,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             insertLayer = 'INSERT INTO {0} VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'.format(DBUtils._SOILS_SOL_LAYER_NAME)
             if self.useSTATSGO:
                 if self.addSeqn:
-                    sql = self.sqlSelect(self.usersoilTable, '*', 'id ASC', 'muid=? AND seqn=?')
+                    sql = self.sqlSelect(usersoilTable, '*', 'id ASC', 'muid=? AND seqn=?')
                 elif self.addName:
-                    sql = self.sqlSelect(self.usersoilTable, '*', 'id ASC', 'muid=? AND name=?')
+                    sql = self.sqlSelect(usersoilTable, '*', 'id ASC', 'muid=? AND name=?')
                 elif self.useS5id:
-                    sql = self.sqlSelect(self.usersoilTable, '*', 'id ASC', 's5id=?')
+                    sql = self.sqlSelect(usersoilTable, '*', 'id ASC', 's5id=?')
                 else:
-                    sql = self.sqlSelect(self.usersoilTable, '*', 'id ASC', 'muid=?')
+                    sql = self.sqlSelect(usersoilTable, '*', 'id ASC', 'muid=?')
             elif self.useSSURGO:
-                sql = self.sqlSelect(self.usersoilTable, '*', '', 'muid=?')
+                sql = self.sqlSelect(usersoilTable, '*', '', 'muid=?')
             elif hasSeparateLayerTable:
-                sql = self.sqlSelect(self.usersoilTable, '*', '', 'name=?')
+                sql = self.sqlSelect(usersoilTable, '*', '', 'name=?')
             else:
-                sql = self.sqlSelect(self.usersoilTable, '*', '', 'SNAM=?')
+                sql = self.sqlSelect(usersoilTable, '*', '', 'SNAM=?')
             sid = 0 # last soil id used
             lid = 0 # last layer id used
             if self.useSSURGO:
@@ -957,7 +966,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     row = readCursor.execute(sql, (ssurgoId,)).fetchone()
                     if not row:
                         QSWATUtils.error('SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
-                                         format(ssurgoId, self.usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
+                                         format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
                         return False
                     sid += 1
                     if hasSeparateLayerTable:
@@ -978,7 +987,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     row = readCursor.execute(sql, args).fetchone()
                     if not row:
                         QSWATUtils.error('Soil name {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
-                                         format(name, self.usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
+                                         format(name, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
                         return False
                     sid += 1
                     if hasSeparateLayerTable:
@@ -988,7 +997,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             return True
         except Exception:
             QSWATUtils.exceptionError('Could not create {2} and {3} tables from {0} table in soil database {1}'.
-                            format(self.usersoilTable, database, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME), 
+                            format(usersoilTable, database, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME), 
                             self.isBatch)
             return False
         finally:
@@ -1026,7 +1035,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         layerRows = readCursor.execute(sqlLayer, (row[0],))
         if layerRows is None:
             QSWATUtils.error('Failed to find soil layers in table {0} with soil_id {1}'.
-                             format(self.usersoilTable + '_layer', row[0]), self.isBatch)
+                             format(self.getUsersoilTable() + '_layer', row[0]), self.isBatch)
             return lid
         for ro in layerRows:
             lid += 1
