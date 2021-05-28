@@ -22,7 +22,7 @@
 from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject
 from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 import os
@@ -33,7 +33,7 @@ import math
 import time
 from osgeo import gdal, ogr  # type: ignore
 import csv
-import processing  # type: ignore # @UnresolvedImport 
+import processing  # type: ignore
 from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport
 import traceback
 from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
