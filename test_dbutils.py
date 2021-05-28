@@ -25,9 +25,9 @@ import atexit
 import os
 
 from qgis.core import * # @UnusedWildImport
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
+from qgis.PyQt.QtCore import * # @UnusedWildImport
+from qgis.PyQt.QtGui import * # @UnusedWildImport
+from qgis.PyQt.QtWidgets import * # @UnusedWildImport
 
 from QSWATPlus.DBUtils import DBUtils
 from QSWATPlus.parameters import Parameters

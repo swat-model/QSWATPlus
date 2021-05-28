@@ -20,10 +20,10 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import Qt, QSettings
+from qgis.PyQt.QtCore import Qt, QSettings
 #from PyQt5.QtGui import *  # @UnusedWildImport 
-from PyQt5.QtWidgets import QFileDialog, QComboBox, QListWidget
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget
+from qgis.core import QgsFeatureRequest, QgsVectorLayer
 import os.path
 import shutil
 import hashlib
@@ -413,7 +413,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             for warning in warnings:
                 QSWATUtils.information(warning, self.isBatch)
                  
-    def getUsersoilTable(self):
+    def getUsersoilTable(self) -> str:
         """Return usersoil table."""
         if self.useSSURGO:
             return 'ssurgo'
@@ -2702,7 +2702,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         source totals 100%.  Return lists of error messages (loops; percents not totalling 100) and 
         warning messages (loops but with a zero percent somwehere)."""
         errors: List[str] = []
-        erroneous: Dict[str, Set[int]]
+        erroneous: Dict[str, Set[int]]  # @UnusedVariable
         warnings: List[str] = []
         table = 'gis_routing'
         # mapping category -> id-set showing sources that are known to drain to an outlet

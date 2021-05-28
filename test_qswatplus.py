@@ -22,13 +22,13 @@
 
 # derived from http://snorf.net/blog/2014/01/04/writing-unit-tests-for-qgis-python-plugins/
 
-from PyQt5.QtCore import * # @UnusedWildImport 
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from PyQt5 import QtTest
-from qgis.core import QgsApplication, QgsProject, QgsUnitTypes  # @UnresolvedImport
-from qgis.gui import * # @UnusedWildImport
-from qgis.analysis import QgsNativeAlgorithms  # @UnresolvedImport
+from qgis.PyQt.QtCore import pyqtSlot, QCoreApplication, QFileInfo, QObject, Qt 
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
+#from qgis.PyQt.QtWidgets import * # @UnusedWildImport
+from qgis.PyQt import QtTest
+from qgis.core import QgsApplication, QgsProject, QgsUnitTypes
+#from qgis.gui import * # @UnusedWildImport
+from qgis.analysis import QgsNativeAlgorithms
 
 import os.path
 from osgeo import gdal

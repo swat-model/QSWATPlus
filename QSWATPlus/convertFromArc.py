@@ -20,11 +20,11 @@
  ***************************************************************************/
 """
  
-from PyQt5.QtCore import QObject, Qt, QVariant  # @UnresolvedImport
+from qgis.PyQt.QtCore import QObject, Qt, QVariant
 # from PyQt5.QtGui import *  # @UnusedWildImport
-from PyQt5.QtWidgets import QFileDialog, QInputDialog, QMessageBox  # @UnresolvedImport
-from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes  # @UnresolvedImport
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 from typing import Set, Any, List, Dict, Union, Optional, Tuple, Callable, TYPE_CHECKING
 import sys
 import os

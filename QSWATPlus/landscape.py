@@ -26,11 +26,11 @@
  ***************************************************************************
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import Qt, QObject, QFileInfo
-from PyQt5.QtGui import QIntValidator, QDoubleValidator
-#from PyQt5.QtWidgets import *  # @UnusedWildImport
-from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes, QgsCoordinateTransformContext  # @UnresolvedImport
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
+from qgis.PyQt.QtCore import Qt, QObject, QFileInfo
+from qgis.PyQt.QtGui import QIntValidator, QDoubleValidator
+#from qgis.PyQt.QtWidgets import *  # @UnusedWildImport
+from qgis.core import QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes, QgsCoordinateTransformContext
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 import os.path
 #import subprocess
 import processing  # @UnresolvedImport type: ignore 

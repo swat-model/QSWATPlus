@@ -24,8 +24,8 @@
 
 import os
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from qgis.PyQt import uic
+from qgis.PyQt import QtWidgets
 
 
 pdir = os.path.dirname(__file__)

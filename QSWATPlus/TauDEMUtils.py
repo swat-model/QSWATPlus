@@ -20,10 +20,10 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import Qt, QSettings
-from PyQt5.QtGui import QTextCursor
-from PyQt5.QtWidgets import QTextEdit
-from qgis.core import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtGui import QTextCursor
+from qgis.PyQt.QtWidgets import QTextEdit
+from qgis.core import QgsProject
 import os.path
 import subprocess
 import webbrowser

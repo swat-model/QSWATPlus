@@ -22,8 +22,8 @@
 
 import os
 
-from PyQt5 import uic
-from PyQt5 import QtWidgets
+from qgis.PyQt import uic
+from qgis.PyQt import QtWidgets
 
 pdir = os.path.dirname(__file__)
 FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_exporttable.ui'), 

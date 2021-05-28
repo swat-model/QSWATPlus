@@ -4968,7 +4968,7 @@ class HRUs(QObject):
         self._dlg.elevBandsButton.clicked.connect(self.doElevBands)
         self._dlg.HRUsTab.currentChanged.connect(self.switchTabs)
         
-    def switchTabs(self, i):
+    def switchTabs(self, i):  # @UnusedVariable
         #QSWATUtils.information('Switched to tab {}'.format(i), False)
         self.progress('')
         

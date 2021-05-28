@@ -20,11 +20,11 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QVariant, QTextStream, QIODevice
-from PyQt5.QtGui import QColor 
-from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
-from PyQt5.QtXml import * # @UnusedWildImport
-from qgis.core import ( Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks)  # @UnresolvedImport @UnusedImport
+from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QVariant, QTextStream, QIODevice
+from qgis.PyQt.QtGui import QColor 
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
+from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
                         
                         
                         
@@ -789,12 +789,12 @@ class QSWATUtils:
         copy files to saveDir, or to directory within saveDir if makeDir is true, write path to box,
         and return file (or directory if makeDir is true) path and layer.
         """
-        settings: QSettings = QSettings()
+        settings = QSettings()
         if settings.contains('/QSWATPlus/LastInputPath'):
-            path: str = str(settings.value('/QSWATPlus/LastInputPath'))
+            path = str(settings.value('/QSWATPlus/LastInputPath'))
         else:
             path = ''
-        title: str = QSWATUtils.trans(FileTypes.title(ft))
+        title = QSWATUtils.trans(FileTypes.title(ft))
         if gv.isBatch:
             # filename in box
             inFileName = box.text()
@@ -804,10 +804,10 @@ class QSWATUtils:
         if inFileName is not None and inFileName != '':
             settings.setValue('/QSWATPlus/LastInputPath', os.path.dirname(str(inFileName)))
             # copy to saveDir if necessary
-            inInfo: QFileInfo = QFileInfo(inFileName)
-            inFile: str = inInfo.fileName()
-            inDir: QDir = inInfo.absoluteDir()
-            outDir: QDir = QDir(saveDir)
+            inInfo = QFileInfo(inFileName)
+            inFile = inInfo.fileName()
+            inDir = inInfo.absoluteDir()
+            outDir = QDir(saveDir)
             if inDir != outDir:
                 if inFile == 'sta.adf' or inFile == 'hdr.adf':
                     # ESRI grid - whole directory will be copied to saveDir
@@ -1567,7 +1567,7 @@ class FileTypes:
         # allow for duplicated landuses while using same colour for same landuse
         colourMap: Dict[str, QColor] = dict()
         for i in db.landuseVals:
-            luse: str = db.getLanduseCode(i)
+            luse = db.getLanduseCode(i)
             colour = colourMap.setdefault(luse, colours[index])
             item = QgsPalettedRasterRenderer.Class(int(i), colour, luse)
             items.append(item)

@@ -24,8 +24,8 @@
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import * # @UnusedWildImport
+from qgis.PyQt.QtGui import * # @UnusedWildImport
 import sys
 import os.path
 import shutil
@@ -56,9 +56,9 @@ atexit.register(QgsApplication.exitQgis)
 
 class DummyInterface(object):
     """Dummy iface to give access to layers."""
-    def __getattr__(self, *args, **kwargs):
+    def __getattr__(self, *args, **kwargs):  # @UnusedVariable
         """Dummy function."""
-        def dummy(*args, **kwargs):
+        def dummy(*args, **kwargs):  # @UnusedVariable
             return self
         return dummy
     def __iter__(self):

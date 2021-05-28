@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import QSettings, QVariant
-#from PyQt5.QtGui import *  # @UnusedWildImport type: ignore 
-from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter  # @UnresolvedImport
+from qgis.PyQt.QtCore import QSettings, QVariant
+#from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
+from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter
 from osgeo import gdal  # type: ignore
 from numpy import * # @UnusedWildImport
 import os.path

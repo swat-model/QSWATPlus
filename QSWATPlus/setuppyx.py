@@ -1,6 +1,6 @@
 from distutils.core import setup
     
-from Cython.Build import cythonize 
+from Cython.Build import cythonize  # @UnresolvedImport
 import os
 import numpy
 if 'QSWAT_PROJECT' in os.environ and 'Linux' in os.environ['QSWAT_PROJECT']:

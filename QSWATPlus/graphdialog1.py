@@ -25,8 +25,8 @@
 
 #import os
 
-#from PyQt5 import uic
-from PyQt5 import QtWidgets
+#from qgis.PyQt import uic
+from qgis.PyQt import QtWidgets
 
 from ui_graph import Ui_GraphDlg  # @UnresolvedImport
 

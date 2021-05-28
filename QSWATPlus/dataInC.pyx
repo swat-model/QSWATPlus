@@ -25,8 +25,8 @@
  
 
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import *  # @UnusedWildImport
-from PyQt5.QtGui import *  # @UnusedWildImport
+from qgis.PyQt.QtCore import *  # @UnusedWildImport
+from qgis.PyQt.QtGui import *  # @UnusedWildImport
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 import math

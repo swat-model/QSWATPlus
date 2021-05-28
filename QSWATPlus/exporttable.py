@@ -19,11 +19,11 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from PyQt5.QtWidgets import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import Qt
+#from qgis.PyQt.QtGui import *
+from qgis.PyQt.QtWidgets import QFileDialog
+#from qgis.core import * # @UnusedWildImport
+#from qgis.gui import * # @UnusedWildImport
 import os
 import sqlite3
 import csv

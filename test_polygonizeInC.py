@@ -24,8 +24,8 @@
 from qgis.core import * # @UnusedWildImport
 from qgis.gui import * # @UnusedWildImport
 
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import * # @UnusedWildImport
+from qgis.PyQt.QtGui import * # @UnusedWildImport
 
 import unittest
 import random
@@ -38,7 +38,7 @@ class TestPoly(unittest.TestCase):
     
     def test1(self):
         """Simplest polygon with a hole."""
-        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)
+        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)  # @UndefinedVariable
         shapes.addRow(np.array([1,1,1]), 0, 3, -1)
         shapes.addRow(np.array([1,2,1]), 1, 3, -1)
         shapes.addRow(np.array([1,1,1]), 2, 3, -1)
@@ -49,7 +49,7 @@ class TestPoly(unittest.TestCase):
         
     def test2(self):
         """Nested polygons.  Note this fails geometry validation (nested polygons) if the central square is 1."""
-        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)
+        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)  # @UndefinedVariable
         shapes.addRow(np.array([1,1,1,1,1]), 0, 5, -1)
         shapes.addRow(np.array([1,2,2,2,1]), 1, 5, -1)
         shapes.addRow(np.array([1,2,3,2,1]), 2, 5, -1)
@@ -62,7 +62,7 @@ class TestPoly(unittest.TestCase):
         
     def test3(self):
         """Multiple holes.  Checks for holes after main polygon."""
-        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)
+        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)  # @UndefinedVariable
         shapes.addRow(np.array([1,1,1,1,1]), 0, 5, -1)
         shapes.addRow(np.array([1,2,1,2,1]), 1, 5, -1)
         shapes.addRow(np.array([1,1,1,1,1]), 2, 5, -1)
@@ -75,7 +75,7 @@ class TestPoly(unittest.TestCase):
         
     def test4(self):
         """Single complex hole.  In practice makes 3 holes, but still valid."""
-        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)
+        shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)  # @UndefinedVariable
         shapes.addRow(np.array([1,1,1,1,1]), 0, 5, -1)
         shapes.addRow(np.array([1,2,1,2,1]), 1, 5, -1)
         shapes.addRow(np.array([1,1,2,1,1]), 2, 5, -1)
@@ -108,7 +108,7 @@ class TestPoly(unittest.TestCase):
         """Random 10x10 grid of 1s and 2s.  Probability of 1 set at 70% to encourage holes."""
         size = 10
         for _ in range(10000):
-            shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)
+            shapes = Polygonize.Polygonize(QgsPointXY(0,0), 1, 1)  # @UndefinedVariable
             rows = []
             for r in range(size):
                 row = []
@@ -133,14 +133,14 @@ class TestPoly(unittest.TestCase):
                 p = poly[0]
                 l = p.perimeter
                 b = p.bounds
-                self.assertTrue(Polygonize.isClockwise(p, 0, len(l)-1),
+                self.assertTrue(Polygonize.isClockwise(p, 0, len(l)-1),  # @UndefinedVariable
                                 'Outer polygon {0} is not clockwise {1}'.format(
-                                    Polygonize.makePolyString(l), Polygonize.boundsToString(b)))
+                                    Polygonize.makePolyString(l), Polygonize.boundsToString(b)))  # @UndefinedVariable
                 for i in range(len(poly)):
                     l = poly[i].perimeter
-                    self.assertTrue(Polygonize.checkClosed(l), 
-                                    'Polygon {0} is not closed'.format(Polygonize.makePolyString(l)))
-                    j = Polygonize.findComplements(l)
+                    self.assertTrue(Polygonize.checkClosed(l),  # @UndefinedVariable
+                                    'Polygon {0} is not closed'.format(Polygonize.makePolyString(l)))  # @UndefinedVariable
+                    j = Polygonize.findComplements(l)  # @UndefinedVariable
                     self.assertFalse(j >= 0, 'Polygon at index {0!s} has complementary pair at {1!s}'.format(i, j))
             geometry = shapes.getGeometry(hru)
             self.assertIsNotNone(geometry, 'No geometry for hru {0!s}'.format(hru))

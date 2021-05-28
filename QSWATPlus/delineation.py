@@ -23,8 +23,8 @@ from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator
 from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject  # @UnresolvedImport
-from qgis.gui import * # @UnusedWildImport
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry  # @UnresolvedImport
+from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 import os
 import glob
 import shutil
@@ -146,7 +146,7 @@ class Delineation(QObject):
         ## flag to show finishDelineation has been run
         self.finishHasRun = False
         ## mapTool used for drawing outlets etc
-        self.mapTool: Optional[QgsMapTool] = None
+        self.mapTool: Optional[QgsMapToolEmitPoint] = None
         ## flag to show if drainage for existing grid defined by attribute in grid (when true), else by streams shapefile or drainage table
         self.gridDrainage = False
         ## flag to show if drainage for existing grid defined by streams shapefile (when true) or by drainage table
@@ -2217,7 +2217,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         """
         self._odlg.widget.setEnabled(True)
         canvas: QgsMapCanvas = self._gv.iface.mapCanvas()
-        self.mapTool = QgsMapToolEmitPoint(canvas)  # @UndefinedVariable
+        self.mapTool = QgsMapToolEmitPoint(canvas)
+        assert self.mapTool is not None
         self.mapTool.canvasClicked.connect(self.getPoint)
         canvas.setMapTool(self.mapTool)
         # detect maptool change

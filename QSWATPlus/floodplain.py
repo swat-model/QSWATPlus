@@ -21,10 +21,10 @@
  """
 
 # Import the PyQt and QGIS libraries
-from PyQt5.QtCore import * # @UnusedWildImport
-from PyQt5.QtGui import * # @UnusedWildImport
-from qgis.core import * # @UnusedWildImport
-from qgis.gui import * # @UnusedWildImport
+from qgis.PyQt.QtCore import QObject
+#from qgis.PyQt.QtGui import *
+from qgis.core import QgsProject, QgsVectorLayer
+#from qgis.gui import * # @UnusedWildImport
 import os
 from osgeo import gdal
 # import numpy as np
