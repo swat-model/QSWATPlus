@@ -9,6 +9,7 @@
 **/.mypy_cache
 *.c
 *.pyd
+*.*.pyd
 *.so
 *.*~
 

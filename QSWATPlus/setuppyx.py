@@ -22,6 +22,8 @@ if 'INCLUDE' in os.environ:
     os.environ['INCLUDE'] = os.environ['INCLUDE'] + sep + includePath + sep + numpyInclude
 else:
     os.environ['INCLUDE'] = includePath + sep + numpyInclude
+    
+print('include path is {0}'.format(os.environ['INCLUDE']))
 
 if is32:
     # only run cythonize to get .c files from .pyx

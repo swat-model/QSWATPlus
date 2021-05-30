@@ -1646,7 +1646,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     return
                 QSWATUtils.copyPrj(demFile, channelFile)
                 QSWATUtils.copyPrj(demFile, wChannelFile)
-            self._gv.srcChannelFile = '' if self._gv.useGridModel else srcChannelFile
             # load above demLayer (or hillshadelayer if exists) so streamLayer loads above it and below outlets
             # (or use Full HRUs layer if there is one)
             if fullHRUsLayer is not None:
@@ -1675,6 +1674,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         self._gv.basinFile = wStreamFile
         if not self._gv.useGridModel:
             self._gv.channelBasinFile = wChannelFile
+        self._gv.srcChannelFile = '' if self._gv.useGridModel else srcChannelFile
         if self._dlg.checkBurn.isChecked():
             # need to make slope file from original dem
             felNoburn = base + 'felnoburn' + suffix
