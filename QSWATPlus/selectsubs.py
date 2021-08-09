@@ -21,8 +21,10 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt
+from qgis.PyQt.QtGui import QDoubleValidator
 #from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.core import * # @UnusedWildImport
+import locale
 # Import the code for the dialog
 from .selectsubsdialog import SelectSubbasinsDialog
 from .QSWATUtils import QSWATUtils # type: ignore 
@@ -56,6 +58,7 @@ class SelectSubbasins:
         self._dlg.groupBox.setVisible(False)
         self._dlg.areaButton.setChecked(False)
         self._dlg.percentButton.setChecked(True)
+        self._dlg.threshold.setValidator(QDoubleValidator())
         self._dlg.threshold.setText('5')
         
     def run(self):
@@ -76,7 +79,7 @@ class SelectSubbasins:
             QSWATUtils.error('No threshold is set', self._gv.isBatch)
             return
         try:
-            threshold = float(num)
+            threshold = locale.atof(num)
         except Exception:
             QSWATUtils.error('Cannot parse {0} as a number'.format(num), self._gv.isBatch)
             return

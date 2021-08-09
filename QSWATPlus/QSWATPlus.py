@@ -30,6 +30,7 @@ import time
 import shutil
 import sys
 import traceback
+import locale
 
 # Initialize Qt resources from file resources_rc.py
 try:
@@ -69,7 +70,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.1.2'
+    __version__ = '2.1.3'
 
     def __init__(self, iface):
         """Constructor."""
@@ -99,10 +100,11 @@ class QSWATPlus(QObject):
         # initialize locale
         # in testing with a dummy iface object this settings value can be None
         try:
-            locale = settings.value("locale/userLocale")[0:2]
+            localeStr = settings.value("locale/userLocale")[0:2]
         except Exception:
-            locale = 'en'
-        localePath = os.path.join(self.plugin_dir, 'i18n', 'qswat_{}.qm'.format(locale))
+            localeStr = 'en'
+        localePath = os.path.join(self.plugin_dir, 'i18n', 'qswat_{}.qm'.format(localeStr))
+        locale.setlocale(locale.LC_ALL, '')
         # set default behaviour for loading files with no CRS to prompt - the safest option
         settings.setValue('Projections/defaultBehaviour', 'prompt')
         ## translator
@@ -318,16 +320,21 @@ class QSWATPlus(QObject):
         self._odlg.raise_()
         self.setupProject(proj, False)
     
-    def setupProject(self, proj, isBatch):
+    def setupProject(self, proj, isBatch, isHUC=False):
         """Set up the project."""
         self._odlg.mainBox.setVisible(True)
         self._odlg.mainBox.setEnabled(False)
         self._odlg.setCursor(Qt.WaitCursor)
         self._odlg.projPath.setText('Restarting project ...')
-        proj.setTitle(QFileInfo(proj.fileName()).baseName())
+        title = QFileInfo(proj.fileName()).baseName()
+        proj.setTitle(title)
+        isHUC, found = proj.readBoolEntry(title, 'delin/isHUC', False)
+        if not found:
+            # isHUC not previously set.  Use parameter above and record
+            proj.writeEntryBool(title, 'delin/isHUC', isHUC)
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
-        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch)
+        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC)
         if self._gv.SWATPlusDir == '':
             # failed to find SWATPlus directory
             return

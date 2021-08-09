@@ -42,7 +42,7 @@ def main(demFile, outletFile):
     cellThreshold = str(int((numCols * numRows) * 0.01))
     (base, suffix) = os.path.splitext(demFile)
     felFile = base + 'fel' + suffix
-    ok = TauDEMUtils.runPitFill(demFile, felFile, 0, None)   
+    ok = TauDEMUtils.runPitFill(demFile, None, felFile, 0, None)   
     if not ok:
         return -1
     sd8File = base + 'sd8' + suffix

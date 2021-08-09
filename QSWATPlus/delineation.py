@@ -33,6 +33,7 @@ import math
 import time
 from osgeo import gdal, ogr  # type: ignore
 import csv
+import locale
 import processing  # type: ignore
 from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport
 import traceback
@@ -736,7 +737,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                 if intersectType == QgsWkbTypes.MultiPoint:
                     points = intersect.asMultiPoint()  # TODO: just to see how many points
                     # check if source and outlet are inside or outside lake
-                    reachData = self._gv.topo.getReachData(line, None)
+                    reachData = self._gv.topo.getReachData(channel, None)
                     outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     source = QgsPointXY(reachData.upperX, reachData.upperY)
                     if QSWATTopology.polyContains(outlet, geom, box):
@@ -770,7 +771,7 @@ that it flows out the lake at its last crossing point.
                             crossingChannels.append((channel, points))
                 elif intersectType == QgsWkbTypes.Point:
                     # enters or leaves lake: add split point
-                    reachData = self._gv.topo.getReachData(line, None)
+                    reachData = self._gv.topo.getReachData(channel, None)
                     outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     source = QgsPointXY(reachData.upperX, reachData.upperY)
                     # select between source and outlet according to whether channel outlet is in lake
@@ -785,7 +786,7 @@ that it flows out the lake at its last crossing point.
                 # arbtirarily select first such stream to generate the outlet
                 # users told to mark stream with a reservoir or pond point if this gives undesirable choice
                 channel, points = crossingChannels.pop(0)
-                reachData = self._gv.topo.getReachData(channel.geometry(), None)
+                reachData = self._gv.topo.getReachData(channel, None)
                 outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                 source = QgsPointXY(reachData.upperX, reachData.upperY)
                 chLink = channel[channelLinkIndex]
@@ -1390,7 +1391,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                                  format(chanThresh, streamThresh), self._gv.isBatch)
                 return
         (base, suffix) = os.path.splitext(self._gv.demFile)
-        baseName = os.path.split(base)[1]
+        baseDir, baseName = os.path.split(base)
         shapesBase = QSWATUtils.join(self._gv.shapesDir, baseName)
         # burn in if required
         if self._dlg.checkBurn.isChecked():
@@ -1430,7 +1431,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
         felFile = base + 'fel' + suffix
         QSWATUtils.removeLayer(felFile, root)
         self.progress('PitFill ...')
-        ok = TauDEMUtils.runPitFill(delineationDem, felFile, numProcesses, self._dlg.taudemOutput)   
+        depmask = QSWATUtils.join(baseDir, 'depmask.tif')
+        if not os.path.isfile(depmask):
+            depmask = None
+        ok = TauDEMUtils.runPitFill(delineationDem, depmask, felFile, numProcesses, self._dlg.taudemOutput)   
         if not ok:
             self.cleanUp(3)
             return
@@ -1680,7 +1684,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             felNoburn = base + 'felnoburn' + suffix
             QSWATUtils.removeLayer(felNoburn, root)
             self.progress('PitFill ...')
-            ok = TauDEMUtils.runPitFill(demFile, felNoburn, numProcesses, self._dlg.taudemOutput)  
+            ok = TauDEMUtils.runPitFill(demFile, depmask, felNoburn, numProcesses, self._dlg.taudemOutput)  
             if not ok:
                 self.cleanUp(3)
                 return
@@ -1834,7 +1838,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if willRun:
             if self._dlg.showTaudem.isChecked():
                 self._dlg.tabWidget.setCurrentIndex(3)
-            ok = TauDEMUtils.runPitFill(demFile, felFile, numProcesses, self._dlg.taudemOutput) 
+            depmask = QSWATUtils.join(os.path.split(self._gv.demFile)[0], 'depmask.tif')
+            if not os.path.isfile(depmask):
+                depmask = None
+            ok = TauDEMUtils.runPitFill(demFile, depmask, felFile, numProcesses, self._dlg.taudemOutput) 
             if not ok:
                 self.cleanUp(3)
                 return
@@ -2004,11 +2011,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
             QSWATUtils.information('WARNING: DEM cells are not square: {0!s} x {1!s}'.format(demLayer.rasterUnitsPerPixelX(), demLayer.rasterUnitsPerPixelY()), self._gv.isBatch)
         self._gv.topo.dx = demLayer.rasterUnitsPerPixelX() * self._gv.horizontalFactor
         self._gv.topo.dy = demLayer.rasterUnitsPerPixelY() * self._gv.horizontalFactor
-        self._dlg.sizeEdit.setText('{:.4G} x {:.4G}'.format(self._gv.topo.dx, self._gv.topo.dy))
+        self._dlg.sizeEdit.setText('{0} x {1}'.format(locale.format_string('%.4G', self._gv.topo.dx), locale.format_string('%.4G', self._gv.topo.dy)))
         self._dlg.sizeEdit.setReadOnly(True)
         self.setAreaOfCell()
         areaM2 = float(self._gv.topo.dx * self._gv.topo.dy) / 1E4
-        self._dlg.areaEdit.setText('{:.4G}'.format(areaM2))
+        self._dlg.areaEdit.setText(locale.format_string('%.4G', areaM2))
         self._dlg.areaEdit.setReadOnly(True)
         self._gv.topo.demExtent = demLayer.extent()
         north = self._gv.topo.demExtent.yMaximum()
@@ -2034,7 +2041,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         decMin = abs(decDeg - deg) * 60
         minn = int(decMin)
         sec = int((decMin - minn) * 60)
-        return '{0:.2F}{1} ({2!s}{1} {3!s}\' {4!s}")'.format(decDeg, chr(176), deg, minn, sec)
+        return '{0}{1} ({2!s}{1} {3!s}\' {4!s}")'.format(locale.format_string('%.2F', decDeg), chr(176), deg, minn, sec)
             
     def setAreaOfCell(self) -> None:
         """Set area of 1 cell according to area units choice."""
@@ -2069,13 +2076,13 @@ assumed that its crossing the lake boundary is an inaccuracy.
         """Update channel area threshold display.  Not used with grid models."""
         if self.changing: return
         try:
-            numCells = float(self._dlg.numCellsCh.text())
+            numCells = int(self._dlg.numCellsCh.text())
         except Exception:
             # not currently parsable - ignore
             return
         area = numCells * self.areaOfCell
         self.changing = True
-        self._dlg.areaCh.setText('{0:.4G}'.format(area))
+        self._dlg.areaCh.setText(locale.format_string('%.4G', area))
         self.changing = False
         self.thresholdChanged = True
 
@@ -2083,13 +2090,13 @@ assumed that its crossing the lake boundary is an inaccuracy.
         """Update stream area threshold display."""
         if self.changing: return
         try:
-            numCells = float(self._dlg.numCellsSt.text())
+            numCells = int(self._dlg.numCellsSt.text())
         except Exception:
             # not currently parsable - ignore
             return
         area = numCells * self.areaOfCell
         self.changing = True
-        self._dlg.areaSt.setText('{0:.4G}'.format(area))
+        self._dlg.areaSt.setText(locale.format_string('%.4G', area))
         self.changing = False
         self.thresholdChanged = True
             
@@ -2099,7 +2106,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # prevent division by zero
         if self.areaOfCell == 0: return
         try:
-            area = float(self._dlg.areaCh.text())
+            area = locale.atof(self._dlg.areaCh.text())
         except Exception:
             # not currently parsable - ignore
             return
@@ -2115,7 +2122,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # prevent division by zero
         if self.areaOfCell == 0: return
         try:
-            area = float(self._dlg.areaSt.text())
+            area = locale.atof(self._dlg.areaSt.text())
         except Exception:
             # not currently parsable - ignore
             return
@@ -3091,15 +3098,15 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     dropD = reachD[dropField]
                     streamLayer.changeAttributeValue(idM, dropField, dropA + dropD)
                 elif slopeField >= 0:
-                    dataA = self._gv.topo.getReachData(geomA, demLayer)
+                    dataA = self._gv.topo.getReachData(reachA, demLayer)
                     dropA = dataA.upperZ = dataA.lowerZ
-                    dataD = self._gv.topo.getReachData(geomD, demLayer)
+                    dataD = self._gv.topo.getReachData(reachD, demLayer)
                     dropD = dataD.upperZ = dataD.lowerZ
                 if slopeField >= 0:
                     streamLayer.changeAttributeValue(idM, slopeField, (dropA + dropD) / (lengthA + lengthD))
                 if straight_lField >= 0:
-                    dataA = self._gv.topo.getReachData(geomA, demLayer)
-                    dataD = self._gv.topo.getReachData(geomD, demLayer)
+                    dataA = self._gv.topo.getReachData(reachA, demLayer)
+                    dataD = self._gv.topo.getReachData(reachD, demLayer)
                     dx = dataA.upperX - dataD.lowerX
                     dy = dataA.upperY - dataD.lowerY
                     streamLayer.changeAttributeValue(idM, straight_lField, math.sqrt(dx * dx + dy * dy))
@@ -4566,7 +4573,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?1'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
                     subbasinsLayer = layer
                     subbasinsFile = possFile
         if subbasinsLayer is not None:

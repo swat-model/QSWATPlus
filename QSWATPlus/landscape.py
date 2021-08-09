@@ -36,6 +36,7 @@ import os.path
 import processing  # @UnresolvedImport type: ignore 
 from processing.core.Processing import Processing  #  @UnresolvedImport @UnusedImport type: ignore
 import time
+import locale
 from osgeo import gdal
 
 from .TauDEMUtils import TauDEMUtils
@@ -134,7 +135,7 @@ class Landscape(QObject):
         self._dlg.areaUnitsBox.activated.connect(self.changeRidgeArea)
         self._dlg.methodTab.currentChanged.connect(self.methodTabCheck)
         self._dlg.branchThreshold.textChanged.connect(self.parameterChange)
-        self._dlg.branchThreshold.setValidator(QDoubleValidator())
+        self._dlg.branchThreshold.setValidator(QIntValidator())
         self._dlg.createButton.clicked.connect(self.generate)
         self._dlg.doneButton.clicked.connect(self.cancel)
         # if distances to outlets not generated (eg existing watershed) then branch method is not available
@@ -157,9 +158,10 @@ class Landscape(QObject):
         self._dlg.methodTab.setCurrentIndex(1)  # default method is inverted DEM
         self.methodTabCheck()
         self.mustRun = mustRun
-        self._dlg.show()
-        self._dlg.exec_()
-        self._gv.landscapePos = self._dlg.pos()
+        if not self._gv.isBatch:
+            self._dlg.show()
+            self._dlg.exec_()
+            self._gv.landscapePos = self._dlg.pos()
         return 0
     
     def setAreaOfCell(self):
@@ -189,7 +191,7 @@ class Landscape(QObject):
             return
         area = numCells * self.areaOfCell
         self.changing = True
-        self._dlg.ridgeThresholdArea.setText('{0:.4G}'.format(area))
+        self._dlg.ridgeThresholdArea.setText(locale.format_string('%.4G', area))
         self.changing = False
         self.parameterChange()
             
@@ -199,7 +201,7 @@ class Landscape(QObject):
         # prevent division by zero
         if self.areaOfCell == 0: return
         try:
-            area = float(self._dlg.ridgeThresholdArea.text())
+            area = locale.atof(self._dlg.ridgeThresholdArea.text())
         except Exception:
             # not currently parsable - ignore
             return
@@ -236,6 +238,7 @@ class Landscape(QObject):
             processing.run("gdal:cliprasterbymasklayer", 
                            {'INPUT':inFile,
                             'MASK':clipperFile,
+                            'SOURCE_CRS': self._gv.crsProject,
                             'NODATA':self.noData,
                             'CROP_TO_CUTLINE':True,
                             'DATA_TYPE':0,
@@ -692,7 +695,7 @@ class Landscape(QObject):
             formula = '0 - D@1'
             demInv = base + 'inv' + ext
             calc = QgsRasterCalculator(formula, demInv, 'GTiff', demLayer.extent(), demLayer.width(),
-                                       demLayer.height(), [entry])
+                                       demLayer.height(), [entry], QgsCoordinateTransformContext())
             result = calc.processCalculation(feedback=None)
             if result == 0:
                 assert os.path.exists(demInv), 'QGIS calculator formula {0} failed to write output'.format(formula)
@@ -701,17 +704,21 @@ class Landscape(QObject):
                 QSWATUtils.error('QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch)
                 return None
             invFel = base + 'invFel' + ext
-            if not TauDEMUtils.runPitFill(demInv, invFel, self.numProcesses, self.taudemOutput):
+            if not TauDEMUtils.runPitFill(demInv, None, invFel, self.numProcesses, self.taudemOutput):
                 QSWATUtils.error('Failed to run TauDEM PitFill on {0}'.format(demInv), self._gv.isBatch)
-                return None 
+                return None
+            QSWATUtils.copyPrj(self._gv.demFile, invFel)
             sd8Inv = base + 'invsd8' + ext 
             if not TauDEMUtils.runD8FlowDir(invFel, sd8Inv, dirInv, self.numProcesses, self.taudemOutput):
                 QSWATUtils.error('Failed to run TauDEM D8FlowDir on {0}'.format(invFel), self._gv.isBatch)
                 return None 
+            QSWATUtils.copyPrj(self._gv.demFile, sd8Inv)
+            QSWATUtils.copyPrj(self._gv.demFile, dirInv)
             if not TauDEMUtils.runAreaD8(dirInv, accInv, None, None,
                                          self.numProcesses, self.taudemOutput, contCheck=False, mustRun=False):
                 QSWATUtils.error('Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch)
                 return None 
+            QSWATUtils.copyPrj(self._gv.demFile, accInv)
         return dirInv, accInv
         
     def findHeads(self):

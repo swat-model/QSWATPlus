@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+1# -*- coding: utf-8 -*-
 '''
 /***************************************************************************
  QSWATPlus
@@ -28,6 +28,7 @@ from qgis.core import QgsProject
 import os.path
 import platform
 from typing import Any
+import locale 
     
 try:
     from .parametersdialog import ParametersDialog  # type: ignore
@@ -79,6 +80,9 @@ class Parameters:
     _ANIMATION = 'Animation'
     _PNG = 'Png'
     _STILLPNG = 'still.png'
+    _SSURGODB_HUC = 'SSURGO_Soils_HUC.sqlite'
+    _SSURGOWater = 377988
+    _WATERBODIES = 'WaterBodies.sqlite'
     
     _TOPOREPORT = 'TopoRep.txt'
     _TOPOITEM = 'Elevation'
@@ -344,13 +348,13 @@ class Parameters:
         burninDepth = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
         self._dlg.burninDepth.setText(str(burninDepth))
         channelWidthMultiplier = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
-        self._dlg.widthMult.setText(str(channelWidthMultiplier))
+        self._dlg.widthMult.setText(locale.str(channelWidthMultiplier))
         channelWidthExponent = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
-        self._dlg.widthExp.setText(str(channelWidthExponent))
+        self._dlg.widthExp.setText(locale.str(channelWidthExponent))
         channelDepthMultiplier = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
-        self._dlg.depthMult.setText(str(channelDepthMultiplier))
+        self._dlg.depthMult.setText(locale.str(channelDepthMultiplier))
         channelDepthExponent = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
-        self._dlg.depthExp.setText(str(channelDepthExponent))
+        self._dlg.depthExp.setText(locale.str(channelDepthExponent))
         reachSlopeMultiplier = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.reachSlopeMultiplier.setValue(reachSlopeMultiplier)
         tributarySlopeMultiplier = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
@@ -371,15 +375,15 @@ class Parameters:
 
     def saveProj(self) -> None:
         """Write parameter data to project file."""
-        burninDepth = float(self._dlg.burninDepth.text())
+        burninDepth = int(self._dlg.burninDepth.text())
         if burninDepth == 0:
             QSWATUtils.error('Stream burn-in depth may not be set to zero', self.isBatch)
             return
-        widthMult = float(self._dlg.widthMult.text())
+        widthMult = locale.atof(self._dlg.widthMult.text())
         if widthMult == 0:
             QSWATUtils.error('Channel width multiplier may not be set to zero', self.isBatch)
             return
-        depthMult = float(self._dlg.depthMult.text())
+        depthMult = locale.atof(self._dlg.depthMult.text())
         if depthMult == 0:
             QSWATUtils.error('Channel depth multiplier may not be set to zero', self.isBatch)
             return
@@ -405,25 +409,25 @@ class Parameters:
             return
         proj = QgsProject.instance()
         title = proj.title()
-        proj.writeEntry(title, 'params/burninDepth', self._dlg.burninDepth.text())
-        proj.writeEntry(title, 'params/channelWidthMultiplier', self._dlg.widthMult.text())
-        proj.writeEntry(title, 'params/channelWidthExponent', self._dlg.widthExp.text())
-        proj.writeEntry(title, 'params/channelDepthMultiplier', self._dlg.depthMult.text())
-        proj.writeEntry(title, 'params/channelDepthExponent', self._dlg.depthExp.text())
-        proj.writeEntry(title, 'params/reachSlopeMultiplier', self._dlg.reachSlopeMultiplier.text())
-        proj.writeEntry(title, 'params/tributarySlopeMultiplier', self._dlg.tributarySlopeMultiplier.text())
-        proj.writeEntry(title, 'params/meanSlopeMultiplier', self._dlg.meanSlopeMultiplier.text())
-        proj.writeEntry(title, 'params/mainLengthMultiplier', self._dlg.mainLengthMultiplier.text())
-        proj.writeEntry(title, 'params/tributaryLengthMultiplier', self._dlg.tributaryLengthMultiplier.text())
-        upslopeHRUDrain = float(self._dlg.upslopeHRUDrain.text())
+        proj.writeEntry(title, 'params/burninDepth', int(self._dlg.burninDepth.text()))
+        proj.writeEntryDouble(title, 'params/channelWidthMultiplier', locale.atof(self._dlg.widthMult.text()))
+        proj.writeEntryDouble(title, 'params/channelWidthExponent', locale.atof(self._dlg.widthExp.text()))
+        proj.writeEntryDouble(title, 'params/channelDepthMultiplier', locale.atof(self._dlg.depthMult.text()))
+        proj.writeEntryDouble(title, 'params/channelDepthExponent', locale.atof(self._dlg.depthExp.text()))
+        proj.writeEntryDouble(title, 'params/reachSlopeMultiplier', locale.atof(self._dlg.reachSlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/tributarySlopeMultiplier', locale.atof(self._dlg.tributarySlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/meanSlopeMultiplier', locale.atof(self._dlg.meanSlopeMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/mainLengthMultiplier', locale.atof(self._dlg.mainLengthMultiplier.text()))
+        proj.writeEntryDouble(title, 'params/tributaryLengthMultiplier', locale.atof(self._dlg.tributaryLengthMultiplier.text()))
+        upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
         if 0 <= upslopeHRUDrain <= 100:
-            proj.writeEntry(title, 'params/upslopeHRUDrain', self._dlg.upslopeHRUDrain.text())
+            proj.writeEntry(title, 'params/upslopeHRUDrain', int(self._dlg.upslopeHRUDrain.text()))
         proj.write()
         if self._gv is not None:
             self._gv.burninDepth = burninDepth
             # update channel widths and depths in affected tables
-            widthExp = float(self._dlg.widthExp.text())
-            depthExp = float(self._dlg.depthExp.text())
+            widthExp = locale.atof(self._dlg.widthExp.text())
+            depthExp = locale.atof(self._dlg.depthExp.text())
             if abs(self._gv.channelWidthMultiplier - widthMult) > .005 \
                 or abs(self._gv.channelWidthExponent - widthExp) > .005 \
                 or abs(self._gv.channelDepthMultiplier - depthMult) > 0.005 \

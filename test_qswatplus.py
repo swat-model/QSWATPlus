@@ -36,6 +36,7 @@ import shutil
 import filecmp
 import unittest
 import atexit 
+import math
 from processing.core.Processing import Processing  # @UnresolvedImport
 
 from QSWATPlus import QSWATPlus
@@ -109,12 +110,12 @@ if Parameters._ISWIN:
     HashTable1['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable1['gis_subbasins'] = 'be54ab63103d1cb87cea9db574a6936b'
     HashTable1['gis_lsus'] = '9e8ca3df21de619fbc31453c496a6fb5'
-    HashTable1['gis_hrus'] = 'af71c8a6a010050b155ad06709b62ff8'
+    HashTable1['gis_hrus'] = '117e39c36432785d46d33319c9393277'
     HashTable1['gis_routing'] = 'bc87cfc432f6de16c94f0f2f9c60ab8b'
     HashTable1['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
     HashTable1['soils_sol'] = 'a212b2bb0012ae514f21a7cc186befc6'
     HashTable1['soils_sol_layer'] = 'c1ad51d497c67e77de4d7e6cf08479f8'
-
+    
     # tables after adjusting parameters
     HashTable1a = dict()
     HashTable1a['gis_channels'] = '7b6ffd6f32b721be41e26cfdf36a2efd'
@@ -128,7 +129,7 @@ if Parameters._ISWIN:
     HashTable1a['gis_splithrus'] = HashTable1['gis_splithrus']
     HashTable1a['gis_subbasins'] = '5b45d91c887e37818e3cd6e08f50a701'
     HashTable1a['gis_lsus'] = 'd5e32963e9d1bf250ebcf6aacd5e22d1'
-    HashTable1a['gis_hrus'] = 'e835aa0e4f83e41bf9a7632b5aefe6fb'
+    HashTable1a['gis_hrus'] = '4cf501d740e2ee1dad58a3c6e3131d6d'
     HashTable1a['gis_routing'] = HashTable1['gis_routing']
     HashTable1a['gis_water'] = HashTable1['gis_water']
     HashTable1a['soils_sol'] = HashTable1['soils_sol']
@@ -333,7 +334,7 @@ HashTable6['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['gis_subbasins'] = '8331e023226501d029e05384db54af81'
 HashTable6['gis_lsus'] = '356a1eacbfd5c234d77a03ebb3667125'
-HashTable6['gis_hrus'] = '4e09994e2f66e0331628d10883e1df79'
+HashTable6['gis_hrus'] = '57acc282115733d71f312ec485a941ed'
 HashTable6['gis_routing'] = '18de4620fa93bba768ad1be6acd872c8'
 HashTable6['gis_water'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable6['soils_sol'] = '8f96b3ce8c689509a56b1741a1814053'
@@ -449,7 +450,7 @@ HashTable10['gis_landexempt'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_splithrus'] = 'd41d8cd98f00b204e9800998ecf8427e'
 HashTable10['gis_subbasins'] = '094465c45207d26372e6f1ce4d896060'
 HashTable10['gis_lsus'] = '71c319e6d0f981da88326cf7a3d88717'
-HashTable10['gis_hrus'] = '0171dfd23dc4e81fc37b5a2a1be47170'
+HashTable10['gis_hrus'] = '879665f70d31590d6a99ef81abea4820'
 HashTable10['gis_routing'] = 'a024c45c32d01dd0706a3a38f51ad557'
 HashTable10['gis_water'] = '6f06be6293b2cec335d74b55bce9df35'
 HashTable10['soils_sol'] = '992437fe26f6a1faa50b612528f31657'
@@ -581,6 +582,16 @@ HashTable14['gis_routing'] = '22b0ce0161ae320dec98c4a0e28af356'
 HashTable14['gis_water'] = '776b1fcd6a42be0e51a98b92fbf5d46a'
 HashTable14['soils_sol'] = '89dce60ed8e00adeaf6e69408837a32d'
 HashTable14['soils_sol_layer'] = '1b1e425ca2cd8fd19d2027136a7ff833'
+
+#===============================================================================
+# Test 15:
+#   - MPI 8 process
+#   - clipped San Juan DEM: no inlets/outlets file
+#   - delineation threshold 6000 ha
+#   - landscape by buffer, dem inversion and branch length; use dem inversion
+#   - no slope limits
+#   - dominant HRU
+#===============================================================================
 
 # listen to the QGIS message log
 message_log = {}
@@ -2359,6 +2370,133 @@ class TestQswat(unittest.TestCase):
             self.checkHashes(HashTable14)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.plugin.finish()
+        
+    def test15(self):
+        """MPI 8 processes; clipped San Juan DEM: no inlets/outlets file; delineation threshold 6000 ha; 
+        landscape by buffer, inversion and branch (use inversion); no slope limits; dominant HRU"""
+        self.delin._dlg.selectDem.setText(self.copyDem('sj_dem_clip.tif'))
+        self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
+        ## HRUs object
+        self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
+        # listener = Listener(self.delin, self.hrus, self.hrus.CreateHRUs)
+        numLayers = len(QgsProject.instance().mapLayers().values())
+        self.assertEqual(numLayers, 0, 'Unexpected start with {0} layers'.format(numLayers))
+        demLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.delin._dlg.selectDem.text(), FileTypes._DEM, 
+                                                         self.plugin._gv, True, QSWATUtils._WATERSHED_GROUP_NAME)
+        self.waitLayerAdded(numLayers)
+        self.assertTrue(demLayer and loaded, 'Failed to load DEM {0}'.format(self.delin._dlg.selectDem.text()))
+        self.assertTrue(demLayer.crs().mapUnits() == QgsUnitTypes.DistanceMeters, 'Map units not meters but {0}'.format(demLayer.crs().mapUnits()))
+        unitIndex = self.delin._dlg.areaUnitsBox.findText(Parameters._HECTARES)
+        self.assertTrue(unitIndex >= 0, 'Cannot find hectare area units')
+        self.delin._dlg.areaUnitsBox.setCurrentIndex(unitIndex)
+        self.delin.setDefaultNumCells(demLayer)
+        self.delin._dlg.areaSt.setText('6000')
+        self.delin._dlg.areaCh.setText('600')
+        self.assertTrue(self.delin._dlg.numCellsSt.text() == '8640', 
+                        'Unexpected number of stream cells for delineation {0}'.format(self.delin._dlg.numCellsSt.text()))
+        self.assertTrue(self.delin._dlg.numCellsCh.text() == '864', 
+                        'Unexpected number of channel cells for delineation {0}'.format(self.delin._dlg.numCellsCh.text()))
+        self.delin._dlg.useOutlets.setChecked(False)
+        QtTest.QTest.mouseClick(self.delin._dlg.delinRunButton2, Qt.LeftButton)
+        self.assertTrue(self.delin.areaOfCell > 0, 'Area of cell is ' + str(self.delin.areaOfCell))
+        self.delin._dlg.tabWidget_2.setCurrentIndex(0)
+        self.assertTrue(self.delin._dlg.landscapeButton.isEnabled(), 'Landscape button not enabled')
+        QtTest.QTest.mouseClick(self.delin._dlg.landscapeButton, Qt.LeftButton)
+        lscape = self.delin.L
+        self.assertTrue(lscape is not None, 'Landscape module not started')
+        self.assertFalse(lscape._dlg.hillslopesCheckBox.isChecked(), 'Calculate hillslopes is checked')
+        self.assertTrue(lscape._dlg.floodplainCheckBox.isChecked(), 'Calculate floodplain is not checked')
+        self.assertTrue(lscape._dlg.slopePositionSpinBox.isEnabled(), 'Slope position spinbox not enabled')
+        self.assertTrue(lscape._dlg.slopePositionSpinBox.value() == 0.10, 'Slope position spinbox has wrong value {0}'.format(lscape._dlg.slopePositionSpinBox.value()))
+        self.assertTrue(lscape._dlg.createButton.isEnabled(), 'Lansdscape create button not enabled')
+        lscape._dlg.methodTab.setCurrentIndex(0)
+        self.assertTrue(lscape._dlg.bufferMultiplier.isEnabled(), 'Buffer multipler not enabled')
+        self.assertTrue(lscape._dlg.bufferMultiplier.value() == 10, 'Buffer multiplier has wrong value {0}'.format(lscape._dlg.bufferMultiplier.value()))
+        QtTest.QTest.mouseClick(lscape._dlg.createButton, Qt.LeftButton)
+        bufferFloodLayer = QSWATUtils.getLayerByLegend(QSWATUtils._BUFFERFLOODLEGEND, self.root.findLayers())
+        self.assertTrue(bufferFloodLayer, 'Buffer flood layer not created')
+        lscape._dlg.methodTab.setCurrentIndex(1)
+        self.assertTrue(lscape._dlg.ridgeThresholdCells.isEnabled(), 'Ridge threshold cells not enabled')
+        self.assertTrue(lscape._dlg.ridgeThresholdCells.text() == '8640', 'Ridge threshold cells has wrong value {0}'.format(lscape._dlg.ridgeThresholdCells.text()))
+        areaUnitIndex = lscape._dlg.areaUnitsBox.findText(Parameters._HECTARES)
+        self.assertTrue(areaUnitIndex >= 0, 'Cannot find hectare area units for ')
+        lscape._dlg.areaUnitsBox.setCurrentIndex(areaUnitIndex)
+        lscape.changeRidgeArea()
+        self.assertTrue(lscape._dlg.ridgeThresholdArea.isEnabled(), 'Ridge threshold area not enabled')
+        self.assertTrue(lscape._dlg.ridgeThresholdArea.text() == '6000', 'Ridge threshold area has wrong value {0}'.format(lscape._dlg.ridgeThresholdArea.text()))
+        QtTest.QTest.mouseClick(lscape._dlg.createButton, Qt.LeftButton)
+        invFloodLayer = QSWATUtils.getLayerByLegend(QSWATUtils._INVFLOODLEGEND, self.root.findLayers())
+        self.assertTrue(invFloodLayer, 'Inversion flood layer not created')
+        lscape._dlg.methodTab.setCurrentIndex(2)
+        self.assertTrue(lscape._dlg.branchThreshold.isEnabled(), 'Branch threshold not enabled')
+        branchThresh = int(2 * math.sqrt(8640 * self.plugin._gv.topo.dx * self.plugin._gv.topo.dy))
+        self.assertTrue(int(lscape._dlg.branchThreshold.text()) == branchThresh, 'Branch threshold has wrong value {0}'.format(lscape._dlg.branchThreshold.text()))
+        QtTest.QTest.mouseClick(lscape._dlg.createButton, Qt.LeftButton)
+        branchFloodLayer = QSWATUtils.getLayerByLegend(QSWATUtils._BRANCHFLOODLEGEND, self.root.findLayers())
+        self.assertTrue(branchFloodLayer, 'Branch flood layer not created')
+        self.assertTrue(lscape._dlg.doneButton.isEnabled(), 'Landscape done button not enabled')
+        QtTest.QTest.mouseClick(lscape._dlg.doneButton, Qt.LeftButton)
+        QtTest.QTest.mouseClick(self.delin._dlg.OKButton, Qt.LeftButton)
+        self.assertTrue(self.dlg.hrusButton.isEnabled(), 'HRUs button not enabled')
+        self.hrus.init()
+        hrudlg = self.hrus._dlg
+        self.assertTrue(hrudlg.HRUsTab.isTabEnabled(0), 'Landuse and soil tab not enabled')
+        self.assertFalse(hrudlg.HRUsTab.isTabEnabled(1), 'HRUs tab enabled at start')
+        self.assertTrue(hrudlg.HRUsTab.currentIndex() == 0, 'Create HRUs not starting with landuse and soil tab')
+        self.hrus.landuseFile = os.path.join(self.dataDir, 'sj_land.tif')
+        numLayers = len(QgsProject.instance().mapLayers().values())
+        self.hrus.landuseLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.hrus.landuseFile, FileTypes._LANDUSES, 
+                                                                       self.plugin._gv, None, QSWATUtils._LANDUSE_GROUP_NAME)
+        self.waitLayerAdded(numLayers)
+        self.assertTrue(self.hrus.landuseLayer and loaded, 'Failed to load landuse file {0}'.format(self.hrus.landuseFile))
+        self.hrus.soilFile = os.path.join(self.dataDir, 'sj_soil.tif')
+        numLayers = len(QgsProject.instance().mapLayers().values())
+        self.hrus.soilLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), self.hrus.soilFile, FileTypes._SOILS, 
+                                                                    self.plugin._gv, None, QSWATUtils._SOIL_GROUP_NAME)
+        self.waitLayerAdded(numLayers)
+        self.assertTrue(self.hrus.soilLayer and loaded, 'Failed to load soil file {0}'.format(self.hrus.soilFile))
+        landCombo = hrudlg.selectLanduseTable
+        landIndex = landCombo.findText('global_landuses')
+        self.assertTrue(landIndex >= 0, 'Cannot find global landuses table')
+        landCombo.setCurrentIndex(landIndex)
+        soilCombo = hrudlg.selectSoilTable
+        soilIndex = soilCombo.findText('global_soils')
+        self.assertTrue(soilIndex >= 0, 'Cannot find global soils table')
+        soilCombo.setCurrentIndex(soilIndex)
+        usersoilCombo = hrudlg.selectUsersoilTable
+        usersoilIndex = usersoilCombo.findText('global_usersoil')
+        self.assertTrue(usersoilIndex >= 0, 'Cannot find global usersoil table')
+        usersoilCombo.setCurrentIndex(usersoilIndex)
+        self.plugin._gv.db.usersoilTable = 'global_usersoil'
+        QtTest.QTest.mouseClick(hrudlg.readButton, Qt.LeftButton)
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._TOPOREPORT)))
+        self.assertTrue(self.dlg.reportsBox.isEnabled() and self.dlg.reportsBox.findText(Parameters._TOPOITEM) >= 0, \
+                        'Elevation report not accessible from main form')
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._BASINREPORT)))
+        self.assertTrue(self.dlg.reportsBox.findText(Parameters._BASINITEM) >= 0, \
+                        'Landuse and soil report not accessible from main form')
+        self.assertTrue(hrudlg.HRUsTab.isTabEnabled(1), 'HRUs tab not enabled after doing landuse and soil')
+        hrudlg.HRUsTab.setCurrentIndex(1)
+        self.assertTrue(hrudlg.splitButton.isEnabled(), 'Split landuses button not enabled')
+        self.assertTrue(hrudlg.exemptButton.isEnabled(), 'Exempt landuses button not enabled')
+        self.assertTrue(hrudlg.floodplainCombo.count() == 4, 'Unexpected number of floodplain maps {0}'.format(hrudlg.floodplainCombo.count() - 1))
+        invFloodIndex = hrudlg.floodplainCombo.findText('invflood', Qt.MatchContains)
+        self.assertTrue(invFloodIndex > 0, 'Flood by inversion raster not in combo box')
+        hrudlg.floodplainCombo.setCurrentIndex(invFloodIndex)
+        self.assertTrue(hrudlg.dominantHRUButton.isEnabled(), 'Dominant HRU button not enabled')
+        QtTest.QTest.mouseClick(hrudlg.dominantHRUButton, Qt.LeftButton)
+        self.assertFalse(hrudlg.stackedWidget.isEnabled(), 'Stacked widget not disabled')
+        self.assertTrue(hrudlg.createButton.isEnabled(), 'Create button not enabled')
+        QtTest.QTest.mouseClick(hrudlg.createButton, Qt.LeftButton)
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._HRUSREPORT)))
+        self.assertTrue(self.dlg.reportsBox.findText(Parameters._HRUSITEM) >= 0, \
+                        'HRUs report not accessible from main form')
+        self.assertEqual(len(self.hrus.CreateHRUs.basins), 51, 'Subbasin count is {0} instead of 51'.format(len(self.hrus.CreateHRUs.basins)))
+        self.assertEqual(self.hrus.CreateHRUs.countChannels(), 518, 'Channel count is {0} instead of 518'.format(self.hrus.CreateHRUs.countChannels()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 518, 'LSU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 518, 'HRU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countHRUs()))
+        #self.checkHashes(HashTable6)
+        self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         
     def copyDem(self, demFile):
         """Copy DEM to Source directory as GeoTIFF."""

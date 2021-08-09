@@ -1,7 +1,8 @@
 SET OSGEO4W_ROOT=C:\Program Files\QGIS 3.16
 set PYTHONHOME=%OSGEO4W_ROOT%\apps\Python37
-set PYTHONPATH=%PYTHONPATH%;%OSGEO4W_ROOT%\apps\qgis-ltr\python
+set PYTHONPATH=%OSGEO4W_ROOT%\apps\qgis-ltr\python
 rem QGIS binaries
+rem Important to put OSGEO4W_ROOT\bin last, not first, or PyQt.QtCore DLL load fails
 set PATH=%PATH%;%OSGEO4W_ROOT%\apps\qgis-ltr\bin;%OSGEO4W_ROOT%\apps\qgis-ltr\python;%OSGEO4W_ROOT%\apps\Python37;%OSGEO4W_ROOT%\apps\Python37\Scripts;%OSGEO4W_ROOT%\apps\qt5\bin;%OSGEO4W_ROOT%\bin 
 rem disable QGIS console messages
 set QGIS_DEBUG=-1
@@ -14,9 +15,9 @@ set QGIS_PREFIX_PATH=%OSGEO4W_ROOT%\apps\qgis-ltr
 set QT_PLUGIN_PATH=%OSGEO4W_ROOT%\apps\qgis-ltr\qtplugins;%OSGEO4W_ROOT%\apps\qt5\plugins
 
 rem nosetests
-python3 -m unittest test_qswatplus
-python3 -m unittest test_dbutils
-python3 -m unittest test_polygonizeInC2
+"%OSGEO4W_ROOT%\bin\python3.exe" -m unittest test_qswatplus
+"%OSGEO4W_ROOT%\bin\python3.exe" -m unittest test_dbutils
+"%OSGEO4W_ROOT%\bin\python3.exe" -m unittest test_polygonizeInC2
 
 
 

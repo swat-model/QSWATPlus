@@ -33,6 +33,7 @@ import math
 import time
 import numpy
 import glob
+import locale
 import processing  # type: ignore # @UnresolvedImport 
 from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport 
 from operator import itemgetter
@@ -893,7 +894,11 @@ class CreateHRUs(QObject):
                             else:
                                 slopeValue = slopeNoData
                             if slopeValue != slopeNoData:
-                                slope = self._db.slopeIndex(slopeValue * 100)
+                                # for HUC, slope bands only used for agriculture
+                                if not self._gv.isHUC or self._gv.db.isAgriculture(crop):
+                                    slope = self._gv.db.slopeIndex(slopeValue * 100)
+                                else:
+                                    slope = 0
                             else:
                                 slope = slopeBandsNoData
                             if self._gv.useLandscapes:
@@ -976,16 +981,16 @@ class CreateHRUs(QObject):
                 landusePercent = 0.0
             else:
                 landusePercent = (landuseCount / (landuseCount + landuseNoDataCount)) * 100
-            QSWATUtils.loginfo('Landuse cover percent: {:.1F}'.format(landusePercent))
+            QSWATUtils.loginfo('Landuse cover percent: {0}'.format(locale.format_string('%.1F', landusePercent)))
             if landusePercent < 95:
-                QSWATUtils.information('WARNING: only {:.1F} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(landusePercent), self._gv.isBatch)
+                QSWATUtils.information('WARNING: only {0} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(locale.format_string('%.1F', landusePercent)), self._gv.isBatch)
             if soilCount + soilNoDataCount == 0:
                 soilPercent = 0.0
             else:
                 soilPercent = (soilCount / (soilCount + soilNoDataCount)) * 100
-            QSWATUtils.loginfo('Soil cover percent: {:.1F}'.format(soilPercent))
+            QSWATUtils.loginfo('Soil cover percent: {0}'.format(locale.format_string('%.1F', soilPercent)))
             if soilPercent < 95:
-                QSWATUtils.information('WARNING: only {:.1F} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(soilPercent), self._gv.isBatch)
+                QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilPercent)), self._gv.isBatch)
             if not self.noCropOrSoilLSUs():
                 return False
             if self._gv.useLandscapes:
@@ -2343,7 +2348,7 @@ class CreateHRUs(QObject):
                         # Now redistribute removed areas
                         # just to make sure we don't divide by zero
                         if hrusArea - areaToRedistribute == 0:
-                            raise ValueError('Cannot redistribute area of {3:.2F} ha for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel, (areaToRedistribute / 10000)))
+                            raise ValueError('Cannot redistribute area of {3} ha for channel {2!s} landscape {1!s} in basin {0!s}'.format(basin, landscape, channel, (locale.format_string('%.2F', areaToRedistribute / 10000))))
                         redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
                         lsuData.redistribute(redistributeFactor)
                 
@@ -2580,8 +2585,8 @@ class CreateHRUs(QObject):
         assert self.minElev is not None
         fw.writeLine(QSWATUtils.trans('Minimum elevation: ').rjust(21) + str(minimum+self.minElev))
         fw.writeLine(QSWATUtils.trans('Maximum elevation: ').rjust(21) + str(maximum+self.minElev))
-        fw.writeLine(QSWATUtils.trans('Mean elevation: ').rjust(21) + '{:.2F}'.format(mean))
-        fw.writeLine(QSWATUtils.trans('Standard deviation: ').rjust(21) + '{:.2F}'.format(stdDev))
+        fw.writeLine(QSWATUtils.trans('Mean elevation: ').rjust(21) + locale.format_string('%.2F', mean))
+        fw.writeLine(QSWATUtils.trans('Standard deviation: ').rjust(21) + locale.format_string('%.2F', stdDev))
         fw.writeLine('')
         fw.write(QSWATUtils.trans('Elevation').rjust(23))
         fw.write(QSWATUtils.trans('% area up to elevation').rjust(32))
@@ -2610,9 +2615,9 @@ class CreateHRUs(QObject):
                 else: 
                     el, frac = bands[-1]
                     bands[-1] = (el, frac + percent)
-            fw.write(str(elev).rjust(20))
-            fw.write(('{:.2F}'.format(upto)).rjust(25))
-            fw.writeLine(('{:.2F}'.format(percent)).rjust(25))
+            fw.write(locale.str(elev).rjust(20))
+            fw.write(locale.format_string('%.2F', upto).rjust(25))
+            fw.writeLine(locale.format_string('%.2F', percent).rjust(25))
         fw.writeLine('')
         return bands 
                
@@ -2756,7 +2761,7 @@ class CreateHRUs(QObject):
             fw.writeLine(st1.rjust(45))
             basinHa = (self.totalBasinsArea() + lakesArea) / 1E4
             assert basinHa > 0, 'Watershed seems to have no area'
-            fw.writeLine('Watershed' +  '{:.2F}'.format(basinHa).rjust(36))
+            fw.writeLine('Watershed' +  locale.format_string('%.2F', basinHa).rjust(36))
             fw.writeLine(horizLine)
             fw.writeLine(st1.rjust(45) + st2.rjust(col2just))
             fw.writeLine('')
@@ -2899,8 +2904,8 @@ class CreateHRUs(QObject):
                 fw.writeLine(st1.rjust(45) + st2.rjust(col2just) + st3.rjust(col3just))
             fw.writeLine('')
             fw.writeLine('Subbasin {0!s}'.format(SWATBasin).ljust(30) + \
-                         '{:.2F}'.format(subHa).rjust(15) + \
-                         '{:.2F}'.format(percent).rjust(col2just-3))
+                         locale.format_string('%.2F', subHa).rjust(15) + \
+                         locale.format_string('%.2F', percent).rjust(col2just-3))
             fw.writeLine('')
             fw.writeLine('Landuse')
             originalCropAreas = basinData.cropAreas(True)
@@ -3067,16 +3072,16 @@ class CreateHRUs(QObject):
                         hruha = cellData.area / 10000
                         arslp = hruha
                         fw.write(str(self.HRUNum).ljust(5) + cropSoilSlope.rjust(25) + \
-                                     '{:.2F}'.format(hruha).rjust(15))
+                                     locale.format_string('%.2F', hruha).rjust(15))
                         if basinHa > 0:
                             percent1 = (hruha / basinHa) * 100
-                            fw.write('{:.2F}'.format(percent1).rjust(30))
+                            fw.write(locale.format_string('%.2F', percent1).rjust(30))
                         if subHa > 0:
                             percent2 = (hruha / subHa) * 100
-                            fw.write('{:.2F}'.format(percent2).rjust(23))
+                            fw.write(locale.format_string('%.2F', percent2).rjust(23))
                         if arlsuHa > 0:
                             percent3 = (hruha / arlsuHa) * 100
-                            fw.write('{:.2F}'.format(percent3).rjust(23))
+                            fw.write(locale.format_string('%.2F', percent3).rjust(23))
                         fw.writeLine('')
     
                         meanElevation = cellData.totalElevation * meanMultiplier
@@ -3116,23 +3121,23 @@ class CreateHRUs(QObject):
                     string1 = 'Reservoir {0} (part)'.format(waterBody.id)
             else:
                 string1 = 'Pond {0}'.format(waterBody.id)
-            string2 = '{:.2F}'.format(waterHa)
+            string2 = locale.format_string('%.2F', waterHa)
             fw.write(string1.ljust(30) + string2.rjust(15))
             if basinHa > 0:
                 percent1 = (waterHa / basinHa) * 100
-                fw.write('{:.2F}'.format(percent1).rjust(30))
+                fw.write(locale.format_string('%.2F', percent1).rjust(30))
             if subHa > 0:
                 percent2 = (waterHa / subHa) * 100
-                fw.write('{:.2F}'.format(percent2).rjust(23))
+                fw.write(locale.format_string('%.2F', percent2).rjust(23))
             if arlsuHa > 0:
                 percent3 = (waterHa / arlsuHa) * 100
-                fw.write('{:.2F}'.format(percent3).rjust(23))
+                fw.write(locale.format_string('%.2F', percent3).rjust(23))
             fw.writeLine('')
             # for actual reservoir print total area
             if waterBody.isReservoir():
                 if waterBody.cellCount > 0:
                     areaHa = waterBody.area / 10000
-                    fw.writeLine('Total reservoir area:'.rjust(30) + '{:.2F}'.format(areaHa).rjust(15))
+                    fw.writeLine('Total reservoir area:'.rjust(30) + locale.format_string('%.2F', areaHa).rjust(15))
                     # reservoirs and ponds were routed with channels
         return
 
@@ -4625,7 +4630,7 @@ class CreateHRUs(QObject):
         width2 = 23 if withHRUs else 15
         area = areaSqM / 1E4
         channelId = 'Channel {0!s}'.format(SWATChannel)
-        string0 = '{:.2F}'.format(area).rjust(15)
+        string0 = locale.format_string('%.2F', area).rjust(15)
         if self._gv.useLandscapes:
             fw.write(channelId.ljust(30) + string0)
         else:
@@ -4633,11 +4638,11 @@ class CreateHRUs(QObject):
             fw.write('{0} (LSU {1})'.format(channelId, lsuId).ljust(30) + string0)
         if total1 > 0:
             percent1 = (area / total1) * 100
-            string1 = '{:.2F}'.format(percent1).rjust(width1)
+            string1 = locale.format_string('%.2F', percent1).rjust(width1)
             fw.write(string1)
             if total2 > 0:
                 percent2 = (area / total2) * 100
-                string2 = '{:.2F}'.format(percent2).rjust(width2)
+                string2 = locale.format_string('%.2F', percent2).rjust(width2)
                 fw.write(string2)
         fw.writeLine('')
     
@@ -4652,15 +4657,15 @@ class CreateHRUs(QObject):
             if areaM > 0:
                 lsuName = QSWATUtils.landscapeName(landscape, self._gv.useLeftRight)
                 area = areaM / 1E4
-                string0 = '{:.2F}'.format(area).rjust(15)
+                string0 = locale.format_string('%.2F', area).rjust(15)
                 fw.write(lsuName.rjust(30) + string0)
                 if total1 > 0:
                     percent1 = (area / total1) * 100
-                    string1 = '{:.2F}'.format(percent1).rjust(width1)
+                    string1 = locale.format_string('%.2F', percent1).rjust(width1)
                     fw.write(string1)
                     if total2 > 0:
                         percent2 = (area / total2) * 100
-                        string2 = '{:.2F}'.format(percent2).rjust(width2)
+                        string2 = locale.format_string('%.2F', percent2).rjust(width2)
                         fw.write(string2)
                 fw.writeLine('')
 
@@ -4685,21 +4690,21 @@ class CreateHRUs(QObject):
             if original is not None:
                 # crop may not have been in original because of splitting
                 originalArea = original.get(crop, 0) / 10000
-                string0 += '({:.2F})'.format(originalArea).rjust(15)  
+                string0 += locale.format_string('%.2F', originalArea).rjust(15)  
             fw.write(landuseCode.rjust(30) + string0)
             if total1 > 0:
                 percent1 = (area / total1) * 100
-                string1 = '{:.2F}'.format(percent1).rjust(15)
+                string1 = locale.format_string('%.2F', percent1).rjust(15)
                 if original:
                     opercent1 = (originalArea / total1) * 100
-                    string1 += '({:.2F})'.format(opercent1).rjust(8)
+                    string1 += locale.format_string('%.2F', opercent1).rjust(8)
                 fw.write(string1)
                 if total2 > 0:
                     percent2 = (area / total2) * 100
-                    string2 = '{:.2F}'.format(percent2).rjust(15)
+                    string2 = locale.format_string('%.2F', percent2).rjust(15)
                     if original:
                         opercent2 = (originalArea / total2) * 100
-                        string2 += '({:.2F})'.format(opercent2).rjust(8)
+                        string2 += locale.format_string('%.2F', opercent2).rjust(8)
                     fw.write(string2)
             fw.writeLine('')
         # if have original, add entries for originals that have been removed
@@ -4710,13 +4715,13 @@ class CreateHRUs(QObject):
                     if landuseCode.upper() == 'WATR':
                         landuseCode = 'WETW'
                     originalArea = areaM / 10000
-                    fw.write(landuseCode.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
+                    fw.write(landuseCode.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write('({:.2F})'.format(opercent1).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write('({:.2F})'.format(opercent2).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
                     fw.writeLine('')
        
     def printSoilAreas(self, soilAreas: Optional[Dict[int, float]], originalSoilAreas: Dict[int, float], total1: float, total2: float, fw: fileWriter) -> None:
@@ -4734,24 +4739,24 @@ class CreateHRUs(QObject):
         for (soil, areaM) in main.items():
             soilName = self._db.getSoilName(soil)
             area = areaM / 10000
-            string0 = '{:.2F}'.format(area).rjust(15)
+            string0 = locale.format_string('%.2F', area).rjust(15)
             if original:
                 originalArea = original[soil] / 10000
-                string0 += '({:.2F})'.format(originalArea).rjust(15)  
+                string0 += locale.format_string('%.2F', originalArea).rjust(15)  
             fw.write(soilName.rjust(30) + string0)
             if total1 > 0:
                 percent1 = (area / total1) * 100
-                string1 = '{:.2F}'.format(percent1).rjust(15)
+                string1 = locale.format_string('%.2F', percent1).rjust(15)
                 if original:
                     opercent1 = (originalArea / total1) * 100
-                    string1 += '({:.2F})'.format(opercent1).rjust(8)
+                    string1 += locale.format_string('%.2F', opercent1).rjust(8)
                 fw.write(string1)
                 if total2 > 0:
                     percent2 = (area / total2) * 100
-                    string2 = '{:.2F}'.format(percent2).rjust(15)
+                    string2 = locale.format_string('%.2F', percent2).rjust(15)
                     if original:
                         opercent2 = (originalArea / total2) * 100
-                        string2 += '({:.2F})'.format(opercent2).rjust(8)
+                        string2 += locale.format_string('%.2F', opercent2).rjust(8)
                     fw.write(string2)
             fw.writeLine('')
         # if have original, add entries for originals that have been removed
@@ -4760,13 +4765,13 @@ class CreateHRUs(QObject):
                 if soil not in main:
                     soilName = self._db.getSoilName(soil)
                     originalArea = areaM / 10000
-                    fw.write(soilName.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
+                    fw.write(soilName.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write('({:.2F})'.format(opercent1).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write('({:.2F})'.format(opercent2).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
                     fw.writeLine('')
         
     def printSlopeAreas(self, slopeAreas: Optional[Dict[int, float]], originalSlopeAreas: Dict[int, float], total1: float, total2: float, fw: fileWriter) -> None:
@@ -4786,24 +4791,24 @@ class CreateHRUs(QObject):
             if i in main:
                 slopeRange = self._db.slopeRange(i)
                 area = main[i] / 10000
-                string0 = '{:.2F}'.format(area).rjust(15)
+                string0 = locale.format_string('%.2F', area).rjust(15)
                 if original:
                     originalArea = original[i] / 10000
-                    string0 += '({:.2F})'.format(originalArea).rjust(15)  
+                    string0 += locale.format_string('%.2F', originalArea).rjust(15)  
                 fw.write(slopeRange.rjust(30) + string0)
                 if total1 > 0:
                     percent1 = (area / total1) * 100
-                    string1 = '{:.2F}'.format(percent1).rjust(15)
+                    string1 = locale.format_string('%.2F', percent1).rjust(15)
                     if original:
                         opercent1 = (originalArea / total1) * 100
-                        string1 += '({:.2F})'.format(opercent1).rjust(8)
+                        string1 += locale.format_string('%.2F', opercent1).rjust(8)
                     fw.write(string1)
                     if total2 > 0:
                         percent2 = (area / total2) * 100
-                        string2 = '{:.2F}'.format(percent2).rjust(15)
+                        string2 = locale.format_string('%.2F', percent2).rjust(15)
                         if original:
                             opercent2 = (originalArea / total2) * 100
-                            string2 += '({:.2F})'.format(opercent2).rjust(8)
+                            string2 += locale.format_string('%.2F', opercent2).rjust(8)
                         fw.write(string2)
                 fw.writeLine('')
         # if have original, add entries for originals that have been removed
@@ -4812,13 +4817,13 @@ class CreateHRUs(QObject):
                 if i in original and i not in main:
                     slopeRange = self._db.slopeRange(i)
                     originalArea = original[i] / 10000
-                    fw.write(slopeRange.rjust(30) + '({:.2F})'.format(originalArea).rjust(30))
+                    fw.write(slopeRange.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write('({:.2F})'.format(opercent1).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write('({:.2F})'.format(opercent2).rjust(23))
+                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
                     fw.writeLine('')
                     
     def printLakeArea(self, areaCat: Tuple[float, str], total: float, num: int, withHRUs: bool, fw: fileWriter) -> None:
@@ -4827,10 +4832,10 @@ class CreateHRUs(QObject):
         areaHa = area / 1E4
         if total > 0:
             string0 = 'Lake {0} ({1})'.format(num, category) if num > 0 else 'Lakes (reservoirs, ponds and wetlands)'
-            string1 = '{:.2F}'.format(areaHa).rjust(15)
+            string1 = locale.format_string('%.2F', areaHa).rjust(15)
             percent = (areaHa / total) * 100
             just2 = 30 if withHRUs else 15
-            string2 = '{:.2F}'.format(percent).rjust(just2)
+            string2 = locale.format_string('%.2F', percent).rjust(just2)
             fw.writeLine(string0.ljust(30) + string1 + string2)
         
     def printWaterArea(self, area: float, total1: float, total2: float, withHRUs: bool, fw: fileWriter) -> None:
@@ -4840,16 +4845,16 @@ class CreateHRUs(QObject):
         Bracketed figures are unnecessary because we know water area does not change when HRUs are formed."""
         areaHa = area / 10000
         if total1 > 0:
-            string0 = '{:.2F}'.format(areaHa).rjust(15)
+            string0 = locale.format_string('%.2F', areaHa).rjust(15)
             fw.write('Reservoirs and ponds'.ljust(30) + string0)
             percent1 = (areaHa / total1) * 100
             just1 = 30 if withHRUs else 15
-            string1 = '{:.2F}'.format(percent1).rjust(just1)
+            string1 = locale.format_string('%.2F', percent1).rjust(just1)
             fw.write(string1)
             if total2 > 0:
                 percent2 = (areaHa / total2) * 100
                 just2 = 23 if withHRUs else 15
-                string2 = '{:.2F}'.format(percent2).rjust(just2)
+                string2 = locale.format_string('%.2F', percent2).rjust(just2)
                 fw.write(string2)
         fw.writeLine('')
         
@@ -4936,6 +4941,11 @@ class HRUs(QObject):
         self._dlg.selectUrbanTable.activated.connect(self.setUrbanTable)
         self._dlg.selectUsersoilTable.activated.connect(self.setUsersoilTable)
         self._dlg.insertButton.clicked.connect(self.insertSlope)
+        self._dlg.landuseVal.setValidator(QIntValidator())
+        self._dlg.soilVal.setValidator(QIntValidator())
+        self._dlg.slopeVal.setValidator(QIntValidator())
+        self._dlg.areaVal.setValidator(QIntValidator())
+        self._dlg.targetVal.setValidator(QIntValidator())
         self._dlg.slopeBand.setValidator(QDoubleValidator())
         self._dlg.floodplainCombo.addItem('Select floodplain map (optional)')
         self._dlg.floodplainCombo.setCurrentIndex(0)
@@ -5524,13 +5534,14 @@ class HRUs(QObject):
         if self._dlg.dominantHRUButton.isChecked() or self._dlg.dominantLanduseButton.isChecked():
             self.CreateHRUs.isMultiple = False
             self.CreateHRUs.isDominantHRU = self._dlg.dominantHRUButton.isChecked()
-            self._dlg.stackedWidget.setCurrentIndex(-1)
+            self._dlg.stackedWidget.setEnabled(False)
             self._dlg.areaPercentChoiceGroup.setEnabled(False)
             self._dlg.landuseSoilSlopeGroup.setEnabled(False)
             self._dlg.areaGroup.setEnabled(False)
             self._dlg.targetGroup.setEnabled(False)
             self._dlg.createButton.setEnabled(True)
         else:
+            self._dlg.stackedWidget.setEnabled(True)
             self._dlg.areaPercentChoiceGroup.setEnabled(True)
             self.CreateHRUs.isMultiple = True
             if self._dlg.filterLanduseButton.isChecked():
@@ -5861,7 +5872,7 @@ class HRUs(QObject):
         if txt == '':
             return
         try:
-            num = float(txt)
+            num = locale.atof(txt)
         except Exception:
             QSWATUtils.information('Cannot parse {0} as a number'.format(txt), self._gv.isBatch)
             return

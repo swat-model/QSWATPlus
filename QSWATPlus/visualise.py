@@ -21,10 +21,10 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant
-from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument
+from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator, QDoubleValidator
 from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest  # @UnresolvedImport
+from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsRectangle  # @UnresolvedImport
 from qgis.gui import QgsMapCanvas, QgsMapCanvasItem  # @UnresolvedImport
 import os
 # import random
@@ -37,6 +37,7 @@ from datetime import date
 import math
 import csv
 import traceback
+import locale
 # from collections import OrderedDict
 from typing import Dict, List, Set, Tuple, Optional, Union, Any, TYPE_CHECKING, cast  # @UnusedImport
 
@@ -271,6 +272,9 @@ class Visualise(QObject):
         self._dlg.variableList.setMouseTracking(True)
         self._dlg.outputCombo.activated.connect(self.setVariables)
         self._dlg.variableCombo.activated.connect(self.changeVariableCombo)
+        self._dlg.startYear.setValidator(QIntValidator())
+        self._dlg.finishYear.setValidator(QIntValidator())
+        self._dlg.unitEdit.setValidator(QIntValidator())
         self._dlg.summaryCombo.activated.connect(self.changeSummary)
         self._dlg.addButton.clicked.connect(self.addClick)
         self._dlg.allButton.clicked.connect(self.allClick)
@@ -3569,7 +3573,7 @@ class Visualise(QObject):
                 l.sort()
                 percentile = Visualise.percentile(l, (100 - self._dlg.QqSpin.value()) / 100)
                 assert percentile is not None
-                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(percentile)))
+                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', percentile)))
 #         QqStore = QSWATUtils.join(self._gv.resultsDir, 'q{0!s}.txt'.format(self._dlg.QqSpin.value()))
 #         with open(QqStore, 'w', newline='') as f:
 #             for m, l in monthData.items():
@@ -3699,10 +3703,10 @@ class Visualise(QObject):
             p = self._dlg.dQpSpinP.value()
             fraction = p / 100
             self.dQpResult = Visualise.percentile(totals, fraction) / d
-            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2:.2F}'.format(d, p, self.dQpResult)) 
+            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2}'.format(d, p, locale.format_string('%.2F', self.dQpResult))) 
         else:
             self.dQpResult = (sum(totals) / len(totals)) / d
-            self._dlg.dQpResult.setText('Result: {0}Qm is {1:.2F}'.format(d, self.dQpResult))
+            self._dlg.dQpResult.setText('Result: {0}Qm is {1}'.format(d, locale.format_string('%.2F', self.dQpResult)))
 #         f.write('Result: {0!s}'.format(self.dQpResult))
 #         f.write('\n')
 #         f.close()
@@ -3736,8 +3740,8 @@ class Visualise(QObject):
                         format(self._dlg.dQpSpinD.value(), startDate, finishDate))
             subbasin = self._dlg.dQpSubbasin.currentText()
             month = self._dlg.dQpStartMonth.currentText()
-            f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3:.2F}\n'.
-                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, self.dQpResult))
+            f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3}\n'.
+                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, locale.format_string('%.2F', self.dQpResult)))
             f.write('\n') 
         self.lastdQpResultsFile = resultsFile 
         
@@ -3838,7 +3842,7 @@ class Visualise(QObject):
                 means[m] = mean
                 if mean < minMean:
                     minMean = mean
-        self._dlg.QbAnnualResult.setText('Annual result: {0:.2F}'.format(self.QbResult))
+        self._dlg.QbAnnualResult.setText('Annual result: {0}'.format(locale.format_string('%.2F', self.QbResult)))
         # result for each month is Qb * variation factor
         # variation factor is square root of ratio of Q85 for month to minimum Q85
         # replace above with sqaure root of monthly mean to minimal monthly mean
@@ -3847,7 +3851,7 @@ class Visualise(QObject):
         for m, mean in means.items():
             factor = 1 if minMean == 0 else math.sqrt(mean / minMean)
             Qbm = self.QbResult * factor
-            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem('{0:.2F}'.format(Qbm)))
+            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', Qbm)))
             
     def saveQb(self) -> None:
         if self._dlg.QbResults.item(0, 0) is None:
@@ -3874,7 +3878,7 @@ class Visualise(QObject):
             subbasin = self._dlg.QbSubbasin.currentText()
             month = self._dlg.QbStartMonth.currentText()
             f.write('Subbasin {0};  Channel {1};  Starting in {2}\n'.format(subbasin, self.subbasinOutletChannels[int(subbasin)], month))
-            f.write('Annual      {0:.2F}\n'.format(self.QbResult))
+            f.write('Annual      {0}\n'.format(locale.format_string('%.2F', self.QbResult)))
             for m in range(12):
                 f.write(Visualise._MONTHS[m].ljust(12))
                 f.write(self._dlg.QbResults.item(m, 0).text())
@@ -3950,9 +3954,9 @@ class MapTitle(QgsMapCanvasItem):
                             max(rect0.width(), rect1.width()),
                             rect0.height() + rect1.height())
         ## bounding rectangle
-        self.rect = None
+        self.boundingRectangle = None
         if line2 is None:
-            self.rect = self.rect01
+            self.boundingRectangle = self.rect01
         else:
             self.updateLine2(line2)
     
@@ -3961,7 +3965,7 @@ class MapTitle(QgsMapCanvasItem):
 #         if self.line2 is None:
 #             painter.drawText(self.rect, Qt.AlignLeft, '{0}\n{1}'.format(self.line0, self.line1))
 #         else:
-#             painter.drawText(self.rect, Qt.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
+#             painter.drawText(self.boundingRectangle, Qt.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
         text = QTextDocument()
         text.setDefaultFont(self.normFont)
         if self.line2 is None:
@@ -3970,16 +3974,16 @@ class MapTitle(QgsMapCanvasItem):
             text.setHtml('<p><b>{0}</b><br/>{1}<br/>{2}</p>'.format(self.line0, self.line1, self.line2))
         text.drawContents(painter)
 
-    def boundingRect(self) -> QRectF:
-        """Return the bounding rectangle."""
-        assert self.rect is not None
-        return self.rect
+    # def boundingRect(self) -> QRectF:
+    #     """Return the bounding rectangle."""
+    #     assert self.boundingRectangle is not None
+    #     return self.boundingRectangle
     
     def updateLine2(self, line2: str) -> None:
         """Change second line."""
         self.line2 = line2
         rect2 = self.metrics.boundingRect(self.line2)
-        self.rect = QRectF(0, self.rect01.top(), 
+        self.boundingRectangle = QRectF(0, self.rect01.top(), 
                             max(self.rect01.width(), rect2.width()), 
                             self.rect01.height() + rect2.height())
     

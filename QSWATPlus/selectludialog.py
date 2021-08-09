@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
-
-from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_selectlu.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
+from .ui_selectlu import Ui_SelectluDialog
 
-class SelectluDialog(QtWidgets.QDialog, FORM_CLASS):
+
+class SelectluDialog(QtWidgets.QDialog, Ui_SelectluDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

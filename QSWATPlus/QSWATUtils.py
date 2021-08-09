@@ -37,6 +37,7 @@ import shutil
 import time
 import datetime
 import sys
+import locale
 from osgeo import gdal, ogr  # type: ignore
 from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic, cast
 from builtins import int
@@ -681,6 +682,13 @@ class QSWATUtils:
                     assert isinstance(mapLayer, QgsRasterLayer)
                     fun(mapLayer, gv.db)
                 if not (styleFile is None or styleFile == ''):
+                    if ft == FileTypes._LAKES:
+                        # change lakes style file to lakesnores.qml if there is no RES field
+                        # since lakes.qml styles according to the value in this field 
+                        assert isinstance(layer, QgsVectorLayer)
+                        resIndex = layer.fields().lookupField('RES')
+                        if resIndex < 0:
+                            styleFile = 'lakesnores.qml'
                     # note thic causes 'Calling appendChild() on a null node does nothing.' to be output
                     mapLayer.loadNamedStyle(QSWATUtils.join(gv.plugin_dir, styleFile))
                 # save qml form of DEM style file if batch (no support for sld form for rasters)
@@ -959,7 +967,7 @@ class QSWATUtils:
         nums = strng.split(',')
         # ignore first and last
         for i in range(1, len(nums) - 1):
-            slopeLimits.append(float(nums[i]))
+            slopeLimits.append(locale.atof(nums[i]))
         return slopeLimits
         
     @staticmethod
@@ -975,7 +983,7 @@ class QSWATUtils:
             if i == d:
                 str1 += ('{0!s}, '.format(d))
             else:
-                str1 += ('{0!s}, '.format(i))
+                str1 += ('{0}, '.format(locale.str(i)))
         return str1 + '9999]'
 
     @staticmethod

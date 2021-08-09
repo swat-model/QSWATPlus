@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
-    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool) -> None:
+    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool, isHUC: bool=False) -> None:
         """Initialise class variables."""
         settings = QSettings()
         if settings.contains('/QSWATPlus/SWATPlusDir'):
@@ -225,7 +225,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Number of elevation bands
         self.numElevBands = 0
         ## Topology object
-        self.topo: QSWATTopology = QSWATTopology(isBatch)
+        self.topo: QSWATTopology = QSWATTopology(isBatch, isHUC)
         projFile: str = proj.fileName()
         projPath: str = QFileInfo(projFile).canonicalFilePath()
         pdir, base = os.path.split(projPath)
@@ -272,8 +272,10 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.actHRUsFile = QSWATUtils.join(self.shapesDir, Parameters._HRUS2 + '.shp')
         ## Flag to show if running in batch mode
         self.isBatch = isBatch
+        ## flag for HUC projects
+        self.isHUC = isHUC
         ## Path of project database
-        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isBatch)
+        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isBatch)
         ## multiplier to turn DEM distances to metres
         self.horizontalFactor = 1
         ## multiplier to turn elevations to metres
@@ -424,8 +426,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                 for sublanduse, percent in subs.items():
                     cursor.execute(self.db._SPLITHRUSINSERTSQL, (landuse, sublanduse, percent))
             conn.commit()
-            self.db.hashDbTable(conn, exemptTable)
-            self.db.hashDbTable(conn, splitTable)
+            if not self.isHUC:
+                self.db.hashDbTable(conn, exemptTable)
+                self.db.hashDbTable(conn, splitTable)
         return True
         
     def getExemptSplit(self) -> None:

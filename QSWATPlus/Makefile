@@ -39,6 +39,10 @@ LOCALES =
 # translation
 SOURCES = $(PY_FILES)
 
+HUC_FILES =
+
+PACKAGE = QSWATPlus
+
 ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	COMPILER = msvc
 	METADATA = metadata3_64.txt
@@ -46,6 +50,8 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -57,6 +63,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win32.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -68,6 +75,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -79,6 +87,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -90,6 +99,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-darwin.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = Library/Application Support/QGIS/QGIS3/profiles/default
 	CPFILE = rsync -av
@@ -107,8 +117,10 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 #	CPDIR = rsync -av
 endif
 
+INIT_FILE =  __init__.py 
+
 PY_FILES = \
-	QSWATPlus.py qswatdialog.py __init__.py cythoninit.py delineation.py delineationdialog.py hrus.py hrusdialog.py \
+	QSWATPlus.py qswatdialog.py cythoninit.py delineation.py delineationdialog.py hrus.py hrusdialog.py \
 	outletsdialog.py exempt.py exemptdialog.py split.py splitdialog.py selectlu.py selectludialog.py parameters.py parametersdialog.py \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
@@ -119,12 +131,12 @@ PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
 
-UI_FILES = ui_qswat.ui ui_delineation.ui ui_hrus.ui ui_outlets.ui ui_exempt.ui ui_split.ui ui_selectlu.ui ui_parameters.ui ui_elevationbands.ui \
-			ui_selectsubs.ui ui_landscape.ui ui_about.ui ui_visualise.ui ui_graph.ui ui_convert.ui ui_exporttable.ui ui_hrus2.ui
+UI_FILES = ui_qswat.py ui_delineation.py ui_hrus.py ui_outlets.py ui_exempt.py ui_split.py ui_selectlu.py ui_parameters.py ui_elevationbands.py \
+			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_graph1.py ui_convert.py ui_exporttable.py ui_hrus2.py
 
 QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml flood.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \
-			ptsrcandreservoir.qml lakes.qml polygons.qml
+			ptsrcandreservoir.qml lakes.qml lakesnores.qml polygons.qml
 
 QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate2Landscape.qpt \
 			PrintTemplate2Portrait.qpt PrintTemplate3Landscape.qpt PrintTemplate3Portrait.qpt \
@@ -206,12 +218,9 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 
 #%.py : %.ui
 #	pyuic5 -o $@ $<
-# instead of the above, ui_convert.py and ui_graph.py were made by running
-# %OSGEO4W_ROOT%\bin\o4w_env.bat
-# %OSGEO4W_ROOT%\bin\qt5_env.bat
-# %OSGEO4W_ROOT%\bin\py3_env.bat
-# python3 -m PyQt5.uic.pyuic ui_graph.ui -o ui_graph.py -x
-# (similarly for convert)
+# instead of the above, 
+# ui_*.py plus ui_arc_convert.py, ui_convert.py and ui_graph1.py were made by running
+# the script make_uis.py in QGIS
 # and by recoding graphdialog.py and convertdialog.py
 
 %.qm : %.ts
@@ -246,22 +255,25 @@ deploy: compile
 	# The deploy  target only works on unix like operating system where
 	# the Python plugin directory is located at:
 	# $(HOME)/$(QGISDIR)/python/plugins
-	mkdir -p "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(PY_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(PYX_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(OBJ_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	mkdir -p "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(INIT_FILE) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(PY_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(PYX_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(OBJ_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(BAT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(COMPILED_RESOURCE_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPFILE) $(EXTRAS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(TEST_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(HUC_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPFILE) $(COMPILED_RESOURCE_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(EXTRAS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(METADATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/metadata.txt"
 #	$(CPDIR) i18n "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 #	$(CPDIR) $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 #	$(CPDIR) $(HTML) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	$(CPDIR) $(GLOBALDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
-	$(CPDIR) $(EXTRAPACKAGES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPDIR) $(EXTRAPACKAGES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 #	$(CPDIR) $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 # remove test outputs before copying test data
 	rm -vfr $(TESTOUTPUT)

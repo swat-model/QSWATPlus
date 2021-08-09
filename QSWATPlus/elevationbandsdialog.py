@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
-
-from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_elevationbands.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
+from .ui_elevationbands import Ui_ElevatioBandsDialog
 
-class ElevatioBandsDialog(QtWidgets.QDialog, FORM_CLASS):
+
+class ElevatioBandsDialog(QtWidgets.QDialog, Ui_ElevatioBandsDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

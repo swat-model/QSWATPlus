@@ -20,6 +20,7 @@ import os
 import csv
 from datetime import datetime, timedelta
 import math
+import locale
 # import seaborn as sns
 from matplotlib.figure import Figure  # @UnresolvedImport
 from matplotlib.backends.backend_qt4agg import (
@@ -345,7 +346,7 @@ class SWATGraph(QObject):
         else:
             extra = ''
         msg = 'Series1: ' + self._dlg.table.horizontalHeaderItem(idx1).text() + \
-            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '  Pearson Correlation Coefficient = {0:.2f}{1}'.format(rho, extra)
+            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '  Pearson Correlation Coefficient = {0}{1}'.format(locale.format_string('%.2F', rho), extra)
         self._dlg.coeffs.append(SWATGraph.trans(msg))
 
     def nash(self, idx1, idx2, N):
@@ -371,7 +372,7 @@ class SWATGraph(QObject):
         else:
             extra = ''
         msg = 'Series1: ' + self._dlg.table.horizontalHeaderItem(idx1).text() + \
-            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '   Nash-Sutcliffe Efficiency Coefficient = {0:.2f}{1}'.format(result, extra)
+            '  Series2: ' + self._dlg.table.horizontalHeaderItem(idx2).text() + '   Nash-Sutcliffe Efficiency Coefficient = {0}{1}'.format(locale.format_string('%.2F', result), extra)
         self._dlg.coeffs.append(SWATGraph.trans(msg))
         
     def setUbuntuFont(self):

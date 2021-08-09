@@ -37,9 +37,12 @@ class TauDEMUtils:
     """Methods for calling TauDEM executables."""
     
     @staticmethod
-    def runPitFill(demFile: str, felFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:
+    def runPitFill(demFile: str, depmask: Optional[str], felFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:
         """Run PitFill."""
-        return TauDEMUtils.run('pitremove', [('-z', demFile)], [], [('-fel', felFile)], numProcesses, output, False)
+        inFiles = [('-z', demFile)]
+        if depmask is not None:
+            inFiles.append(('-depmask', depmask))
+        return TauDEMUtils.run('pitremove', inFiles, [], [('-fel', felFile)], numProcesses, output, False)
 
     @staticmethod
     def runD8FlowDir(felFile: str, sd8File: str, pFile: str, numProcesses: int, output: Optional[QTextEdit]) -> bool:

@@ -20,17 +20,12 @@
  ***************************************************************************/
 """
 
-import os
-
-from qgis.PyQt import uic
 from qgis.PyQt import QtWidgets
 
-pdir = os.path.dirname(__file__)
-FORM_CLASS, _ = uic.loadUiType(os.path.join(pdir, 'ui_landscape.ui'), 
-                               from_imports=True, 
-                               import_from=os.path.basename(pdir))
+from .ui_landscape import Ui_landscapeDialog
 
-class LandscapeDialog(QtWidgets.QDialog, FORM_CLASS):
+
+class LandscapeDialog(QtWidgets.QDialog, Ui_landscapeDialog):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

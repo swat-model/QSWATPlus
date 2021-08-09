@@ -33,6 +33,7 @@ import time
 import filecmp
 import re
 import traceback
+import locale
 from typing import Set, Any, List, Dict, Iterable, Optional, Tuple  # @UnusedImport @Reimport
 
 try:
@@ -54,24 +55,32 @@ class DBUtils:
     _MUIDPLUSNAMEPATTERN = r'^[A-Z]{2}[0-9]{3}\+[A-Z]+$'
     _S5IDPATTERN = r'^[A-Z]{2}[0-9]{4}$' 
     
-    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isBatch: bool) -> None:
+    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isHUC: bool, isBatch: bool) -> None:
         """Initialise class variables."""
         ## Flag showing if batch run
         self.isBatch = isBatch
+        ## flag for HUC projects
+        self.isHUC = isHUC
+        ## project directory
+        self.projDir = projDir
         ## project name
         self.projName = projName
         ## project database
         dbSuffix = os.path.splitext(dbProjTemplate)[1]
         self.dbFile = QSWATUtils.join(projDir,  projName + dbSuffix)
         ## reference database
-        self.dbRefFile = QSWATUtils.join(projDir, Parameters._DBREF)
+        # for HUC models, reference database is shared one level up
+        if self.isHUC:
+            self.dbRefFile = QSWATUtils.join(projDir + '/..', Parameters._DBREF)
+        else:
+            self.dbRefFile = QSWATUtils.join(projDir, Parameters._DBREF)
         #self._connStr = Parameters._ACCESSSTRING + self.dbFile
         #self._connRefStr = Parameters._ACCESSSTRING + self.dbRefFile
         # copy template project database to project folder if not already there
         if not os.path.exists(self.dbFile):
             if not os.path.exists(dbProjTemplate):
                 if Parameters._ISWIN:
-                    QSWATUtils.error('''Cannot find project database template {0}.
+                    QSWATUtils.error(r'''Cannot find project database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
 If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate), self.isBatch)
                 else:
@@ -83,7 +92,7 @@ Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch)
         if not os.path.exists(self.dbRefFile):
             if not os.path.exists(dbRefTemplate):
                 if Parameters._ISWIN:
-                    QSWATUtils.error('''Cannot find refence database template {0}.
+                    QSWATUtils.error(r'''Cannot find reference database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
 If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate), self.isBatch)
                 else:
@@ -182,6 +191,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.useSTATSGO = False
         ## flag indicating SSURGO or STATSGO2 soil data is being used
         self.useSSURGO = False
+        ## map of SSURGO map values to SSURGO MUID (only used with HUC)
+        self.SSURGOsoils: Dict[int, int] = dict()
+        if isHUC:
+            ## SSURGO soil database (only used with HUC)
+            # changed to use copy one up frpm projDir
+            self.SSURGODbFile = QSWATUtils.join(projDir + '/..', Parameters._SSURGODB_HUC)
+            self.SSURGOConn = sqlite3.connect(self.SSURGODbFile)  # @UndefinedVariable
+        ## nodata value from soil map to replace undefined SSURGO soils (only used with HUC)
+        self.SSURGOUndefined = -1
+        ## regular expression for checking if SSURGO soils are water (only used with HUC)
+        self.waterPattern = re.compile(r'\bwaters?\b', re.IGNORECASE)  # @UndefinedVariable
         ## flag indicating, if useSTATSGO is true, that muid+seqn is being used
         self.addSeqn = False
         ## flag indicating, if useSTATSGO is true, that muid+name is being used
@@ -212,6 +232,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.routingSources: Set[Tuple[int, str]] = set()
         ## routing targets
         self.routingSinks: Set[Tuple[int, str]] = set()
+        if self.isHUC:
+            self.writeSubmapping()
       
 # 32-bit version only - uses Access  
 #     def connect(self, readonly=False):
@@ -666,6 +688,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.storeLanduseCode(cat, landuseCode)
         return cat
     
+    def isAgriculture(self, landuse: int) -> bool:
+        """HUC only.  Return True if landuse counts as agriculture."""
+        return 81 < landuse < 91 or 99 < landuse < 567 
+    
     def populateSoilNames(self, soilTable: str, useGridModel: bool) -> bool:
         """Store names for soil categories."""
         self.soilNames.clear()
@@ -1053,8 +1079,46 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """Translate a soil id to its equivalent id in soilNames."""
         self.soilVals.add(sid)
         if self.useSSURGO:
-            return sid
+            if self.isHUC:
+                return self.translateSSURGOSoil(sid)
+            else:
+                return sid
         return self.soilTranslate.get(sid, sid)
+    
+    def translateSSURGOSoil(self, sid: int) -> int:
+        """Use table to convert soil map values to SSURGO muids.  
+        Replace any soil with sname Water with Parameters._SSURGOWater.  
+        Report undefined SSURGO soils.  Only used with HUC."""
+        if sid in self._undefinedSoilIds:
+            return self.SSURGOUndefined
+        muid = self.SSURGOsoils.get(sid, -1)
+        if muid > 0:
+            return muid
+        sql = self.sqlSelect('statsgo_ssurgo_lkey', 'Source, MUKEY', '', 'LKEY=?')
+        lookup_row = self.conn.execute(sql, (sid,)).fetchone()
+        if lookup_row is None:
+            QSWATUtils.information('WARNING: SSURGO soil map value {0} not defined as lkey in statsgo_ssurgo_lkey'.format(sid), self.isBatch)
+            self._undefinedSoilIds.append(sid)
+            return sid
+        # only an information issue, not an error for now 
+        if lookup_row[0].upper().strip() == 'STATSGO':
+            QSWATUtils.information('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey'.format(sid), self.isBatch)
+            # self._undefinedSoilIds.append(sid)
+            # return sid
+        sql = self.sqlSelect('SSURGO_Soils', 'SNAM', '', 'MUID=?')
+        row = self.SSURGOConn.execute(sql, (lookup_row[1],)).fetchone()
+        if row is None:
+            QSWATUtils.information('WARNING: SSURGO soil lkey value {0} and MUID {1} not defined'.format(sid, lookup_row[1]), self.isBatch)
+            self._undefinedSoilIds.append(sid)
+            return self.SSURGOUndefined
+        #if row[0].lower().strip() == 'water':
+        if re.search(self.waterPattern, row[0]) is not None:
+            self.SSURGOsoils[int(sid)] = Parameters._SSURGOWater
+            return Parameters._SSURGOWater  # type: ignore
+        else:
+            muid = int(lookup_row[1])
+            self.SSURGOsoils[int(sid)] = muid
+            return muid
     
     def writeLanduseTables(self) -> bool:
         """Write the plants_plt and urban_urb tables in the project database."""
@@ -1241,7 +1305,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         assert 0 <= slopeIndex <= len(self.slopeLimits), 'Slope index {0} out of range'.format(slopeIndex)
         minimum = 0 if slopeIndex == 0 else self.slopeLimits[slopeIndex - 1]
         maximum = 9999 if slopeIndex == len(self.slopeLimits) else self.slopeLimits[slopeIndex]
-        return '{0!s}-{1!s}'.format(minimum, maximum)
+        return '{0}-{1}'.format(locale.str(minimum), locale.str(maximum))
     
     _BASINSDATA = 'BASINSDATA'
     _BASINSDATATABLE = \
@@ -1622,6 +1686,23 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     _PLANTTABLE = _PLANTS_PLT_TABLE
     
     _URBANTABLE = _URBAN_URB_TABLE
+    
+    def writeSubmapping(self) -> None:
+        """Write submapping table for HUC projects."""
+        conn = sqlite3.connect(self.dbFile)  # @UndefinedVariable
+        cursor = conn.cursor()
+        sql0 = 'DROP TABLE IF EXISTS submapping'
+        cursor.execute(sql0)
+        sql1 = DBUtils._SUBMAPPINGCREATESQL
+        cursor.execute(sql1)
+        sql2 = 'INSERT INTO submapping VALUES(?,?,?)'
+        submapping = QSWATUtils.join(self.projDir, 'submapping.csv')
+        with open(submapping, 'r') as csvFile:
+            reader = csv.reader(csvFile)
+            _ = next(reader)  # skip heading
+            for line in reader:
+                cursor.execute(sql2, (int(line[0]), line[1], int(line[2])))
+        conn.commit()
     
     def createBasinsDataTables(self, cursor: Any) -> bool:
         """Create BASINSDATA, LUSDATA, WATERDATA and HRUSDATA in project database.""" 
@@ -3093,6 +3174,16 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     """
     
     _INSERTDEEPAQUIFERS = 'INSERT INTO gis_deep_aquifers VALUES(?,?,?,?,?,?)'
+    
+    _SUBMAPPINGCREATESQL= \
+    """
+    CREATE TABLE submapping (
+        SUBBASIN    INTEGER,
+        HUC_ID      TEXT,
+        IsEnding    INTEGER
+        );
+    """
+    
     
     
     
