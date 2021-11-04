@@ -49,7 +49,7 @@ from .landscape import Landscape  # type: ignore
 from .outletsdialog import OutletsDialog  # type: ignore
 from .selectsubs import SelectSubbasins  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport   
+from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport
 
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport
@@ -427,44 +427,53 @@ class Delineation(QObject):
         if demLayer is None:
             QSWATUtils.error('DEM layer not found.', self._gv.isBatch)
             return
-        if not self._gv.useGridModel and not self.lakePointsAdded and not self._gv.existingWshed:
-            self.progress('Splitting lake channels ...')
-            assert channelsLayer is not None  # since not grid model
-            if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer):
-                QSWATUtils.error('Failed to split lake channels', self._gv.isBatch)
-                return
-            # layers will have changed
-            layers = root.findLayers()
-            # and channelsLayer needs refreshing as has been rewritten
-            channelsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.channelFile, FileTypes._CHANNELS, None, None, None)[0]
-            if channelsLayer is None:
-                QSWATUtils.error('Channels layer not found.', self._gv.isBatch)
-                return
-        if self._gv.useGridModel or not self._gv.existingWshed:
-            ft = FileTypes._GRID if self._gv.useGridModel else FileTypes._SUBBASINS
-            subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
+        if self._gv.isHUC:
+            subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, FileTypes._SUBBASINS, None, None, None)[0]
             if subbasinsLayer is None:
-                QSWATUtils.error('Subbasins layer not found: have you run TauDEM?', self._gv.isBatch)
+                QSWATUtils.error('Subbasins layer not found', self._gv.isBatch)
                 return
-            ft = FileTypes._GRIDSTREAMS if self._gv.useGridModel else FileTypes._STREAMS
-            streamsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.streamFile, ft, None, None, None)[0]
-            if streamsLayer is None: 
-                QSWATUtils.error('Streams layer not found.', self._gv.isBatch)
+            if not self.addHUCLakes(lakesLayer, channelsLayer, subbasinsLayer, demLayer):
+                QSWATUtils.error('Failed to add lakes', self._gv.isBatch)
                 return
-        if self._gv.useGridModel or self._gv.existingWshed:
-            chBasinsLayer: Optional[QgsVectorLayer] = None
         else:
-            chBasinsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.wshedFile, FileTypes._LSUS, None, None, None)[0]
-            if chBasinsLayer is None:
-                chBasinsLayer = QgsVectorLayer(self._gv.wshedFile, 'chBasins', 'ogr')
-        if self._gv.useGridModel and not self.gridLakesAdded:
-            self.progress('Making grid lakes ...')
-            assert subbasinsLayer is not None
-            self.makeGridLakes(lakesLayer, subbasinsLayer)
-            self.progress('')
-            if lakesLayer is None:
-                QSWATUtils.error('Failed to make grid lakes', self._gv.isBatch)
-                return
+            if not self._gv.useGridModel and not self.lakePointsAdded and not self._gv.existingWshed:
+                self.progress('Splitting lake channels ...')
+                assert channelsLayer is not None  # since not grid model
+                if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer):
+                    QSWATUtils.error('Failed to split lake channels', self._gv.isBatch)
+                    return
+                # layers will have changed
+                layers = root.findLayers()
+                # and channelsLayer needs refreshing as has been rewritten
+                channelsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.channelFile, FileTypes._CHANNELS, None, None, None)[0]
+                if channelsLayer is None:
+                    QSWATUtils.error('Channels layer not found.', self._gv.isBatch)
+                    return
+            if self._gv.useGridModel or not self._gv.existingWshed:
+                ft = FileTypes._GRID if self._gv.useGridModel else FileTypes._SUBBASINS
+                subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
+                if subbasinsLayer is None:
+                    QSWATUtils.error('Subbasins layer not found: have you run TauDEM?', self._gv.isBatch)
+                    return
+                ft = FileTypes._GRIDSTREAMS if self._gv.useGridModel else FileTypes._STREAMS
+                streamsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.streamFile, ft, None, None, None)[0]
+                if streamsLayer is None: 
+                    QSWATUtils.error('Streams layer for {0} not found.'.format(self._gv.streamFile), self._gv.isBatch)
+                    return
+            if self._gv.useGridModel or self._gv.existingWshed:
+                chBasinsLayer: Optional[QgsVectorLayer] = None
+            else:
+                chBasinsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.wshedFile, FileTypes._LSUS, None, None, None)[0]
+                if chBasinsLayer is None:
+                    chBasinsLayer = QgsVectorLayer(self._gv.wshedFile, 'chBasins', 'ogr')
+            if self._gv.useGridModel and not self.gridLakesAdded:
+                self.progress('Making grid lakes ...')
+                assert subbasinsLayer is not None
+                self.makeGridLakes(lakesLayer, subbasinsLayer)
+                self.progress('')
+                if lakesLayer is None:
+                    QSWATUtils.error('Failed to make grid lakes', self._gv.isBatch)
+                    return
         # avoid running again
         self.lakesDone = True
         self._dlg.lakesTab.setEnabled(False)
@@ -487,7 +496,7 @@ class Delineation(QObject):
                 snapThreshold = int(self._dlg.snapThreshold.text())
                 self._gv.topo.addLakes(lakesLayer, subbasinsLayer, chBasinsLayer, streamsLayer, channelsLayer, 
                                        demLayer, snapThreshold, self._gv)
-            self._gv.chBasinNoLakeFile = self.createBasinFile(self._gv.wshedFile, demLayer, 'wChannelNoLake', root)
+                self._gv.chBasinNoLakeFile = self.createBasinFile(self._gv.wshedFile, demLayer, 'wChannelNoLake', root)
         self._gv.topo.saveLakesData(self._gv.db)
         self.progress('')
         self._dlg.setCursor(Qt.ArrowCursor)
@@ -802,9 +811,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
 """.format(chLink0, lakeId), self._gv.isBatch)
             if numOutlets == 0:
                 # last chance to include lake - check if it has a watershed outlet inside it
-                channelDsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
                 for subbasin, (pointId, pt, _) in self._gv.topo.outlets.items():
-                    if QSWATTopology.isWatershedOutlet(pointId, channelProvider, channelDsLinkIndex) and \
+                    if self._gv.topo.isWatershedOutlet(pointId, channelProvider) and \
                         QSWATTopology.polyContains(pt, geom, box): 
                         # outletsInLake needed for making deep aquifers later
                         self._gv.topo.outletsInLake[subbasin] = lakeId 
@@ -842,13 +850,12 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if len(lakesToRemove) > 0:
             lakeProvider.deleteFeatures(lakesToRemove)
             lakesLayer.triggerRepaint()
-        # rerun TauDEM to get new channel basins
         root = QgsProject.instance().layerTreeRoot()
         numProcesses = self._dlg.numProcesses.value()
         mustRun = True
+        (base, suffix) = os.path.splitext(self._gv.demFile)
         # AreaD8 has an outlets shapefile input, but no need to rerun as adding lake inlets and outlets will not change the watershed area
         self.progress('GridNet ...')
-        (base, suffix) = os.path.splitext(self._gv.demFile)
         gordFile = base + 'gord' + suffix
         plenFile = base + 'plen' + suffix
         tlenFile = base + 'tlen' + suffix
@@ -856,12 +863,14 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not ok:
             self.cleanUp(3)
             return False
-        QSWATUtils.removeLayer(self._gv.srcChannelFile, root)
+        srcChannelFile = base + 'srcChannel' + suffix
+        QSWATUtils.removeLayer(srcChannelFile, root)
         channelThreshold = self._dlg.numCellsCh.text()
-        ok = TauDEMUtils.runThreshold(self._gv.ad8File, self._gv.srcChannelFile, channelThreshold, numProcesses, self._dlg.taudemOutput, mustRun=mustRun) 
+        ok = TauDEMUtils.runThreshold(self._gv.ad8File, srcChannelFile, channelThreshold, numProcesses, self._dlg.taudemOutput, mustRun=mustRun) 
         if not ok:
             self.cleanUp(3)
             return False
+        self._gv.srcChannelFile = srcChannelFile
         QSWATUtils.removeLayer(self._gv.channelFile, root)
         QSWATUtils.removeLayer(self._gv.channelBasinFile, root)
         # having this as a layer results in DSNODEIDs being set to zero
@@ -893,7 +902,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 subLayer = demLayer
         channelsLayer, loaded = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.channelFile, FileTypes._CHANNELS, 
                                                               self._gv, subLayer, QSWATUtils._WATERSHED_GROUP_NAME)
-        if channelsLayer is None or not loaded:
+        if channelsLayer is None or not (loaded or self._gv.existingWshed):
             self.cleanUp(-1)
             return False
         self._gv.topo.addBasinsToChannelFile(channelsLayer, self._gv.basinFile)
@@ -901,6 +910,181 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not self._gv.topo.saveOutletsAndSources(channelsLayer, snapLayer, False):
             return False
         self.lakePointsAdded = True
+        return True
+    
+    def addHUCLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, subbasinsLayer: QgsVectorLayer, demLayer: QgsRasterLayer) -> bool:
+        """Add lakes in HUC models."""
+        # Cannot run TauDEM as supplied channels will in general not coincide with calculated ones.
+        # So we calculate new subbasins by subtracting lake from existing ones
+        root = QgsProject.instance().layerTreeRoot()
+        subsNoLakes = os.path.split(self._gv.subbasinsFile)[0] + '/subsNoLakes.shp'
+        QSWATUtils.tryRemoveLayerAndFiles(subsNoLakes, root)
+        params = {'INPUT': self._gv.subbasinsFile, 'OVERLAY': self._gv.lakeFile, 'OUTPUT': subsNoLakes}
+        processing.run('native:difference', params)
+        if not os.path.isfile(subsNoLakes):
+            QSWATUtils.error('Failed to create {0} file'.format(subsNoLakes), self._gv.isBatch)
+            return False
+        QSWATUtils.removeLayer(self._gv.chBasinNoLakeFile, root)
+        wChannelNoLakeFile = self.createBasinFile(subsNoLakes, demLayer, 'wChannelNoLake', root)
+        if not os.path.isfile(wChannelNoLakeFile):
+            QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
+            return False
+        self._gv.chBasinNoLakeFile = wChannelNoLakeFile
+        # now populate LakeIn etc fields
+        self._gv.topo.addLakeFieldsToChannels(channelsLayer)
+        channelsProvider = channelsLayer.dataProvider()
+        channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
+        channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO1)
+        channelDsNodeindex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID1)
+        channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
+        channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
+        channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
+        channelLakeMainIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEMAIN)
+        areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
+        lakesProvider = lakesLayer.dataProvider()
+        lakeIdIndex = lakesProvider.fieldNameIndex(QSWATTopology._LAKEID)
+        mmap = dict()
+        for lake in lakesProvider.getFeatures():
+            lakeId = lake[lakeIdIndex]
+            QSWATUtils.loginfo('Adding lake {0} to HUC model'.format(lakeId))
+            geom = lake.geometry()
+            if geom.type() != QgsWkbTypes.PolygonGeometry:
+                QSWATUtils.error('Lake {0} does not seem to be a polygon shape'.format(lakeId), self._gv.isbatch)
+                return False
+            if geom.isMultipart():
+                # find the part with largest area to use as the lake
+                maxArea = 0.0 
+                secondArea = 0.0
+                maxPart = None
+                secondPart = None
+                polys = geom.asMultiPolygon()
+                QSWATUtils.loginfo('Lake {0} has {1} parts'.format(lakeId, len(polys)))
+                partNum = 0
+                for poly in polys:
+                    nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
+                    nextArea = nextPart.area() * areaFactor
+                    nextLen = len(poly[0])
+                    partNum += 1
+                    QSWATUtils.loginfo('Part {0} has {1} perimeter vertices and area {2}'.format(partNum, nextLen, int(nextArea)))
+                    if nextArea > maxArea:
+                        if maxArea > secondArea:
+                            secondPart = maxPart
+                            secondArea = maxArea
+                        maxPart = nextPart
+                        maxArea = nextArea
+                if maxPart is None:
+                    QSWATUtils.error('Lake {0} seems to be empty'.format(lakeId), self._gv.isBatch)
+                    return False
+                if secondPart is not None:
+                    percent = int(secondArea * 100.0 / maxArea + 0.5)
+                    QSWATUtils.loginfo('Second part area is {0}% of first'.format(percent))
+                    if percent >= 5:
+                        QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch)
+                perim = maxPart
+            else:
+                perim = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
+            perimBox = perim.boundingBox()
+            mainOutletChosen = False
+            # channels that intersect with the lake: candidates for outlet
+            candidates = []
+            selected = []
+            for channel in channelsProvider.getFeatures():
+                chLink = channel[channelLinkIndex]
+                line = channel.geometry()
+                lineBox = line.boundingBox()
+                if QSWATTopology.disjointBoxes(perimBox, lineBox):
+                    continue
+                intersect = line.intersection(perim)
+                if intersect.isEmpty():
+                    # no intersection
+                    continue
+                candidates.append(channel)
+                channelIsWatershedOutlet = channel[channelDsLinkIndex] == -1 and channel[channelDsNodeindex] > 0
+                reachData = self._gv.topo.getReachData(channel, None)
+                outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                source = QgsPointXY(reachData.upperX, reachData.upperY)
+                outletInLake = QSWATTopology.polyContains(outlet, perim, perimBox)
+                sourceInlake = QSWATTopology.polyContains(source, perim, perimBox)
+                if outletInLake:
+                    if sourceInlake:
+                        if channelIsWatershedOutlet:  # watershed outlet is within lake
+                            if mainOutletChosen:
+                                mmap[channel.id()] = {channelLakeOutIndex: lakeId}
+                                QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
+                            else:
+                                mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+                                QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+                                mainOutletChosen = True
+                        else:            
+                            mmap[channel.id()] = {channelLakeWithinIndex: lakeId}
+                            QSWATUtils.loginfo('Channel with link number {0} is within lake {1}'.format(chLink, lakeId))
+                            selected.append(chLink)
+                    else:
+                        mmap[channel.id()] = {channelLakeInIndex: lakeId}
+                        QSWATUtils.loginfo('Channel with link number {0} flows into lake {1}'.format(chLink, lakeId))
+                        selected.append(chLink)
+                elif sourceInlake:
+                    if mainOutletChosen:
+                        mmap[channel.id()] = {channelLakeOutIndex: lakeId}
+                        QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
+                    else:
+                        # arbitrary choice of first (and probably only) outlet as main
+                        mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+                        QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+                        mainOutletChosen = True
+                #===============================================================
+                # # alternative method: fails probably because we can have joins outside lakes, so everything looks like an outlet
+                # outletOutside = False
+                # sourceOutside = False 
+                # if line.isMultipart():
+                #     #get returns underlying abstract geometry
+                #     #constGet is faster version returning non-modifiable abstrac geometry
+                #     segments = line.constGet()  # QgsMultiLineString
+                # else:
+                #     segments = [line.constGet()]
+                # for segment in segments:
+                #     # HUC flowlines have source st start
+                #     source = QgsPointXY(segment[0])
+                #     outlet = QgsPointXY(segment[-1])
+                #     outletOutside = outletOutside or not QSWATTopology.polyContains(outlet, perim, perimBox)
+                #     sourceOutside = sourceOutside or not QSWATTopology.polyContains(source, perim, perimBox)
+                # if outletOutside:
+                #     QSWATUtils.loginfo('{0} is an outlet'.format(chLink))
+                # elif sourceOutside:
+                #     QSWATUtils.loginfo('{0} is an inlet'.format(chLink))
+                # else:
+                #     QSWATUtils.loginfo('{0} is inside'.format(chLink))
+                #===============================================================
+            if not mainOutletChosen:
+                if len(candidates) > 0:
+                    # select a channel that is downstream from a candidate but not in candidates
+                    candidateLinks = [channel[channelLinkIndex] for channel in candidates]
+                    candidateDsLinks = [channel[channelDsLinkIndex] for channel in candidates]
+                    # first pass: find a channel in candidates but not selected that is not upstream of amother candidate
+                    for channel in channelsProvider.getFeatures():
+                        chLink = channel[channelLinkIndex]
+                        dsLink = channel[channelDsLinkIndex]
+                        if chLink in candidateLinks and chLink not in selected and dsLink not in candidateLinks:
+                            mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+                            QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+                            mainOutletChosen = True
+                            break
+                    if not mainOutletChosen:
+                        # second pass: find a non-candidate channel downstream from a candidate and not upstream of amother candidate
+                        chLink = channel[channelLinkIndex]
+                        dsLink = channel[channelDsLinkIndex]
+                        for channel in channelsProvider.getFeatures():
+                            if chLink not in candidateLinks and chLink in candidateDsLinks and dsLink not in candidateLinks:
+                                mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+                                QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+                                mainOutletChosen = True
+                                break
+            if not mainOutletChosen:
+                QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self._gv.isBatch, logFile=self._gv.logFile)
+                return False
+        if not channelsProvider.changeAttributeValues(mmap):
+            QSWATUtils.error('Cannot update channels layer with lake data', self._gv.isBatch)
+            return False  
         return True
     
     def identifyLakes(self, lakesLayer: QgsVectorLayer) -> Tuple[int, bool, bool]:
@@ -1158,7 +1342,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         """ Create hillshade layer and load."""
         hillshadeFile = os.path.splitext(demFile)[0] + 'hillshade.tif'
         if not QSWATUtils.isUpToDate(demFile, hillshadeFile):
-            processing.run("gdal:hillshade", 
+            processing.run("native:hillshade", 
                            {'INPUT':demFile,
                             'BAND':1,
                             'Z_FACTOR':5,
@@ -1906,6 +2090,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not self._gv.useGridModel:
             self._gv.wshedFile = wshedFile
             self._gv.channelFile = channelFile
+            if self._gv.isHUC:
+                self._gv.streamFile = channelFile.replace('channels.shp', 'streams.shp')
         self._gv.outletFile = outletFile
         if self._gv.topo.setUp0(demLayer, channelLayer, outletLayer, None, self._gv):
             self.isDelineated = True
@@ -4573,7 +4759,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?1'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
                     subbasinsLayer = layer
                     subbasinsFile = possFile
         if subbasinsLayer is not None:

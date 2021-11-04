@@ -55,12 +55,14 @@ class DBUtils:
     _MUIDPLUSNAMEPATTERN = r'^[A-Z]{2}[0-9]{3}\+[A-Z]+$'
     _S5IDPATTERN = r'^[A-Z]{2}[0-9]{4}$' 
     
-    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isHUC: bool, isBatch: bool) -> None:
+    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isHUC: bool, logFile: Optional[str], isBatch: bool) -> None:
         """Initialise class variables."""
         ## Flag showing if batch run
         self.isBatch = isBatch
         ## flag for HUC projects
         self.isHUC = isHUC
+        ## message logging file for HUC projects
+        self.logFile = logFile
         ## project directory
         self.projDir = projDir
         ## project name
@@ -381,6 +383,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         
     def checkKeyInTable(self, table: str, key: int) -> None:
         """Generate error message if key not in gis_keys for this table."""
+        # ignore for HUC projects
+        if self.isHUC:
+            return
         keys = self.gis_keys.get(table, set())
         if key not in keys:
             QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
@@ -643,6 +648,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     QSWATUtils.exceptionError('Could not read table {0} in database {1}'.format(table, database), self.isBatch)
                     return False
                 if row is None:
+                    if self.isHUC:
+                        # TODO: plant table needs updating: don't generate lots of error messages: just use AGRL for now
+                        self.landuseCodes[landuseCat] = 'agrl'
+                        self.landuseIds[landuseCat] = 2
+                        return True
                     QSWATUtils.error('No data for landuse {0}'.format(landuseCode), self.isBatch)
                     OK = False
                 else:
@@ -768,28 +778,28 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     #     return re.match(pattern, name)
     #===========================================================================
                     
-    def getSoilName(self, sid: int) -> str:
+    def getSoilName(self, sid: int) -> Tuple[str, bool]:
         """Return name for soil id sid."""
         if self.useSSURGO:
             self.ssurgoSoils.add(sid)
-            return str(sid)
-        sid1 = self.translateSoil(sid)
+            return str(sid), True
+        sid1, OK = self.translateSoil(sid)
         # first try used soil names
         name = self.usedSoilNames.get(sid1, None)
         if name is not None:
-            return name
+            return name, OK
         else:
             name = self.soilNames.get(sid1, None)
             if name is not None:
                 self.usedSoilNames[sid1] = name
-                return name
+                return name, True
         if sid in self._undefinedSoilIds:
-            return str(sid)
+            return str(sid), False
         else:
             string = str(sid)
             self._undefinedSoilIds.append(sid)
             QSWATUtils.error('Unknown soil value {0}'.format(string), self.isBatch)
-            return string
+            return string, False
         
     _SOILS_SOL_TABLE = \
     """
@@ -991,6 +1001,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 for ssurgoId in self.ssurgoSoils:
                     row = readCursor.execute(sql, (ssurgoId,)).fetchone()
                     if not row:
+                        if self.isHUC:
+                            continue  # assume already reported
                         QSWATUtils.error('SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
                                          format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
                         return False
@@ -1075,50 +1087,54 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         if sid not in self.soilTranslate:
             self.soilTranslate[sid] = equiv
         
-    def translateSoil(self, sid: int) -> int:
-        """Translate a soil id to its equivalent id in soilNames."""
+    def translateSoil(self, sid: int) -> Tuple[int, bool]:
+        """Translate a soil id to its equivalent id in soilNames, plUs flag indicating lookup success."""
         self.soilVals.add(sid)
         if self.useSSURGO:
             if self.isHUC:
                 return self.translateSSURGOSoil(sid)
             else:
-                return sid
-        return self.soilTranslate.get(sid, sid)
+                return sid, True
+        sid1 = self.soilTranslate.get(sid, None)
+        if sid1 is None:
+            return sid, False 
+        else:
+            return sid1, True
     
-    def translateSSURGOSoil(self, sid: int) -> int:
-        """Use table to convert soil map values to SSURGO muids.  
+    def translateSSURGOSoil(self, sid: int) -> Tuple[int, bool]:
+        """Use table to convert soil map values to SSURGO muids, plUs flag indicating lookup success.  
         Replace any soil with sname Water with Parameters._SSURGOWater.  
         Report undefined SSURGO soils.  Only used with HUC."""
         if sid in self._undefinedSoilIds:
-            return self.SSURGOUndefined
+            return self.SSURGOUndefined, False
         muid = self.SSURGOsoils.get(sid, -1)
         if muid > 0:
-            return muid
+            return muid, True
         sql = self.sqlSelect('statsgo_ssurgo_lkey', 'Source, MUKEY', '', 'LKEY=?')
         lookup_row = self.conn.execute(sql, (sid,)).fetchone()
         if lookup_row is None:
-            QSWATUtils.information('WARNING: SSURGO soil map value {0} not defined as lkey in statsgo_ssurgo_lkey'.format(sid), self.isBatch)
+            QSWATUtils.information('WARNING: SSURGO soil map value {0} not defined as lkey in statsgo_ssurgo_lkey in project {1}'.format(sid, self.projName), self.isBatch, logFile=self.logFile)
             self._undefinedSoilIds.append(sid)
-            return sid
+            return sid, False
         # only an information issue, not an error for now 
         if lookup_row[0].upper().strip() == 'STATSGO':
-            QSWATUtils.information('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey'.format(sid), self.isBatch)
+            QSWATUtils.information('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey'.format(sid), self.isBatch, logFile=self.logFile)
             # self._undefinedSoilIds.append(sid)
             # return sid
         sql = self.sqlSelect('SSURGO_Soils', 'SNAM', '', 'MUID=?')
         row = self.SSURGOConn.execute(sql, (lookup_row[1],)).fetchone()
         if row is None:
-            QSWATUtils.information('WARNING: SSURGO soil lkey value {0} and MUID {1} not defined'.format(sid, lookup_row[1]), self.isBatch)
+            QSWATUtils.information('WARNING: SSURGO soil lkey value {0} and MUID {1} not defined in project {2}'.format(sid, lookup_row[1], self.projName), self.isBatch, logFile=self.logFile)
             self._undefinedSoilIds.append(sid)
-            return self.SSURGOUndefined
+            return self.SSURGOUndefined, False
         #if row[0].lower().strip() == 'water':
         if re.search(self.waterPattern, row[0]) is not None:
             self.SSURGOsoils[int(sid)] = Parameters._SSURGOWater
-            return Parameters._SSURGOWater  # type: ignore
+            return Parameters._SSURGOWater, True
         else:
             muid = int(lookup_row[1])
             self.SSURGOsoils[int(sid)] = muid
-            return muid
+            return muid, True
     
     def writeLanduseTables(self) -> bool:
         """Write the plants_plt and urban_urb tables in the project database."""

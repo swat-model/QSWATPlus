@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
-    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool, isHUC: bool=False) -> None:
+    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool, isHUC: bool=False, logFile: Optional[str]=None) -> None:
         """Initialise class variables."""
         settings = QSettings()
         if settings.contains('/QSWATPlus/SWATPlusDir'):
@@ -274,8 +274,10 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.isBatch = isBatch
         ## flag for HUC projects
         self.isHUC = isHUC
+        ## log file for message output for HUC projects
+        self.logFile = logFile
         ## Path of project database
-        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isBatch)
+        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.logFile, self.isBatch)
         ## multiplier to turn DEM distances to metres
         self.horizontalFactor = 1
         ## multiplier to turn elevations to metres

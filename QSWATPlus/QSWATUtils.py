@@ -114,7 +114,7 @@ class QSWATUtils:
             return 'qgis'
             
     @staticmethod
-    def error(msg: str, isBatch: bool, reportErrors: bool=True) -> None:
+    def error(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
         """Report msg as an error.  If not reportErrors merely log the message."""
         QSWATUtils.logerror(msg)
         if not reportErrors:
@@ -123,7 +123,11 @@ class QSWATUtils:
             # in batch mode we generally only look at stdout 
             # (to avoid distracting messages from gdal about .shp files not being supported)
             # so report to stdout
-            sys.stdout.write('ERROR: {0}\n'.format(msg))
+            if logFile is None:
+                sys.stdout.write('ERROR: {0}\n'.format(msg))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('ERROR: {0}\n'.format(msg))
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
@@ -133,12 +137,12 @@ class QSWATUtils:
         return
     
     @staticmethod
-    def exceptionError(msg: str, isBatch: bool) -> None:
-        QSWATUtils.error('{0}: {1}'.format(msg, traceback.format_exc()), isBatch)
+    def exceptionError(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
+        QSWATUtils.error('{0}: {1}'.format(msg, traceback.format_exc()), isBatch, reportErrors, logFile)
         return
     
     @staticmethod
-    def question(msg: str, isBatch: bool, affirm: bool) -> QMessageBox.StandardButton:
+    def question(msg: str, isBatch: bool, affirm: bool, logFile: Optional[str]=None) -> QMessageBox.StandardButton:
         """Ask msg as a question, returning Yes or No."""
         # only ask question if interactive
         if not isBatch:
@@ -159,17 +163,25 @@ class QSWATUtils:
             res = ' No'
         QSWATUtils.loginfo(msg + res)
         if isBatch:
-            sys.stdout.write('{0}\n'.format(msg + res))
+            if logFile is None:
+                sys.stdout.write('{0}\n'.format(msg + res))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('{0}\n'.format(msg + res))
         return result
     
     @staticmethod
-    def information(msg: str, isBatch: bool, reportErrors: bool=True) -> None:
+    def information(msg: str, isBatch: bool, reportErrors: bool=True, logFile: Optional[str]=None) -> None:
         """Report msg as information."""
         QSWATUtils.loginfo(msg)
         if not reportErrors:
             return
         if isBatch:
-            sys.stdout.write('{0}\n'.format(msg))
+            if logFile is None:
+                sys.stdout.write('{0}\n'.format(msg))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('{0}\n'.format(msg))
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
@@ -1603,7 +1615,7 @@ class FileTypes:
             colourMap: Dict[str, QColor] = dict()
             colours = QgsLimitedRandomColorRamp.randomColors(len(db.soilVals))
             for i in db.soilVals:
-                name = db.getSoilName(i)
+                name = db.getSoilName(i)[0]
                 colour = colourMap.setdefault(name, colours[index])
                 item = QgsPalettedRasterRenderer.Class(int(i), colour, name)
                 items.append(item)

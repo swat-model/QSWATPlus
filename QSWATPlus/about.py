@@ -49,7 +49,7 @@ class AboutQSWAT:
         text = """
 {0} version: {1}
 
-Minimum QGIS version: 3.10
+Minimum QGIS version: 3.16
 
 Python version: 3.7
 

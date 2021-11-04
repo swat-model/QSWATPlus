@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'G:/Users/Public/QSWAT3/QSWAT3/QSWAT/ui_graph.ui'
+# Form implementation generated from reading ui file 'G:/Users/Public/QSWATPlus3/QSWATPlus/ui_graph.ui'
 #
 # Created by: PyQt5 UI code generator 5.11.3
 #
@@ -11,9 +11,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_GraphDlg(object):
     def setupUi(self, GraphDlg):
         GraphDlg.setObjectName("GraphDlg")
-        GraphDlg.resize(1118, 590)
+        GraphDlg.resize(1153, 590)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/QSWAT/QSWAT-Icon/QSWAT-Icon-SWAT-16.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap(":/plugins/QSWATPlus/SWATPlus32.ico"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         GraphDlg.setWindowIcon(icon)
         GraphDlg.setSizeGripEnabled(True)
         self.gridLayout = QtWidgets.QGridLayout(GraphDlg)
@@ -41,13 +41,14 @@ class Ui_GraphDlg(object):
         self.widget.setFocusPolicy(QtCore.Qt.WheelFocus)
         self.widget.setObjectName("widget")
         self.newFile = QtWidgets.QPushButton(self.widget)
-        self.newFile.setGeometry(QtCore.QRect(20, 90, 82, 23))
+        self.newFile.setGeometry(QtCore.QRect(21, 90, 81, 41))
         self.newFile.setObjectName("newFile")
         self.closeForm = QtWidgets.QPushButton(self.widget)
-        self.closeForm.setGeometry(QtCore.QRect(110, 90, 75, 23))
+        self.closeForm.setGeometry(QtCore.QRect(120, 110, 75, 23))
         self.closeForm.setObjectName("closeForm")
         self.lineOrBar = QtWidgets.QComboBox(self.widget)
-        self.lineOrBar.setGeometry(QtCore.QRect(20, 50, 82, 20))
+        self.lineOrBar.setGeometry(QtCore.QRect(20, 50, 90, 20))
+        self.lineOrBar.setMinimumSize(QtCore.QSize(90, 0))
         self.lineOrBar.setMaxVisibleItems(2)
         self.lineOrBar.setObjectName("lineOrBar")
         self.label = QtWidgets.QLabel(self.widget)
@@ -55,7 +56,7 @@ class Ui_GraphDlg(object):
         self.label.setAlignment(QtCore.Qt.AlignCenter)
         self.label.setObjectName("label")
         self.updateButton = QtWidgets.QPushButton(self.widget)
-        self.updateButton.setGeometry(QtCore.QRect(110, 50, 75, 23))
+        self.updateButton.setGeometry(QtCore.QRect(120, 50, 75, 23))
         self.updateButton.setObjectName("updateButton")
         self.gridLayout.addWidget(self.widget, 3, 2, 2, 1)
         self.coeffs = QtWidgets.QTextBrowser(GraphDlg)
@@ -64,10 +65,6 @@ class Ui_GraphDlg(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.coeffs.sizePolicy().hasHeightForWidth())
         self.coeffs.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("Segoe UI")
-        font.setPointSize(9)
-        self.coeffs.setFont(font)
         self.coeffs.setObjectName("coeffs")
         self.gridLayout.addWidget(self.coeffs, 4, 1, 1, 1)
         self.graph = QtWidgets.QWidget(GraphDlg)
@@ -87,7 +84,8 @@ class Ui_GraphDlg(object):
     def retranslateUi(self, GraphDlg):
         _translate = QtCore.QCoreApplication.translate
         GraphDlg.setWindowTitle(_translate("GraphDlg", "SWATGraph"))
-        self.newFile.setText(_translate("GraphDlg", "New File to Plot"))
+        self.newFile.setText(_translate("GraphDlg", "New File\n"
+"to Plot"))
         self.closeForm.setText(_translate("GraphDlg", "Close"))
         self.label.setText(_translate("GraphDlg", "Chart Type"))
         self.updateButton.setText(_translate("GraphDlg", "Update"))

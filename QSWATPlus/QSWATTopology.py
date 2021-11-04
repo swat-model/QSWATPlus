@@ -85,9 +85,13 @@ class QSWATTopology:
     
     _LINKNO = 'LINKNO'
     _DSLINKNO = 'DSLINKNO'
+    _DSLINKNO1 = 'DSLINKNO1'
+    _DSLINKNO2 = 'DSLINKNO2'
     _USLINKNO1 = 'USLINKNO1'
     _USLINKNO2 = 'USLINKNO2'
     _DSNODEID = 'DSNODEID'
+    _DSNODEID1 = 'DSNODEID1'
+    _DSNODEID2 = 'DSNODEID2'
     _DRAINAREA = 'DSContArea'
     _DRAINAREA2 = 'DS_Cont_Ar' # for tauDEM 5.1.2
     _DRAINAGE = 'Drainage'
@@ -410,17 +414,20 @@ class QSWATTopology:
         if self.channelIndex < 0:
             QSWATUtils.loginfo('No LINKNO field in channels layer')
             return False
-        self.dsChannelIndex = self.getIndex(channelLayer, QSWATTopology._DSLINKNO, ignoreMissing=ignoreError)
+        DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+        self.dsChannelIndex = self.getIndex(channelLayer, DSLINKNO, ignoreMissing=ignoreError)
         if self.dsChannelIndex < 0:
             QSWATUtils.loginfo('No DSLINKNO field in channels layer')
             return False
-        dsNodeIndex = self.getIndex(channelLayer, QSWATTopology._DSNODEID, ignoreMissing=ignoreWithExisting)
+        DSNODEID = QSWATTopology._DSNODEID1 if self.isHUC else QSWATTopology._DSNODEID
+        dsNodeIndex = self.getIndex(channelLayer, DSNODEID, ignoreMissing=ignoreWithExisting)
+        dsNode2Index = self.getIndex(channelLayer, QSWATTopology._DSNODEID2, ignoreMissing=not self.isHUC)
         self.wsnoIndex = self.getIndex(channelLayer, QSWATTopology._WSNO, ignoreMissing=ignoreError)
         if self.wsnoIndex < 0:
             QSWATUtils.loginfo('No WSNO field in channels layer')
             return False
         if self.isHUC:
-            orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER, ignoreMissing=False)
+            orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDERHUC, ignoreMissing=False)
         else:
             orderIndex = self.getIndex(channelLayer, QSWATTopology._ORDER, ignoreMissing=ignoreWithGridOrExistingOrWin)
             if orderIndex < 0 and ignoreWithGridOrExistingOrWin:
@@ -485,16 +492,25 @@ class QSWATTopology:
                 length = geom.length() * gv.horizontalFactor
             else:
                 length = channel[lengthIndex] * gv.horizontalFactor
-            data = self.getReachData(channel, demLayer)
-            self.channelsData[chLink] = data
-            if data and (dropIndex < 0 or recalculate):
+            if self.isHUC and length == 0:  # allow for zero length inlet channels
+                data = None
+            else:
+                data = self.getReachData(channel, demLayer)
+                self.channelsData[chLink] = data
+            # don'use TauDEM drops: affected by burn-in
+            # if data and (dropIndex < 0 or recalculate):
+            #     drop = data.upperZ - data.lowerZ
+            # elif dropIndex >= 0:
+            #     drop = channel[dropIndex]
+            # else:
+            #     drop = 0
+            if data:
                 drop = data.upperZ - data.lowerZ
-            elif dropIndex >= 0:
-                drop = channel[dropIndex]
             else:
                 drop = 0
-            slope = 0 if length <= 0 else float(drop) / length
+            slope = 0 if length <= 0 or drop < 0 else float(drop) / length
             dsNode = channel[dsNodeIndex] if dsNodeIndex >= 0 else -1
+            dsNode2 = channel[dsNode2Index] if dsNode2Index >= 0 else -1
             if useGridModel and chBasin < 0:
                 # it is the downstream channel link from an inlet, and has no basin
                 pass
@@ -506,7 +522,7 @@ class QSWATTopology:
                     SWATChannel += 1
                     self.channelToSWATChannel[chLink] = SWATChannel
                     self.SWATChannelToChannel[SWATChannel] = chLink
-                # inlets in HUC models are zero-length channels, and these have positive DSNODEIDs
+                # inlets in HUC models are zero length channels, and these have positive DSNODEIDs
                 elif dsNode < 0 or self.isHUC:
                     self.zeroChannels.add(chLink)
             maxChLink = max(maxChLink, chLink)
@@ -516,6 +532,9 @@ class QSWATTopology:
             if dsNode >= 0:
                 dsNodeToLink[dsNode] = chLink
                 #QSWATUtils.loginfo('DSNode {0} mapped to channel link {1}'.format(dsNode, chLink))
+            if dsNode2 >= 0:
+                dsNodeToLink[dsNode2] = chLink
+                #QSWATUtils.loginfo('Minor DSNode {0} mapped to channel link {1}'.format(dsNode2, chLink))
             if dsChLink >= 0 and not (self.isHUC and chLink >= QSWATTopology._HUCPointId):  # keep HUC links out of us map
                 ups = us.setdefault(dsChLink, [])
                 ups.append(chLink)
@@ -560,6 +579,8 @@ class QSWATTopology:
                 elif dsNode in self.lostDsNodeIds:
                     chLink = -1
                 elif dsNode not in dsNodeToLink:
+                    if self.isHUC:  # extra points can occur, typically duplicates: ignore
+                        continue
                     if reportErrors:
                         QSWATUtils.error("""ID value {0} from inlets/outlets file {1} not found as DSNODEID in channels file {2}.  Will be ignored.
                         This can be caused by an occasional error in delineation: try rerunning 'Create watershed'."""
@@ -620,7 +641,7 @@ class QSWATTopology:
                     # else an outlet: nothing to do
                     
                     # check for user-defined outlets coincident with stream junctions
-                    if chLink in self.zeroChannels and chLink not in self.chLinkIntoLake:
+                    if chLink in self.zeroChannels and chLink not in self.chLinkIntoLake and not (isInlet and self.isHUC):
                         if isInlet: typ = 'Inlet'
                         elif isPtSource: typ = 'Point source'
                         elif isReservoir: typ = 'Reservoir'
@@ -769,34 +790,19 @@ class QSWATTopology:
         chBasinsAreaIndex = chBasinsProvider.fieldNameIndex(Parameters._AREA)
         channelsProvider = channelsLayer.dataProvider()
         channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
-        channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
-        channelDsNodeIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID)
+        DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+        channelDsLinkIndex = channelsProvider.fieldNameIndex(DSLINKNO)
+        DSNODEID = QSWATTopology._DSNODEID1 if self.isHUC else QSWATTopology._DSNODEID
+        channelDsNodeIndex = channelsProvider.fieldNameIndex(DSNODEID)
         channelDrainAreaIndex = channelsProvider.fieldNameIndex(QSWATTopology._DRAINAREA)
         if channelDrainAreaIndex < 0:
             channelDrainAreaIndex = channelsProvider.fieldNameIndex(QSWATTopology._DRAINAREA2)
         channelWSNOIndex = channelsProvider.fieldNameIndex(QSWATTopology._WSNO)
+        self.addLakeFieldsToChannels(channelsLayer)
         channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
         channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
         channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
-        channelLakeMainIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEMAIN)
-        fields: List[QgsField] = []
-        if channelLakeInIndex < 0:
-            fields.append(QgsField(QSWATTopology._LAKEIN, QVariant.Int))
-        if  channelLakeOutIndex < 0:
-            fields.append(QgsField(QSWATTopology._LAKEOUT, QVariant.Int))
-        if  channelLakeWithinIndex < 0:
-            fields.append(QgsField(QSWATTopology._LAKEWITHIN, QVariant.Int))
-        if  channelLakeMainIndex < 0:
-            fields.append(QgsField(QSWATTopology._LAKEMAIN, QVariant.Int))
-        if len(fields) > 0:
-            if not channelsProvider.addAttributes(fields):
-                QSWATUtils.error('Cannot add lake fields to channels shapefile', self.isBatch)
-                return False
-            channelsLayer.updateFields()
-            channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
-            channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
-            channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
-            channelLakeMainIndex = self.getIndex(channelsLayer, QSWATTopology._LAKEMAIN)
+        channelLakeMainIndex = self.getIndex(channelsLayer, QSWATTopology._LAKEMAIN)
         self.chLinkIntoLake = dict()
         self.chLinkInsideLake = dict()
         self.chLinkFromLake = dict()
@@ -970,7 +976,7 @@ class QSWATTopology:
             # and the augmented snapfile is only used to make channels
             for subbasin, (pointId, pt, chs) in self.outlets.items():
                 if QSWATTopology.polyContains(pt, lakeGeom, lakeRect) and \
-                    QSWATTopology.isWatershedOutlet(pointId, channelsProvider, channelDsLinkIndex):
+                    self.isWatershedOutlet(pointId, channelsProvider):
                     if not os.path.exists(gv.pFile):
                         QSWATUtils.error('Cannot find D8 flow directions file {0}'.format(gv.pFile), self.isBatch, reportErrors=reportErrors)
                         break
@@ -1114,16 +1120,40 @@ class QSWATTopology:
         channelsLayer.triggerRepaint()
         return errorCount == 0
     
-    @staticmethod
-    def isWatershedOutlet(pointId: int, channelsProvider: QgsVectorDataProvider, dsLinkIndex: int) -> bool:
+    def addLakeFieldsToChannels(self, channelsLayer: QgsVectorLayer) -> None:
+        """Add LakeIn etc fields to channelsLayer if necessary."""
+        channelsProvider = channelsLayer.dataProvider()
+        channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
+        channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
+        channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
+        channelLakeMainIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEMAIN)
+        fields: List[QgsField] = []
+        if channelLakeInIndex < 0:
+            fields.append(QgsField(QSWATTopology._LAKEIN, QVariant.Int))
+        if  channelLakeOutIndex < 0:
+            fields.append(QgsField(QSWATTopology._LAKEOUT, QVariant.Int))
+        if  channelLakeWithinIndex < 0:
+            fields.append(QgsField(QSWATTopology._LAKEWITHIN, QVariant.Int))
+        if  channelLakeMainIndex < 0:
+            fields.append(QgsField(QSWATTopology._LAKEMAIN, QVariant.Int))
+        if len(fields) > 0:
+            if not channelsProvider.addAttributes(fields):
+                QSWATUtils.error('Cannot add lake fields to channels shapefile', self.isBatch)
+                return
+            channelsLayer.updateFields()
+    
+    def isWatershedOutlet(self, pointId: int, channelsProvider: QgsVectorDataProvider) -> bool:
         """Return true if there is a channel with dsNode equal to pointId and with dsLink -1."""
-        exp = QgsExpression('"{0}" = {1}'.format(QSWATTopology._DSNODEID, pointId))
-        request = QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([dsLinkIndex])
+        DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+        channelDsLinkIndex = channelsProvider.fieldNameIndex(DSLINKNO)
+        DSNODEID = QSWATTopology._DSNODEID1 if self.isHUC else QSWATTopology._DSNODEID
+        exp = QgsExpression('"{0}" = {1}'.format(DSNODEID, pointId))
+        request = QgsFeatureRequest(exp).setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([channelDsLinkIndex])
         for link in channelsProvider.getFeatures(request):
-            if link[dsLinkIndex] == -1:
+            if link[channelDsLinkIndex] == -1:
                 return True
         return False
-    
+        
 #     def isOutlet(self, pointId: int, outletsLayer: QgsVectorLayer) -> bool:
 #         """Return true if outletsLayer contains an outlet point with id pointId."""
 #         idIndex = self.getIndex(outletsLayer, QSWATTopology._ID, ignoreMissing=True)
@@ -1392,7 +1422,8 @@ class QSWATTopology:
                                    format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
         lakeAreaIndex = self.getIndex(lakesLayer, Parameters._AREA, ignoreMissing=True)
         channelLinkIndex = self.getIndex(channelsLayer, QSWATTopology._LINKNO)
-        channelDsLinkIndex = self.getIndex(channelsLayer, QSWATTopology._DSLINKNO)
+        DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+        channelDsLinkIndex = self.getIndex(channelsLayer, DSLINKNO)
         channelBasinIndex = self.getIndex(channelsLayer, QSWATTopology._BASINNO)
         channelLakeInIndex = self.getIndex(channelsLayer, QSWATTopology._LAKEIN)
         channelLakeOutIndex = self.getIndex(channelsLayer, QSWATTopology._LAKEOUT)
@@ -1450,13 +1481,19 @@ class QSWATTopology:
                                            format(chLink, QSWATTopology.lakeCategory(data.waterRole), lakeIn), 
                                            gv.isBatch, reportErrors=reportErrors)
                 else:
+                    outletId, outletPt = self.chOutlets.get(chLink, (None, None))
                     reachData = self.getReachData(channel, demLayer)
                     assert reachData is not None
                     point = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     elev = reachData.lowerZ
                     data.elevation += elev
-                    self.pointId += 1
-                    data.inChLinks[chLink] = (self.pointId, point, elev)
+                    if outletId is None:
+                        self.pointId += 1
+                        outletId = self.pointId
+                        QSWATUtils.loginfo('Added point {0} for channel link {1} flowing into lake {2}'.format(self.pointId, chLink, lakeIn))
+                    else:
+                        QSWATUtils.loginfo('Used point {0} for channel link {1} flowing into lake {2}'.format(outletId, chLink, lakeIn))
+                    data.inChLinks[chLink] = (outletId, point, elev)
                     self.chLinkIntoLake[chLink] = lakeIn
             elif lakeWithin > 0:
                 data = self.lakesData.get(lakeWithin, None)
@@ -1475,14 +1512,17 @@ class QSWATTopology:
                     self.chLinkInsideLake[chLink] = lakeWithin
                     if dsLink < 0:
                         # watershed outlet
+                        outletId, outletPt = self.chOutlets.get(chLink, (None, None))
                         reachData = self.getReachData(channel, demLayer)
                         assert reachData is not None
                         subbasin = channel[channelBasinIndex]
                         data.outChLink = -1
-                        point = QgsPointXY(reachData.lowerX, reachData.lowerY)
                         elev = reachData.lowerZ
-                        self.pointId += 1
-                        data.outPoint = (subbasin, self.pointId, point, elev)
+                        if outletId is None:
+                            self.pointId += 1
+                            outletId = self.pointId
+                            outletPt = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                        data.outPoint = (subbasin, outletId, outletPt, elev)
                         self.outletsInLake[subbasin] = lakeWithin
             if lakeOut > 0:
                 data = self.lakesData.get(lakeOut, None)
@@ -1504,9 +1544,10 @@ class QSWATTopology:
                         assert reachData is not None
                         subbasin = channel[channelBasinIndex]
                         data.outChLink = chLink
-                        point = QgsPointXY(reachData.upperX, reachData.upperY)
                         elev = reachData.upperZ
                         self.pointId += 1
+                        point = QgsPointXY(reachData.upperX, reachData.upperY)
+                        QSWATUtils.loginfo('Added point {0} for channel link {1} flowing from lake {2}'.format(self.pointId, chLink, lakeOut))
                         data.outPoint = (subbasin, self.pointId, point, elev)
                         self.chLinkFromLake[chLink] = lakeOut
                     else:
@@ -1887,7 +1928,8 @@ class QSWATTopology:
                 polyMap: Dict[int, Dict[int, int]] = dict()
                 channelProvider = channelLayer.dataProvider()
                 linkIndex = channelProvider.fieldNameIndex(QSWATTopology._LINKNO)
-                dsLinkIndex = channelProvider.fieldNameIndex(QSWATTopology._DSLINKNO)
+                DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+                dsLinkIndex = channelProvider.fieldNameIndex(DSLINKNO)
                 subProvider = subbasinsLayer.dataProvider()
                 dsPolyIndex = subProvider.fieldNameIndex(QSWATTopology._DOWNID)
                 QSWATUtils.information('Drainage areas incomplete.  There are {0} circularities.  Will try to remove them.  See the QSWAT+ log for details'.
@@ -2463,7 +2505,7 @@ class QSWATTopology:
             self.maxFlowLengths[subbasin] = flowLength
         
                     
-    def writePointsTable(self, demLayer: QgsRasterLayer, mergees: List[int], useGridModel: bool) -> None:
+    def writePointsTable(self, demLayer: QgsRasterLayer, mergees: List[int], useGridModel: bool, existingWshed: bool) -> None:
         """Write the gis_points table in the project database."""
         assert isinstance(self.db, DBUtils)
         with self.db.conn as conn:
@@ -2550,8 +2592,8 @@ class QSWATTopology:
                     #    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
                     self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
                     waterAdded.append(pointId)
-                    # inlets to lake.  These are outlets from streams in grid models, so not necessary
-                    if not useGridModel:
+                    # inlets to lake.  These are outlets from streams in grid models, and outlets from channels in existing models, so not necessary
+                    if not (useGridModel or existingWshed):
                         for chLink, (pointId, pt, elev) in lake.inChLinks.items():
                             chBasin = self.chLinkToChBasin[chLink]
                             subbasin = self.chBasinToSubbasin[chBasin]
@@ -3059,7 +3101,7 @@ class QSWATTopology:
                                                                channelData.upperZ)
         # second pass: add data for merged channels
         for source, target in mergeChannels.items():
-            channelData = self.channelsData[channel]
+            channelData = self.channelsData[source]
             final = self.finalTarget(target, mergeChannels)
             mergedChannelData[final].add(self.drainAreas[source],
                                          self.strahler[source],
@@ -3785,6 +3827,7 @@ class QSWATTopology:
         index: int = layer.fields().lookupField(name[:10])
         if not ignoreMissing and index < 0:
             QSWATUtils.error('Cannot find field {0} in {1}'.format(name, QSWATUtils.layerFileInfo(layer).filePath()), self.isBatch)
+            raise Exception
         return index
             
     def getProviderIndex(self, provider: QgsVectorDataProvider, name: str, ignoreMissing: bool=False) -> int:
@@ -3909,8 +3952,9 @@ class QSWATTopology:
         downChannels = dict()
         chInlets: Dict[int, Tuple[int, QgsPointXY]] = dict()
         chLinkIndex = self.getIndex(channelLayer, QSWATTopology._LINKNO)
-        dsChLinkIndex = self.getIndex(channelLayer, QSWATTopology._DSLINKNO)
-        wsnoIndex = self.getIndex(channelLayer, QSWATTopology._WSNO, ignoreMissing=not useGridModel and not self.isHUC)
+        DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
+        dsChLinkIndex = self.getIndex(channelLayer, DSLINKNO)
+        self.wsnoIndex = self.getIndex(channelLayer, QSWATTopology._WSNO, ignoreMissing=not useGridModel and not self.isHUC)
         sourceXIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEX, ignoreMissing=not self.isHUC)
         sourceYIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEY, ignoreMissing=not self.isHUC)
         outletXIndex = self.getIndex(channelLayer, QSWATTopology._OUTLETX, ignoreMissing=not self.isHUC)
@@ -3920,7 +3964,7 @@ class QSWATTopology:
         # ignoreMissing for subbasinIndex necessary when useGridModel, since channelLayer is then a streams layer
         subbasinIndex = self.getIndex(channelLayer, QSWATTopology._BASINNO, ignoreMissing=useGridModel)
         if useGridModel:
-            if wsnoIndex < 0:
+            if self.wsnoIndex < 0:
                 return False
         else:
             if subbasinIndex < 0:
@@ -3961,7 +4005,7 @@ class QSWATTopology:
         for reach in channelLayer.getFeatures():
             chLink = reach[chLinkIndex]
             dsChLink = reach[dsChLinkIndex]
-            chBasin = reach[wsnoIndex]
+            chBasin = reach[self.wsnoIndex]
             # for grids, channel basins and subbasins are the same
             subbasin = chBasin if useGridModel else reach[subbasinIndex]
             chLinkToSubbasin[chLink] = subbasin

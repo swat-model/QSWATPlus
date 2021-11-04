@@ -20,7 +20,8 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer
+from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer, QgsApplication
+from qgis.analysis import QgsNativeAlgorithms
 from qgis.PyQt.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion
 from qgis.PyQt.QtGui import QFontDatabase, QIcon, QFont
 from qgis.PyQt.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
@@ -31,6 +32,8 @@ import shutil
 import sys
 import traceback
 import locale
+import processing  # type: ignore @UnusedImport
+from processing.core.Processing import Processing  # type: ignore
 
 # Initialize Qt resources from file resources_rc.py
 try:
@@ -70,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.1.3'
+    __version__ = '2.1.4'
 
     def __init__(self, iface):
         """Constructor."""
@@ -320,7 +323,7 @@ class QSWATPlus(QObject):
         self._odlg.raise_()
         self.setupProject(proj, False)
     
-    def setupProject(self, proj, isBatch, isHUC=False):
+    def setupProject(self, proj, isBatch, isHUC=False, logFile=None):
         """Set up the project."""
         self._odlg.mainBox.setVisible(True)
         self._odlg.mainBox.setEnabled(False)
@@ -328,19 +331,24 @@ class QSWATPlus(QObject):
         self._odlg.projPath.setText('Restarting project ...')
         title = QFileInfo(proj.fileName()).baseName()
         proj.setTitle(title)
-        isHUC, found = proj.readBoolEntry(title, 'delin/isHUC', False)
+        isHUCFromProjfile, found = proj.readBoolEntry(title, 'delin/isHUC', False)
         if not found:
             # isHUC not previously set.  Use parameter above and record
             proj.writeEntryBool(title, 'delin/isHUC', isHUC)
+        else:
+            isHUC = isHUCFromProjfile
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
-        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC)
+        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC, logFile)
         if self._gv.SWATPlusDir == '':
             # failed to find SWATPlus directory
             return
         self._odlg.projPath.repaint()
         self.checkReports()
         self.setLegendGroups()
+        Processing.initialize()
+        if 'native' not in [p.id() for p in QgsApplication.processingRegistry().providers()]:
+            QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
         # enable edit button if converted from Arc with 'No GIS' option
         title = proj.title()
         choice, found = proj.readNumEntry(title, 'fromArc', -1)

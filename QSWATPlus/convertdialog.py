@@ -22,10 +22,10 @@
 
 from qgis.PyQt import QtWidgets
 
-from .ui_convert import Ui_qswatConvertChoice
+from ui_convert import Ui_arcConvertChoice  # @UnresolvedImport  needs to be relative since run from .bat
 
 
-class convertDialog(QtWidgets.QDialog, Ui_qswatConvertChoice):
+class convertDialog(QtWidgets.QDialog, Ui_arcConvertChoice):
     """Set up dialog from designer."""
     def __init__(self, parent=None):
         """Constructor."""

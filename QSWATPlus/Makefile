@@ -39,8 +39,6 @@ LOCALES =
 # translation
 SOURCES = $(PY_FILES)
 
-HUC_FILES =
-
 PACKAGE = QSWATPlus
 
 ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
@@ -76,6 +74,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py)
+	HUC_FILES = $(addprefix ../, runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -88,6 +87,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py)
+	HUC_FILES = $(addprefix ../, runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -100,6 +100,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-darwin.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py)
+	HUC_FILES = $(addprefix ../, runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = Library/Application Support/QGIS/QGIS3/profiles/default
 	CPFILE = rsync -av
@@ -120,7 +121,7 @@ endif
 INIT_FILE =  __init__.py 
 
 PY_FILES = \
-	QSWATPlus.py qswatdialog.py cythoninit.py delineation.py delineationdialog.py hrus.py hrusdialog.py \
+	QSWATPlusMain.py qswatdialog.py cythoninit.py delineation.py delineationdialog.py hrus.py hrusdialog.py \
 	outletsdialog.py exempt.py exemptdialog.py split.py splitdialog.py selectlu.py selectludialog.py parameters.py parametersdialog.py \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
@@ -218,10 +219,10 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 
 #%.py : %.ui
 #	pyuic5 -o $@ $<
-# instead of the above, 
-# ui_*.py plus ui_arc_convert.py, ui_convert.py and ui_graph1.py were made by running
-# the script make_uis.py in QGIS
-# and by recoding graphdialog.py and convertdialog.py
+# instead of the above, run 
+# the script make_uis.py in QGIS 
+# to compile .ui files to .py
+
 
 %.qm : %.ts
 	$(LRELEASE) $<

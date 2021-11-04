@@ -198,9 +198,7 @@ class TauDEMUtils:
         commands.append(QSWATUtils.join(TauDEMDir, command))
         for (pid, fileName) in inFiles:
             if not os.path.exists(fileName):
-                TauDEMUtils.error('''File {0} does not exist.
-Have you installed SWAT+ as a different directory from C:/SWAT/SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(fileName), hasQGIS)
+                TauDEMUtils.error('''File {0} for TauDEM input {1} to {2} does not exist.'''.format(fileName, pid, command), hasQGIS)
                 return False
             commands.append(pid)
             commands.append(fileName)
@@ -226,8 +224,11 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(file
             output.moveCursor(QTextCursor.End)
         # Windows will accept commands as first argument of run
         # and this has the advantage of dealing with spaces within inidividual components of the list
-        # Linux needs a single list (and there will be no spaces to worry about
-        procCommand = commands if Parameters._ISWIN else command
+        # Linux and MacOS need a single string (and there will be no spaces to worry about)
+        # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
+        MacPrefixNeeded = Parameters._ISMAC and not os.path.exists('/usr/local/lib/libgdal.28.dylib')
+        MacPrefix = 'export LD_LIBRARY_PATH=/Applications/QGIS-LTR.app/Contents/MacOS/lib; export PROJ_LIB=/Applications/QGIS-LTR.app/Contents/Resources/proj; '
+        procCommand = commands if Parameters._ISWIN else MacPrefix + command if MacPrefixNeeded else command
         proc = subprocess.run(procCommand, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,

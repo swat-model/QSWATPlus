@@ -503,6 +503,28 @@ cdef class LSUData:
                     for slope, hru in list(slopeNumbers.items()):
                         self.cropSoilSlopeArea -= self.hruMap[hru].area
                         self.removeHRU(hru, crop, soil, slope)
+                        
+    cpdef int totalHRUCellCount(self):
+        """Total cell count of HRUs in this LSU."""
+        
+        cdef:
+            int totalCellCount = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalCellCount += hruData.cellCount
+        return totalCellCount
+                        
+    cpdef float totalHRUSlopes(self):
+        """Total slope values of HRUs in this LSU."""
+        
+        cdef:
+            float totalSlope = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalSlope += hruData.totalSlope
+        return totalSlope
                   
     cpdef void setCropAreas(self, bint isOriginal):
         '''Make map crop -> area from hruMap and cropSoilSlopeNumbers.'''
@@ -953,7 +975,7 @@ cdef class BasinData:
                 targetData[landscape] = lsuData
         del self.mergedLsus[channel]
     
-    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes, int waterLanduse):
+    cpdef void setAreas(self, bint isOriginal, list chLinksByLakes, int waterLanduse, redistributeNodata=True):
         """Set area maps for crop, soil and slope."""
         
         cdef:
@@ -963,13 +985,22 @@ cdef class BasinData:
         for chLink, channelData in self.getLsus().items():
             for lscape, lsuData in channelData.items():
                 if isOriginal:
-                    # nodata area is included in final areas: need to add to original
-                    # so final and original tally
-                    # also remove water bodies that should be incorporated into lakes
-                    lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes, waterLanduse)
-                    # remove WATR HRUs if the LSU's water body is a reservoir or pond
-                    # if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
-                    #     lsuData.removeWaterHRUs(waterLanduse)
+                    if redistributeNodata:
+                        # nodata area is included in final areas: need to add to original
+                        # so final and original tally
+                        # also remove water bodies that should be incorporated into lakes
+                        lsuData.redistributeNodataAndWater(chLink, lscape, chLinksByLakes, waterLanduse)
+                        # remove WATR HRUs if the LSU's water body is a reservoir or pond
+                        # if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown():
+                        #     lsuData.removeWaterHRUs(waterLanduse)
+                    else:
+                        # if we are not redistributing nodata, need to correct the lsu area, cell count and totalSlope, which may be reduced 
+                        # as we are removing nodata area from the model
+                        waterArea = 0 if lsuData.waterBody is None else lsuData.waterBody.area
+                        lsuData.area = lsuData.cropSoilSlopeArea + waterArea
+                        lsuData.cellCount = lsuData.totalHRUCellCount()
+                        lsuData.totalSlope = lsuData.totalHRUSlopes()
+                        
                 lsuData.setCropAreas(isOriginal)
                 lsuData.setSoilAreas(isOriginal)
                 lsuData.setSlopeAreas(isOriginal)

@@ -28,10 +28,11 @@ import sys
 import os
 import glob
 from osgeo import gdal, ogr  # type: ignore
+from multiprocessing import Pool
 
 from QSWATPlus.QSWATPlus import QSWATPlus  # @UnresolvedImport
 from QSWATPlus.delineation import Delineation  # @UnresolvedImport
-from QSWATPlus.hrus import HRUs  # @UnresolvedImport
+from QSWATPlus.hrus2 import HRUs  # @UnresolvedImport
 import traceback
 
 
@@ -76,7 +77,7 @@ class runHUC():
     
     """Run HUC14/12/10/8 project."""
     
-    def __init__(self, projDir):
+    def __init__(self, projDir, logFile):
         """Initialize"""
         ## project directory
         self.projDir = projDir
@@ -84,8 +85,9 @@ class runHUC():
         self.plugin = QSWATPlus(iface)
         ## QGIS project
         self.proj = QgsProject.instance()
-        self.proj.read(self.projDir + '.qgs')
-        self.plugin.setupProject(self.proj, True, isHUC=True)
+        projName = os.path.split(self.projDir)[1]
+        self.proj.read(self.projDir + '/{0}.qgs'.format(projName))
+        self.plugin.setupProject(self.proj, True, isHUC=True, logFile=logFile)
         ## main dialogue
         self.dlg = self.plugin._odlg
         ## delineation object
@@ -107,10 +109,11 @@ class runHUC():
         self.delin._dlg.selectDem.setText(self.projDir + '/Watershed/Rasters/DEM/dem.tif')
         self.delin._dlg.drainStreamsButton.setChecked(True)
         self.delin._dlg.selectSubbasins.setText(self.projDir + '/Watershed/Shapes/subbasins.shp')
-        self.delin._dlg.selectWshed.setText(self.projDir + '/Watershed/Shapes/wshed.shp')
+        self.delin._dlg.selectWshed.setText(self.projDir + '/Watershed/Shapes/subbasins.shp')
         self.delin._dlg.selectStreams.setText(self.projDir + '/Watershed/Shapes/channels.shp')
         self.delin._dlg.selectExistOutlets.setText(self.projDir + '/Watershed/Shapes/points.shp')
         self.delin._dlg.recalcButton.setChecked(False)  # want to use length field in channels shapefile
+        self.delin._dlg.snapThreshold.setText('300')
         # use MPI on HUC10 and HUC8 projects
         numProc = 0 if scale >= 12 else 8
         self.delin._dlg.numProcesses.setValue(numProc)
@@ -118,6 +121,10 @@ class runHUC():
         gv.useGridModel = False
         gv.existingWshed = True
         self.delin.runExisting()
+        lakesFile = self.projDir + '/Watershed/Shapes/lakes.shp'
+        if os.path.isfile(lakesFile):
+            self.delin._dlg.selectLakes.setText(lakesFile)
+            self.delin.addLakesMap()
         self.delin.finishDelineation()
         self.delin._dlg.close()
         self.hrus = HRUs(gv, self.dlg.reportsBox)
@@ -141,12 +148,14 @@ class runHUC():
         gv.numElevBands = 5
         if not self.hrus.readFiles():
             hrudlg.close()
-            return
+            return 
         hrudlg.filterAreaButton.setChecked(True)
         hrudlg.areaButton.setChecked(True)
         hrudlg.areaVal.setText(str(minHRUha))
         self.hrus.calcHRUs()
+        result = self.hrus.HRUsAreCreated()
         hrudlg.close()
+        return result
         
     def addInlet(self, inletId):
         """Add watershed inlet."""
@@ -163,7 +172,7 @@ class runHUC():
         channelsFile = gv.projDir + '/Watershed/Shapes/channels.shp'
         channelsLayer = QgsVectorLayer(channelsFile, 'channels', 'ogr')
         channelsProvider = channelsLayer.dataProvider()
-        dsLinkNoIndex = channelsProvider.fieldNameIndex('DSLINKNO')
+        dsLinkNoIndex = channelsProvider.fieldNameIndex('DSLINKNO1')
         wsnoIndex = channelsProvider.fieldNameIndex('WSNO')
         exp1 = QgsExpression('"LINKNO" = {0}'.format(inletId))
         channel = next(channelsLayer.getFeatures(QgsFeatureRequest(exp1).setFlags(QgsFeatureRequest.NoGeometry)))
@@ -193,6 +202,30 @@ class runHUC():
             cursor.execute(sql2, maxId, POINTID, GRID_CODE,
                        float(pointXY.x()), float(pointXY.y()), float(pointll.y()), float(pointll.x()), 
                        float(elev), name, typ, SWATBasin, HydroID, OutletID)
+            
+def runProject(d, dataDir, scale, minHRUha):
+    """Run a QSWAT+ project on directory d"""
+    # seems clumsy to keep opening logFile, rather than opening once and passing handle
+    # but there may be many instances of this function and we want to avoid too many open files
+    if os.path.isdir(d):
+        logFile = d + '/LogFile.txt'
+        with open(logFile, 'w') as f:
+            f.write('Running project {0}\n'.format(d))
+        sys.stdout.write('Running project {0}\n'.format(d))
+        sys.stdout.flush()
+        try:
+            huc = runHUC(d, logFile)
+            if huc.runProject(dataDir, scale, minHRUha):
+                with open(logFile, 'a') as f:
+                    f.write('Completed project {0}\n'.format(d))
+            else:
+                with open(logFile, 'a') as f:
+                    f.write('ERROR: incomplete project {0}\n'.format(d))     
+        except Exception:
+            with open(logFile, 'a') as f:
+                f.write('ERROR: exception: {0}\n'.format(traceback.format_exc()))
+            sys.stdout.write('ERROR: exception: {0}\n'.format(traceback.format_exc()))
+            sys.stdout.flush()
             
 if __name__ == '__main__':
     #for arg in sys.argv:
@@ -228,25 +261,23 @@ if __name__ == '__main__':
         d = direc[:-4]
         print('Running project {0}'.format(d))
         try:
-            huc = runHUC(d)
+            huc = runHUC(d, None)
             huc.runProject(dataDir, scale, minHRUha)
             print('Completed project {0}'.format(d))
         except Exception:
             print('ERROR: exception: {0}'.format(traceback.format_exc()))
     else:
         pattern = direc + '/huc*'
-        for d in sorted(glob.glob(pattern)):
-            if os.path.isdir(d):
-                # if this message is changed HUC12/14Models main function will need changing since it selects HUC from this message
-                print('Running project {0}'.format(d))
-                try:
-                    huc = runHUC(d)
-                    huc.runProject(dataDir, scale, minHRUha)
-                    print('Completed project {0}'.format(d))
-                except Exception:
-                    print('ERROR: exception: {0}'.format(traceback.format_exc()))
-                sys.stdout.flush()
+        dirs = glob.glob(pattern)
+        cpuCount = os.cpu_count()
+        numProcesses = min(cpuCount, 24)
+        chunk = 1 
+        args = [(d, dataDir, scale, minHRUha) for d in dirs]
+        with Pool(processes=numProcesses) as pool:
+            res = pool.starmap_async(runProject, args, chunk)
+            _ = res.get()
+        sys.stdout.flush()
     app.exitQgis()
     app.exit()
-    del app    
+    del app     
         
