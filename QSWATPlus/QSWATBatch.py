@@ -31,7 +31,7 @@ import os.path
 import shutil
 
 import atexit
-from .QSWATPlus import QSWATPlus
+from .QSWATPlusMain import QSWATPlus
 from .delineation import Delineation
 from .hrus import HRUs
 from .QSWATUtils import QSWATUtils # type: ignore 

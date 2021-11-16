@@ -3787,8 +3787,7 @@ class CreateHRUs(QObject):
                 areaHa = areaKm * 100
                 cellCount = basinData.subbasinCellCount()
                 waterId = basinData.waterId
-                if not self._gv.isHUC:
-                    assert cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
+                assert waterId > 0 or cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
                 meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                 meanSlopePercent = meanSlope * 100
                 farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier

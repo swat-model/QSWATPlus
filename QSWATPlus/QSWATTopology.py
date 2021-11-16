@@ -778,12 +778,12 @@ class QSWATTopology:
         lakeAreaIndex = lakesProvider.fieldNameIndex(Parameters._AREA)
         if lakeResIndex < 0:
             QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
-                                   format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
+                                   format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch, reportErrors=reportErrors)
         subsProvider =  subbasinsLayer.dataProvider()
         subsPolyIndex = subsProvider.fieldNameIndex(QSWATTopology._POLYGONID)
         subsAreaIndex = subsProvider.fieldNameIndex(Parameters._AREA)
         if subsAreaIndex < 0:
-            QSWATUtils.error('Cannot find {0} field in {1}'.format(Parameters._AREA, gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
+            QSWATUtils.error('Cannot find {0} field in {1}'.format(Parameters._AREA, gv.subbasinsFile), self.isBatch)
             return False
         chBasinsProvider = chBasinsLayer.dataProvider()
         chBasinsPolyIndex = chBasinsProvider.fieldNameIndex(QSWATTopology._POLYGONID)
@@ -863,12 +863,12 @@ class QSWATTopology:
                             attMap[subId] = {subsAreaIndex: area2 / 1E4}
             # change attributes and topology BEFORE removing the zero area ones, as removal changes ids of the others
             if not subsProvider.changeAttributeValues(attMap):
-                QSWATUtils.error('Failed to update subbasins attributes in {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to update subbasins attributes in {0}'.format(gv.subbasinsFile), self.isBatch)
                 for err in subsProvider.errors():
                     QSWATUtils.loginfo(err)
                 return False
             if not subsProvider.changeGeometryValues(geomMap):
-                QSWATUtils.error('Failed to update subbasin geometries in {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to update subbasin geometries in {0}'.format(gv.subbasinsFile), self.isBatch)
                 for err in subsProvider.errors():
                     QSWATUtils.loginfo(err)
                 return False
@@ -880,7 +880,7 @@ class QSWATTopology:
 #                 return 
             if len(polysToRemove) > 0:
                 if not subsProvider.deleteFeatures(polysToRemove):
-                    QSWATUtils.error('Failed to remove polygons from {0}'.format(gv.subbasinsFile), self.isBatch, reportErrors=reportErrors)
+                    QSWATUtils.error('Failed to remove polygons from {0}'.format(gv.subbasinsFile), self.isBatch)
                     for err in subsProvider.errors():
                         QSWATUtils.loginfo(err)
             attMap = dict()
@@ -910,12 +910,12 @@ class QSWATTopology:
                                 del self.chBasinToSubbasin[polyId]
                                 QSWATUtils.loginfo('Channel basin {0} (subbasin {1}) removed'.format(polyId, subbasin))
             if not chBasinsProvider.changeAttributeValues(attMap):
-                QSWATUtils.error('Failed to update channel basin attributes in {0}'.format(gv.wshedFile), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to update channel basin attributes in {0}'.format(gv.wshedFile), self.isBatch)
                 for err in chBasinsProvider.errors():
                     QSWATUtils.loginfo(err)
                 return False
             if not chBasinsProvider.changeGeometryValues(geomMap):
-                QSWATUtils.error('Failed to update channel basin geometries in {0}'.format(gv.wshedFile), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to update channel basin geometries in {0}'.format(gv.wshedFile), self.isBatch)
                 for err in chBasinsProvider.errors():
                     QSWATUtils.loginfo(err)
                 return False
@@ -978,7 +978,7 @@ class QSWATTopology:
                 if QSWATTopology.polyContains(pt, lakeGeom, lakeRect) and \
                     self.isWatershedOutlet(pointId, channelsProvider):
                     if not os.path.exists(gv.pFile):
-                        QSWATUtils.error('Cannot find D8 flow directions file {0}'.format(gv.pFile), self.isBatch, reportErrors=reportErrors)
+                        QSWATUtils.error('Cannot find D8 flow directions file {0}'.format(gv.pFile), self.isBatch)
                         break
                     # need to give different id to outPoint, since this is used to make the reservoir point
                     # which will then route to the subbasin outlet
@@ -998,7 +998,7 @@ class QSWATTopology:
                     if found:
                         if lakeData.outPoint[2] is not None:
                             QSWATUtils.information('User marked outlet {0} chosen as main outlet for lake {1}'.
-                                                   format(pointId, lakeId), gv.isBatch)
+                                                   format(pointId, lakeId), gv.isBatch, reportErrors=reportErrors)
                             if lakeData.outChLink >= 0:
                                 lakeData.otherOutChLinks.add(lakeData.outChLink)
                         elev = QSWATTopology.valueAtPoint(lakeOutlet, demLayer)
@@ -1081,7 +1081,7 @@ class QSWATTopology:
                                 self.chLinkFromLake[dsOutLink] = lakeId
                             break
             if lakeData.outPoint[2] is None:
-                QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self.isBatch)
                 errorCount += 1
             if lakeData.outChLink >= 0:
                 chId = -1
@@ -1099,7 +1099,7 @@ class QSWATTopology:
             OK = channelsProvider.changeAttributeValues(attMap)
             OK = OK and channelsProvider.changeAttributeValues(lakeAttMap)
             if not OK:
-                QSWATUtils.error('Failed to update channel attributes in {0}'.format(gv.channelFile), self.isBatch, reportErrors=reportErrors)
+                QSWATUtils.error('Failed to update channel attributes in {0}'.format(gv.channelFile), self.isBatch)
                 for err in channelsProvider.errors():
                     QSWATUtils.loginfo(err)
                 return False
@@ -1111,9 +1111,9 @@ class QSWATTopology:
             if percentChBasinWater < 99 or percentChBasinWater > 101:
                 QSWATUtils.information(u"""WARNING: Only {0}% of the area of lake {1} is accounted for in your watershed.
                 You should carefully check the messages concerning this lake in the QSWAT+ log in the QGIS log messages panel."""
-                                       .format(intPercent, lakeId), self.isBatch)
+                                       .format(intPercent, lakeId), self.isBatch, reportErrors=reportErrors)
         if len(self.lakesData) == 0:
-            QSWATUtils.error('No lakes found in {0}'.format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch, reportErrors=reportErrors)
+            QSWATUtils.error('No lakes found in {0}'.format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch)
             return False
         chBasinsLayer.triggerRepaint()
         streamsLayer.triggerRepaint()
@@ -1481,19 +1481,13 @@ class QSWATTopology:
                                            format(chLink, QSWATTopology.lakeCategory(data.waterRole), lakeIn), 
                                            gv.isBatch, reportErrors=reportErrors)
                 else:
-                    outletId, outletPt = self.chOutlets.get(chLink, (None, None))
                     reachData = self.getReachData(channel, demLayer)
                     assert reachData is not None
                     point = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     elev = reachData.lowerZ
                     data.elevation += elev
-                    if outletId is None:
-                        self.pointId += 1
-                        outletId = self.pointId
-                        QSWATUtils.loginfo('Added point {0} for channel link {1} flowing into lake {2}'.format(self.pointId, chLink, lakeIn))
-                    else:
-                        QSWATUtils.loginfo('Used point {0} for channel link {1} flowing into lake {2}'.format(outletId, chLink, lakeIn))
-                    data.inChLinks[chLink] = (outletId, point, elev)
+                    self.pointId += 1
+                    data.inChLinks[chLink] = (self.pointId, point, elev)
                     self.chLinkIntoLake[chLink] = lakeIn
             elif lakeWithin > 0:
                 data = self.lakesData.get(lakeWithin, None)
@@ -1512,17 +1506,14 @@ class QSWATTopology:
                     self.chLinkInsideLake[chLink] = lakeWithin
                     if dsLink < 0:
                         # watershed outlet
-                        outletId, outletPt = self.chOutlets.get(chLink, (None, None))
                         reachData = self.getReachData(channel, demLayer)
                         assert reachData is not None
                         subbasin = channel[channelBasinIndex]
                         data.outChLink = -1
+                        point = QgsPointXY(reachData.lowerX, reachData.lowerY)
                         elev = reachData.lowerZ
-                        if outletId is None:
-                            self.pointId += 1
-                            outletId = self.pointId
-                            outletPt = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                        data.outPoint = (subbasin, outletId, outletPt, elev)
+                        self.pointId += 1
+                        data.outPoint = (subbasin, self.pointId, point, elev)
                         self.outletsInLake[subbasin] = lakeWithin
             if lakeOut > 0:
                 data = self.lakesData.get(lakeOut, None)
@@ -2592,8 +2583,8 @@ class QSWATTopology:
                     #    self.addPoint(curs, subbasin, outletId, outPt, elev, 'O')
                     self.addPoint(curs, subbasin, pointId, pt, elev, 'W')
                     waterAdded.append(pointId)
-                    # inlets to lake.  These are outlets from streams in grid models, and outlets from channels in existing models, so not necessary
-                    if not (useGridModel or existingWshed):
+                    # inlets to lake.  These are outlets from streams in grid models, so not necessary
+                    if not useGridModel:
                         for chLink, (pointId, pt, elev) in lake.inChLinks.items():
                             chBasin = self.chLinkToChBasin[chLink]
                             subbasin = self.chBasinToSubbasin[chBasin]

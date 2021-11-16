@@ -2963,8 +2963,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     _POINTSCREATESQL = \
         """
         CREATE TABLE gis_points (
-            id       INTEGER PRIMARY KEY
-                             UNIQUE
+            id       INTEGER
                              NOT NULL,
             subbasin INTEGER,
             ptype    TEXT,

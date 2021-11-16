@@ -436,10 +436,11 @@ class Delineation(QObject):
                 QSWATUtils.error('Failed to add lakes', self._gv.isBatch)
                 return
         else:
+            reportErrors = not self._dlg.lakeMessagesBox.isChecked()
             if not self._gv.useGridModel and not self.lakePointsAdded and not self._gv.existingWshed:
                 self.progress('Splitting lake channels ...')
                 assert channelsLayer is not None  # since not grid model
-                if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer):
+                if not self.splitChannelsByLakes(lakesLayer, channelsLayer, demLayer, reportErrors):
                     QSWATUtils.error('Failed to split lake channels', self._gv.isBatch)
                     return
                 # layers will have changed
@@ -495,14 +496,14 @@ class Delineation(QObject):
                 self._gv.subsNoLakesFile = QSWATUtils.join(self._gv.shapesDir, 'subsNoLakes.shp')
                 snapThreshold = int(self._dlg.snapThreshold.text())
                 self._gv.topo.addLakes(lakesLayer, subbasinsLayer, chBasinsLayer, streamsLayer, channelsLayer, 
-                                       demLayer, snapThreshold, self._gv)
+                                       demLayer, snapThreshold, self._gv, reportErrors=reportErrors)
                 self._gv.chBasinNoLakeFile = self.createBasinFile(self._gv.wshedFile, demLayer, 'wChannelNoLake', root)
         self._gv.topo.saveLakesData(self._gv.db)
         self.progress('')
         self._dlg.setCursor(Qt.ArrowCursor)
         self._gv.iface.mapCanvas().refresh()
         
-    def splitChannelsByLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer) -> bool:
+    def splitChannelsByLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer, reportErrors: bool) -> bool:
         """Split channels crossing reservoir or pond lake boundaries into two, entering/leaving and within.  
         Then rerun channel basins calculation to split into areas draining to channels and areas draining to lakes.
         
@@ -672,7 +673,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             lakeId = lake[lakeIdIndex]
             geom = lake.geometry()
             if geom.type() != QgsWkbTypes.PolygonGeometry:
-                QSWATUtils.error('Lake {0} does not seem to be a polygon shape'.format(lakeId), self._gv.isbatch)
+                QSWATUtils.error('Lake {0} does not seem to be a polygon shape'.format(lakeId), self._gv.isBatch)
                 return False
             if geom.isMultipart():
                 # find the part with largest area to use as the lake
@@ -702,7 +703,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                     percent = int(secondArea * 100.0 / maxArea + 0.5)
                     QSWATUtils.loginfo('Second part area is {0}% of first'.format(percent))
                     if percent >= 5:
-                        QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch)
+                        QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                 geoMap[lake.id()] = maxPart
             else:
                 geoMap[lake.id()] = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
@@ -756,7 +757,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
 more than once.  Since it starts and terminates in the lake it
 will be assumed that its crossing the lake boundary is an 
 inaccuaracy of delineation and that it is internal to the lake.
-""".format(chLink, lakeId), self._gv.isBatch)
+""".format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                         else:
                             QSWATUtils.information(
 """Channel with LINKNO {0} crosses the  boundary of lake {1}
@@ -764,7 +765,7 @@ more than once.  Since it starts outside and terminates inside
 the lake it will be assumed that its extra crossings of the lake 
 boundary are an inaccuaracy of delineation and that it enters 
 the lake at its first crossing point.
-""".format(chLink, lakeId), self._gv.isBatch)
+""".format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                             currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                     else:
                         if QSWATTopology.polyContains(source, geom, box):
@@ -774,7 +775,7 @@ more than once.  Since it starts in the lake and terminates
 outside it will be assumed that its multiple crossings 
 of the lake boundary are an inaccuaracy of delineation and 
 that it flows out the lake at its last crossing point.
-""".format(chLink, lakeId), self._gv.isBatch)
+""".format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                             currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
                         else:
                             crossingChannels.append((channel, points))
@@ -808,7 +809,7 @@ that it flows out the lake at its last crossing point.
 """Channel with LINKNO {0} enters and then leaves lake {1}.  
 Since it starts and terminates outside the lake it will be 
 assumed that its crossing the lake boundary is an inaccuracy. 
-""".format(chLink0, lakeId), self._gv.isBatch)
+""".format(chLink0, lakeId), self._gv.isBatch, reportErrors=reportErrors)
             if numOutlets == 0:
                 # last chance to include lake - check if it has a watershed outlet inside it
                 for subbasin, (pointId, pt, _) in self._gv.topo.outlets.items():
