@@ -41,7 +41,20 @@ SOURCES = $(PY_FILES)
 
 PACKAGE = QSWATPlus
 
-ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
+ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
+	COMPILER = msvc
+	METADATA = metadata3_9.txt
+	PLUGINNAME = QSWATPlus3_9
+	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
+	OBJ_FILES = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.py)
+	EXTRAPACKAGES = imageio
+	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vuf
+	CPDIR = cp -vufr
+else ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	COMPILER = msvc
 	METADATA = metadata3_64.txt
 	PLUGINNAME = QSWATPlus3_64
@@ -125,7 +138,7 @@ PY_FILES = \
 	outletsdialog.py exempt.py exemptdialog.py split.py splitdialog.py selectlu.py selectludialog.py parameters.py parametersdialog.py \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
-	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
+	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py setuppyx3.9.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
 	ui_convert.py ui_graph.py hrus2.py
 
 PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
@@ -178,6 +191,13 @@ HTML = html
 default: deploy
 
 compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
+
+%.cp39-win_amd64.pyd : %.pyx
+	@echo
+	@echo "------"
+	@echo "Cython"
+	@echo "------"
+	python setuppyx3.9.py build_ext --inplace --compiler=$(COMPILER)
 
 %.cp37-win_amd64.pyd : %.pyx
 	@echo

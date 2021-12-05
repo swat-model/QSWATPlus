@@ -9,7 +9,7 @@
 
 
 [general]
-name=QSWATPlus3_64
+name=QSWATPlus3_9
 qgisMinimumVersion=3.16
 description=Create SWAT+ inputs
 version=2.1.7
@@ -35,4 +35,3 @@ experimental=False
 
 # deprecated flag (applies to the whole plugin, not just a single version
 deprecated=False
-

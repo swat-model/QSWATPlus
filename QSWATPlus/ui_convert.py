@@ -58,4 +58,4 @@ class Ui_arcConvertChoice(object):
         self.existingButton.setText(_translate("arcConvertChoice", "Existing"))
         self.noGISButton.setText(_translate("arcConvertChoice", "No GIS"))
 
-import resources_rc  # @UnresolvedImport
+import resources_rc

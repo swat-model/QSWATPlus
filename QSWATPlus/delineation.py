@@ -405,6 +405,7 @@ class Delineation(QObject):
     def addLakes(self) -> None:
         """Add lakes from lakes shapefile."""
         
+        QSWATUtils.loginfo('{0} outlets before adding lakes'.format(len(self._gv.topo.outlets)))
         if self.lakesDone or self._gv.lakeFile == '':
             return
         if not os.path.exists(self._gv.lakeFile):
@@ -502,6 +503,7 @@ class Delineation(QObject):
         self.progress('')
         self._dlg.setCursor(Qt.ArrowCursor)
         self._gv.iface.mapCanvas().refresh()
+        QSWATUtils.loginfo('{0} outlets after adding lakes'.format(len(self._gv.topo.outlets)))
         
     def splitChannelsByLakes(self, lakesLayer: QgsVectorLayer, channelsLayer: QgsVectorLayer, demLayer: QgsRasterLayer, reportErrors: bool) -> bool:
         """Split channels crossing reservoir or pond lake boundaries into two, entering/leaving and within.  
@@ -906,6 +908,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if channelsLayer is None or not (loaded or self._gv.existingWshed):
             self.cleanUp(-1)
             return False
+        if self._gv.basinFile == '':  # some subbasins were merged
+            self._gv.basinFile = self.createBasinFile(self._gv.subbasinsFile, demLayer, 'wStream', root)
         self._gv.topo.addBasinsToChannelFile(channelsLayer, self._gv.basinFile)
         # recalculate tables dependent on channels
         if not self._gv.topo.saveOutletsAndSources(channelsLayer, snapLayer, False):
@@ -1913,6 +1917,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not self._gv.topo.setUp0(demLayer, chanLayer, snapLayer, ad8Layer, self._gv):
             self.cleanUp(-1)
             return
+        QSWATUtils.loginfo('{0} outlets after setUp0'.format(len(self._gv.topo.outlets)))
         self.isDelineated = True
         self.setMergeResGroups()
         self.saveProj()
@@ -3410,6 +3415,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
             newSubbasin = changedBasins.get(subbasin, -1)
             if newSubbasin >= 0:
                 self._gv.topo.chBasinToSubbasin[chBasin] = newSubbasin
+        # remove subbasin outlets
+        for polygonIdA in changedBasins:
+            del self._gv.topo.outlets[polygonIdA]
+        QSWATUtils.loginfo('{0} outlets after merging subbasins'.format(len(self._gv.topo.outlets)))
                
           
     #==========no longer used=================================================================

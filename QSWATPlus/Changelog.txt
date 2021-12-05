@@ -74,3 +74,8 @@ Version 1.0.0   March 22 2019
 -----------------------------
 
 First official release.
+
+Version 2.1.7  December 5 2021
+------------------------------
+
+Fixed need to recreate subbasin file after merging subbasins if adding lakes.
