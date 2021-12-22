@@ -12,7 +12,7 @@
 name=QSWATPlus3_9
 qgisMinimumVersion=3.16
 description=Create SWAT+ inputs
-version=2.1.7
+version=2.1.8
 author=Chris George
 email=cgeorge@mcmaster.ca
 

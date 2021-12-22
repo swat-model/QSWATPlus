@@ -79,3 +79,9 @@ Version 2.1.7  December 5 2021
 ------------------------------
 
 Fixed need to recreate subbasin file after merging subbasins if adding lakes.
+
+Version 2.1.8  December 22 2021
+-------------------------------
+
+Fixed use of chBasinToBasin to get channel's subbasin after the channel's 
+basin has been removed as empty or below one pixel.

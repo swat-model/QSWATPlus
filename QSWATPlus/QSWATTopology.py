@@ -798,6 +798,7 @@ class QSWATTopology:
         if channelDrainAreaIndex < 0:
             channelDrainAreaIndex = channelsProvider.fieldNameIndex(QSWATTopology._DRAINAREA2)
         channelWSNOIndex = channelsProvider.fieldNameIndex(QSWATTopology._WSNO)
+        channelBasinIndex = channelsProvider.fieldNameIndex(QSWATTopology._BASINNO)
         self.addLakeFieldsToChannels(channelsLayer)
         channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
         channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
@@ -960,8 +961,10 @@ class QSWATTopology:
                                 else:
                                     replace = False
                             if replace:
-                                wsno = channel[channelWSNOIndex]
-                                subbasin = self.chBasinToSubbasin[wsno]
+                                # don't use WSNO as route to subbasin as channel basin may have been deleted
+                                # wsno = channel[channelWSNOIndex]
+                                # subbasin = self.chBasinToSubbasin[wsno]
+                                subbasin = channel[channelBasinIndex]
                                 lakeData.outPoint = (subbasin, dsNode, outlet, outflowData.lowerZ)
                                 lakeData.outChLink = dsLink
                             else:

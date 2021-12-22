@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_9"
 #define MyAppVersion "2.1"
-#define MyAppSubVersion "7"
+#define MyAppSubVersion "8"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -42,7 +42,7 @@ Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
 
 [Files]
 Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs   
-Source: "C:\SWAT\SWATPlus\TauDEM539Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
+Source: "C:\SWAT\SWATPlus\TauDEM539BinWithDLLs\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 Source: "C:\SWAT\SWATPlus\Databases\plantWithWETW.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 
