@@ -32,7 +32,7 @@ from multiprocessing import Pool
 
 from QSWATPlus.QSWATPlus import QSWATPlus  # @UnresolvedImport
 from QSWATPlus.delineation import Delineation  # @UnresolvedImport
-from QSWATPlus.hrus2 import HRUs  # @UnresolvedImport
+from QSWATPlus.hrus import HRUs  # @UnresolvedImport
 import traceback
 
 

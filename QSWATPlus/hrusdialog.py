@@ -22,7 +22,7 @@
 
 from qgis.PyQt import QtWidgets
 
-from .ui_hrus2 import Ui_Dialog
+from .ui_hrus import Ui_Dialog
 
 
 class HrusDialog(QtWidgets.QDialog, Ui_Dialog):

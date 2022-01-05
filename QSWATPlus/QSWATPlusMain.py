@@ -52,7 +52,7 @@ try:
     txt = 'QSwatDialog'
     from .qswatdialog import QSwatDialog
     txt = 'HRUs'
-    from .hrus2 import HRUs
+    from .hrus import HRUs
     txt = 'QSWATTopology'
     from .QSWATTopology import QSWATTopology
     txt = 'GlobalVars'

@@ -113,7 +113,6 @@ class CreateHRUs(QObject):
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
         self._dlg = dialog
-        self._progressLabel = self._dlg.progressLabel
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -172,7 +171,8 @@ class CreateHRUs(QObject):
     
     def progress(self, msg: str) -> None:
         """Update progress label with message; emit message for display in testing."""
-        QSWATUtils.progress(msg, self._progressLabel)
+        progressLabel = self._dlg.progressLabel1 if self._dlg.HRUsTab.currentIndex() == 0 else self._dlg.progressLabel2
+        QSWATUtils.progress(msg, progressLabel)
         if msg != '':
             self.progress_signal.emit(msg)
         
@@ -353,7 +353,8 @@ class CreateHRUs(QObject):
         # counts to calculate landuse and soil overlaps
         landuseCount = 0
         landuseNoDataCount = 0
-        soilCount = 0
+        soilDefinedCount = 0
+        soilUndefinedCount = 0
         soilNoDataCount = 0
         
         # prepare slope bands grid
@@ -634,7 +635,9 @@ class CreateHRUs(QObject):
                             floodRow = floodRowFun(row, y)
                         for col in colRange:
                             elevation = cast(float, elevationData[row - elevationTopRow, col])
-                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                            if math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                                elev = elevationNoData
+                            else:
                                 elev = int(elevation * self._gv.verticalFactor)
                                 index: int = elev - self.minElev
                                 # can have index too large because max not calculated properly by gdal
@@ -682,14 +685,20 @@ class CreateHRUs(QObject):
                             else:
                                 soil = soilNoData
                             if soil is None or math.isnan(soil) or soil <= soilNoData < 0:
-                                soilNoDataCount += 1
+                                soilIsNoData = True
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
                                 soil = self._db.defaultSoil
                             else:
-                                soilCount += 1
+                                soilIsNoData = False
                             # use an equivalent soil if any
-                            soil = self._db.translateSoil(int(soil))
+                            soil, OK = self._db.translateSoil(int(soil))
+                            if soilIsNoData:
+                                soilNoDataCount += 1
+                            elif OK:
+                                soilDefinedCount += 1
+                            else:
+                                soilUndefinedCount += 1
                             if 0 <= slopeRow - slopeTopRow < slopeActReadRows:
                                 slopeCol = slopeColFun(col, x)
                                 if 0 <= slopeCol < slopeNumberCols:
@@ -855,7 +864,9 @@ class CreateHRUs(QObject):
                             else:
                                 elevation = elevationNoData
                                 wpVal = wpNoData
-                            if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                            if math.isclose(elevation, elevationNoData, rel_tol=1e-06):
+                                elev = elevationNoData
+                            else:
                                 elev = int(elevation * self._gv.verticalFactor)
                             crop = -1
                             if usePlaya:
@@ -869,6 +880,10 @@ class CreateHRUs(QObject):
                                         crop = cropNoData
                                 else:
                                     crop = cropNoData
+                            # landuse maps used for HUC models have 0 in Canada
+                            # so to prevent messages about 0 not recognised as a landuse
+                            if self._gv.isHUC and crop == 0:
+                                crop = cropNoData
                             if crop == cropNoData:
                                 landuseNoDataCount += 1
                             else:
@@ -883,16 +898,41 @@ class CreateHRUs(QObject):
                             else:
                                 soil = soilNoData
                             if soil == soilNoData:
-                                soilNoDataCount += 1
+                                soilIsNoData = True
                             else:
-                                soilCount += 1
+                                soilIsNoData = False
                                 # use an equivalent soil if any
-                                soil = self._db.translateSoil(int(soil))
+                                soil, OK = self._db.translateSoil(int(soil))
+                            if soilIsNoData:
+                                soilNoDataCount += 1
+                            elif OK:
+                                soilDefinedCount += 1
+                            else:
+                                soilUndefinedCount += 1
+                            # make sure crop and soil do not conflict about water
+                            isWet = False
+                            if crop != cropNoData:
+                                cropCode = self._gv.db.getLanduseCode(crop)
+                                isWet = cropCode in Parameters._WATERLANDUSES 
+                            if self._gv.db.useSSURGO:
+                                if isWet:
+                                    soil = Parameters._SSURGOWater
+                                else:
+                                    if soil == Parameters._SSURGOWater:
+                                        isWet = True
+                                        if crop == cropNoData or cropCode not in Parameters._WATERLANDUSES:
+                                            crop = self._gv.db.getLanduseCat('WATR')
                             slopeCol = slopeColFun(col, x)
                             if 0 <= slopeCol < slopeNumberCols and 0 <= slopeRow < slopeNumberRows:
                                 slopeValue = cast(float, slopeData[0, slopeCol])
                             else:
                                 slopeValue = slopeNoData
+                            # set water or wetland pixels to have slope at most WATERMAXSLOPE
+                            if isWet:
+                                if slopeValue == slopeNoData:
+                                    slopeValue = Parameters._WATERMAXSLOPE
+                                else:
+                                    slopeValue = min(slopeValue, Parameters._WATERMAXSLOPE)
                             if slopeValue != slopeNoData:
                                 # for HUC, slope bands only used for agriculture
                                 if not self._gv.isHUC or self._gv.db.isAgriculture(crop):
@@ -984,15 +1024,42 @@ class CreateHRUs(QObject):
             QSWATUtils.loginfo('Landuse cover percent: {0}'.format(locale.format_string('%.1F', landusePercent)))
             if landusePercent < 95:
                 QSWATUtils.information('WARNING: only {0} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(locale.format_string('%.1F', landusePercent)), self._gv.isBatch)
-            if soilCount + soilNoDataCount == 0:
-                soilPercent = 0.0
+            soilMapPercent = (float(soilDefinedCount + soilUndefinedCount) / (soilDefinedCount + soilUndefinedCount + soilNoDataCount)) * 100
+            QSWATUtils.loginfo('Soil cover percent: {0}'.format(locale.format_string('%.1F', soilMapPercent)))
+            if soilDefinedCount + soilUndefinedCount > 0:
+                soilDefinedPercent = (float(soilDefinedCount) / (soilDefinedCount + soilUndefinedCount)) * 100
             else:
-                soilPercent = (soilCount / (soilCount + soilNoDataCount)) * 100
-            QSWATUtils.loginfo('Soil cover percent: {0}'.format(locale.format_string('%.1F', soilPercent)))
-            if soilPercent < 95:
-                QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilPercent)), self._gv.isBatch)
-            if not self.noCropOrSoilLSUs():
-                return False
+                soilDefinedPercent = 0
+            QSWATUtils.loginfo('Soil defined percent: {0}'.format(locale.format_string('%.1F', soilDefinedPercent)))
+            under95 = False
+            if self._gv.isHUC:
+                huc12 = self._gv.projName[3:]
+                logFile = self._gv.logFile
+                if soilMapPercent < 1:
+                    # start of message is key phrase for HUC12Models
+                    QSWATUtils.information(u'EMPTY PROJECT: only {0} percent of the watershed in project huc{1} is inside the soil map'
+                                           .format(locale.format_string('%.1F', soilMapPercent), huc12), self._gv.isBatch, logFile=logFile)
+                    return False
+                elif soilMapPercent < 95:
+                    # start of message is key phrase for HUC12Models
+                    QSWATUtils.information('UNDER95 WARNING: only {0} percent of the watershed in project huc{1} is inside the soil map.'
+                                           .format(locale.format_string('%.1F', soilMapPercent), huc12), self._gv.isBatch, logFile=logFile)
+                    under95 = True
+                elif soilMapPercent < 99.95: # always give statistic for HUC models; avoid saying 100.0 when rounded to 1dp
+                    # start of message is key word for HUC12Models
+                    QSWATUtils.information('WARNING: only {0} percent of the watershed in project huc{1} is inside the soil map.'
+                                           .format(locale.format_string('%.1F', soilMapPercent), huc12), self._gv.isBatch, logFile=logFile)
+                if soilDefinedPercent < 80:
+                    # start of message is key word for HUC12Models
+                    QSWATUtils.information('WARNING: only {0} percent of the watershed in project huc{1} has defined soils.'
+                                           .format(locale.format_string('%.1F', soilDefinedPercent), huc12), self._gv.isBatch, logFile=logFile)
+            else:
+                if soilMapPercent < 95:
+                    QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilMapPercent)), self._gv.isBatch)
+                    under95 = True
+                    # only run this for non-HUC models: previous warnings sufficient
+                if not self.noCropOrSoilLSUs():
+                    return False
             if self._gv.useLandscapes:
                 self.progress('Creating landscape units shapes ...')
                 lsuShapes.finish()
@@ -1040,7 +1107,7 @@ class CreateHRUs(QObject):
             # clear memory
             if not self._gv.useGridModel:
                 basinDs = None
-            self.saveAreas(True)
+            self.saveAreas(True, redistributeNodata=not (under95 and self._gv.isHUC))
             self.progress('Writing HRU data to database ...')
             if not self._db.createBasinsDataTables(cursor):
                 return False
@@ -1428,7 +1495,7 @@ class CreateHRUs(QObject):
                                     feature.setAttribute(chIndx, SWATChannel)
                                     feature.setAttribute(catIndx, QSWATUtils.landscapeName(landscape, self._gv.useLeftRight, notEmpty=True))
                                     feature.setAttribute(luseIndx, self._db.getLanduseCode(crop))
-                                    feature.setAttribute(soilIndx, self._db.getSoilName(soil))
+                                    feature.setAttribute(soilIndx, self._db.getSoilName(soil)[0])
                                     feature.setAttribute(slopeIndx, self._db.slopeRange(slope))
                                     shapeArea = shapes.area(hru) * self._gv.horizontalFactor * self._gv.horizontalFactor  # type: ignore
                                     feature.setAttribute(areaIndx, shapeArea / 1E4)
@@ -1751,14 +1818,66 @@ class CreateHRUs(QObject):
                 count += len(channelData)
         return count
         
-    def saveAreas(self, isOriginal: bool) -> None:
+    def saveAreas(self, isOriginal: bool, redistributeNodata=True) -> None:
         """Create area maps for each subbasin."""
         if self._gv.useGridModel:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys()) + list(self._gv.topo.chLinkFromLake.keys())
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
         for data in self.basins.values():
-            data.setAreas(isOriginal, chLinksByLakes, self._gv.db.waterLanduse)
+            data.setAreas(isOriginal, chLinksByLakes, self._gv.db.waterLanduse, redistributeNodata=redistributeNodata)
+    #===========================================================================
+    #     if not redistributeNodata:
+    #         # need to correct the drain areas of the basins, using the defined area of each
+    #         self.defineDrainAreas()
+    #         
+    # def defineDrainAreas(self) -> None:
+    #     """Reset drain areas map according to defined area value of each basin and update Reach table.  
+    #     For use with HUC models, so we can assume number of basins is small and use recursion.
+    #     Also assumes (because HUC model) there are no basins above inlets."""
+    #     
+    #     def drainArea(us: Dict[int, List[int]], chLink: int) -> float:
+    #         """Return drain area for link."""
+    #         
+    #         drainAreaDone = self._gv.topo.drainAreas.get(chLink, -1)
+    #         if drainAreaDone >= 0:
+    #             return drainAreaDone
+    #         chBasin = self._gv.topo.chLinkToChBasin.get(chLink, -1)
+    #         basin = self._gv.topo.chBasinToSubbasin.get(chBasin, -1)
+    #         if basin < 0:
+    #             result = 0.0
+    #         else:
+    #             basinData = self.basins.get(basin, None)
+    #             if basinData is None:
+    #                 result = 0.0
+    #             else:
+    #                 ups = us.get(link, [])
+    #                 result = basinData.cropSoilSlopeArea + sum([drainArea(us, l) for l in ups])
+    #         self._gv.topo.drainAreas[link] = result
+    #         return result
+    #         
+    #     # build us relation from downChannels map
+    #     assert self._gv.isHUC, "Internal error: definedDrainAreas called for non-HUC model"
+    #     us: Dict[int, List[int]] = dict()
+    #     for link, dsLink in self._gv.topo.downChannels.items():
+    #         if dsLink >= 0:
+    #             ups = us.setdefault(dsLink, [])
+    #             ups.append(link)
+    #     # redefine link drain areas and update Reach table
+    #     self._gv.topo.drainAreas = dict()
+    #     sql = 'UPDATE Reach SET AreaC=?, Wid2=?, Dep2=? WHERE Subbasin=?'
+    #     for chLink, chBasin in self._gv.topo.chLinkToChBasin.items():
+    #         basin = self._gv.topo.chBasinToSubbasin.get(chBasin, -1)
+    #         basinData = self.basins.get(basin, None)
+    #         if basinData is not None:
+    #             basinData.drainArea = drainArea(us, chLink)
+    #             drainAreaHa = basinData.drainArea / 1E4
+    #             drainAreaKm = drainAreaHa / 1E2
+    #             SWATBasin = self._gv.topo.subbasinToSWATBasin[basin]
+    #             channelWidth = float(self._gv.channelWidthMultiplier * drainAreaKm ** self._gv.channelWidthExponent)
+    #             channelDepth = floatself._gv.channelDepthMultiplier * drainAreaKm ** self._gv.channelDepthExponent)
+    #             conn.execute(sql, (basinData.drainArea / 1E4, channelWidth, channelDepth, SWATBasin))
+    #===========================================================================
         
     def maxLandscapeArea(self) -> float:
         """
@@ -1953,7 +2072,7 @@ class CreateHRUs(QObject):
                                         cellData = lsuData.hruMap[hru]
                                         if soilArea == 0:
                                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                                            soilName = self._db.getSoilName(soil)
+                                            soilName, _ = self._db.getSoilName(soil)
                                             QSWATUtils.error('soil {0} in LSU {1} seems to have no area'.format(soilName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
                                             slopeVal = 0
                                         else:
@@ -2808,7 +2927,7 @@ class CreateHRUs(QObject):
                     self._gv.topo.writeChannelsTable(self.mergedChannels, self.basins, self._gv)
                     demLayer = QgsRasterLayer(self._gv.demFile, 'DEM')
                     self.progress('Writing points, routing and hrus tables ...')
-                    self._gv.topo.writePointsTable(demLayer, self.mergees, self._gv.useGridModel)
+                    self._gv.topo.writePointsTable(demLayer, self.mergees, self._gv.useGridModel, self._gv.existingWshed)
                     if not self._db.createRoutingTable():
                         QSWATUtils.error('Failed to create table gis_routing in project database', self._gv.isBatch)
                         return
@@ -2888,7 +3007,7 @@ class CreateHRUs(QObject):
                     continue
             basinData = self.basins[basin]
             subHa = basinData.subbasinArea() / 1E4
-            assert subHa > 0, 'SWAT basin {0} seems to be empty'.format(SWATBasin)
+            #assert subHa > 0, 'SWAT basin {0} seems to be empty'.format(SWATBasin)
             # basinHa earlier asserted to be positive
             percent = (subHa / basinHa) * 100
             st1 = 'Area [ha]'
@@ -2910,6 +3029,10 @@ class CreateHRUs(QObject):
             fw.writeLine('Landuse')
             originalCropAreas = basinData.cropAreas(True)
             basinWaterBodiesArea = self.basinWaterBodiesArea(basinData)
+            if self._gv.isHUC:
+                # avoid empty subbasin errors
+                noLanduseReported = True
+                noSoilReported = True
             if not withHRUs and len(originalCropAreas) == 0:
                 hasCrop = False
                 if basinWaterBodiesArea == 0:
@@ -3055,7 +3178,7 @@ class CreateHRUs(QObject):
                         # replace WATR with WETW
                         if luse.upper() == 'WATR':
                             luse = 'WETW'
-                        snam = self._db.getSoilName(soil)
+                        snam, _ = self._db.getSoilName(soil)
                         slp = self._db.slopeRange(slope)
                         cropSoilSlope = luse + '/' + snam + '/' + slp
                         # replace BARR with None (to make NULL)
@@ -3186,7 +3309,7 @@ class CreateHRUs(QObject):
                 hruNum = None
                 for soilSlopeNumbers in lsuData.cropSoilSlopeNumbers.values():
                     for soil, slopeNumbers in soilSlopeNumbers.items():
-                        if self._db.getSoilName(soil) == soilName:
+                        if self._db.getSoilName(soil)[0] == soilName:
                             for slope, hru in slopeNumbers.items():
                                 cellData = lsuData.hruMap[hru]
                                 if self._db.getLanduseCode(cellData.crop) == origCropCode and self._db.slopeRange(slope) == slopeRange:
@@ -3665,7 +3788,7 @@ class CreateHRUs(QObject):
                 cellCount = basinData.subbasinCellCount()
                 waterId = basinData.waterId
                 assert waterId > 0 or cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
-                meanSlope = 0 if waterId > 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
+                meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                 meanSlopePercent = meanSlope * 100
                 farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
                 slsubbsn = QSWATUtils.getSlsubbsn(meanSlope)
@@ -3673,7 +3796,7 @@ class CreateHRUs(QObject):
                 centroidll = self._gv.topo.pointToLatLong(QgsPointXY(centreX, centreY))
                 lat = centroidll.y()
                 lon = centroidll.x()
-                meanElevation = 0.0 if waterId > 0 else basinData.totalElevation() / cellCount
+                meanElevation = 0.0 if waterId > 0 or cellCount == 0 else basinData.totalElevation() / cellCount
                 elevMin = 0.0 if waterId > 0 else basinData.minElevation
                 elevMax = 0.0 if waterId > 0 else basinData.maxElevation
                 if addToSubs1:
@@ -3733,18 +3856,25 @@ class CreateHRUs(QObject):
                         if areaHa == 0:
                             QSWATUtils.error('LSU {0} in subbasin {1} has zero area'.format(lsuId, SWATBasin), self._gv.isBatch)
                         areaKm = areaHa / 100
-                        assert lsuData.cellCount > 0, 'LSU {0!s} has zero cell count'.format(lsuId)
-                        meanSlopePercent = (lsuData.totalSlope / lsuData.cellCount) \
+                        if not self._gv.isHUC:
+                            assert lsuData.cellCount > 0, 'LSU {0!s} has zero cell count'.format(lsuId)
+                        meanSlopePercent = 0 if lsuData.cellCount == 0 else \
+                                            (lsuData.totalSlope / lsuData.cellCount) \
                                             * 100 * self._gv.meanSlopeMultiplier
                         tribSlopePercent = 0 if tribDistance < 1 else (tribDrop / tribDistance) \
                                                                     * 100 * self._gv.tributarySlopeMultiplier
                         tribWidth = self._gv.channelWidthMultiplier * (areaKm ** self._gv.channelWidthExponent)
                         tribDepth = self._gv.channelDepthMultiplier * (areaKm ** self._gv.channelDepthExponent)
-                        centroid = self._gv.topo.pointToLatLong(QgsPointXY(lsuData.totalLongitude / lsuData.cellCount, 
-                                                                         lsuData.totalLatitude / lsuData.cellCount))
-                        lat = centroid.y()
-                        lon = centroid.x()
-                        meanElev = lsuData.totalElevation / lsuData.cellCount
+                        if lsuData.cellCount == 0:
+                            lat = 0
+                            lon = 0
+                            meanElev = 0
+                        else:
+                            centroid = self._gv.topo.pointToLatLong(QgsPointXY(lsuData.totalLongitude / lsuData.cellCount, 
+                                                                             lsuData.totalLatitude / lsuData.cellCount))
+                            lat = centroid.y()
+                            lon = centroid.x()
+                            meanElev = lsuData.totalElevation / lsuData.cellCount
                         curs.execute(DBUtils._LSUSINSERTSQL, (lsuId, landscape, SWATChannel, areaHa, meanSlopePercent, 
                                            tribDistance, tribSlopePercent, tribWidth, tribDepth, lat, lon, meanElev))
                         self._gv.db.addKey(lsutable, lsuId)
@@ -4686,25 +4816,25 @@ class CreateHRUs(QObject):
             if landuseCode.upper() == 'WATR':
                 landuseCode = 'WETW'
             area = areaM / 10000
-            string0 = '{:.2F}'.format(area).rjust(15)
+            string0 = locale.format_string('%.2F', area).rjust(15)
             if original is not None:
                 # crop may not have been in original because of splitting
                 originalArea = original.get(crop, 0) / 10000
-                string0 += locale.format_string('%.2F', originalArea).rjust(15)  
+                string0 += locale.format_string('(%.2F)', originalArea).rjust(15)  
             fw.write(landuseCode.rjust(30) + string0)
             if total1 > 0:
                 percent1 = (area / total1) * 100
                 string1 = locale.format_string('%.2F', percent1).rjust(15)
                 if original:
                     opercent1 = (originalArea / total1) * 100
-                    string1 += locale.format_string('%.2F', opercent1).rjust(8)
+                    string1 += locale.format_string('(%.2F)', opercent1).rjust(8)
                 fw.write(string1)
                 if total2 > 0:
                     percent2 = (area / total2) * 100
                     string2 = locale.format_string('%.2F', percent2).rjust(15)
                     if original:
                         opercent2 = (originalArea / total2) * 100
-                        string2 += locale.format_string('%.2F', opercent2).rjust(8)
+                        string2 += locale.format_string('(%.2F)', opercent2).rjust(8)
                     fw.write(string2)
             fw.writeLine('')
         # if have original, add entries for originals that have been removed
@@ -4715,13 +4845,13 @@ class CreateHRUs(QObject):
                     if landuseCode.upper() == 'WATR':
                         landuseCode = 'WETW'
                     originalArea = areaM / 10000
-                    fw.write(landuseCode.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
+                    fw.write(landuseCode.rjust(30) + locale.format_string('(%.2F)', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent2).rjust(23))
                     fw.writeLine('')
        
     def printSoilAreas(self, soilAreas: Optional[Dict[int, float]], originalSoilAreas: Dict[int, float], total1: float, total2: float, fw: fileWriter) -> None:
@@ -4737,41 +4867,41 @@ class CreateHRUs(QObject):
             main = soilAreas
             original = originalSoilAreas
         for (soil, areaM) in main.items():
-            soilName = self._db.getSoilName(soil)
+            soilName = self._db.getSoilName(soil)[0]
             area = areaM / 10000
             string0 = locale.format_string('%.2F', area).rjust(15)
             if original:
                 originalArea = original[soil] / 10000
-                string0 += locale.format_string('%.2F', originalArea).rjust(15)  
+                string0 += locale.format_string('(%.2F)', originalArea).rjust(15)  
             fw.write(soilName.rjust(30) + string0)
             if total1 > 0:
                 percent1 = (area / total1) * 100
                 string1 = locale.format_string('%.2F', percent1).rjust(15)
                 if original:
                     opercent1 = (originalArea / total1) * 100
-                    string1 += locale.format_string('%.2F', opercent1).rjust(8)
+                    string1 += locale.format_string('(%.2F)', opercent1).rjust(8)
                 fw.write(string1)
                 if total2 > 0:
                     percent2 = (area / total2) * 100
                     string2 = locale.format_string('%.2F', percent2).rjust(15)
                     if original:
                         opercent2 = (originalArea / total2) * 100
-                        string2 += locale.format_string('%.2F', opercent2).rjust(8)
+                        string2 += locale.format_string('(%.2F)', opercent2).rjust(8)
                     fw.write(string2)
             fw.writeLine('')
         # if have original, add entries for originals that have been removed
         if original:
             for (soil, areaM) in original.items():
                 if soil not in main:
-                    soilName = self._db.getSoilName(soil)
+                    soilName = self._db.getSoilName(soil)[0]
                     originalArea = areaM / 10000
-                    fw.write(soilName.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
+                    fw.write(soilName.rjust(30) + locale.format_string('(%.2F)', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent2).rjust(23))
                     fw.writeLine('')
         
     def printSlopeAreas(self, slopeAreas: Optional[Dict[int, float]], originalSlopeAreas: Dict[int, float], total1: float, total2: float, fw: fileWriter) -> None:
@@ -4794,21 +4924,21 @@ class CreateHRUs(QObject):
                 string0 = locale.format_string('%.2F', area).rjust(15)
                 if original:
                     originalArea = original[i] / 10000
-                    string0 += locale.format_string('%.2F', originalArea).rjust(15)  
+                    string0 += locale.format_string('(%.2F)', originalArea).rjust(15)  
                 fw.write(slopeRange.rjust(30) + string0)
                 if total1 > 0:
                     percent1 = (area / total1) * 100
                     string1 = locale.format_string('%.2F', percent1).rjust(15)
                     if original:
                         opercent1 = (originalArea / total1) * 100
-                        string1 += locale.format_string('%.2F', opercent1).rjust(8)
+                        string1 += locale.format_string('(%.2F)', opercent1).rjust(8)
                     fw.write(string1)
                     if total2 > 0:
                         percent2 = (area / total2) * 100
                         string2 = locale.format_string('%.2F', percent2).rjust(15)
                         if original:
                             opercent2 = (originalArea / total2) * 100
-                            string2 += locale.format_string('%.2F', opercent2).rjust(8)
+                            string2 += locale.format_string('(%.2F)', opercent2).rjust(8)
                         fw.write(string2)
                 fw.writeLine('')
         # if have original, add entries for originals that have been removed
@@ -4817,13 +4947,13 @@ class CreateHRUs(QObject):
                 if i in original and i not in main:
                     slopeRange = self._db.slopeRange(i)
                     originalArea = original[i] / 10000
-                    fw.write(slopeRange.rjust(30) + locale.format_string('%.2F', originalArea).rjust(30))
+                    fw.write(slopeRange.rjust(30) + locale.format_string('(%.2F)', originalArea).rjust(30))
                     if total1 > 0:
                         opercent1 = (originalArea / total1) * 100
-                        fw.write(locale.format_string('%.2F', opercent1).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent1).rjust(23))
                     if total2 > 0:
                         opercent2 = (originalArea / total2) * 100
-                        fw.write(locale.format_string('%.2F', opercent2).rjust(23))
+                        fw.write(locale.format_string('(%.2F)', opercent2).rjust(23))
                     fw.writeLine('')
                     
     def printLakeArea(self, areaCat: Tuple[float, str], total: float, num: int, withHRUs: bool, fw: fileWriter) -> None:
@@ -4872,6 +5002,9 @@ class HRUs(QObject):
         self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
         self._dlg.move(self._gv.hrusPos)
         self._reportsCombo = reportsCombo
+        ## start in landuse and soil tabsese
+        self._dlg.HRUsTab.setCurrentIndex(0)
+        self._dlg.HRUsTab.setTabEnabled(1, False)
         ## Landuse grid
         self.landuseFile = ''
         ## Soil grid
@@ -4973,6 +5106,11 @@ class HRUs(QObject):
         self._dlg.exemptButton.clicked.connect(self.doExempt)
         self._dlg.splitButton.clicked.connect(self.doSplit)
         self._dlg.elevBandsButton.clicked.connect(self.doElevBands)
+        self._dlg.HRUsTab.currentChanged.connect(self.switchTabs)
+        
+    def switchTabs(self, i):  # @UnusedVariable
+        #QSWATUtils.information('Switched to tab {}'.format(i), False)
+        self.progress('')
         
     def initFloodplain(self) -> None:
         """
@@ -5097,7 +5235,7 @@ class HRUs(QObject):
 #             return False
 #===============================================================================
     
-    def readFiles(self) -> None:
+    def readFiles(self) -> bool:
         """Read landuse and soil data from files 
         or from previous run stored in project database
         or redo merge of short channels.
@@ -5117,25 +5255,27 @@ class HRUs(QObject):
             self._dlg.fullHRUsLabel.setText('Full HRUs count: {0}'.format(self.CreateHRUs.countHRUs()))
             # write landuse, soil, landscape choices in case of failure later
             self.saveProjPart1()
+            self._dlg.HRUsTab.setTabEnabled(1, True)
             self._dlg.hruChoiceGroup.setEnabled(True)
             self._dlg.areaPercentChoiceGroup.setEnabled(True)
             self._dlg.splitButton.setEnabled(True)
             self._dlg.exemptButton.setEnabled(True)
             self.setHRUChoice()
-            return
+            return True
         root = QgsProject.instance().layerTreeRoot()
         # check with user if there is a visible floodplain layer but no floodplain raster selected
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and \
             self._dlg.floodplainCombo.currentIndex() == 0 and self.hasVisibleFloodplainLayer(root):
             res = QSWATUtils.question('You have at least one floodplain map available.  Would you like to select one?', False, False)
             if res == QMessageBox.Yes:
-                return
+                return False
         # check if there is a slope limit not yet inserted
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and self._dlg.slopeBand.text() != '':
             res = QSWATUtils.question('You seem to be about to insert a slope limit.  Would you like to complete that?', False, False)
             if res == QMessageBox.Yes:
-                return
+                return False
         self._gv.writeProjectConfig(-1, 0)
+        self._dlg.HRUsTab.setTabEnabled(1, False)
         # don't hide undefined soil and landuse errors from previous run
         self._db._undefinedLanduseIds = []
         self._db._undefinedSoilIds = []
@@ -5144,10 +5284,10 @@ class HRUs(QObject):
         self._dlg.elevBandsButton.setEnabled(False)
         if not os.path.exists(self.landuseFile):
             QSWATUtils.error('Please select a landuse file', self._gv.isBatch)
-            return
+            return False
         if not os.path.exists(self.soilFile):
             QSWATUtils.error('Please select a soil file', self._gv.isBatch)
-            return
+            return False
         self._gv.landuseFile = self.landuseFile
         self._gv.soilFile = self.soilFile
         if self._gv.isBatch:
@@ -5162,13 +5302,13 @@ class HRUs(QObject):
         if not self.initLanduses(luse):
             self._dlg.setCursor(Qt.ArrowCursor)
             self.progress('')
-            return
+            return False
         #QSWATUtils.information('Using {0} as landuse table'.format(self.landuseTable), self._gv.isBatch)
         self.progress('Checking soils ...')
         if not self.initSoils(soil):
             self._dlg.setCursor(Qt.ArrowCursor)
             self.progress('')
-            return
+            return False
         # write landuse, soil, landscape choices in case of failure later
         self.saveProjPart1()
         #QSWATUtils.information('Using {0} as soil table'.format(self.soilTable), self._gv.isBatch)
@@ -5197,6 +5337,7 @@ class HRUs(QObject):
                     self._reportsCombo.addItem(Parameters._TOPOITEM)
                 if self._reportsCombo.findText(Parameters._BASINITEM) < 0:
                     self._reportsCombo.addItem(Parameters._BASINITEM)
+                self._dlg.HRUsTab.setTabEnabled(1, True)
         else:
             self.progress('Reading rasters ...')
             self._gv.useLandscapes = False
@@ -5271,8 +5412,10 @@ class HRUs(QObject):
             self._dlg.areaPercentChoiceGroup.setEnabled(True)
             self._dlg.splitButton.setEnabled(True)
             self._dlg.exemptButton.setEnabled(True)
+            self._dlg.HRUsTab.setTabEnabled(1, True)
             self.setHRUChoice()
             self.saveProj()
+        return OK
             
     def hasVisibleFloodplainLayer(self, root: QgsLayerTree) -> bool:
         """Return true if there is a visible layer with a name starting 'Floodplain'."""
@@ -5442,7 +5585,6 @@ class HRUs(QObject):
             self._dlg.selectSoilTable.setEnabled(True)
             self._dlg.selectUsersoilTable.setVisible(False)
             self._dlg.selectUsersoilTableLabel.setVisible(False)
-            self._db.usersoilTable = 'statsgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use STATSGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
@@ -5455,7 +5597,6 @@ class HRUs(QObject):
             self._dlg.selectSoilTable.setEnabled(False)
             self._dlg.selectUsersoilTable.setVisible(False)
             self._dlg.selectUsersoilTableLabel.setVisible(False)
-            self._db.usersoilTable = 'ssurgo'
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
@@ -5486,7 +5627,8 @@ class HRUs(QObject):
         
     def setRead(self) -> None:
         """Set dialog to read from maps or from previous run."""
-        if self._db.hasData('BASINSDATA'):
+        # for safety always rerun reading files for HUC projects
+        if self._db.hasData('BASINSDATA') and not self._gv.isHUC:
             self._dlg.readFromPrevious.setEnabled(True)
             self._dlg.readFromPrevious.setChecked(True)
         else:
@@ -5904,7 +6046,8 @@ class HRUs(QObject):
     
     def progress(self, msg: str) -> None:
         """Update progress label with message; emit message for display in testing."""
-        QSWATUtils.progress(msg, self._dlg.progressLabel)
+        progressLabel = self._dlg.progressLabel1 if self._dlg.HRUsTab.currentIndex() == 0 else self._dlg.progressLabel2
+        QSWATUtils.progress(msg, progressLabel)
         if msg != '':
             self.progress_signal.emit(msg)
        
@@ -6002,10 +6145,9 @@ class HRUs(QObject):
         if found and usersoilTable != '':
             self._db.usersoilTable = usersoilTable
         else:
-            if self._db.useSSURGO:
-                self._db.usersoilTable = 'ssurgo'
-            elif self._db.useSTATSGO:
-                self._db.usersoilTable = 'statsgo'
+            # usersoilTable only used for user-chosen tables
+            if self._db.useSSURGO or self._db.useSTATSGO:
+                self._db.usersoilTable = ''
             else:
                 self._db.usersoilTable = 'usersoil'
         useLandscapes, found = proj.readBoolEntry(title, 'lsu/useLandscapes', False)

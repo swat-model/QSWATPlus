@@ -42,7 +42,7 @@ from processing.core.Processing import Processing  # @UnresolvedImport
 from QSWATPlus.QSWATPlusMain import QSWATPlus
 from QSWATPlus.delineation import Delineation
 from QSWATPlus.landscape import Landscape
-from QSWATPlus.hrus2 import HRUs
+from QSWATPlus.hrus import HRUs
 from QSWATPlus.QSWATUtils import QSWATUtils, FileTypes
 from QSWATPlus.parameters import Parameters
 from QSWATPlus.selectsubs import SelectSubbasins
