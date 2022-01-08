@@ -49,7 +49,7 @@ from QSWATTopology import QSWATTopology  # @UnresolvedImport
 #from TauDEMUtils import TauDEMUtils
 #from polygonizeInC2 import Polygonize  # @UnresolvedImport
 if not TYPE_CHECKING:
-    from QSWATPlus import QSWATPlus
+    from QSWATPlusMain import QSWATPlus  # @UnresolvedImport
 from parameters import Parameters  # @UnresolvedImport
 
 

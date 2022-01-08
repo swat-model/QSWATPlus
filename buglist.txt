@@ -78,6 +78,11 @@ convertFromArc.py lines 1154, 1247
 Downstream channel does not exist when it is a reservoir
 visualise.py line 3477
 
-10/3/21 # 21
+10/3/2021 # 21
 scene.items() crashes on some machines
 visualise.py line 3360
+
+8/1/2022 # 22
+Small subbasins and many elevation bands can cause index error,
+as actual number of bands cannot exceed number of integer elevations in subbasin
+DBUtils.py line 2468

@@ -2459,15 +2459,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     el1 = bands[0][0]
                     el2 = bands[1][0]
                     semiWidth = (el2 - el1) / 2.0
+                    # with very small range of elevations in a subbasin can have fewer bands than numElevBands:
+                    # len(bands) is at most number of enteger elevations in subbasin
+                    # Conversely, with rounding errors can have more bands than numElevBands
+                    indexBound = min(numElevBands, len(bands))
                     row = '({0!s},'.format(SWATBasin)
                     for i in range(10):
-                        if i < numElevBands:
-                            el= bands[i][0] + semiWidth
+                        if i < indexBound:
+                            el = bands[i][0] + semiWidth
                         else:
                             el = 0
                         row += '{:.2F},'.format(el)
                     for i in range(10):
-                        if i < numElevBands:
+                        if i < indexBound:
                             frac = bands[i][1]
                         else:
                             frac = 0

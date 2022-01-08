@@ -1818,7 +1818,7 @@ class CreateHRUs(QObject):
                 count += len(channelData)
         return count
         
-    def saveAreas(self, isOriginal: bool, redistributeNodata=True) -> None:
+    def saveAreas(self, isOriginal: bool, redistributeNodata: bool=True) -> None:
         """Create area maps for each subbasin."""
         if self._gv.useGridModel:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys()) + list(self._gv.topo.chLinkFromLake.keys())
@@ -5108,7 +5108,8 @@ class HRUs(QObject):
         self._dlg.elevBandsButton.clicked.connect(self.doElevBands)
         self._dlg.HRUsTab.currentChanged.connect(self.switchTabs)
         
-    def switchTabs(self, i):  # @UnusedVariable
+    def switchTabs(self, i: int) -> None:  # @UnusedVariable
+        """Debugging information when tab switched in HRUs form."""
         #QSWATUtils.information('Switched to tab {}'.format(i), False)
         self.progress('')
         
@@ -5415,7 +5416,7 @@ class HRUs(QObject):
             self._dlg.HRUsTab.setTabEnabled(1, True)
             self.setHRUChoice()
             self.saveProj()
-        return OK
+        return OK  # type: ignore
             
     def hasVisibleFloodplainLayer(self, root: QgsLayerTree) -> bool:
         """Return true if there is a visible layer with a name starting 'Floodplain'."""

@@ -417,6 +417,7 @@ class Delineation(QObject):
         if lakesLayer is None:
             QSWATUtils.error('Lakes layer not found.', self._gv.isBatch)
             return
+        assert lakesLayer is not None
         if self._gv.useGridModel:
             channelsLayer: Optional[QgsVectorLayer] = None
         else:
@@ -433,6 +434,8 @@ class Delineation(QObject):
             if subbasinsLayer is None:
                 QSWATUtils.error('Subbasins layer not found', self._gv.isBatch)
                 return
+            assert subbasinsLayer is not None
+            assert channelsLayer is not None
             if not self.addHUCLakes(lakesLayer, channelsLayer, subbasinsLayer, demLayer):
                 QSWATUtils.error('Failed to add lakes', self._gv.isBatch)
                 return
@@ -453,7 +456,7 @@ class Delineation(QObject):
                     return
             if self._gv.useGridModel or not self._gv.existingWshed:
                 ft = FileTypes._GRID if self._gv.useGridModel else FileTypes._SUBBASINS
-                subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
+                subbasinsLayer = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, ft, None, None, None)[0]
                 if subbasinsLayer is None:
                     QSWATUtils.error('Subbasins layer not found: have you run TauDEM?', self._gv.isBatch)
                     return

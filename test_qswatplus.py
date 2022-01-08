@@ -2375,6 +2375,7 @@ class TestQswat(unittest.TestCase):
     def test15(self):
         """MPI 8 processes; clipped San Juan DEM: no inlets/outlets file; delineation threshold 6000 ha; 
         landscape by buffer, inversion and branch (use inversion); no slope limits; dominant HRU"""
+        print('\nTest 15')
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem_clip.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         ## HRUs object
