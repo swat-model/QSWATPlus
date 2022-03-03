@@ -86,3 +86,9 @@ visualise.py line 3360
 Small subbasins and many elevation bands can cause index error,
 as actual number of bands cannot exceed number of integer elevations in subbasin
 DBUtils.py line 2468
+
+2/3/2022 # 23
+qt4agg reference in matplotlib fails with QGIS 3.22
+Changed to qt5agg
+swatgraph.py line 26
+

@@ -23,7 +23,7 @@ import math
 import locale
 # import seaborn as sns
 from matplotlib.figure import Figure  # @UnresolvedImport
-from matplotlib.backends.backend_qt4agg import (
+from matplotlib.backends.backend_qt5agg import (
     FigureCanvasQTAgg as FigureCanvas,  # @UnresolvedImport
     NavigationToolbar2QT as NavigationToolbar)  # @UnresolvedImport
 try:

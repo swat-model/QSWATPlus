@@ -3648,15 +3648,15 @@ If you want to start again from scratch, reload the lakes shapefile."""
         self.progress('Creating grid ...')
         self._gv.gridSize = self._dlg.gridSize.value()
         time2 = time.process_time()
-        storeGrid, accTransform, minDrainArea, maxDrainArea = self.storeGridData(ad8File, wFile)
+        storeGrid, accTransform, minDrainArea, maxDrainArea = self.storeGridData(ad8File, wFile, self._gv.gridSize)
         time3 = time.process_time()
         QSWATUtils.loginfo('Storing grid data took {0} seconds'.format(int(time3 - time2)))
         if storeGrid is not None:
             assert accTransform is not None
-            if self.addDownstreamData(storeGrid, pFile, accTransform):
+            if self.addDownstreamData(storeGrid, pFile, self._gv.gridSize, accTransform):
                 time4 = time.process_time()
                 QSWATUtils.loginfo('Adding downstream data took {0} seconds'.format(int(time4 - time3)))
-                self.writeGridShapefile(storeGrid, pFile, accTransform)
+                self.writeGridShapefile(storeGrid, pFile, self._gv.gridSize, accTransform)
                 time5 = time.process_time()
                 QSWATUtils.loginfo('Writing grid shapefile took {0} seconds'.format(int(time5 - time4)))
                 numOutlets = self.writeGridStreamsShapefile(storeGrid, pFile, minDrainArea, maxDrainArea, accTransform)
@@ -3670,7 +3670,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     #    print(msg)
         return
     
-    def storeGridData(self, ad8File: str, basinFile: str) -> Tuple[Optional[Dict[int, Dict[int, GridData]]], Optional[Transform], float, float]:
+    def storeGridData(self, ad8File: str, basinFile: str, gridSize: int) -> Tuple[Optional[Dict[int, Dict[int, GridData]]], Optional[Transform], float, float]:
         """Create grid data in array and return it."""
         # if there are inlets, make a new ad8File with areas upstream from inlets set to no data
         inAsOutFile, hasInlet = self.hasInlets()
@@ -3720,23 +3720,23 @@ If you want to start again from scratch, reload the lakes shapefile."""
         QSWATUtils.loginfo('Grid cell area {0!s} sq km'.format(unitArea * self._gv.gridSize * self._gv.gridSize))
         # create polygons and add to gridFile
         polyId = 0
-        # grid cells will be self._gv.gridSize x self._gv.gridSize squares
-        numGridRows = (accBand.YSize // self._gv.gridSize) + 1
-        numGridCols = (accBand.XSize // self._gv.gridSize) + 1
+        # grid cells will be gridSize x gridSize squares
+        numGridRows = (accBand.YSize // gridSize) + 1
+        numGridCols = (accBand.XSize // gridSize) + 1
         storeGrid: Dict[int, Dict[int, GridData]] = dict() # dictionary gridRow -> gridCol -> gridData
         maxDrainArea = 0
         minDrainArea = float('inf')
         for gridRow in range(numGridRows):
-            startAccRow = gridRow * self._gv.gridSize
+            startAccRow = gridRow * gridSize
             for gridCol in range(numGridCols):
-                startAccCol = gridCol * self._gv.gridSize
+                startAccCol = gridCol * gridSize
                 maxAcc = 0
                 maxRow = -1
                 maxCol = -1
                 valCount = 0
-                for row in range(self._gv.gridSize):
+                for row in range(gridSize):
                     accRow = startAccRow + row
-                    for col in range(self._gv.gridSize):
+                    for col in range(gridSize):
                         accCol = startAccCol + col
                         if accRow < accBand.YSize and accCol < accBand.XSize:
                             accVal = accArray[accRow, accCol]
@@ -3744,7 +3744,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                                 valCount += 1
                                 # can get points with same (rounded) accumulation when values are high.
                                 # prefer one on edge if possible
-                                if accVal > maxAcc or (accVal == maxAcc and self.onEdge(row, col, self._gv.gridSize)):
+                                if accVal > maxAcc or (accVal == maxAcc and self.onEdge(row, col, gridSize)):
                                     maxAcc = accVal
                                     maxRow = accRow
                                     maxCol = accCol
@@ -3957,11 +3957,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
         return downAcc
     
     @staticmethod
-    def onEdge(row: int, col:int , gridSize: int) -> bool:
+    def onEdge(row: int, col:int, gridSize: int) -> bool:
         """Returns true of (row, col) is on the edge of the cell."""
         return row == 0 or row == gridSize - 1 or col == 0 or col == gridSize - 1
     
-    def addDownstreamData(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, accTransform: Transform) -> bool:
+    def addDownstreamData(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, gridSize: int, accTransform: Transform) -> bool:
         """Use flow direction flowFile to see to which grid cell a D8 step takes you from the max accumulation point and store in array."""
         pRaster = gdal.Open(flowFile, gdal.GA_ReadOnly)
         if pRaster is None:
@@ -4007,7 +4007,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 # try to find downstream grid cell.  If we fail downstram number left as -1, which means outlet
                 # rounding of large accumulation values means that the maximum accumulation point found
                 # may not be at the outflow point, so we need to move until we find a new grid cell, or hit a map edge
-                maxSteps = 2 * self._gv.gridSize
+                maxSteps = 2 * gridSize
                 found = False
                 while not found:
                     if 0 <= currentPRow < pBand.YSize and 0 <= currentPCol < pBand.XSize:
@@ -4022,8 +4022,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                         break
                     currentAccRow = currentPRow - accToPRow
                     currentAccCol = currentPCol - accToPCol
-                    currentGridRow = currentAccRow // self._gv.gridSize
-                    currentGridCol = currentAccCol // self._gv.gridSize
+                    currentGridRow = currentAccRow // gridSize
+                    currentGridCol = currentAccCol // gridSize
                     found = currentGridRow != gridRow or currentGridCol != gridCol
                     if not found:
                         maxSteps -= 1
@@ -4061,7 +4061,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         return True
 
     # noinspection PyCallByClass
-    def writeGridShapefile(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, accTransform: Transform) -> None:
+    def writeGridShapefile(self, storeGrid: Dict[int, Dict[int, GridData]], flowFile: str, gridSize: int, accTransform: Transform) -> None:
         """Write grid data to grid shapefile.  Also writes centroids dictionary."""
         self.progress('Writing grid ...')
         gridFile = QSWATUtils.join(self._gv.shapesDir, 'grid.shp')
@@ -4102,8 +4102,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
         downIndex = fields.indexFromName(QSWATTopology._DOWNID)
         areaIndex = fields.indexFromName(Parameters._AREA)
         ul_x, x_size, _, ul_y, _, y_size = accTransform
-        xDiff = x_size * self._gv.gridSize * 0.5
-        yDiff = y_size * self._gv.gridSize * 0.5
+        xDiff = x_size * gridSize * 0.5
+        yDiff = y_size * gridSize * 0.5
         self._gv.topo.basinCentroids = dict()
         for gridRow, gridCols in storeGrid.items():
             # grids can be big so we'll add one row at a time
