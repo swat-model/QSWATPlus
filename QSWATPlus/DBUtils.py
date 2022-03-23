@@ -844,12 +844,12 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     
     _PLANTS_PLT_TABLE = \
     """
-    (id          INTEGER       NOT NULL PRIMARY KEY,
+    (id         INTEGER       NOT NULL PRIMARY KEY,
     name        TEXT          NOT NULL,
     plnt_typ    TEXT          NOT NULL,
     gro_trig    TEXT          NOT NULL,
     nfix_co     REAL          NOT NULL,
-    days_mat     REAL          NOT NULL,
+    days_mat    REAL          NOT NULL,
     bm_e        REAL          NOT NULL,
     harv_idx    REAL          NOT NULL,
     lai_pot     REAL          NOT NULL,
@@ -895,7 +895,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     plnt_pop2   REAL          NOT NULL,
     frac_lai2   REAL          NOT NULL,
     frac_sw_gro REAL          NOT NULL,
-    wnd_live    REAL          NOT NULL,
+    aeration    REAL          NOT NULL,
     wnd_dead    REAL          NOT NULL,
     wnd_flat    REAL          NOT NULL,
     description TEXT)
