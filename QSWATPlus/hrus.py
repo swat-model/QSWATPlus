@@ -4540,6 +4540,10 @@ class CreateHRUs(QObject):
         resIndex = provider.fieldNameIndex(QSWATTopology._RES)
         ptsourceIndex = provider.fieldNameIndex(QSWATTopology._PTSOURCE)
         ptIdIndex = provider.fieldNameIndex(QSWATTopology._POINTID)
+        if ptIdIndex < 0:
+            provider.addAttributes([QgsField(QSWATTopology._POINTID, QVariant.Int)])
+            layer.updateFields()
+            ptIdIndex = provider.fieldNameIndex(QSWATTopology._POINTID)
         for _, pointId, point in reservoirs.values():
             feature = QgsFeature()
             feature.setFields(fields)
@@ -5377,7 +5381,7 @@ class HRUs(QObject):
             self.progress('')
             # now have occurrences of landuses, so can make proper colour scheme and legend entry
             # soils will be done after HRU creation, since only uses occurring soils
-            FileTypes.colourLanduses(self.landuseLayer, self._db)
+            FileTypes.colourLanduses(self.landuseLayer, self._gv)
             if not self._gv.isBatch:
                 treeModel = QgsLayerTreeModel(root)
                 assert self.landuseLayer is not None
@@ -5515,7 +5519,7 @@ class HRUs(QObject):
                 # can now provide soil layer legend
                 soilLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.soilFile, None, None, None, None)[0]
                 if soilLayer is not None:
-                    FileTypes.colourSoils(soilLayer, self._db)
+                    FileTypes.colourSoils(soilLayer, self._gv)
                     treeModel = QgsLayerTreeModel(root)
                     soilTreeLayer = root.findLayer(soilLayer.id())
                     assert soilTreeLayer is not None
@@ -5854,6 +5858,7 @@ class HRUs(QObject):
                 self._dlg.channelMergeSlider.setMaximum(2 * val)
             self._dlg.channelMergeSlider.setValue(val)
             self._dlg.channelMergeVal.moveCursor(QTextCursor.End)
+            self.setChannelMergeChoice()
         except Exception:
             return
         
@@ -5861,6 +5866,7 @@ class HRUs(QObject):
         """Change channel merge threshold."""
         val = self._dlg.channelMergeSlider.value()
         self._dlg.channelMergeVal.setText(str(val))
+        self.setChannelMergeChoice()
         
     def setChannelChoice(self) -> None:
         """Set maximum value for short channel merge slider for percent or hectares."""
@@ -5868,6 +5874,7 @@ class HRUs(QObject):
             self._dlg.channelMergeSlider.setMaximum(100)
         else:
             self._dlg.channelMergeSlider.setMaximum(int(self._gv.channelThresholdArea // 10000))
+        self.setChannelMergeChoice()
         
     def readAreaThreshold(self) -> None:
         """Read area threshold."""

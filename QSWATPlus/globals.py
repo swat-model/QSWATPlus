@@ -23,7 +23,7 @@
 from qgis.PyQt.QtCore import QFileInfo, QPoint, QSettings
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.PyQt.QtWidgets import QComboBox
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter  
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis  
 from qgis.gui import QgisInterface  
 import os.path
 # import xml.etree.ElementTree as ET
@@ -81,6 +81,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         title = proj.title()
         ## QGIS interface
         self.iface = iface
+        ## QGIS sub version number
+        self.QGISSubVersion = int(Qgis.QGIS_VERSION.split('.')[1])
         ## project projection (set from DEM)
         self.crsProject: Optional[QgsCoordinateReferenceSystem] = None
         ## Stream burn-in depth

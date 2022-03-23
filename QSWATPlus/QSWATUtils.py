@@ -692,7 +692,7 @@ class QSWATUtils:
                 fun: Optional[Callable[[QgsRasterLayer, Any], None]] = FileTypes.colourFun(ft)
                 if fun is not None:
                     assert isinstance(mapLayer, QgsRasterLayer)
-                    fun(mapLayer, gv.db)
+                    fun(mapLayer, gv)
                 if not (styleFile is None or styleFile == ''):
                     if ft == FileTypes._LAKES:
                         # change lakes style file to lakesnores.qml if there is no RES field
@@ -1554,7 +1554,7 @@ class FileTypes:
             return None
 
     @staticmethod
-    def colourDEM(layer: QgsRasterLayer, _: Any) -> None:
+    def colourDEM(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring function for DEM."""
         shader: QgsRasterShader = QgsRasterShader()
         stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1,
@@ -1573,14 +1573,20 @@ class FileTypes:
         fcn: QgsColorRampShader = QgsColorRampShader(minVal, maxVal)
         fcn.setColorRampType(QgsColorRampShader.Interpolated)
         fcn.setColorRampItemList([item0, item1, item2])
+        if gv.QGISSubVersion >= 18:
+            #legend settings is QGIS 3.18 or later
+            legendSettings = fcn.legendSettings()
+            legendSettings.setUseContinuousLegend(False)
+            fcn.setLegendSettings(legendSettings)
         shader.setRasterShaderFunction(fcn)
         renderer: QgsSingleBandPseudoColorRenderer = QgsSingleBandPseudoColorRenderer(layer.dataProvider(), 1, shader)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
         
     @staticmethod
-    def colourLanduses(layer: QgsRasterLayer, db: Any) -> None:
+    def colourLanduses(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring function for landuse grid."""
+        db = gv.db
         items: List[QgsPalettedRasterRenderer.Class] = []
         colours = QgsLimitedRandomColorRamp.randomColors(len(db.landuseVals))
         index = 0
@@ -1597,8 +1603,9 @@ class FileTypes:
         layer.triggerRepaint()
     
     @staticmethod
-    def colourSoils(layer: QgsRasterLayer, db: Any) -> None:
+    def colourSoils(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring function for soil grid."""
+        db = gv.db
         items: List[QgsPalettedRasterRenderer.Class] = []
         index = 0
         if db.useSSURGO:
@@ -1625,8 +1632,9 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourSlopes(layer: QgsRasterLayer, db: Any) -> None:
+    def colourSlopes(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring for slope bands grid."""
+        db = gv.db
         shader: QgsRasterShader = QgsRasterShader()
         items: List[QgsColorRampShader.ColorRampItem] = []
         numItems: int = len(db.slopeLimits) + 1
@@ -1645,7 +1653,7 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourFlood(layer: QgsRasterLayer, _: Any) -> None:
+    def colourFlood(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring for floodplain rasters."""
         renderer: QgsSingleBandGrayRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)
         renderer.setGradient(QgsSingleBandGrayRenderer.BlackToWhite)
@@ -1653,6 +1661,11 @@ class FileTypes:
         enhancement.setMinimumValue(0)
         enhancement.setMaximumValue(1)
         renderer.setContrastEnhancement(enhancement)
+        if gv.QGISSubVersion >= 18:
+            #legend settings is QGIS 3.18 or later
+            legendSettings = renderer.legendSettings()
+            legendSettings.setUseContinuousLegend(False)
+            renderer.setLegendSettings(legendSettings)
         layer.setRenderer(renderer)
         layer.triggerRepaint()
         

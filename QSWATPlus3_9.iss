@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_9"
 #define MyAppVersion "2.2"
-#define MyAppSubVersion "0"
+#define MyAppSubVersion "1"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -52,6 +52,8 @@ var
    QGISPluginDirResult: String;
 
 function MainQGISPluginDir(Param: String): String; forward;
+function QGISDir(Dir: String; PartName: String): String; forward;
+function SubSubVersion(Name: String): Integer; forward;
 
 function QGISPluginDir(Param: String): String;
 begin
@@ -63,27 +65,31 @@ begin
     end
   end;
   QGISPluginDirHasRun := True;
-  Result := QGISPluginDirResult
+  Result := QGISPluginDirResult;
 end;
 
 function MainQGISPluginDir(Param: String): String;
 var
   QGISDirectory: String;
   MainQGISPluginDirResult: String;
+  pfDir: String;
 begin
-  if DirExists(ExpandConstant('{pf64}/QGIS 3.16.14')) then begin
-    QGISDirectory := ExpandConstant('{pf64}/QGIS 3.16.14');
-  end else 
-    if DirExists(ExpandConstant('{pf64}/QGIS 3.16')) then begin
-      QGISDirectory := ExpandConstant('{pf64}/QGIS 3.16');
-    end else 
-      if DirExists(ExpandConstant('{sd}/OSGeo4W6')) then begin
-        QGISDirectory := ExpandConstant('{sd}/OSGeo4W64');
-      end else begin
-        QGISDirectory := ExpandConstant('{pf64}');
-        if not BrowseForFolder('Please locate QGIS directory', QGISDirectory, False) then
-          QGISDirectory := '';
-  end;       
+  pfDir := ExpandConstant('{pf64}');
+  QGISDirectory := QGISDir(pfDir, 'QGIS 3.22');
+  if QGISDirectory = '' then begin
+    QGISDirectory := QGISDir(pfDir, 'QGIS 3.16');
+    if QGISDirectory = '' then begin
+      QGISDirectory := QGISDir(pfDir, 'QGIS 3.26');
+      if QGISDirectory = '' then begin
+        QGISDirectory := QGISDir(pfDir, 'QGIS 3.24');
+        if QGISDirectory = '' then begin 
+          QGISDirectory := pfDir;
+          if not BrowseForFolder('Please locate QGIS directory', QGISDirectory, False) then
+            QGISDirectory := '';
+        end;
+      end;
+    end;
+  end;     
   if QGISDirectory = ''  then begin
     MainQGISPluginDirResult := '';
   end else
@@ -97,7 +103,57 @@ begin
           MainQGISPluginDirResult :=  QGISDirectory + '/apps/qgis-dev/python/plugins';
         end;
   //MsgBox('Result: ' + MainQGISPluginDirResult, mbInformation, MB_OK);
-  Result := MainQGISPluginDirResult
+  Result := MainQGISPluginDirResult;
 end;
 
+// Dir is pf64, PartName is eg QGIS 3.22 and we are searching for eg QGIS 3.22.8
+function QGISDir(Dir: String; PartName: String): String;
+var
+  DirResult: String;
+  FindRec: TFindRec;
+  SearchString: String;
+  CurrentSubSubVersion: Integer;
+  NextSubSubVersion: Integer;
+begin
+  DirResult := '';
+  CurrentSubSubVersion := 0;
+  NextSubSubVersion := 0;
+  SearchString := Dir + '/' + PartName + '.*'
+  if FindFirst(SearchString, FindRec) then begin
+    try
+      repeat
+        if FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY = 16 then begin
+          NextSubSubVersion := SubSubVersion(FindRec.Name);
+          //MsgBox(Format('Current is %d, next is %d', [CurrentSubSubVersion, NextSubSubVersion]), mbInformation, MB_OK);
+          if NextSubSubVersion > CurrentSubSubVersion then begin
+            DirResult := Dir + '/' + FindRec.Name;
+            CurrentSubSubVersion := NextSubSubVersion;
+          end;
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  //MsgBox('QGIS directory: ' + DirResult, mbInformation, MB_OK);
+  Result:= DirResult;
+end;
+
+// if name is QGIS A.B.nn or QGIS A.B.n then return nn or n as an integer, else -1
+function SubSubVersion(Name: String): Integer;
+var
+  I: Integer;
+  NumString: String;
+begin
+  Result := -1
+  if WildcardMatch(Name, 'QGIS *.*.*') then begin
+    // start with possible two digits
+    NumString := Copy(Name, Length(Name) - 1, 2);
+    Result :=  StrToIntDef(NumString, -1);
+    if Result < 0 then begin
+      NumString := Copy(Name, Length(Name), 1);
+      Result :=  StrToIntDef(NumString, -1);
+    end
+  end;
+end;
 

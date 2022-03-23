@@ -4636,30 +4636,53 @@ If you want to start again from scratch, reload the lakes shapefile."""
         """
         if QSWATUtils.shapefileExists(filePath):
             # safer to empty it than to try to create a new one
-            # TODO: check it has expected fields
             ft = FileTypes._OUTLETS
             outletLayer = QSWATUtils.getLayerByFilename(root.findLayers(), filePath, ft, None, None, None)[0]
             if outletLayer is None:
                 outletLayer = QgsVectorLayer(filePath, FileTypes.legend(ft), 'ogr')
-            return cast(bool, QSWATUtils.removeAllFeatures(outletLayer))
-        else:
-            QSWATUtils.removeLayer(filePath, root)
-            fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._ID, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._RES, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._PTSOURCE, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
-            if basinWanted:
-                fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, gv.crsProject, 
-                                                QgsCoordinateTransformContext(), gv.vectorFileWriterOptions)
-            if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), gv.isBatch)
-                return False
-            writer.flushBuffer()
-            QSWATUtils.copyPrj(sourcePath, filePath)
-            return True
+            OK = QSWATUtils.removeAllFeatures(outletLayer)
+            # POINTID may be missing: assume we have ID, INLET, RES and PTSOURCE
+            if OK:
+                ptIdIndex = gv.topo.getIndex(outletLayer, QSWATTopology._POINTID, ignoreMissing=True)
+                if ptIdIndex < 0:
+                    OK = outletLayer.startEditing()
+                    if OK:
+                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._POINTID, QVariant.Int))
+                        if OK:
+                            OK = outletLayer.commitChanges()
+                            if OK:
+                                ptIdIndex = gv.topo.getIndex(outletLayer, QSWATTopology._POINTID, ignoreMissing=True)
+                                OK = ptIdIndex >= 0
+            if OK and basinWanted:
+                basinIndex = gv.topo.getIndex(outletLayer, QSWATTopology._SUBBASIN, ignoreMissing=True)
+                if basinIndex < 0:
+                    OK = outletLayer.startEditing()
+                    if OK:
+                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+                        if OK:
+                            OK = outletLayer.commitChanges()
+                            if OK:
+                                basinIndex = gv.topo.getIndex(outletLayer, QSWATTopology._SUBBASIN, ignoreMissing=True)
+                                OK = basinIndex >= 0
+            if OK:
+                return True
+        QSWATUtils.removeLayer(filePath, root)
+        fields = QgsFields()
+        fields.append(QgsField(QSWATTopology._ID, QVariant.Int))
+        fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))
+        fields.append(QgsField(QSWATTopology._RES, QVariant.Int))
+        fields.append(QgsField(QSWATTopology._PTSOURCE, QVariant.Int))
+        fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
+        if basinWanted:
+            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+        writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, gv.crsProject, 
+                                            QgsCoordinateTransformContext(), gv.vectorFileWriterOptions)
+        if writer.hasError() != QgsVectorFileWriter.NoError:
+            QSWATUtils.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()), gv.isBatch)
+            return False
+        writer.flushBuffer()
+        QSWATUtils.copyPrj(sourcePath, filePath)
+        return True
     
     #===========no longer used================================================================
     # def getOutletIds(self, field: str, root: QgsLayerTree) -> Set[int]:
