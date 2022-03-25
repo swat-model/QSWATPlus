@@ -44,7 +44,7 @@ Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
 Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs   
 Source: "C:\SWAT\SWATPlus\TauDEM539Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin";  Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-Source: "C:\SWAT\SWATPlus\Databases\plantWithWETW.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "C:\SWAT\SWATPlus\Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 
 [Code]
 var

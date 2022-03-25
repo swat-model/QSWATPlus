@@ -148,7 +148,7 @@ C_FILES = $(PYX_FILES:.pyx=.c)
 UI_FILES = ui_qswat.py ui_delineation.py ui_hrus.py ui_outlets.py ui_exempt.py ui_split.py ui_selectlu.py ui_parameters.py ui_elevationbands.py \
 			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_graph1.py ui_convert.py ui_exporttable.py
 
-QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml flood.qml grid.qml gridpoly.qml \
+QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml floodwhite.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \
 			ptsrcandreservoir.qml lakes.qml lakesnores.qml polygons.qml
 

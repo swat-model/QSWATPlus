@@ -1460,7 +1460,7 @@ class FileTypes:
         elif ft == FileTypes._HILLSHADE:
             return None
         elif ft == FileTypes._BUFFERFLOOD or ft == FileTypes._INVFLOOD or ft == FileTypes._BRANCHFLOOD:
-            return 'flood.qml'
+            return None  # 'floodwhite.qml'
         elif ft == FileTypes._LAKES:
             return 'lakes.qml'
         elif ft == FileTypes._AQUIFERS or ft == FileTypes._HRUS:
@@ -1653,19 +1653,10 @@ class FileTypes:
         layer.triggerRepaint()
         
     @staticmethod
-    def colourFlood(layer: QgsRasterLayer, gv: Any) -> None:
+    def colourFlood(layer: QgsRasterLayer, _: Any) -> None:
         """Layer colouring for floodplain rasters."""
-        renderer: QgsSingleBandGrayRenderer = QgsSingleBandGrayRenderer(layer.dataProvider(), 1)
-        renderer.setGradient(QgsSingleBandGrayRenderer.BlackToWhite)
-        enhancement: QgsContrastEnhancement = QgsContrastEnhancement()
-        enhancement.setMinimumValue(0)
-        enhancement.setMaximumValue(1)
-        renderer.setContrastEnhancement(enhancement)
-        if gv.QGISSubVersion >= 18:
-            #legend settings is QGIS 3.18 or later
-            legendSettings = renderer.legendSettings()
-            legendSettings.setUseContinuousLegend(False)
-            renderer.setLegendSettings(legendSettings)
+        item = QgsPalettedRasterRenderer.Class(1, QColor('white'), 'floodplain')    
+        renderer = QgsPalettedRasterRenderer(layer.dataProvider(), 1, [item])
         layer.setRenderer(renderer)
         layer.triggerRepaint()
         
