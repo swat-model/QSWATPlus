@@ -261,11 +261,11 @@ class QSWATTopology:
         self.dx: float = 0
         ## depth of DEM cell in metres
         self.dy: float = 0
-        ## x direction threshold for points to be considered coincident
+        ## x direction threshold for points to be considered coincident in DEM units
         self.xThreshold = 0
-        ## y direction threshold for points to be considered coincident
+        ## y direction threshold for points to be considered coincident in DEM units
         self.yThreshold = 0
-        ## multiplier to turn DEM distances to metres
+        ## multiplier to turn DEM units to metres
         self.horizontalFactor = 1
         ## multiplier to turn DEM elevations to metres
         self.verticalFactor = 1
@@ -324,8 +324,8 @@ class QSWATTopology:
         self.demNodata = demLayer.dataProvider().sourceNoDataValue(1)
         self.dx = demLayer.rasterUnitsPerPixelX() * gv.horizontalFactor
         self.dy = demLayer.rasterUnitsPerPixelY() * gv.horizontalFactor
-        self.xThreshold = self.dx * Parameters._NEARNESSTHRESHOLD
-        self.yThreshold = self.dy * Parameters._NEARNESSTHRESHOLD
+        self.xThreshold = (self.dx / gv.horizontalFactor) * Parameters._NEARNESSTHRESHOLD
+        self.yThreshold = (self.dy / gv.horizontalFactor) * Parameters._NEARNESSTHRESHOLD
         QSWATUtils.loginfo('Factor is {0}, cell width is {1}, cell depth is {2}'.format(gv.horizontalFactor, self.dx, self.dy))
         self.demExtent = demLayer.extent()  # type: ignore
         self.horizontalFactor = gv.horizontalFactor

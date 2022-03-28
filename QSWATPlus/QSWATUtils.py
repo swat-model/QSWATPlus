@@ -340,9 +340,10 @@ class QSWATUtils:
             if info == fileInfo:
                 lIds.append(layer.layerId())
                 layers.append(layer)
-        QgsProject.instance().removeMapLayers(lIds)
-        for layer in layers:
-            del layer
+        if len(lIds) > 0:
+            QgsProject.instance().removeMapLayers(lIds)
+            for layer in layers:
+                del layer
         # wait for layers to be removed
         QApplication.processEvents()
      

@@ -95,3 +95,7 @@ swatgraph.py line 26
 5/3/2022 # 24
 Creation of extra reservoirs file needs to check if existing file has POINTID field
 delineation.py line 4645 ff
+
+28/3/2022 # 25
+x and yThreshold wrong for non-metre maps
+QSWATtopology.py line 326-7
