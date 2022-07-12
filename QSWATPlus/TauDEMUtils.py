@@ -226,9 +226,11 @@ class TauDEMUtils:
         # and this has the advantage of dealing with spaces within inidividual components of the list
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
         # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
-        MacPrefixNeeded = Parameters._ISMAC and not os.path.exists('/usr/local/lib/libgdal.28.dylib')
-        MacPrefix = 'export LD_LIBRARY_PATH=/Applications/QGIS-LTR.app/Contents/MacOS/lib; export PROJ_LIB=/Applications/QGIS-LTR.app/Contents/Resources/proj; '
+        MacPrefixNeeded = Parameters._ISMAC
+        MacPrefix = 'export DYLD_LIBRARY_PATH=/Applications/QGIS-LTR.app/Contents/MacOS/lib; export PROJ_LIB=/Applications/QGIS-LTR.app/Contents/Resources/proj; '
         procCommand = commands if Parameters._ISWIN else MacPrefix + command if MacPrefixNeeded else command
+        if Parameters._ISMAC:
+            QSWATUtils.loginfo(procCommand)
         proc = subprocess.run(procCommand, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,

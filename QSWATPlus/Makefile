@@ -41,6 +41,8 @@ SOURCES = $(PY_FILES)
 
 PACKAGE = QSWATPlus
 
+TESTOUTPUT = testdata/test
+
 ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
 	COMPILER = msvc
 	METADATA = metadata3_9.txt
@@ -85,11 +87,12 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
-	BAT_FILES = $(addprefix ../, runtestn.sh)
-	TEST_FILES = $(addprefix ../, test_qswatplus.py)
+	BAT_FILES = $(addprefix ../, runtestn.sh runnose.sh)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
+	TESTOUTPUT = $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)/testdata/test
 	CPFILE = cp -vuf
 	CPDIR = cp -vufR
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
@@ -98,11 +101,12 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	PLUGINNAME = QSWATPlusLinux3_32
 	DOXYGEN = doxygen
 	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-i386-linux-gnu.so)
-	BAT_FILES = $(addprefix ../, runtestn.sh)
+	BAT_FILES = $(addprefix ../, runtestn.sh runnose.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py)
 	HUC_FILES = $(addprefix ../, runHUC.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = .local/share/QGIS/QGIS3/profiles/default
+	TESTOUTPUT = $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)/testdata/test
 	CPFILE = cp -vuf
 	CPDIR = cp -vufR
 else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
@@ -168,8 +172,6 @@ GLOBALDATA = GlobalData
 TOOLS = Tools
 
 TESTDATA = testdata
-
-TESTOUTPUT = testdata/test
 
 PEP8EXCLUDE=pydev,resources_rc.py,conf.py,third_party,ui
 
@@ -298,7 +300,7 @@ deploy: compile
 #	$(CPDIR) $(TOOLS) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 # remove test outputs before copying test data
 	rm -vfr $(TESTOUTPUT)
-	$(CPDIR) $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
+	$(CPDIR) $(TESTDATA) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 
 # The dclean target deletes any .git entry
 dclean:

@@ -48,7 +48,7 @@ from .DBUtils import DBUtils  # type: ignore
 from .parameters import Parameters  # type: ignore
 #from .polygonize import Polygonize
 from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport 
-from .dataInC import CellData, BasinData, WaterBody, LSUData  # type: ignore #  @UnresolvedImport 
+from .dataInC import CellData, BasinData, WaterBody, LSUData, LakeData  # type: ignore #  @UnresolvedImport 
 from .exempt import Exempt  # type: ignore
 from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
@@ -1144,7 +1144,7 @@ class CreateHRUs(QObject):
         
         Note merging is always downstream, and this is assumed in a number of places,
         e.g. the outlet of a merged channel is the same as the outlet of the merge target,
-        which has the same channel number as the target."""   
+        which has the same channel number as the target.""" 
                 
         def mergeCandidate(basin: int, lsus: Dict[int, Dict[int, LSUData]], channel: int, 
                            mergedToWaterOrPtSrc: List[int], isSmall: bool, threshold: float) -> int:
@@ -1161,13 +1161,10 @@ class CreateHRUs(QObject):
                     if channel in lakeData.inChLinks:
                         return True
                 return False
-            
+        
             def isLakeOutlet(channel: int) -> bool:
                 """Return true if a lake flows into the channel."""
-                for lakeData in self._gv.topo.lakesData.values():
-                    if channel == lakeData.outChLink:
-                        return True
-                return False
+                return channel in self._gv.topo.chLinkFromLake
     
             def isWaterOutlet(channel: int) -> bool:
                 """Return true if there is a user-marked water body flowing directly into channel."""
@@ -1247,7 +1244,7 @@ class CreateHRUs(QObject):
                         else:
                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                             SWATTarget = self._gv.topo.channelToSWATChannel[candidate]
-                            QSWATUtils.loginfo('Merging channel {0} ({1}) into {2} ({3}) in basin {4}'.format(SWATChannel, channel, SWATTarget, candidate, SWATBasin))
+                            QSWATUtils.loginfo('Merging channel {0} (link {1}) into {2} (link {3}) in basin {4}'.format(SWATChannel, channel, SWATTarget, candidate, SWATBasin))
                             self.mergedChannels[channel] = candidate
                             self.mergees.add(candidate)
 #                             for landscape, lsuData in channelData.iteritems():
@@ -1264,6 +1261,13 @@ class CreateHRUs(QObject):
                             #TODO: merge FullHRUs and LSUs shapefiles
 #                             for landscape, lsuData in basinData.mergedLsus[candidate].iteritems():
 #                                 CreateHRUs.checkConsistent(lsuData, basin, candidate, landscape, 3)
+                            # if channel is a lake outlet, merged one will become the lake outlet
+                            lakeId = self._gv.topo.chLinkFromLake.get(channel, None)
+                            if lakeId is not None:
+                                lakeData = self._gv.topo.lakesData[lakeId]
+                                lakeData.outChLink = candidate
+                                del self._gv.topo.chLinkFromLake[channel]
+                                self._gv.topo.chLinkFromLake[candidate] = lakeId
                             # if channel has a point source or reservoir, mark merged one similarly
                             if channel in mergedToWaterOrPtSrc:
                                 mergedToWaterOrPtSrc.append(candidate)

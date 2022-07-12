@@ -99,3 +99,8 @@ delineation.py line 4645 ff
 28/3/2022 # 25
 x and yThreshold wrong for non-metre maps
 QSWATtopology.py line 326-7
+
+19/5/2022 # 26
+Merging channel that is a lake outlet left lake with no outlet
+hrus.py line 1264-70
+

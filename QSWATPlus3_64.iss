@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_64"
 #define MyAppVersion "2.2"
-#define MyAppSubVersion "3"
+#define MyAppSubVersion "4"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -38,7 +38,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [InstallDelete]
 ; replaced by QSWATPlusMain.py
-Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
+Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py"; 
+; was installed in wrong blace
+Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
+; clean up  TauDEM539Bin
+Type: files; Name: "C:\SWAT\SWATPlus\TauDEM539Bin\*";
 
 [Files]
 Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs   
