@@ -21,11 +21,11 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant
-from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator, QDoubleValidator
+from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator
 from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem
 from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsRectangle  # @UnresolvedImport
-from qgis.gui import QgsMapCanvas, QgsMapCanvasItem  # @UnresolvedImport
+from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop
+from qgis.gui import QgsMapCanvas, QgsMapCanvasItem
 import os
 # import random
 import numpy
@@ -38,6 +38,7 @@ import math
 import csv
 import traceback
 import locale
+from copy import deepcopy
 # from collections import OrderedDict
 from typing import Dict, List, Set, Tuple, Optional, Union, Any, TYPE_CHECKING, cast  # @UnusedImport
 
@@ -48,7 +49,9 @@ from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
 from .jenks import jenks    # type: ignore # @UnresolvedImport 
-from .globals import GlobalVars  # type: ignore # @UnusedImport 
+from .globals import GlobalVars  # type: ignore # @UnusedImport
+from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
+ 
 # from .images2gif import writeGif
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport
@@ -68,6 +71,11 @@ class Visualise(QObject):
     _MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
     _NORTHARROW = 'wind_roses/WindRose_01.svg'
     _EFLOWTABLE = 'channel_sdmorph_day'
+    _CHOOSEPLOT = 'Plot type'
+    _GRAPHORBAR = 'Graph/bar chart'
+    _FLOWDURATION = 'Duration curve'
+    _SCATTER = 'Scatter plot'
+    _BOX = 'Box plot'
     
     def __init__(self, gv: GlobalVars):
         """Initialise class variables."""
@@ -76,6 +84,7 @@ class Visualise(QObject):
         self._dlg = VisualiseDialog()
         self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
         self._dlg.move(self._gv.visualisePos)
+        self._comparedlg = compareDialog()
         ## variables found in various tables that do not contain values used in results
         # note we also exclude variables that do not have typr REAL
         self.ignoredVars = ['id', 'output_type_id', 'output_interval_id', 'time', 'year', 'unit', 'plantnm', 'ob_typ', 
@@ -119,8 +128,6 @@ class Visualise(QObject):
         self.resultsData: Union[Dict[int, Dict[str, float]], Dict[str, Dict[int, Dict[int, float]]]] = dict()  # type: ignore
         ## Areas of subbasins (drainage area for reaches)
         self.areas: Dict[int, float] = dict()
-#         ## Flag to indicate areas available
-#         self.hasAreas = False
         ## true if output is daily
         self.isDaily = False
         ## true if output is monthly
@@ -257,6 +264,10 @@ class Visualise(QObject):
         # empty animation and png directories
         self.clearAnimationDir()
         self.clearPngDir()
+        ## first scenario to compare
+        self.scenario1 = ''
+        ## second scenario to compare
+        self.scenario2 = ''
         
     def init(self) -> None:
         """Initialise the visualise form."""
@@ -330,6 +341,9 @@ class Visualise(QObject):
         self._dlg.QbSave.clicked.connect(self.saveQb)
         self._dlg.closeButton.clicked.connect(self.doClose)
         self._dlg.destroyed.connect(self.doClose)
+        self._dlg.compareButton.clicked.connect(self.startCompareScenarios)
+        self._comparedlg.okButton.clicked.connect(self.setupCompareScenarios)
+        self._comparedlg.cancelButton.clicked.connect(self.closeCompareScenarios)
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
         self.setBackgroundLayers(root)
@@ -371,6 +385,13 @@ class Visualise(QObject):
             db = QSWATUtils.join(QSWATUtils.join(direc, Parameters._RESULTS), Parameters._OUTPUTDB)
             if os.path.exists(db):
                 self._dlg.scenariosCombo.addItem(os.path.split(direc)[1])
+        if self._dlg.scenariosCombo.count() > 1:
+            for i in range(self._dlg.scenariosCombo.count()):
+                self._comparedlg.scenario1.addItem(self._dlg.scenariosCombo.itemText(i))
+                self._comparedlg.scenario2.addItem(self._dlg.scenariosCombo.itemText(i))
+            self._dlg.compareGroup.setVisible(True)
+        else:
+            self._dlg.compareGroup.setVisible(False)
         for month in Visualise._MONTHS:
             m = QSWATUtils.trans(month)
             self._dlg.startMonth.addItem(m)
@@ -459,7 +480,7 @@ class Visualise(QObject):
         if not os.path.exists(prtFile):
             QSWATUtils.error('Cannot find print file {0}'.format(prtFile), self._gv.isBatch)
             return
-        self.readPrt(prtFile, simFile)
+        self.readPrt(prtFile, simFile, self.scenario)
 #         self.topology, self.reservoirs, self.ponds = self._gv.db.createTopology()
         self.populateOutputTables()
 
@@ -594,6 +615,12 @@ class Visualise(QObject):
         self._dlg.tableWidget.setColumnWidth(1, 100)
         self._dlg.tableWidget.setColumnWidth(2, 45)
         self._dlg.tableWidget.setColumnWidth(4, 90)
+        self._dlg.plotType.clear()
+        self._dlg.plotType.addItem(Visualise._CHOOSEPLOT)
+        self._dlg.plotType.addItem(Visualise._GRAPHORBAR)
+        self._dlg.plotType.addItem(Visualise._FLOWDURATION)
+        self._dlg.plotType.addItem(Visualise._SCATTER)
+        self._dlg.plotType.addItem(Visualise._BOX)
         
     def setVariables(self) -> None:
         """Fill variables combos from selected table; set default results file name."""
@@ -702,7 +729,7 @@ class Visualise(QObject):
             return False
                     
 
-    def readPrt(self, prtFile: str, simFile: str) -> bool:
+    def readPrt(self, prtFile: str, simFile: str, scenario: str) -> bool:
         """Read print.prt file to get print period and print interval.  Return true if no errors."""
         # first read time.sim to reset start/finish dates to simulation
         if not self.readSim(simFile):
@@ -734,13 +761,13 @@ class Visualise(QObject):
                 self.interval = int(dates[5])
                 if self.interval == 0:
                     self.interval = 1 # defensive coding
-            self.setDates()
+            self.setDates(scenario)
             return True
         except Exception:
             QSWATUtils.exceptionError('Failed to read {0}: {1}'.format(prtFile, traceback.format_exc()), self._gv.isBatch)
             return False
         
-    def setDates(self) -> None:
+    def setDates(self, scenario: str) -> None:
         """Set requested start and finish dates to smaller period of length of scenario and requested dates (if any)."""
         startDate = self.julianToDate(self.julianStartDay, self.startYear)
         finishDate = self.julianToDate(self.julianFinishDay, self.finishYear)
@@ -749,14 +776,14 @@ class Visualise(QObject):
             self.setStartDate(startDate)
         else:
             if requestedStartDate < startDate:
-                QSWATUtils.information('Chosen period starts earlier than scenario {0} period: changing chosen start'.format(self.scenario), self._gv.isBatch)
+                QSWATUtils.information('Scenario {0} period starts later than current scenario {1} period: changing start'.format(scenario, self.scenario), self._gv.isBatch)
                 self.setStartDate(startDate)
         requestedFinishDate = self.readFinishDate()
         if requestedFinishDate is None:
             self.setFinishDate(finishDate)
         else:
             if requestedFinishDate > finishDate:
-                QSWATUtils.information('Chosen period finishes later than scenario {0} period: changing chosen finish'.format(self.scenario), self._gv.isBatch)
+                QSWATUtils.information('Scenario {0} period finishes earlier than current scenario {1} period: changing finish'.format(scenario, self.scenario), self._gv.isBatch)
                 self.setFinishDate(finishDate)
         
     def setPeriods(self) -> bool:
@@ -1010,7 +1037,15 @@ class Visualise(QObject):
         if not self.checkFrequencyConsistent():
             QSWATUtils.error(u'All rows in the table must have the same frequency: annual, monthly or daily', self._gv.isBatch)
             return
+        if self._dlg.plotType.currentIndex() <= 0:
+            QSWATUtils.information('Please select a plot type', self._gv.isBatch)
+            return
         numRows = self._dlg.tableWidget.rowCount()
+        if numRows == 0:
+            QSWATUtils.information('There are no rows to plot', self._gv.isBatch)
+            return
+        if self._dlg.plotType.currentText() == Visualise._SCATTER and numRows != 2:
+            QSWATUtils.information('You need 2 rows for a scatter plot, and you have {0}'.format(numRows), self._gv.isBatch)
         plotData: Dict[int, List[str]] = dict()
         labels: Dict[int, str] = dict()
         dates: List[str] = []
@@ -1112,7 +1147,7 @@ class Visualise(QObject):
                         return
                     row.append(str(plotData[i][d]))
                 writer.writerow(row)
-        graph = SWATGraph(csvFile)
+        graph = SWATGraph(csvFile, self._dlg.plotType.currentIndex())
         graph.run()
     
     def readData(self, layerId: str, isStatic: bool, table: str, var: str, where: str) -> bool:
@@ -1146,41 +1181,49 @@ class Visualise(QObject):
             preLen = 2
         cursor = self.conn.cursor()
         # QSWATUtils.information('SQL: {0}'.format(sql), self._gv.isBatch)
-        for row in cursor.execute(sql):
-            if isDaily or isMonthly:
-                tim = int(row[0])
-                year = int(row[1])
-                gisId = int(row[2])
-            else:
-                tim = int(row[0])
-                year = tim
-                gisId = int(row[1])
-            if not self.inPeriod(year, tim, table, isDaily, isMonthly):
-                continue
-#             if self.hasAreas:
-#                 area = float(row[3])
-#             if isStatic and self.hasAreas and not unit in self.areas:
-#                 self.areas[unit] = area
-            if not gisId in layerData:
-                layerData[gisId] = dict()
-            for i in range(numVars):
-                # remove square brackets from each var
-                var = varz[i][1:-1]
-                rawVal = row[i+preLen]
-                if rawVal is None:
-                    val = 0.0
+        try:
+            for row in cursor.execute(sql):
+                if isDaily or isMonthly:
+                    tim = int(row[0])
+                    year = int(row[1])
+                    gisId = int(row[2])
                 else:
-                    val = float(rawVal)
-                if not var in layerData[gisId]:
-                    layerData[gisId][var] = dict()
-                if not year in layerData[gisId][var]:
-                    layerData[gisId][var][year] = dict()
-                layerData[gisId][var][year][tim] = val
+                    tim = int(row[0])
+                    year = tim
+                    gisId = int(row[1])
+                if not self.inPeriod(year, tim, table, isDaily, isMonthly):
+                    continue
+                if not gisId in layerData:
+                    layerData[gisId] = dict()
+                for i in range(numVars):
+                    # remove square brackets from each var
+                    var = varz[i][1:-1]
+                    rawVal = row[i+preLen]
+                    if rawVal is None:
+                        val = 0.0
+                    else:
+                        val = float(rawVal)
+                    if not var in layerData[gisId]:
+                        layerData[gisId][var] = dict()
+                    if not year in layerData[gisId][var]:
+                        layerData[gisId][var][year] = dict()
+                    layerData[gisId][var][year][tim] = val
+        except:
+            # get scenario name
+            scenario = self.scenarioFromDb()
+            QSWATUtils.error('Cannot find {0} data for scenario {1}'.format(table, scenario), self._gv.isBatch)
+            return False        
         if len(layerData) == 0:
             QSWATUtils.error('No data has nbeen read.  Perhaps your dates are outside the dates of the table', self._gv.isBatch)
             return False
         self.summaryChanged = True
         return True
+    
+    def scenarioFromDb(self): 
+        """Return scenario name from current setting of self.db."""
+        dbDir = os.path.split(self.db)[0]
+        scenDir = os.path.split(dbDir)[0]
+        return os.path.split(scenDir)[1]
         
 #     def readDailyFlowData(self, table: str, channel: int, monthData):
 #         """Read data from table for channel, organised by month."""
@@ -1511,24 +1554,31 @@ class Visualise(QObject):
         proj.writeEntry(self.title, 'observed/observedFile', self.observedFileName)
         proj.write()
         
-    def selectBase(self) -> Optional[str]:
-        """Return base name of shapefile used for results according to table name and availability of actual hrus file"""
+    def selectBase(self, scenario:str=None) -> Optional[Tuple[str, int]]:
+        """Return base name of shapefile used for results according to table name and availability of actual hrus file,
+        plus its file type"""
         if self.table.startswith('channel_'):
-            return cast(str, Parameters._RIVS)
+            return cast(str, Parameters._RIVS), FileTypes._CHANNELREACHES
         if self.table.startswith('aquifer_'):
-            return cast(str, Parameters._AQUIFERS)
+            return cast(str, Parameters._AQUIFERS), FileTypes._AQUIFERS
         if self.table.startswith('deep_aquifer_'):
-            return cast(str, Parameters._DEEPAQUIFERS)
+            return cast(str, Parameters._DEEPAQUIFERS), FileTypes._AQUIFERS
         if self.table.startswith('lsunit_'):
-            return cast(str, Parameters._LSUS)
+            return cast(str, Parameters._LSUS), FileTypes._LSUS
         if self.table.startswith('hru_'):
-            if self.hasHRUs:
-                return cast(str, Parameters._HRUS)
+            if scenario is None:
+                hasHRUs = self.hasHRUs
+            else:
+                scenDir = QSWATUtils.join(self._gv.scenariosDir, scenario)
+                resultsDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+                hasHRUs = os.path.isfile(QSWATUtils.join(resultsDir, Parameters._HRUS + '.shp'))
+            if hasHRUs:
+                return cast(str, Parameters._HRUS), FileTypes._HRUS
             else:
                 QSWATUtils.error('Cannot show results for HRUs since no full HRUs file was created', self._gv.isBatch)
-                return None
+                return None, 0
         QSWATUtils.error('Do not know how to show results for table {0}'.format(self.table), self._gv.isBatch)
-        return None
+        return None, 0
         
     def createResultsFile(self) -> bool:
         """
@@ -1554,7 +1604,7 @@ class Visualise(QObject):
         else:
             self.resultsFile = nextResultsFile
         resultsDir = os.path.split(self.db)[0]
-        baseName = self.selectBase()
+        baseName, ft = self.selectBase()
         if baseName is None:
             return False
         resultsBase = QSWATUtils.join(resultsDir, baseName) + '.shp'
@@ -1600,11 +1650,6 @@ class Visualise(QObject):
             self.internalChangeToRivRenderer = True
             self.keepRivColours = False
             self.currentResultsLayer = self.rivResultsLayer
-#         if self.hasAreas:
-#             field = QgsField(Visualise._AREA, QVariant.Double, len=20, prec=0)
-#             if not layer.dataProvider().addAttributes([field]):
-#                 QSWATUtils.error('Could not add field {0} to results file {1}'.format(Visualise._AREA, self.resultsFile), self._gv.isBatch)
-#                 return False
         varz = self.varList(False)
         for var in varz:
             field = QgsField(var, QVariant.Double)
@@ -1623,29 +1668,24 @@ class Visualise(QObject):
             # add labels
             self.currentResultsLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
             self.internalChangeToSubRenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
         elif baseName == Parameters._LSUS:
             self.internalChangeToLSURenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
         elif baseName == Parameters._HRUS:
             self.internalChangeToHRURenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
         elif baseName == Parameters._AQUIFERS:
             self.internalChangeToAquRenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
         elif baseName == Parameters._DEEPAQUIFERS:
             self.internalChangeToDeepAquRenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
         else:
             self.internalChangeToRivRenderer = False
-            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+        baseMapTip = FileTypes.mapTip(ft)
         self.currentResultsLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVar))
         self.currentResultsLayer.updatedFields.connect(self.addResultsVars)
         return True
         
     def updateResultsFile(self) -> None:
         """Write resultsData to resultsFile."""
-        base = self.selectBase()
+        base, _ = self.selectBase()
         if base is None:
             return
         layer = self.subResultsLayer if base == Parameters._SUBS \
@@ -1656,8 +1696,6 @@ class Visualise(QObject):
                 else self.rivResultsLayer
         varz = self.varList(False)
         varIndexes = dict()
-#         if self.hasAreas:
-#             varIndexes[Visualise._AREA] = self._gv.topo.getIndex(layer, Visualise._AREA)
         for var in varz:
             varIndexes[var] = self._gv.topo.getIndex(layer, var)
         assert layer is not None
@@ -1666,7 +1704,7 @@ class Visualise(QObject):
             fid = f.id()
             if base == Parameters._HRUS:
                 # May be split HRUs; just use first
-                # This is inadequate for some variables, but no way to know of correct val is sum of vals, mean, etc.
+                # This is inadequate for some variables, but no way to know if correct val is sum of vals, mean, etc.
                 unitText = f[QSWATTopology._HRUS]
                 if 'PND' in unitText or 'RES' in unitText:
                     continue
@@ -1721,38 +1759,67 @@ class Visualise(QObject):
         layer.commitChanges()
         self.summaryChanged = False
         
-    def colourResultsFile(self) -> None:
+    def makeJenksRenderer(self, vals: List[float], ramp: QgsColorRamp, var: str) -> QgsGraduatedSymbolRenderer:
+        """Make renderer with Jenks algorithm using vals of var, setting colour rampe to ramp, inverted if invert"""
+        count = 5
+        cbreaks = jenks(vals, count)
+        QSWATUtils.loginfo('Breaks: {0!s}'.format(cbreaks))
+        rangeList = []
+        for i in range(count):
+            # adjust min and max by 1% to avoid rounding errors causing values to be outside the range
+            minVal = cbreaks[0] * 0.99 if i == 0 else cbreaks[i]
+            maxVal = cbreaks[count] * 1.01 if i == count-1 else cbreaks[i+1]
+            f = float(i)
+            colourVal = f / (count - 1)
+            colour = ramp.color(colourVal)
+            rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, 4))
+        renderer = QgsGraduatedSymbolRenderer(var[:10], rangeList)
+        method = QgsApplication.classificationMethodRegistry().method('Jenks')
+        renderer.setClassificationMethod(method)
+        renderer.calculateLabelPrecision(True)
+        return renderer
+        
+    def colourResultsFile(self, layer=None, renderer=None, ramp=None) -> None:
         """
         Colour results layer according to current results variable and update legend.
         
-        if createColour is false the existing colour ramp and number of classes can be reused
+        If keepColours is true the existing colour ramp and number of classes can be reused
         """
-        base = self.selectBase()
+        haveLayer = layer is not None
+        if haveLayer:
+            keepColours = False
+        base, _ = self.selectBase()
         if base is None:
             return
         if base == Parameters._SUBS:
-            layer = self.subResultsLayer
-            keepColours = self.keepSubColours
+            if not haveLayer:
+                layer = self.subResultsLayer
+                keepColours = self.keepSubColours
             symbol: QgsSymbol = QgsFillSymbol()
         elif base == Parameters._LSUS:
-            layer = self.lsuResultsLayer
-            keepColours = self.keepLSUColours
+            if not haveLayer:
+                layer = self.lsuResultsLayer
+                keepColours = self.keepLSUColours
             symbol = QgsFillSymbol()
         elif base == Parameters._HRUS:
-            layer = self.hruResultsLayer
-            keepColours = self.keepHRUColours
+            if not haveLayer:
+                layer = self.hruResultsLayer
+                keepColours = self.keepHRUColours
             symbol = QgsFillSymbol()
         elif base == Parameters._AQUIFERS:
-            layer = self.aquResultsLayer
-            keepColours = self.keepAquColours
+            if not haveLayer:
+                layer = self.aquResultsLayer
+                keepColours = self.keepAquColours
             symbol = QgsFillSymbol()
         elif base == Parameters._DEEPAQUIFERS:
-            layer = self.deepAquResultsLayer
-            keepColours = self.keepDeepAquColours
+            if not haveLayer:
+                layer = self.deepAquResultsLayer
+                keepColours = self.keepDeepAquColours
             symbol = QgsFillSymbol()
         else:
-            layer = self.rivResultsLayer
-            keepColours = self.keepRivColours
+            if not haveLayer:
+                layer = self.rivResultsLayer
+                keepColours = self.keepRivColours
             props = {'width_expression': QSWATTopology._PENWIDTH}
             symbol = QgsLineSymbol.createSimple(props)
             symbol.setWidth(1.0)
@@ -1760,7 +1827,8 @@ class Visualise(QObject):
         selectVarShort = selectVar[:10]
         summary = Visualise._ANNUALMEANS if self.isAA else self._dlg.summaryCombo.currentText()
         assert layer is not None
-        layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, summary))
+        if not haveLayer:
+            layer.setName('{0} {1} {2}'.format(self.scenario, selectVar, summary))
         if not keepColours:
             count = 5
             opacity = 1.0 if base == Parameters._RIVS else 0.65
@@ -1778,21 +1846,23 @@ class Visualise(QObject):
                 count = 5
                 opacity = 1.0 if base == Parameters._RIVS else 0.65
         if not keepColours:
-            ramp = self.chooseColorRamp(self.table, selectVar)
+            if ramp is None:
+                ramp = self.chooseColorRamp(self.table, selectVar)
         labelFmt = QgsRendererRangeLabelFormat('%1 - %2', 0)
-        renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
+        if renderer is None:
+            renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
                                                              QgsGraduatedSymbolRenderer.Jenks, symbol, 
                                                              ramp, labelFmt)
         renderer.calculateLabelPrecision()
-        # previous line should be enough to update precision, but in practice seems we need to recreate renderer
-        precision = renderer.labelFormat().precision()
-        QSWATUtils.loginfo('Precision: {0}'.format(precision))
-        # default seems too high
-        labelFmt = QgsRendererRangeLabelFormat('%1 - %2', precision-1)
-        # should be enough to update labelFmt, but seems to be necessary to make renderer again to reflect new precision
-        renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
-                                                             QgsGraduatedSymbolRenderer.Jenks, symbol, 
-                                                             ramp, labelFmt)
+#        # previous line should be enough to update precision, but in practice seems we need to recreate renderer
+#        precision = renderer.labelFormat().precision()
+#        QSWATUtils.loginfo('Precision: {0}'.format(precision))
+#        # default seems too high
+#        labelFmt = QgsRendererRangeLabelFormat('%1 - %2', precision-1)
+#        # should be enough to update labelFmt, but seems to be necessary to make renderer again to reflect new precision
+#        renderer = QgsGraduatedSymbolRenderer.createRenderer(layer, selectVarShort, count, 
+#                                                             QgsGraduatedSymbolRenderer.Jenks, symbol, 
+#                                                             ramp, labelFmt)
         # new method causes crash
 #         method = QgsClassificationJenks()
 #         method.setLabelFormat('%1 - %2')
@@ -1862,17 +1932,6 @@ class Visualise(QObject):
             
     def resultsLayerExists(self) -> bool:
         """Return true if current results layer has not been removed."""
-#         base = self.selectBase()
-#         if base is None:
-#             return False
-#         if base == Parameters._SUBS:
-#             layer = self.subResultsLayer
-#         if base == Parameters._LSUS:
-#             layer = self.lsuResultsLayer
-#         elif base == Parameters._HRUS:
-#             layer = self.hruResultsLayer
-#         else:
-#             layer = self.rivResultsLayer
         if self.currentResultsLayer is None:
             return False
         try:
@@ -1891,7 +1950,7 @@ class Visualise(QObject):
         """
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
-        base = self.selectBase()
+        base, ft = self.selectBase()
         if base is None:
             return False
         resultsBase = QSWATUtils.join(self._gv.resultsDir, base) + '.shp'
@@ -1938,16 +1997,8 @@ class Visualise(QObject):
         self.animateIndexes[self.animateLayer.id()] = animateIndex
         # add labels if based on subbasins
         if base == Parameters._SUBS:
-            self.animateLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subsresults.qml'))
-            baseMapTip = FileTypes.mapTip(FileTypes._SUBBASINS)
-        elif base == Parameters._LSUS:
-            baseMapTip = FileTypes.mapTip(FileTypes._LSUS)
-        elif base == Parameters._HRUS:
-            baseMapTip = FileTypes.mapTip(FileTypes._HRUS)
-        elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
-            baseMapTip = FileTypes.mapTip(FileTypes._AQUIFERS)
-        else:
-            baseMapTip = FileTypes.mapTip(FileTypes._CHANNELREACHES)
+            self.animateLayer.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+        baseMapTip = FileTypes.mapTip(ft)    
         self.animateLayer.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(self.animateVar))
         return True
             
@@ -1956,56 +2007,19 @@ class Visualise(QObject):
         
         Assumes allAnimateVals is suitably populated.
         """
-        base = self.selectBase()
+        base, _ = self.selectBase()
         if base is None:
             return
         count = 5
         opacity = 1.0 if base == Parameters._RIVS else 0.65
         ramp = self.chooseColorRamp(self.table, self.animateVar)
-        # replaced by Cython code
-        #=======================================================================
-        # breaks, minimum = self.getJenksBreaks(self.allAnimateVals, count)
-        # QSWATUtils.loginfo('Breaks: {0!s}'.format(breaks))
-        #=======================================================================
-        cbreaks = jenks(self.allAnimateVals, count)
-        QSWATUtils.loginfo('Breaks: {0!s}'.format(cbreaks))
-        rangeList = []
-        for i in range(count):
-            # adjust min and max by 1% to avoid rounding errors causing values to be outside the range
-            minVal = cbreaks[0] * 0.99 if i == 0 else cbreaks[i]
-            maxVal = cbreaks[count] * 1.01 if i == count-1 else cbreaks[i+1]
-            colourVal = i / (count - 1)
-            colour = ramp.color(colourVal)
-            rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, 4))
-        # deprecated but works
-        renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
-        renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
-        renderer.calculateLabelPrecision()
-        precision = renderer.labelFormat().precision()
+        renderer = self.makeJenksRenderer(self.allAnimateVals, ramp, self.animateVar)
         # new method but fails when repainting    
 #         method = QgsClassificationCustom()
 #         renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
 #         renderer.setClassificationMethod(method)
 #         renderer.calculateLabelPrecision()
-#         precision = renderer.classificationMethod().labelPrecision()       
-        QSWATUtils.loginfo('Animation precision: {0}'.format(precision-1))
-        # repeat with calculated precision - 1
-        rangeList = []
-        for i in range(count):
-            # adjust min and max by 1% to avoid rounding errors causing values to be outside the range
-            minVal = cbreaks[0] * 0.99 if i == 0 else cbreaks[i]
-            maxVal = cbreaks[count] * 1.01 if i == count-1 else cbreaks[i+1]
-            colourVal = i / (count - 1)
-            colour = ramp.color(colourVal)
-            # default precision too high
-            rangeList.append(self.makeSymbologyForRange(minVal, maxVal, colour, precision-1))
-        renderer = QgsGraduatedSymbolRenderer(self.animateVar[:10], rangeList)
-        renderer.setMode(QgsGraduatedSymbolRenderer.Custom)
-        # new method but fails when repainting 
-#         renderer.setSourceColorRamp(ramp)
-#         #renderer.classificationMethod().setLabelPrecision(precision-1)
-#         renderer.updateColorRamp(ramp)
-#         renderer.updateRangeLabels()        
+#         precision = renderer.classificationMethod().labelPrecision() 
         assert self.animateLayer is not None
         self.animateLayer.setRenderer(renderer)
         self.animateLayer.setOpacity(opacity)
@@ -2416,7 +2430,7 @@ class Visualise(QObject):
     
     def makeSymbologyForRange(self, minv: float, maxv: float, colour: QColor, precision: float) -> QgsRendererRange:
         """Create a range from minv to maxv with the colour."""
-        base = self.selectBase()
+        base, _ = self.selectBase()
         if base == Parameters._RIVS:
             props = {'width_expression': QSWATTopology._PENWIDTH}
             symbol: QgsSymbol = QgsLineSymbol.createSimple(props)
@@ -2503,6 +2517,9 @@ class Visualise(QObject):
             return
         if not self.setPeriods():
             return
+        if self.scenario1 != '':
+            _ = self.makeCompareResults()
+            return
         self._dlg.setCursor(Qt.WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
@@ -2521,6 +2538,336 @@ class Visualise(QObject):
                 return
         self.colourResultsFile()
         self._dlg.setCursor(Qt.ArrowCursor)
+        
+    def makeCompareResults(self) -> bool:
+        """Create and add to results 4 shapefiles:
+        1.  Results for scenario 1
+        2.  Results for scenario 2
+        3.  Results for difference scenario 2 - scenario 1
+        4.  Results for % change from 1 to 2
+        Assumes self.scenario1 and self.scenario2 are differen existing scenarios directories."""
+        
+        def removeComparisonLayers(layers: List[QgsVectorLayer]):
+            lIds = [layer.id() for layer in layers]
+            QgsProject.instance().removeMapLayers(lIds)
+        
+        # make a directory for the results files
+        root = QgsProject.instance().layerTreeRoot()
+        dirname = '{0}_{1}'.format(self.scenario1, self.scenario2)
+        direc = QSWATUtils.join(self._gv.resultsDir, dirname)
+        if not os.path.isdir(direc):
+            os.makedirs(direc)
+        selectVar = self._dlg.variableList.selectedItems()[0].text()
+        file1Base = self.scenario1 + '-' + self.table + '-' + selectVar + '-results'
+        file1 = QSWATUtils.join(direc, file1Base + '.shp')
+        file1Exists = False
+        if os.path.isfile(file1):
+            file1Exists = True
+        file2Base = self.scenario2 + '-' + self.table + '-' + selectVar + '-results'
+        file2 = QSWATUtils.join(direc, file2Base + '.shp')
+        file2Exists = False
+        if os.path.isfile(file2):
+            file2Exists = True
+        diffBase = self.table + '-' + selectVar + '-diff'
+        diffFile = QSWATUtils.join(direc, diffBase + '.shp')
+        diffFileExists = False
+        if os.path.isfile(diffFile):
+            diffFileExists = True
+        changeBase = self.table + '-' + selectVar + '-%change'
+        changeFile = QSWATUtils.join(direc, changeBase + '.shp')
+        changeFileExists = False
+        if os.path.isfile(changeFile):
+            changeFileExists = True
+        self.setConnection(self.scenario1)
+        # set isStatic False so data for only one variable is read
+        if not self.readData('scenario1', False, self.table, selectVar, ''):
+            return
+        # assume results shapefiles are the same for scenarios 1 and 2, so use the first scenario for the source shapefiles
+        resultsDir = os.path.split(self.db)[0]
+        self.setConnection(self.scenario2)
+        if not self.readData('scenario2', False, self.table, selectVar, ''):
+            return
+        # restore self.db
+        self.setConnection(self.scenario)
+        baseName, ft = self.selectBase(scenario=self.scenario1)
+        if baseName is None:
+            return False
+        resultsBase = QSWATUtils.join(resultsDir, baseName) + '.shp'
+        summary = Visualise._ANNUALMEANS if self.isAA else self._dlg.summaryCombo.currentText()
+        needLayer1 = True
+        if file1Exists:
+            layer1 = QSWATUtils.getLayerByFilename(root.findLayers(), file1, ft, None, None, None)[0]
+            if layer1 is not None:
+                needLayer1 = False
+        else:
+            QSWATUtils.copyShapefile(resultsBase, file1Base, direc)
+        needLayer2 = True
+        if file2Exists:
+            layer2 = QSWATUtils.getLayerByFilename(root.findLayers(), file2, ft, None, None, None)[0]
+            if layer2 is not None:
+                needLayer2 = False
+        else:
+            QSWATUtils.copyShapefile(resultsBase, file2Base, direc)
+        needLayer3 = True
+        if diffFileExists:
+            layer3 = QSWATUtils.getLayerByFilename(root.findLayers(), diffFile, ft, None, None, None)[0]
+            if layer3 is not None:
+                needLayer3 = False
+        else:
+            QSWATUtils.copyShapefile(resultsBase, diffBase, direc)
+        needLayer4 = True
+        if changeFileExists:
+            layer4 = QSWATUtils.getLayerByFilename(root.findLayers(), changeFile, ft, None, None, None)[0]
+            if layer3 is not None:
+                needLayer4 = False
+        else:
+            QSWATUtils.copyShapefile(resultsBase, changeBase, direc)
+        resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
+        assert resultsGroup is not None
+        selectVarShort = selectVar[:10]
+        varField = QgsField(selectVarShort, QVariant.Double)
+        addedLayers = []
+        if needLayer1:
+            legend1 = '{0} {1} {2}'.format(self.scenario1, selectVar, summary)
+            layer1 = QgsVectorLayer(file1, legend1, 'ogr')
+            provider1 = layer1.dataProvider()
+            if provider1.fieldNameIndex(selectVarShort) < 0 and not provider1.addAttributes([varField]):
+                QSWATUtils.error('Could not add field {0} to results file {1}'.format(selectVarShort, file1), self._gv.isBatch)
+                return False
+            layer1.updateFields()
+            layer1 = cast(QgsVectorLayer, QgsProject.instance().addMapLayer(layer1, False))
+            resultsGroup.insertLayer(0, layer1)
+            addedLayers.append(layer1)
+        if needLayer2:
+            legend2 = '{0} {1} {2}'.format(self.scenario2, selectVar, summary)
+            layer2 = QgsVectorLayer(file2, legend2, 'ogr')
+            provider2 = layer2.dataProvider()
+            if provider2.fieldNameIndex(selectVarShort) < 0 and not provider2.addAttributes([varField]):
+                QSWATUtils.error('Could not add field {0} to results file {1}'.format(selectVarShort, file2), self._gv.isBatch)
+                removeComparisonLayers(addedLayers)
+                return False
+            layer2.updateFields()
+            layer2 = cast(QgsVectorLayer, QgsProject.instance().addMapLayer(layer2, False))
+            resultsGroup.insertLayer(0, layer2)
+            addedLayers.append(layer2)
+        if needLayer3:
+            legend3 = '{0} {1} {2} {3} {4}'.format(selectVar, 'difference', self.scenario2, 'minus', self.scenario1)
+            layer3 = QgsVectorLayer(diffFile, legend3, 'ogr')
+            provider3 = layer3.dataProvider()
+            if provider3.fieldNameIndex(selectVarShort) < 0 and not provider3.addAttributes([varField]):
+                QSWATUtils.error('Could not add field {0} to results file {1}'.format(selectVarShort, diffFile), self._gv.isBatch)
+                removeComparisonLayers(addedLayers)
+                return False
+            layer3.updateFields()
+            layer3 = cast(QgsVectorLayer, QgsProject.instance().addMapLayer(layer3, False))
+            resultsGroup.insertLayer(0, layer3)
+            addedLayers.append(layer3)
+        if needLayer4:
+            legend4 = '{0} {1} {2} {3} {4}'.format(selectVar, '% change from', self.scenario1, 'to', self.scenario2)
+            layer4 = QgsVectorLayer(changeFile, legend4, 'ogr')
+            provider4 = layer4.dataProvider()
+            if provider4.fieldNameIndex(selectVarShort) < 0 and not provider4.addAttributes([varField]):
+                QSWATUtils.error('Could not add field {0} to results file {1}'.format(selectVarShort, changeFile), self._gv.isBatch)
+                removeComparisonLayers(addedLayers)
+                return False
+            layer4.updateFields()
+            layer4 = cast(QgsVectorLayer, QgsProject.instance().addMapLayer(layer4, False))
+            resultsGroup.insertLayer(0, layer4)
+            addedLayers.append(layer4)
+        if baseName == Parameters._SUBS:
+            layer1.rendererChanged.connect(self.changeSubRenderer)
+            layer2.rendererChanged.connect(self.changeSubRenderer)
+            layer3.rendererChanged.connect(self.changeSubRenderer)
+            layer4.rendererChanged.connect(self.changeSubRenderer)
+            self.internalChangeToSubRenderer = True
+            self.keepSubColours = False
+        elif baseName == Parameters._HRUS:
+            layer1.rendererChanged.connect(self.changeHRURenderer)
+            layer2.rendererChanged.connect(self.changeHRURenderer)
+            layer3.rendererChanged.connect(self.changeHRURenderer)
+            layer4.rendererChanged.connect(self.changeHRURenderer)
+            self.internalChangeToHRURenderer = True
+            self.keepHRUColours = False
+        elif baseName == Parameters._AQUIFERS:
+            layer1.rendererChanged.connect(self.changeAquRenderer)
+            layer2.rendererChanged.connect(self.changeAquRenderer)
+            layer3.rendererChanged.connect(self.changeAquRenderer)
+            layer4.rendererChanged.connect(self.changeAquRenderer)
+            self.internalChangeToAquRenderer = True
+            self.keepAquColours = False
+        elif baseName == Parameters._DEEPAQUIFERS:
+            layer1.rendererChanged.connect(self.changeDeepAquRenderer)
+            layer2.rendererChanged.connect(self.changeDeepAquRenderer)
+            layer3.rendererChanged.connect(self.changeDeepAquRenderer)
+            layer4.rendererChanged.connect(self.changeDeepAquRenderer)
+            self.internalChangeToDeepAquRenderer = True
+            self.keepDeepAquColours = False
+        else:
+            layer1.rendererChanged.connect(self.changeRivRenderer)
+            layer2.rendererChanged.connect(self.changeRivRenderer)
+            layer3.rendererChanged.connect(self.changeRivRenderer)
+            layer4.rendererChanged.connect(self.changeRivRenderer)
+            self.internalChangeToRivRenderer = True
+            self.keepRivColours = False
+        allVals, invertRamp34 = self.updateCompareLayers(layer1, layer2, layer3, layer4, selectVar)
+        if allVals is None:
+            removeComparisonLayers(addedLayers) 
+            return False
+        self.currentResultsLayer = layer4
+        self._gv.iface.setActiveLayer(self.currentResultsLayer)
+        if baseName == Parameters._SUBS:
+            # add labels
+            if not self._gv.useGridModel:
+                layer1.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+                layer2.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+                layer3.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+                layer4.loadNamedStyle(QSWATUtils.join(self._gv.plugin_dir, 'subresults.qml'))
+            self.internalChangeToSubRenderer = False
+        elif baseName == Parameters._LSUS:
+            self.internalChangeToLSURenderer = False
+        elif baseName == Parameters._HRUS:
+            self.internalChangeToHRURenderer = False
+        elif baseName == Parameters._AQUIFERS:
+            self.internalChangeToAquRenderer = False
+        elif baseName == Parameters._DEEPAQUIFERS:
+            self.internalChangeToDeepAquRenderer = False
+        else:
+            self.internalChangeToRivRenderer = False
+        baseMapTip = FileTypes.mapTip(ft)
+        layer1.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVarShort))
+        layer2.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVarShort))
+        layer3.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVarShort))
+        layer4.setMapTipTemplate(baseMapTip + '<br/><b>{0}:</b> [% "{0}" %]'.format(selectVarShort))
+        ramp12 = self.chooseColorRamp(self.table, selectVar)
+        # need two renderers for two files, else crash when removing layers
+        renderer1 = self.makeJenksRenderer(allVals, ramp12, selectVar)
+        renderer2 = QgsGraduatedSymbolRenderer.clone(renderer1)
+        ramp34 = Visualise.makeComparisonRamp()
+        if invertRamp34:
+            ramp34.invert()
+        self.colourResultsFile(layer=layer1, renderer=renderer1)
+        self.colourResultsFile(layer=layer2, renderer=renderer2)
+        self.colourResultsFile(layer=layer3, ramp=ramp34)
+        self.colourResultsFile(layer=layer4, ramp=ramp34)
+        return True
+       
+    @staticmethod  
+    def makeComparisonRamp() -> QgsGradientColorRamp:
+        """Return YlwGrnRd colour ramp."""
+        return QgsGradientColorRamp(QColor(233, 249, 16), QColor(227, 26, 28), False, 
+                                    [QgsGradientStop(0.67, QColor(51, 160, 44))])
+        
+    def updateCompareLayers(self, layer1: QgsVectorLayer, layer2: QgsVectorLayer, layer3: QgsVectorLayer, layer4: QgsVectorLayer, var: str) -> Tuple[List[float], bool]:
+        """Write data to compare layers.  Return list of all values in compared layers, plus flag indicating if colour ramp for diff and %change maps should be inverted."""
+        
+        def baseToRef(base: str, unit: int) -> str:
+            """Generate reference to unit type and number from base"""
+            if base == Parameters._HRUS:
+                ref = 'HRU {0!s}'.format(unit)
+            elif base == Parameters._LSUS:
+                ref = 'LSU {0!s}'.format(unit)
+            elif base == Parameters._SUBS:
+                ref = 'subbasin {0!s}'.format(unit)
+            elif base == Parameters._AQUIFERS:
+                ref = 'aquifer {0!s}'.format(unit)
+            elif base == Parameters._DEEPAQUIFERS:
+                ref = 'deep aquifer {0!s}'.format(unit)
+            else:
+                ref = 'channel {0!s}'.format(unit)
+            return ref
+        
+        base, _ = self.selectBase()
+        if base is None:
+            return
+        # note that all layers are copy of the same template shapefile, so all have the same structure
+        varIndex = self._gv.topo.getIndex(layer1, var)
+        # collect resultsData
+        self.summariseData('scenario1', True)
+        # summariseData puts data in self.resultsData, so save this before running again
+        # need to copy data, not just a pointer to it
+        data1 = deepcopy(self.resultsData)
+        self.summariseData('scenario2', True)
+        allVals = []
+        minDiff = float('inf')
+        maxDiff = float('-inf')
+        for layer in {layer1, layer2, layer3, layer4}:
+            assert layer is not None
+            layer.startEditing()
+            for f in layer.getFeatures():
+                fid = f.id()
+                if base == Parameters._HRUS:
+                    # May be split HRUs; just use first
+                    # This is inadequate for some variables, but no way to know if correct val is sum of vals, mean, etc.
+                    unitText = f[QSWATTopology._HRUS]
+                    if 'PND' in unitText or 'RES' in unitText:
+                        continue
+                    unit = int(unitText.split(',')[0]) 
+                elif base == Parameters._LSUS:
+                    unit = f[QSWATTopology._LSUID]
+                elif base == Parameters._SUBS:
+                    unit = f[QSWATTopology._SUBBASIN]
+                elif base == Parameters._AQUIFERS or base == Parameters._DEEPAQUIFERS:
+                    unit = f[QSWATTopology._AQUIFER]
+                else:
+                    unit = f[QSWATTopology._CHANNEL]
+                if layer == layer1:
+                    subData = cast(Dict[int, Dict[str, float]], data1).get(unit, None)
+                    if subData is not None:
+                        data = subData.get(var, None)
+                    else:
+                        data = None
+                    if data is None:
+                        ref = baseToRef(base, unit)
+                        QSWATUtils.error('Cannot get data for variable {0} in {1} in first scenario'.format(var, ref), self._gv.isBatch)
+                        layer.rollBack()
+                        return None, False
+                    allVals.append(data)
+                elif layer == layer2:
+                    subData = cast(Dict[int, Dict[str, float]], self.resultsData).get(unit, None)
+                    if subData is not None:
+                        data = subData.get(var, None)
+                    else:
+                        data = None
+                    if data is None:
+                        ref = baseToRef(base, unit)
+                        QSWATUtils.error('Cannot get data for variable {0} in {1} in second scenario'.format(var, ref), self._gv.isBatch)
+                        layer.rollBack()
+                        return None, False
+                    allVals.append(data)
+                else:
+                    subData1 = cast(Dict[int, Dict[str, float]], data1).get(unit, None)
+                    if subData1 is not None:
+                        val1 = subData1.get(var, None)
+                    else:
+                        val1 = None
+                    if val1 is None:
+                        ref = baseToRef(base, unit)
+                        QSWATUtils.error('Cannot get data for variable {0} in {1} in first scenario'.format(var, ref), self._gv.isBatch)
+                        layer.rollBack()
+                        return None, False
+                    subData2 = cast(Dict[int, Dict[str, float]], self.resultsData).get(unit, None)
+                    if subData2 is not None:
+                        val2 = subData2.get(var, None)
+                    else:
+                        val2 = None
+                    if val2 is None:
+                        ref = baseToRef(base, unit)
+                        QSWATUtils.error('Cannot get data for variable {0} in {1} in second scenario'.format(var, ref), self._gv.isBatch)
+                        layer.rollBack()
+                        return None, False
+                    if layer == layer3:
+                        data = val2 - val1
+                        minDiff = min(minDiff, data)
+                        maxDiff = max(maxDiff, data)
+                    else: # layer 4
+                        data = 0 if val1 == 0 else ((val2 - val1) / val1) * 100            
+                if not layer.changeAttributeValue(fid, varIndex, float(data) if isinstance(data, numpy.float64) else data):
+                    QSWATUtils.error('Could not set attribute {0} in comparison results file'.format(var), self._gv.isBatch)
+                    layer.rollBack()
+                    return None, False
+            layer.commitChanges()
+        self.summaryChanged = False
+        return allVals, abs(minDiff) > maxDiff
         
     def printResults(self) -> None:
         """Create print composer by instantiating template file."""
@@ -2864,6 +3211,70 @@ class Visualise(QObject):
             return (self.startYear + year) * 100 + month
         else:
             return self.startYear
+        
+    def startCompareScenarios(self):
+        """Run the compare scenarios form."""
+        self._comparedlg.exec_()
+        
+    def setupCompareScenarios(self):
+        """Save chosen scenarios and exit form."""
+        scenario1 = self._comparedlg.scenario1.currentText()
+        scenario2 = self._comparedlg.scenario2.currentText()
+        if scenario1 == '' or scenario2 == '' or scenario1 == scenario2:
+            QSWATUtils.information('Please choose two different scenarios to compare', self._gv.isBatch)
+            self.closeCompareScenarios()
+            return 
+        self._dlg.compareLabel.setText('<html><head/><body><p>Compare {0}<br>and {1}</p></body></html>'.format(scenario1, scenario2))
+        self.scenario1 = scenario1
+        self.scenario2 = scenario2
+        # constrict dates if necessary
+        if self.scenario1 != self.scenario:
+            scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario1)
+            if self.table != '':
+                resultsDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+                if not self._gv.db.hasTable(QSWATUtils.join(resultsDir, Parameters._OUTPUTDB), self.table):
+                    QSWATUtils.error('There is no {0} output table for scenario {1}'.format(self.table, self.scenario1), self._gv.isBatch)
+                    self.closeCompareScenarios()
+                    return
+            txtInOutDir = QSWATUtils.join(scenDir, Parameters._TXTINOUT)
+            simFile = QSWATUtils.join(txtInOutDir, Parameters._SIM)
+            if not os.path.exists(simFile):
+                QSWATUtils.error('Cannot find simulation file {0}'.format(simFile), self._gv.isBatch)
+                self.closeCompareScenarios()
+                return
+            prtFile = QSWATUtils.join(txtInOutDir, Parameters._PRT)
+            if not os.path.exists(prtFile):
+                QSWATUtils.error('Cannot find print file {0}'.format(prtFile), self._gv.isBatch)
+                self.closeCompareScenarios()
+                return
+            self.readPrt(prtFile, simFile, self.scenario1)
+        if self.scenario2 != self.scenario:
+            scenDir = QSWATUtils.join(self._gv.scenariosDir, self.scenario2)
+            if self.table != '':
+                resultsDir = QSWATUtils.join(scenDir, Parameters._RESULTS)
+                if not self._gv.db.hasTable(QSWATUtils.join(resultsDir, Parameters._OUTPUTDB), self.table):
+                    QSWATUtils.error('There is no {0} output table for scenario {1}'.format(self.table, self.scenario2), self._gv.isBatch)
+                    self.closeCompareScenarios()
+                    return
+            txtInOutDir = QSWATUtils.join(scenDir, Parameters._TXTINOUT)
+            simFile = QSWATUtils.join(txtInOutDir, Parameters._SIM)
+            if not os.path.exists(simFile):
+                QSWATUtils.error('Cannot find simulation file {0}'.format(simFile), self._gv.isBatch)
+                self.closeCompareScenarios()
+                return
+            prtFile = QSWATUtils.join(txtInOutDir, Parameters._PRT)
+            if not os.path.exists(prtFile):
+                QSWATUtils.error('Cannot find print file {0}'.format(prtFile), self._gv.isBatch)
+                self.closeCompareScenarios()
+                return
+            self.readPrt(prtFile, simFile, self.scenario2)
+        self._comparedlg.close()
+        
+    def closeCompareScenarios(self):
+        self.scenario1 = ''
+        self.scenario2 = ''
+        self._dlg.compareLabel.setText('<html><head/><body><p>Compare X<br>and Y</p></body></html>')
+        self._comparedlg.close()
             
     def addDays(self, days: int, year: int) -> int:
         """Make Julian date from year + days."""
@@ -3931,20 +4342,26 @@ class MapTitle(QgsMapCanvasItem):
         ## First line of title
         # replace var with description and units if available
         items = layer.name().split()
-        var = items[1]
-        if conn is None:
-            row = None
-        else:
-            sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
-            row = conn.execute(sql, (table, var)).fetchone()
-        # units can be '---'; also protect against NULL
-        units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
-        description = var if row is None or row[1] is None else row[1]
-        self.line1 = '{0} {1}'.format(items[0], description + units)
-        # items has 3 or more components for static results, 2 for animation
-        # add the rest
-        for i in range(2, len(items)):
-            self.line1 += ' {0}'.format(items[i])
+        for i in range(len(items)):
+            QSWATUtils.loginfo('Item {0}: {1}'.format(i+1, items[i]))
+        # guard against user changing the layer name
+        if len(items) >= 2:
+            var = items[1]
+            if conn is None:
+                row = None
+            else:
+                sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
+                row = conn.execute(sql, (table, var)).fetchone()
+            # units can be '---'; also protect against NULL
+            units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
+            description = var if row is None or row[1] is None else row[1]
+            self.line1 = '{0} {1}'.format(items[0], description + units)
+            # items has 3 or more components for static results, 2 for animation
+            # add the rest
+            for i in range(2, len(items)):
+                self.line1 += ' {0}'.format(items[i])
+        else: # layer name changed - just copy it
+            self.line1 = layer.name()   
         ## second line of title (or None)
         self.line2 = line2
         rect0 = metricsBold.boundingRect(self.line0)

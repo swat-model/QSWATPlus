@@ -1,5 +1,5 @@
-SET OSGEO4W_ROOT=C:\Program Files\QGIS 3.22.4
-set PYTHONHOME=%OSGEO4W_ROOT%\apps\Python39
+SET OSGEO4W_ROOT=C:\Program Files\QGIS 3.16
+set PYTHONHOME=%OSGEO4W_ROOT%\apps\Python37
 set PYTHONPATH=%OSGEO4W_ROOT%\apps\qgis-ltr\python
 rem QGIS binaries
 rem Important to put OSGEO4W_ROOT\bin last, not first, or PyQt.QtCore DLL load fails

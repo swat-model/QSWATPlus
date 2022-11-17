@@ -863,7 +863,7 @@ class QSWATUtils:
                         QSWATUtils.fixGeometry(inFileName, saveDir)
                     else:
                         QSWATUtils.copyFiles(inInfo, saveDir)
-            # even if runFix is true, has already neen stored in project folder 
+            # even if runFix is true, has already been stored in project folder 
             # and so fixing geometry should be unnecessary
             else:
                 outFileName = inFileName

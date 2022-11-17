@@ -49,9 +49,9 @@ class AboutQSWAT:
         text = """
 {0} version: {1}
 
-Minimum QGIS version: 3.16
+Minimum QGIS version: 3.16.14
 
-Python version: 3.7
+Python version: 3.9
 
 Current restrictions:
 - Windows Linux and MacOS only

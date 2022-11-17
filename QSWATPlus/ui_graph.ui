@@ -14,32 +14,13 @@
    <string>SWATGraph</string>
   </property>
   <property name="windowIcon">
-   <iconset resource="resources.qrc">
+   <iconset>
     <normaloff>:/plugins/QSWATPlus/SWATPlus32.ico</normaloff>:/plugins/QSWATPlus/SWATPlus32.ico</iconset>
   </property>
   <property name="sizeGripEnabled">
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <item row="3" column="1">
-    <widget class="QTableWidget" name="table">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="editTriggers">
-      <set>QAbstractItemView::NoEditTriggers</set>
-     </property>
-     <property name="alternatingRowColors">
-      <bool>true</bool>
-     </property>
-     <attribute name="verticalHeaderVisible">
-      <bool>false</bool>
-     </attribute>
-    </widget>
-   </item>
    <item row="3" column="2" rowspan="2">
     <widget class="QWidget" name="widget" native="true">
      <property name="sizePolicy">
@@ -60,8 +41,8 @@
      <widget class="QPushButton" name="newFile">
       <property name="geometry">
        <rect>
-        <x>21</x>
-        <y>90</y>
+        <x>20</x>
+        <y>140</y>
         <width>81</width>
         <height>41</height>
        </rect>
@@ -75,7 +56,7 @@ to Plot</string>
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>110</y>
+        <y>150</y>
         <width>75</width>
         <height>23</height>
        </rect>
@@ -88,7 +69,7 @@ to Plot</string>
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>50</y>
+        <y>90</y>
         <width>90</width>
         <height>20</height>
        </rect>
@@ -103,11 +84,11 @@ to Plot</string>
        <number>2</number>
       </property>
      </widget>
-     <widget class="QLabel" name="label">
+     <widget class="QLabel" name="chartLabel">
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>30</y>
+        <y>70</y>
         <width>82</width>
         <height>16</height>
        </rect>
@@ -123,7 +104,7 @@ to Plot</string>
       <property name="geometry">
        <rect>
         <x>120</x>
-        <y>50</y>
+        <y>90</y>
         <width>75</width>
         <height>23</height>
        </rect>
@@ -132,6 +113,43 @@ to Plot</string>
        <string>Update</string>
       </property>
      </widget>
+     <widget class="QComboBox" name="plotType">
+      <property name="geometry">
+       <rect>
+        <x>20</x>
+        <y>30</y>
+        <width>171</width>
+        <height>22</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_2">
+      <property name="geometry">
+       <rect>
+        <x>26</x>
+        <y>10</y>
+        <width>161</width>
+        <height>20</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Plot type</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+    </widget>
+   </item>
+   <item row="2" column="1" colspan="2">
+    <widget class="QWidget" name="graph" native="true">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <layout class="QVBoxLayout" name="graphvl"/>
     </widget>
    </item>
    <item row="4" column="1">
@@ -144,15 +162,23 @@ to Plot</string>
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QWidget" name="graph" native="true">
+   <item row="3" column="1">
+    <widget class="QTableWidget" name="table">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <layout class="QVBoxLayout" name="graphvl"/>
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+     <attribute name="verticalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
     </widget>
    </item>
   </layout>
