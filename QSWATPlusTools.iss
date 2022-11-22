@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "QSWATPlusTools"
-#define MyAppVersion "2.0"
+#define MyAppVersion "2.3"
 #define MyAppSubVersion "0"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
@@ -34,10 +34,10 @@ PrivilegesRequired=lowest
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "C:\SWAT\SWATPlus\Tools\ConvertFromArc\*"; DestDir: "{app}\Tools\ConvertFromArc"; Excludes: AccessToCSV, *.manifest; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\SWAT\SWATPlus\Tools\ConvertFromArc\*"; DestDir: "{app}\Tools\ConvertFromArc"; Excludes: "AccessToCSV,*.manifest"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\SWAT\SWATPlus\Tools\SWATGraph\*";  DestDir: "{app}\Tools\SWATGraph"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\SWAT\SWATPlus\Databases\example.qgs"; DestDir: "{app}\Databases"; Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\Databases\QSWATPlusProj.sqlite"; DestDir: "{app}\Databases"; Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\Documents\QSWATPlus Manual_v{#MyAppVersion}.pdf"; DestDir: "{app}\Documents"; Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\ExampleDatasets\*"; DestDir: "{app}\ExampleDatasets";  Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\SWAT\SWATPlus\TauDEM5Bin\*"; DestDir: "{app}\TauDEM5Bin";  Flags: ignoreversion 
+; Source: "C:\SWAT\SWATPlus\TauDEM5Bin\*"; DestDir: "{app}\TauDEM5Bin";  Flags: ignoreversion 

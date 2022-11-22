@@ -25,6 +25,7 @@ from numpy.polynomial import Polynomial
 import locale
 # import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from mpl_toolkits.axes_grid1.axes_divider import HBoxDivider
 import mpl_toolkits.axes_grid1.axes_size as Size
 # from matplotlib.figure import Figure
@@ -35,9 +36,11 @@ import traceback
 
 try:
     from .graphdialog import GraphDialog  # @UnusedImport
+    from .parameters import Parameters  # @UnusedImport
 except:
     # stand alone version
     from graphdialog1 import GraphDialog  # @UnresolvedImport @Reimport
+    from parameters import Parameters  # @UnresolvedImport @Reimport
 
 # basic matplotlib colours
 colours = ['b', 'g', 'r', 'm', 'y', 'c', 'k'] 
@@ -45,7 +48,7 @@ colours = ['b', 'g', 'r', 'm', 'y', 'c', 'k']
 class SWATGraph(QObject):
     """Display SWAT result data as line graph, bar chart, flow duration curve, scatter plot or box plot."""
     
-    def __init__(self, csvFile, plotType):
+    def __init__(self, csvFile, plotType, fontSize=None):
         """Initialise class variables."""
         QObject.__init__(self)
         self._dlg = GraphDialog()
@@ -62,6 +65,8 @@ class SWATGraph(QObject):
         self.ax1 = None
         ## matplotlib figure
         self.fig = None
+        ## font size for plotting
+        self.fontSize = Parameters._PLOTFONTSIZE if fontSize is None else fontSize
         
     def run(self):
         """Initialise form and run on initial csv file."""
@@ -87,7 +92,8 @@ class SWATGraph(QObject):
         self._dlg.newFile.clicked.connect(self.getCsv)
         self._dlg.updateButton.clicked.connect(self.updateGraph)
         self._dlg.closeForm.clicked.connect(self.closeFun)
-        self.setUbuntuFont()
+        if not Parameters._ISMAC:
+            self.setUbuntuFont()
         self.readCsv()
         self._dlg.exec_()
         
@@ -137,7 +143,7 @@ class SWATGraph(QObject):
             path = str(settings.value('/QSWATPlus/LastInputPath'))
         else:
             path = ''
-        filtr = self.trans('CSV files (*.csv)')
+        filtr = self.trans('CSV files (*.csv);;All files (*.*)')
         csvFile, _ = QFileDialog.getOpenFileName(None, 'Open csv file', path, filtr)
         if csvFile is not None and csvFile != '':
             settings.setValue('/QSWATPlus/LastInputPath', os.path.dirname(str(csvFile)))
@@ -251,6 +257,7 @@ class SWATGraph(QObject):
             title = ''
         self.rmmpl()
         self.fig, self.ax1 = plt.subplots()
+        mpl.rcParams['font.size'] = self.fontSize
         self.fig.subplots_adjust(left=0.05)
         self.fig.subplots_adjust(right=0.95)
         if self.plotType not in {3,4} : # no legend with scatter or box plot, otherwise make space below
@@ -270,18 +277,20 @@ class SWATGraph(QObject):
             xVals = [datetime.strptime(str(self._dlg.table.item(i, 0).text()).strip(), fmt) for i in rng]
             for col in range(1, numPlots+1):
                 yVals = [self.makeFloat(self._dlg.table.item(i, col).text()) for i in rng]
-                colour = SWATGraph.getColour(col)
+                colour = self.getColour(col)
                 h = self._dlg.table.horizontalHeaderItem(col).text()
                 indx = colToTwin.get(col, -1)
                 if indx < 0:  # axis on left
                     if not 'observed' in h:
                         self.ax1.set_ylabel(h.split('-')[3])
                         self.ax1.yaxis.label.set_color(colour)
+                        self.ax1.yaxis.label.set_fontsize(self.fontSize)
                         self.ax1.tick_params(axis='y', colors=colour, **tkw)
-                        self.ax1.tick_params(axis='x', **tkw)
+                        self.ax1.tick_params(axis='x', labelsize=self.fontSize, **tkw)
                 else:
                     twins[indx].set_ylabel(h.split('-')[3])
                     twins[indx].yaxis.label.set_color(colour)
+                    twins[indx].yaxis.label.set_fontsize(self.fontSize)
                     twins[indx].tick_params(axis='y', colors=colour, **tkw)
                 if style == 'line':
                     if indx < 0:  # axis on left
@@ -310,7 +319,7 @@ class SWATGraph(QObject):
             exceedence *= 100
             for col in range(1, numPlots+1):
                 yVals = sorted([self.makeFloat(self._dlg.table.item(i, col).text()) for i in rng], reverse=True)
-                colour = SWATGraph.getColour(col)
+                colour = self.getColour(col)
                 h = self._dlg.table.horizontalHeaderItem(col).text()
                 indx = colToTwin.get(col, -1)
                 if indx < 0:  # axis on left
@@ -379,19 +388,19 @@ class SWATGraph(QObject):
                 ax = axs[indx] if len(count) > 1 else axs
                 p = ax.boxplot(npArray, labels=labelsDict[indx])
                 ax.grid(True)
-                #SWATGraph.colourBoxplot(p, SWATGraph.getColour(indx))
+                #SWATGraph.colourBoxplot(p, self.getColour(indx))
             # cannot get this to give other than a very spread layout with narrow boxplots
             #plt.tight_layout(w_pad=-0.5)
         # reinstate title and labels
         if title != '':
             self.ax1.set_title(title)
         if self.plotType == 1:  # line or bar
-            self.ax1.set_xlabel('Date')
+            self.ax1.set_xlabel('Date', fontsize=self.fontSize)
         elif self.plotType == 2:  # flow duration
-            self.ax1.set_xlabel('Exceedance (%)')
+            self.ax1.set_xlabel('Exceedance (%)', fontsize=self.fontSize)
         elif self.plotType == 3:  # scatter plot
-            self.ax1.set_xlabel(self._dlg.table.horizontalHeaderItem(1).text())
-            self.ax1.set_ylabel(self._dlg.table.horizontalHeaderItem(2).text())
+            self.ax1.set_xlabel(self._dlg.table.horizontalHeaderItem(1).text(), fontsize=self.fontSize)
+            self.ax1.set_ylabel(self._dlg.table.horizontalHeaderItem(2).text(), fontsize=self.fontSize)
         if self.plotType != 4:
             self.ax1.grid(True)
         if self.plotType in {1,2}:  # line or bar, or flow duration
@@ -427,7 +436,8 @@ class SWATGraph(QObject):
                 twins[i] = self.ax1.twinx()
                 if i > 1:
                     # offset the second and later right spines
-                    twins[i].spines.right.set_position(("axes", 1 + 0.1 * (i - 1)))
+                    # spines.right syntax only in matplotlib >= 3.4.0
+                    twins[i].spines['right'].set_position(("axes", 1 + 0.1 * (i - 1)))
                 twins[i].set_ylabel(var)
         return colToTwin, twins
     
@@ -493,13 +503,13 @@ class SWATGraph(QObject):
         ax1.set_axes_locator(divider.new_locator(0))
         ax2.set_axes_locator(divider.new_locator(2))
 
-        
-    @staticmethod 
-    def getColour(col):
+         
+    def getColour(self, col):
         """Colour to use for coloumn in table."""
         # column indexess run 1 to n, since first is date
-        # cannot imagine more than 7, but use shades of grey if necessary         
-        return colours[col-1] if col <= len(colours) else str(float((col - 7)/(self._dlg.table.columnCount() - 7)))
+        # cannot imagine more than 7 (numColours), but use shades of grey if necessary
+        numColours = len(colours)         
+        return colours[col-1] if col <= len(colours) else str(float((col - numColours)/(self._dlg.table.columnCount() - numColours)))
     
     @staticmethod 
     def colourBoxplot(p, colour):
@@ -609,9 +619,9 @@ class SWATGraph(QObject):
         self._dlg.coeffs.append(SWATGraph.trans(msg))
         
     def setUbuntuFont(self):
-        """Set Ubuntu font size 10 as default."""
+        """Set Ubuntu font."""
         QFontDatabase.addApplicationFont(":/fonts/Ubuntu-R.ttf")
-        ufont = QFont("Ubuntu", 10, 1)
+        ufont = QFont("Ubuntu", Parameters._DEFAULTFONTSIZE, 1)
         QApplication.setFont(ufont)
 
 if __name__ == '__main__':
@@ -627,7 +637,10 @@ if __name__ == '__main__':
         plotType = int(sys.argv[2])
     else:
         plotType = 1 # line graph or bar chart
+    # Macs need different font sizes for SWATGraph run from script and from QGIS
+    # Parameters._PLOTFONTSIZE of 5 is OK for QGIS.  For script use 9
+    fontSize = 9 if Parameters._ISMAC else Parameters._PLOTFONTSIZE     
     ## main program
-    main = SWATGraph(csvFile, plotType)
+    main = SWATGraph(csvFile, plotType, fontSize=fontSize)
     main.run()
     

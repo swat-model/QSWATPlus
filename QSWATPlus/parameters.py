@@ -126,6 +126,7 @@ class Parameters:
     _SQMETRESTOSQFEET = 10.763910
     
     _DEFAULTFONTSIZE = 12 if _ISMAC else 10
+    _PLOTFONTSIZE = 5 if _ISMAC else 9
     
     ## maximum number of features for adding data to rivs1 and subs1 files
     _RIVS1SUBS1MAX = 100000

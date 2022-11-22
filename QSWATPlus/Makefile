@@ -86,7 +86,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	METADATA = metadatalinux3_64.txt
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-x86_64-linux-gnu.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-310-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh runnose.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC.py)
@@ -215,7 +215,7 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
-%.cpython-38-x86_64-linux-gnu.so : %.pyx
+%.cpython-310-x86_64-linux-gnu.so : %.pyx
 	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
 # 32 bit Linux

@@ -945,7 +945,7 @@ class Visualise(QObject):
         """Load file for showing unit as a selection if necessary.  Select chosen unt."""
         if index < 1 or self.conn is None or self.table == '':
             return
-        QSWATUtils.loginfo('Index is {0}'.format(index))
+        #QSWATUtils.loginfo('Index is {0}'.format(index))
         root = QgsProject.instance().layerTreeRoot()
         if self.table.startswith('channel'):
             if self._gv.useGridModel:
@@ -991,12 +991,12 @@ class Visualise(QObject):
             return
         if layer is None:
             return
-        QSWATUtils.loginfo('Layer is {0!s}'.format(layer))
+        #QSWATUtils.loginfo('Layer is {0!s}'.format(layer))
         val = self._dlg.unitPlot.itemText(index)
-        QSWATUtils.loginfo('Value is {0}'.format(val))
+        #QSWATUtils.loginfo('Value is {0}'.format(val))
         QSWATUtils.setLayerVisibility(layer, True, root)
         layer.removeSelection()
-        QSWATUtils.loginfo('Selection removed')
+        #QSWATUtils.loginfo('Selection removed')
         if field == QSWATTopology._HRUS:
             # need to match n or n1, n2 or n1, n2, n3
             strng = '"{0}" = {1} OR "{0}" LIKE \'{1},%\' OR  "{0}" LIKE \'%, {1}\' OR  "{0}"  LIKE \'%, {1},%\''.format(field, val)
@@ -1007,7 +1007,7 @@ class Visualise(QObject):
         featureId = None
         for targetFeature in layer.getFeatures(request):
             featureId = targetFeature.id()
-            QSWATUtils.loginfo('Feature id is {0!s}'.format(featureId))
+            #QSWATUtils.loginfo('Feature id is {0!s}'.format(featureId))
             layer.select(featureId)
         
     def plotEditUnit(self) -> None:
@@ -1044,8 +1044,12 @@ class Visualise(QObject):
         if numRows == 0:
             QSWATUtils.information('There are no rows to plot', self._gv.isBatch)
             return
-        if self._dlg.plotType.currentText() == Visualise._SCATTER and numRows != 2:
-            QSWATUtils.information('You need 2 rows for a scatter plot, and you have {0}'.format(numRows), self._gv.isBatch)
+        if self._dlg.plotType.currentText() == Visualise._SCATTER:
+            if numRows == 1:
+                QSWATUtils.information('You need two rows for a scatter plot', self._gv.isBatch)
+                return
+            if numRows > 2:
+                QSWATUtils.information('You need 2 rows for a scatter plot, and you have {0}.  Only the first two will be used.'.format(numRows), self._gv.isBatch)
         plotData: Dict[int, List[str]] = dict()
         labels: Dict[int, str] = dict()
         dates: List[str] = []
@@ -1069,7 +1073,6 @@ class Visualise(QObject):
             else:
                 num = int(gisId)
                 where = 'gis_id={0}'.format(num)
-                labels[i] = '{0}-{1}-{2!s}-{3}'.format(scenario, table, num, var)
                 if scenario != self.scenario:
                     # need to change database
                     self.setConnection(scenario)
@@ -1080,6 +1083,8 @@ class Visualise(QObject):
                 else:
                     if not self.readData('', False, table, var, where):
                         return
+                units, _ = Visualise.getUnitsAndDescription(table, var, self.conn)
+                labels[i] = '{0}-{1}-{2!s}-{3}({4})'.format(scenario, table, num, var, units)
                 isDaily, isMonthly, isAnnual, _ = Visualise.tableIsDailyMonthlyOrAnnual(table)
                 (year, tim) = self.startYearTime(isDaily, isMonthly)
                 (finishYear, finishTime) = self.finishYearTime(isDaily, isMonthly)
@@ -1125,9 +1130,12 @@ class Visualise(QObject):
                     (year, tim) = self.nextDate(year, tim, isDaily, isMonthly, isAnnual)
                 datesDone = True
         # data all collected: write csv file
-        csvFile, _ = QFileDialog.getSaveFileName(None, 'Choose a csv file', self._gv.scenariosDir, 'CSV files (*.csv)')
+        csvFile, _ = QFileDialog.getSaveFileName(None, 'Choose a csv file', self._gv.scenariosDir, 'CSV files (*.csv);;All files (*.*)')
         if csvFile == '':
             return
+        # on Linux, extension not added automatically
+        if os.path.splitext(csvFile)[1] == '':
+            csvFile += '.csv'
         with open(csvFile, 'w', newline='') as f:
             writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)  # quote fields containing delimeter or other special characters 
             headers = ['Date']
@@ -2651,6 +2659,7 @@ class Visualise(QObject):
             resultsGroup.insertLayer(0, layer2)
             addedLayers.append(layer2)
         if needLayer3:
+            # note that string 'difference' is used to find variable name in MapTitle, so change there if you change here
             legend3 = '{0} {1} {2} {3} {4}'.format(selectVar, 'difference', self.scenario2, 'minus', self.scenario1)
             layer3 = QgsVectorLayer(diffFile, legend3, 'ogr')
             provider3 = layer3.dataProvider()
@@ -2663,7 +2672,8 @@ class Visualise(QObject):
             resultsGroup.insertLayer(0, layer3)
             addedLayers.append(layer3)
         if needLayer4:
-            legend4 = '{0} {1} {2} {3} {4}'.format(selectVar, '% change from', self.scenario1, 'to', self.scenario2)
+            # note that string '%change' is used to find variable name in MapTitle, so change there if you change here
+            legend4 = '{0} {1} {2} {3} {4}'.format(selectVar, '%change from', self.scenario1, 'to', self.scenario2)
             layer4 = QgsVectorLayer(changeFile, legend4, 'ogr')
             provider4 = layer4.dataProvider()
             if provider4.fieldNameIndex(selectVarShort) < 0 and not provider4.addAttributes([varField]):
@@ -4317,8 +4327,22 @@ class Visualise(QObject):
         d0 = N[int(f)] * (c-k)
         d1 = N[int(c)] * (k-f)
         return d0+d1
+    
+    @staticmethod 
+    def getUnitsAndDescription(table: str, var: str, conn: Any) -> Tuple[str, str]:
+        """Return units and description for var and table using connection to results database."""
+        if conn is None:
+            row = None
+        else:
+            sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
+            row = conn.execute(sql, (table, var)).fetchone()
+        # units can be '---'; also protect against NULL
+        units = '' if row is None or row[0] is None or row[0] == '---' else row[0]
+        description = var if row is None or row[1] is None else row[1]
+        #QSWATUtils.loginfo('Table: {0}, column_name: {1}'.format(table, var))
+        #QSWATUtils.loginfo('Units: {0}, Description: {1}'.format(units, description))
+        return units, description
         
-
 class MapTitle(QgsMapCanvasItem):
     
     """Item for displaying title at top left of map canvas."""
@@ -4342,23 +4366,25 @@ class MapTitle(QgsMapCanvasItem):
         ## First line of title
         # replace var with description and units if available
         items = layer.name().split()
-        for i in range(len(items)):
-            QSWATUtils.loginfo('Item {0}: {1}'.format(i+1, items[i]))
+        #for i in range(len(items)):
+        #    QSWATUtils.loginfo('Item {0}: {1}'.format(i+1, items[i]))
         # guard against user changing the layer name
         if len(items) >= 2:
-            var = items[1]
-            if conn is None:
-                row = None
+            # check for scenario comparison layers, when var comes first and is followed by 'difference' or '%change'
+            # items may be (for static results) scenario, variable, summary 
+            # or (for scenario comparisons) variable, 'difference' or '%change', scenarios
+            # or (for animation) scenario, variable
+            if items[1] == 'difference' or items[1] == '%change':
+                varIndex = 0
             else:
-                sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
-                row = conn.execute(sql, (table, var)).fetchone()
-            # units can be '---'; also protect against NULL
-            units = '' if row is None or row[0] is None or row[0] == '---' else ' ({0})'.format(row[0])
-            description = var if row is None or row[1] is None else row[1]
-            self.line1 = '{0} {1}'.format(items[0], description + units)
-            # items has 3 or more components for static results, 2 for animation
+                varIndex = 1
+            units, description = Visualise.getUnitsAndDescription(table, items[varIndex], conn)
+            if varIndex == 0:
+                self.line1 = '{0} ({1})'.format(description, units)
+            else:
+                self.line1 = '{0} {1} ({2})'.format(items[0], description, units)
             # add the rest
-            for i in range(2, len(items)):
+            for i in range(varIndex + 1, len(items)):
                 self.line1 += ' {0}'.format(items[i])
         else: # layer name changed - just copy it
             self.line1 = layer.name()   
