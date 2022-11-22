@@ -45,7 +45,7 @@ Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
 Type: files; Name: "C:\SWAT\SWATPlus\TauDEM539Bin\*";
 
 [Files]
-Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Flags: ignoreversion recursesubdirs createallsubdirs   
+Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Excludes: "testdata\test,__pycache__"; Flags: ignoreversion recursesubdirs createallsubdirs   
 Source: "C:\SWAT\SWATPlus\TauDEM539_304Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
 Source: "C:\SWAT\SWATPlus\Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 Source: "C:\SWAT\SWATPlus\Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion

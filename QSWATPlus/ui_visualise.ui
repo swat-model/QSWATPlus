@@ -99,7 +99,7 @@
            </property>
            <widget class="QWidget" name="staticTab">
             <attribute name="title">
-             <string>Static data</string>
+             <string>Static maps</string>
             </attribute>
             <widget class="QGroupBox" name="resultsFileBox">
              <property name="geometry">
@@ -398,7 +398,7 @@
            </widget>
            <widget class="QWidget" name="animationTab">
             <attribute name="title">
-             <string>Animation</string>
+             <string>Animated maps</string>
             </attribute>
             <layout class="QGridLayout" name="gridLayout_9">
              <item row="1" column="2">
@@ -806,7 +806,7 @@ Can also be controlled manually by dragging or by using left and right arrows on
            </widget>
            <widget class="QWidget" name="plotTab">
             <attribute name="title">
-             <string>Plot</string>
+             <string>Plots</string>
             </attribute>
             <layout class="QGridLayout" name="gridLayout_3">
              <item row="0" column="0" colspan="6">
