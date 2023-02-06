@@ -807,7 +807,22 @@ that it flows out the lake at its last crossing point.
                 chLink = channel[channelLinkIndex]
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
                 currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
-                numOutlets += 1
+                # check the two points created (the outlet and inlet for the lake) are not in the same pixel.
+                # If they are, move the outlet downstream, else gridnet will not find both of them.
+                count = len(newPoints)
+                lakeOutlet = newPoints[count - 2].geometry().asPoint()
+                lakeInlet = newPoints[count - 1].geometry().asPoint()
+                if QSWATTopology.withinPixels(0, lakeInlet, lakeOutlet, transform):
+                    # shift outlet downstream until no longer in the same pixel as inlet
+                    newOutlet = self._gv.topo.shiftDownstream(lakeOutlet, channel, lakeInlet, transform)
+                    if newOutlet is None:
+                        QSWATUtils.error("Failed to find outlet far enough from inlet for lake {0}".format(lakeId), self._gv.isBatch, reportErrors=reportErrors)
+                    else:
+                        newPoints[count - 2].setGeometry(QgsGeometry.fromPointXY(newOutlet))
+                        numOutlets += 1
+                        QSWATUtils.loginfo('Outlet of lake {0} shifted from {1} to {2}'.format(lakeId, lakeOutlet.toString(0), newOutlet.toString(0)))
+                else:
+                    numOutlets += 1
             for channel, points in crossingChannels:
                 chLink0 = channel[channelLinkIndex]
                 QSWATUtils.information(
@@ -1607,6 +1622,9 @@ assumed that its crossing the lake boundary is an inaccuracy.
         else:
             self._gv.burnedDemFile = ''
             delineationDem = demFile
+        # delete existing subs and rivs layers from earlier runs as they will be out of date
+        QSWATUtils.removeLayerByLegend(QSWATUtils._SUBBASINSLEGEND, root.findLayers())
+        QSWATUtils.removeLayerByLegend(QSWATUtils._CHANNELREACHESLEGEND, root.findLayers())
         numProcesses = self._dlg.numProcesses.value()
         mpiexecPath = self._gv.mpiexecPath
         if numProcesses > 0 and (mpiexecPath == '' or not os.path.exists(mpiexecPath)):

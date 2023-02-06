@@ -381,6 +381,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         keys = self.gis_keys.setdefault(table, set())
         keys.add(key)
         
+    def hasKey(self, table: str, key: int) -> bool:
+        """Return true if key in gis_keys for this table."""
+        return key in self.gis_keys.get(table, set())
+        
     def checkKeyInTable(self, table: str, key: int) -> None:
         """Generate error message if key not in gis_keys for this table."""
         # ignore for HUC projects

@@ -4485,7 +4485,8 @@ class CreateHRUs(QObject):
                                 else:
                                     continue # upper part of reservoir
                             # set id if necessary:
-                            if waterBody.id == 0:
+                            # point ids from inlets/outlets file may be sme as lake ids
+                            if waterBody.id == 0 or self._gv.db.hasKey('gis_water', waterBody.id):
                                 self._gv.topo.waterBodyId += 1
                                 waterBody.id = self._gv.topo.waterBodyId
                             if waterBody.isReservoir():

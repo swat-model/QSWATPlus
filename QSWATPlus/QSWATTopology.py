@@ -1039,7 +1039,9 @@ class QSWATTopology:
                                          channelLakeWithinIndex: lakeWithin}
                 if link in lakeData.lakeChLinks:
                     # remove the channel's point source
-                    del self.chPointSources[link]
+                    # other errors may cause the link to not exist and hence not to have a point source
+                    if link in self.chPointSources:
+                        del self.chPointSources[link]
             # if the lake has an outlet channel with a drain area less than LAKEOUTLETCHANNELAREA percent of the lake area
             # and dsNode negative (to avoid pulling a point inside the lake) make its channel internal
             outLinkId = -1
@@ -2332,21 +2334,126 @@ class QSWATTopology:
         col1, row1 = QSWATTopology.projToCell(p1.x(), p1.y(), transform)
         col2, row2 = QSWATTopology.projToCell(p2.x(), p2.y(), transform)
         return abs(col1 - col2) <= numPixels and abs(row1 - row2) <= numPixels
-        
+    
+    @staticmethod 
+    def onPixelBoundary(p: QgsPointXY, transform: Dict[int, float]):
+        """Return true if p is on a pixel boundary or very close."""
+        floatCol = float(p.x() - transform[0]) / transform[1]
+        intCol = int(floatCol + 0.5)
+        floatRow = float(p.y() - transform[3]) / transform[5]
+        intRow = int(floatRow + 0.5)
+        return abs(floatCol - intCol) < 0.1 or abs(floatRow - intRow) < 0.1
+                    
     @staticmethod
     def separatePoints(p1: QgsPointXY, p2: QgsPointXY, transform: Dict[int, float]) -> QgsPointXY:
         """If p2 is in same cell as p1 return a point in the next cell in the direction of p1 to p2.
         Else return p2."""
-        # p1 is the end of a channel, so will be in the centre of a cell.  So enough
-        # to move one coordinate of p2 by one cell from p1, and the other proportionately but less
-        if QSWATTopology.withinPixels(0, p1, p2, transform):
-            return QSWATTopology.shiftedPoint(p1, p2, transform, 1.0)
-        else:
-            return p2
+        if QSWATTopology.withinPixels(1, p1, p2, transform):
+            # p1 and p2 are in adjacent or same cells.  
+            if QSWATTopology.withinPixels(0, p1, p2, transform) or QSWATTopology.onPixelBoundary(p2, transform):
+                return QSWATTopology.shiftedPoint(p1, p2, transform, 1.1)
+        return p2
         
+    def shiftDownstream(self, p: QgsPointXY, channel: QgsFeature, inlet: QgsPointXY, transform: Dict[int, float]) -> QgsPointXY:
+        """p is on channel.  Find a point downstream from p on the channel that is in a different pixel from the inlet."""
+        
+        def isOnSegment(p: QgsPointXY, p1: QgsPointXY, p2: QgsPointXY) -> bool:
+            """We know p is on some segment, so this is sufficient to decide which one."""
+            
+            def between(a: float, b: float, c: float) -> bool:
+                """Return true if a is between b and c (inclusive)"""
+                return min(b, c) <= a <= max(b, c)
+           
+            return  between(p.x(), p1.x(), p2.x()) and between(p.y(), p1.y(), p2.y())
+        
+        # def posOnSegment(p: QgsPointXY, p1: QgsPointXY, p2: QgsPointXY) -> Tuple[float, float]:
+        #     """Calculate ratios in x and y directions for p position between p1 and p2."""
+        #     if p1.x() == p2.x():
+        #         xRatio = p1.x() - p.x()
+        #     else:
+        #         xRatio = (p1.x() - p.x()) / (p1.x() - p2.x())
+        #     if p1.y() == p2.y():
+        #         yRatio = p1.y() - p.y()
+        #     else:
+        #         yRatio = (p1.y() - p.y()) / (p1.y() - p2.y())
+        #     return (abs(xRatio), abs(yRatio))    
+        #
+
+        col, row = QSWATTopology.projToCell(inlet.x(), inlet.y(), transform)
+        # first find channel segment that p1 is on
+        geometry = channel.geometry()
+        if geometry.isMultipart():
+            parts = geometry.asMultiPolyline()
+        else:
+            parts = [geometry.asPolyline()]
+        found = False
+        useOriginalPoint = True
+        for line in parts:
+            for j in range(len(line) - 1):
+                #xRatio, yRatio = posOnSegment(p, line[j], line[j+1])
+                #if 0 <= xRatio <= 1 and 0 <= yRatio <= 1 and abs(xRatio - yRatio) < 0.1:
+                    # point is on segement (with some margin for error)
+                if isOnSegment(p, line[j], line[j+1]):
+                    found = True
+                    if self.outletAtStart:
+                        # need to move towards j from j+1
+                        target = line[j]
+                        upper = line[j+1]
+                    else:
+                        target = line[j+1]
+                        upper = line[j]
+                    # target is best we can do on this segment, so check it is feasible
+                    colTarget, rowTarget = QSWATTopology.projToCell(target.x(), target.y(), transform)
+                    while col == colTarget and row == rowTarget:
+                        useOriginalPoint = False
+                        if self.outletAtStart:
+                            if j > 0:
+                                j = j-1
+                                target = line[j]
+                                upper = line[j+1]
+                            else:
+                                return None
+                        else:
+                            if j < len(line) - 2:
+                                j = j+1
+                                target = line[j+1]
+                                upper = line[j]
+                            else:
+                                return None
+                        colTarget, rowTarget = QSWATTopology.projToCell(target.x(), target.y(), transform)
+                    # found possible segment
+                    if not useOriginalPoint:
+                        # have had to shift from segment conatining p
+                        # start from upper, as it is previous target and is too close to inlet
+                        p = upper
+                    break
+            if found:
+                break
+        if not found:
+            return None
+        if target.x() == upper.x():
+            # vertical segment
+            if target.y() > upper.y():
+                newY = min(target.y(), p.y() + self.dy) 
+            else:
+                newY = max(target.y(), p.y() - self.dy) 
+            newPoint = QgsPointXY(target.x(), newY)
+        else:
+            if target.x() > upper.x():
+                newX = min(target.x(), p.x() + self.dx)
+            else:
+                newX = max(target.x(), p.x() - self.dx)
+            newY = p.y() + (newX - p.x()) * (target.y() - upper.y()) / (target.x() - upper.x()) 
+            newPoint = QgsPointXY(newX, newY)
+        if QSWATTopology.withinPixels(0, inlet, newPoint, transform):
+            return None 
+        else:
+            return newPoint                           
+            
+    
     @staticmethod
     def shiftedPoint(p1: QgsPointXY, p2: QgsPointXY, transform: Dict[int, float], frac: float) -> QgsPointXY:
-        """Return point at least frac of a cell away from p1 in direction p1 to p2."""
+        """Return point which is frac of a cell away from p1 in direction p1 to p2."""
         x1 = p1.x()
         y1 = p1.y()
         x2 = p2.x()

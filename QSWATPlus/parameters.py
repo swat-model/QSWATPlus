@@ -137,7 +137,7 @@ class Parameters:
     ## nearness threshold: proportion of size of DEM cell used to determine if two stream points should be considered to join
     # too large a threshold and very short stream segments can apparently be circular
     # too small and connected stream segments can appear to be disconnected
-    _NEARNESSTHRESHOLD = 0.5
+    _NEARNESSTHRESHOLD = 0.51
     
     # channel width and depth in metres are computed as multiplier * (A ** exponent)
     # where A is the drain area in sq km (area includes upstream subbasins for main channel,
