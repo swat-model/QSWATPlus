@@ -535,9 +535,11 @@ class SWATGraph(QObject):
         for i in range(1, numCols):
             for j in range(i+1, numCols):
                 self.pearson(i, j, numRows)
-        for i in range(1, numCols):
-            for j in range(i+1, numCols):
-                self.nash(i, j, numRows)
+        for i in range(1, numCols - 1):
+            # only compute NSE for pairs where second is observed
+            h = self._dlg.table.horizontalHeaderItem(i+1).text()
+            if 'observed' in h:
+                self.nash(i+1, i, numRows)
         
     def multiSums(self, idx1, idx2, N):
         """Return various sums for two series, only including points where both are numbers, plus count of such values."""

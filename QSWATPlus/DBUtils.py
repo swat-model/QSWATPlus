@@ -540,7 +540,12 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 for row in conn.execute(sql):
                     nxt = int(row['LANDUSE_ID'])
                     maxId = max(maxId, nxt)
-                    landuseCode = row['SWAT_CODE']
+                    landuseCode = row['SWAT_CODE'].strip()
+                    # replace WETW with WATR.
+                    # WATR is converted to WETW later, but for now it is needed as it may be added to pond, reservoir or lake
+                    # if this is not done it is possible for WETW to appear twice in the hrus table for what should be a single HRU.
+                    if landuseCode.upper() == 'WETW':
+                        landuseCode = 'WATR'
                     if nxt == 0:
                         self.defaultLanduse = nxt
                         if useGridModel:
@@ -552,7 +557,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     # check if code already defined
                     equiv = nxt
                     for (key, code) in self.landuseCodes.items():
-                        if code == landuseCode:
+                        if code.upper() == landuseCode.upper():
                             equiv = key
                             break
                     if equiv == nxt:
@@ -561,7 +566,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             self.floodWetlandCrop = nxt
                         if landuseCode.upper() == 'WETN':
                             self.upslopeWetlandCrop = nxt
-                        elif landuseCode.upper() == 'WETW':
+                        elif landuseCode.upper() == 'WATR':  # could have been 'WETW' originally
                             self.playaCrop = nxt
                         if not self.storeLanduseCode(nxt, landuseCode):
                             OK = False
@@ -1099,11 +1104,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 return self.translateSSURGOSoil(sid)
             else:
                 return sid, True
-        sid1 = self.soilTranslate.get(sid, None)
-        if sid1 is None:
-            return sid, False 
-        else:
-            return sid1, True
+        sid1 = self.soilTranslate.get(sid, sid)
+        return sid1, True
     
     def translateSSURGOSoil(self, sid: int) -> Tuple[int, bool]:
         """Use table to convert soil map values to SSURGO muids, plUs flag indicating lookup success.  

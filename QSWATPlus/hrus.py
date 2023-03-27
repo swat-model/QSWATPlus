@@ -1134,7 +1134,7 @@ class CreateHRUs(QObject):
                             msg2 = 'the floodplain of '
                         else:
                             msg2 = 'the upslape of '
-                        msg3 = 'channel {0} in subbasin {1} (and perhaps others)'.format(SWATChannel, SWATBasin)
+                        msg3 = 'channel {0} (LINKNO {2}) in subbasin {1} (and perhaps others)'.format(SWATChannel, SWATBasin, channel)
                         QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch)
                         return False
         return True

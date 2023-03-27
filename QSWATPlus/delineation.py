@@ -690,7 +690,9 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                 QSWATUtils.loginfo('Lake {0} has {1} parts'.format(lakeId, len(polys)))
                 partNum = 0
                 for poly in polys:
-                    nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
+                    # keep islands
+                    # nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
+                    nextPart = QgsGeometry.fromPolygonXY(poly) 
                     nextArea = nextPart.area() * areaFactor
                     nextLen = len(poly[0])
                     partNum += 1
@@ -711,7 +713,9 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                         QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                 geoMap[lake.id()] = maxPart
             else:
-                geoMap[lake.id()] = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
+                # keep islands
+                # geoMap[lake.id()] = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
+                geoMap[lake.id()] = QgsGeometry.fromPolygonXY(geom.asPolygon())
             # this does not seem to work in QGIS 3.  feature.geometry() reurns the original geometry
             # probably becase it would change the type of the features from polygon to line
 #         if not lakeProvider.changeGeometryValues(geoMap):
@@ -719,6 +723,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
 #             for err in lakeProvider.errors():
 #                 QSWATUtils.loginfo(err)
 #             return False
+        channelThreshold = self._dlg.numCellsCh.text()
         newPoints: List[QgsFeature] = []
         for lake in lakeProvider.getFeatures():
             if lakeResIndex >= 0 and lake[lakeResIndex] == QSWATTopology._PLAYATYPE:
@@ -733,7 +738,22 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             self._gv.topo.lakeOutlets[lakeId] = set()
             box = geom.boundingBox()
             # geometry was made single in first pass
-            perim = QgsGeometry.fromPolylineXY(geom.asPolygon()[0])
+            # keep islands
+            # perim = QgsGeometry.fromPolylineXY(geom.asPolygon()[0])
+            perims0 = [QgsGeometry.fromPolylineXY(poly) for poly in geom.asPolygon()]
+            # we assume first perimeter in perims will be the outer perimeter
+            # subsequent ones will be islands, and we need to include any large enough to create a stream
+            perims = [perims0.pop(0)]
+            perimPoly0 = QgsGeometry.fromQPolygonF(perims[0].asQPolygonF())
+            perimNumCells0 = perimPoly0.area() * areaFactor / self._gv.cellArea
+            QSWATUtils.loginfo("Outer perimeter of lake {0} contains {1} DEM cells".format(lakeId, round(perimNumCells0)))
+            for perim in perims0:
+                perimPoly = QgsGeometry.fromQPolygonF(perim.asQPolygonF())
+                perimNumCells = perimPoly.area() * areaFactor / self._gv.cellArea
+                if perimNumCells > float(channelThreshold):
+                    # can make a channel
+                    perims.append(perim)
+                    QSWATUtils.loginfo("Island of lake {0} contains {1} DEM cells".format(lakeId, round(perimNumCells)))
             # channels which enter and leave the lake, with their crossing points
             # if just one of these and no other outlet will make inflowing and outflowing pair,
             # else assumed not to interact with lake
@@ -744,27 +764,28 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                 lineBox = line.boundingBox()
                 if QSWATTopology.disjointBoxes(box, lineBox):
                     continue
-                intersect = line.intersection(perim)
-                if intersect.isEmpty():
-                    # no intersection
-                    continue
-                intersectType = intersect.wkbType()
-                if intersectType == QgsWkbTypes.MultiPoint:
-                    points = intersect.asMultiPoint()  # TODO: just to see how many points
-                    # check if source and outlet are inside or outside lake
-                    reachData = self._gv.topo.getReachData(channel, None)
-                    outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                    source = QgsPointXY(reachData.upperX, reachData.upperY)
-                    if QSWATTopology.polyContains(outlet, geom, box):
-                        if QSWATTopology.polyContains(source, geom, box):
-                            QSWATUtils.information(
+                for perim in perims:
+                    intersect = line.intersection(perim)
+                    if intersect.isEmpty():
+                        # no intersection
+                        continue
+                    intersectType = intersect.wkbType()
+                    if intersectType == QgsWkbTypes.MultiPoint:
+                        points = intersect.asMultiPoint()  # TODO: just to see how many points
+                        # check if source and outlet are inside or outside lake
+                        reachData = self._gv.topo.getReachData(channel, None)
+                        outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                        source = QgsPointXY(reachData.upperX, reachData.upperY)
+                        if QSWATTopology.polyContains(outlet, geom, box):
+                            if QSWATTopology.polyContains(source, geom, box):
+                                QSWATUtils.information(
 """Channel with LINKNO {0}  crosses the  boundary of lake {1}
 more than once.  Since it starts and terminates in the lake it
 will be assumed that its crossing the lake boundary is an 
 inaccuaracy of delineation and that it is internal to the lake.
 """.format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
-                        else:
-                            QSWATUtils.information(
+                            else:
+                                QSWATUtils.information(
 """Channel with LINKNO {0} crosses the  boundary of lake {1}
 more than once.  Since it starts outside and terminates inside 
 the lake it will be assumed that its extra crossings of the lake 
@@ -772,29 +793,29 @@ boundary are an inaccuaracy of delineation and that it enters
 the lake at its first crossing point.
 """.format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
                             currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
-                    else:
-                        if QSWATTopology.polyContains(source, geom, box):
-                            QSWATUtils.information(
+                        else:
+                            if QSWATTopology.polyContains(source, geom, box):
+                                QSWATUtils.information(
 """Channel with LINKNO {0} crosses the  boundary of lake {1}
 more than once.  Since it starts in the lake and terminates 
 outside it will be assumed that its multiple crossings 
 of the lake boundary are an inaccuaracy of delineation and 
 that it flows out the lake at its last crossing point.
 """.format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
-                            currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
+                                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
+                            else:
+                                crossingChannels.append((channel, points))
+                    elif intersectType == QgsWkbTypes.Point:
+                        # enters or leaves lake: add split point
+                        reachData = self._gv.topo.getReachData(channel, None)
+                        outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                        source = QgsPointXY(reachData.upperX, reachData.upperY)
+                        # select between source and outlet according to whether channel outlet is in lake
+                        if QSWATTopology.polyContains(outlet, geom, box):
+                            res1 = 0
                         else:
-                            crossingChannels.append((channel, points))
-                elif intersectType == QgsWkbTypes.Point:
-                    # enters or leaves lake: add split point
-                    reachData = self._gv.topo.getReachData(channel, None)
-                    outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                    source = QgsPointXY(reachData.upperX, reachData.upperY)
-                    # select between source and outlet according to whether channel outlet is in lake
-                    if QSWATTopology.polyContains(outlet, geom, box):
-                        res1 = 0
-                    else:
-                        res1 = res
-                    currentPointId = makeNewPoint([intersect.asPoint()], source, outlet, newPoints, currentPointId, res1, chLink, lakeId, fields, transform)
+                            res1 = res
+                        currentPointId = makeNewPoint([intersect.asPoint()], source, outlet, newPoints, currentPointId, res1, chLink, lakeId, fields, transform)
             # check for channels which cross lake if no other outlets
             numOutlets = len(self._gv.topo.lakeOutlets[lakeId])
             if numOutlets == 0 and len(crossingChannels) > 0:
@@ -886,7 +907,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
             return False
         srcChannelFile = base + 'srcChannel' + suffix
         QSWATUtils.removeLayer(srcChannelFile, root)
-        channelThreshold = self._dlg.numCellsCh.text()
         ok = TauDEMUtils.runThreshold(self._gv.ad8File, srcChannelFile, channelThreshold, numProcesses, self._dlg.taudemOutput, mustRun=mustRun) 
         if not ok:
             self.cleanUp(3)
