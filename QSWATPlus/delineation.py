@@ -1507,11 +1507,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
     def btnSetStreams(self) -> None:
         """Open and load existing streams shapefile or drainage table."""
         root = QgsProject.instance().layerTreeRoot()
-        legend = QSWATUtils._GRIDLEGEND if self._dlg.useGrid else QSWATUtils._SUBBASINSLEGEND
+        legend = QSWATUtils._GRIDLEGEND if self._dlg.useGrid.isChecked() else QSWATUtils._SUBBASINSLEGEND
         subsLayer = QSWATUtils.getLayerByLegend(legend, root.findLayers())
         if subsLayer is not None:
             self._gv.iface.setActiveLayer(subsLayer.layer())
-        if self._dlg.useGrid:
+        if self._dlg.useGrid.isChecked():
             if not self.gridDrainage and not self.streamDrainage:
                 ft = FileTypes._CSV
             else:
@@ -1529,7 +1529,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 QSWATUtils.error('{0} file {1} is not a line shapefile'.format(strng, self._dlg.selectStreams.text()), self._gv.isBatch)
             else:
                 self._gv.channelFile = channelFile
-                if self._dlg.useGrid:
+                if self._dlg.useGrid.isChecked():
                     self._gv.streamFile = channelFile
         elif ft == FileTypes._CSV and channelFile:
             self._dlg.selectStreams.setText(channelFile)
@@ -2124,6 +2124,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 self.progress('Generating subbasins raster ...')
                 wStreamFile = self.createBasinFile(subbasinsFile, demLayer, 'wStream', root)
             self._gv.basinFile = wStreamFile
+            self._gv.topo.addBasinsToChannelFile(channelLayer, self._gv.basinFile)
             # generate watershed raster
             if not self._gv.useGridModel:
                 wChannelFile = base + 'wChannel' + suffix
