@@ -105,7 +105,11 @@ Merging channel that is a lake outlet left lake with no outlet
 hrus.py line 1264-70
 
 12/4/2023 # 27
-Inadequate check for gridmode chacked
+Inadequate check for usegrid chacked
 
 12/4/2023 # 28
 Channels meeting at their last points regarded as connected
+
+12/4/2023 # 29
+BasinNo field not added to existing streams shapefile
+

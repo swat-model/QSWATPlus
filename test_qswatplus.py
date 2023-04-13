@@ -2030,7 +2030,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(wshedLayer and loaded, 'Failed to load wshed shapefile'.format(wshedFile))
         self.delin._dlg.selectWshed.setText(wshedFile)
         self.plugin._gv.wshedFile = wshedFile
-        channelFile = os.path.join(self.dataDir, 'ravn_demchannel1.shp')
+        channelFile = os.path.join(self.dataDir, 'ravn_demchannel.shp')
         numLayers = len(QgsProject.instance().mapLayers().values())
         channelLayer, loaded = QSWATUtils.getLayerByFilename(self.root.findLayers(), channelFile, FileTypes._CHANNELS, self.plugin._gv, demLayer, QSWATUtils._WATERSHED_GROUP_NAME)
         self.waitLayerAdded(numLayers)

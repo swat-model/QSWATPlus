@@ -2124,7 +2124,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 self.progress('Generating subbasins raster ...')
                 wStreamFile = self.createBasinFile(subbasinsFile, demLayer, 'wStream', root)
             self._gv.basinFile = wStreamFile
-            self._gv.topo.addBasinsToChannelFile(channelLayer, self._gv.basinFile)
+            # No need as this is a requirement for grid models.  Risk of changing values - can get -1 for channels in lakes
+            # self._gv.topo.addBasinsToChannelFile(channelLayer, self._gv.basinFile)
             # generate watershed raster
             if not self._gv.useGridModel:
                 wChannelFile = base + 'wChannel' + suffix
