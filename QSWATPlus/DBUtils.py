@@ -102,16 +102,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRe
 Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbRefTemplate, self.dbRefFile)
-        ## sqlite3 connection to project database
-        self.conn: Any = sqlite3.connect(self.dbFile)
-        if self.conn is None:
-            QSWATUtils.error('Failed to connect to project database {0}'.format(self.dbFile), self.isBatch)
-        else:
-            #self.conn.isolation_level = None # means autocommit
-            self.conn.row_factory = sqlite3.Row
-            # turn journal off for better speed
-            sql = 'PRAGMA journal_mode=OFF'
-            self.conn.execute(sql)
+        self.connectToProjectDatabase()
         ## sqlite3 connection to reference database
         self.connRef: Any = sqlite3.connect(self.dbRefFile)
         if self.connRef is None:
@@ -236,6 +227,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.routingSinks: Set[Tuple[int, str]] = set()
         if self.isHUC:
             self.writeSubmapping()
+            
+    def connectToProjectDatabase(self):
+        """ sqlite3 connection to project database"""
+        self.conn: Any = sqlite3.connect(self.dbFile)
+        if self.conn is None:
+            QSWATUtils.error('Failed to connect to project database {0}'.format(self.dbFile), self.isBatch)
+        else:
+            #self.conn.isolation_level = None # means autocommit
+            self.conn.row_factory = sqlite3.Row
+            # turn journal off for better speed
+            sql = 'PRAGMA journal_mode=OFF'
+            self.conn.execute(sql)
+        
       
 # 32-bit version only - uses Access  
 #     def connect(self, readonly=False):

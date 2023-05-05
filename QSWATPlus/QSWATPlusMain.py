@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.3.5'
+    __version__ = '2.4.0'
 
     def __init__(self, iface):
         """Constructor."""
@@ -774,8 +774,15 @@ class QSWATPlus(QObject):
         editor = self._gv.findSWATPlusEditor()
         if editor is None:
             return
+        # try closing project database
+        if self._gv and self._gv.db and self._gv.db.conn:
+            self._gv.db.conn.close()
+            QSWATUtils.loginfo('Project database closed')
         QSWATUtils.loginfo('Starting SWAT+ editor with command: "{0}" "{1}"'.format(editor, self._gv.db.dbFile))
         subprocess.call('"{0}" "{1}"'.format(editor, self._gv.db.dbFile), shell=True)
+        # reopen project database
+        if self._gv and self._gv.db:
+            self._gv.db.connectToProjectDatabase()
         if os.path.exists(QSWATUtils.join(self._gv.resultsDir, Parameters._OUTPUTDB)):
             self._odlg.visualiseLabel.setVisible(True)
             self._odlg.visualiseButton.setVisible(True)

@@ -113,3 +113,6 @@ Channels meeting at their last points regarded as connected
 12/4/2023 # 29
 BasinNo field not added to existing streams shapefile
 
+5/5/2023 # 30
+Reservoirs formed by threshold could remove all HRUs from a landscape unit, which was not catered for.
+
