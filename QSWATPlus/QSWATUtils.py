@@ -95,6 +95,9 @@ class QSWATUtils:
     _FLOODPLAIN: int = 1
     _UPSLOPE: int = 2
     
+    # each set contains EPSG numbers that can be regarded as equivalent
+    _EQUIVALENT_EPSGS = {frozenset({'EPSG:5070', 'EPSG:5072'})}
+    
     @staticmethod
     def qgisName() -> str:
         """QGIS name as used in QGIS prefix path.
@@ -366,6 +369,8 @@ class QSWATUtils:
     def removeAllFeatures(layer: QgsVectorLayer) -> bool:
         """Remove all features from layer."""
         provider = layer.dataProvider()
+        if provider.truncate():
+            return True
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry)
         ids = [feature.id() for feature in provider.getFeatures(request)]
         return provider.deleteFeatures(ids)
@@ -888,12 +893,19 @@ class QSWATUtils:
                 epsgProject = gv.crsProject.authid()
                 epsgLoad = layer.crs().authid()
                 if epsgProject != epsgLoad:
-                    QSWATUtils.error('File {0} has a projection {1} which is different from the project projection {2}, which was set from the DEM.  Please reproject and reload.'.
-                                     format(outFileName, epsgLoad, epsgProject), gv.isBatch)
-                    QgsProject.instance().removeMapLayer(layer.id())
-                    del layer
-                    gv.iface.mapCanvas().refresh()
-                    return (None, None)
+                    # check for assumed equivalences
+                    same = False
+                    for s in QSWATUtils._EQUIVALENT_EPSGS:
+                        if epsgProject in s and epsgLoad in s:
+                            same = True
+                            break
+                    if not same:
+                        QSWATUtils.information('WARNING: File {0} has a projection {1} which is different from the project projection {2}.  You may need to reproject and reload.'.
+                                         format(outFileName, epsgLoad, epsgProject), gv.isBatch)
+                        #QgsProject.instance().removeMapLayer(layer.id())
+                        #del layer
+                        #gv.iface.mapCanvas().refresh()
+                        #return (None, None)
             return (outFileName, layer)
         else:
             return (None, None)
@@ -1333,13 +1345,20 @@ class FileTypes:
     _EXTRAPTSRCANDRES = 28
     _HRUS = 29
     _AQUIFERS = 30
+    _AQUIFERTHICKNESS = 31
+    _PERMEABILITY = 32
+    _INITIALIZATION = 33
+    _OBSERVATIONLOCATIONS = 34
+    _TILEDRAINS = 35
+    _OUTPUTTIMES = 36
     _OTHER = 99
     
     @staticmethod
     def filter(ft: int) -> str:
         """Return filter for open file dialog according to file type."""
         if ft == FileTypes._DEM or ft == FileTypes._LANDUSES or ft == FileTypes._SOILS or \
-            ft == FileTypes._HILLSHADE or ft == FileTypes._BUFFERFLOOD or ft == FileTypes._CHANNELBASINSRASTER:
+            ft == FileTypes._HILLSHADE or ft == FileTypes._BUFFERFLOOD or ft == FileTypes._CHANNELBASINSRASTER or \
+            ft == FileTypes._AQUIFERTHICKNESS:
             return QgsProviderRegistry.instance().fileRasterFilters()
         elif ft == FileTypes._MASK:
             return 'All files (*)' # TODO: use dataprovider.fileRasterFilters + fileVectorFilters
@@ -1349,12 +1368,17 @@ class FileTypes:
                     ft == FileTypes._EXISTINGSUBBASINS or ft == FileTypes._EXISTINGWATERSHED or \
                     ft == FileTypes._GRID or ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS or \
                     ft == FileTypes._BUFFERSHAPE or ft == FileTypes._CHANNELS or ft == FileTypes._LAKES or \
-                    ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS:
+                    ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS or \
+                    ft == FileTypes._PERMEABILITY or ft == FileTypes._OBSERVATIONLOCATIONS or ft == FileTypes._TILEDRAINS:
             return QgsProviderRegistry.instance().fileVectorFilters()
         elif ft == FileTypes._CSV:
             return 'CSV files (*.csv);;All files (*)'
         elif ft == FileTypes._SQLITE:
             return 'SQLite files (*.sqlite *.db *.sdb *.db3 *.s3db *.sqlite3 *.sl3);;All files (*)'
+        elif ft == FileTypes._INITIALIZATION:
+            return 'Initialization files (*.ini, *.cfg, *.conf, *.config);;All files (*)'
+        elif ft == FileTypes._OUTPUTTIMES:
+            return 'Text files (*.txt);;CSV files (*.csv);;Excel files (*.xls, *.xlsx);;All files (*)'
         else:
             return 'All files (*)'
     
@@ -1362,7 +1386,8 @@ class FileTypes:
     def isRaster(ft: int) -> bool:
         if ft == FileTypes._DEM or ft == FileTypes._LANDUSES or ft == FileTypes._SOILS or \
                 ft == FileTypes._SLOPEBANDS or ft == FileTypes._HILLSHADE or ft == FileTypes._BUFFERFLOOD or \
-                ft == FileTypes._INVFLOOD or ft == FileTypes._BRANCHFLOOD or ft == FileTypes._CHANNELBASINSRASTER:
+                ft == FileTypes._INVFLOOD or ft == FileTypes._BRANCHFLOOD or ft == FileTypes._CHANNELBASINSRASTER or \
+                ft == FileTypes._AQUIFERTHICKNESS:
             return True
         else:
             return False

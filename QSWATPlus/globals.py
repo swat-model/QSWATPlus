@@ -20,11 +20,11 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QFileInfo, QPoint, QSettings
+from qgis.PyQt.QtCore import QFileInfo, QPoint, QSettings # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
-from qgis.PyQt.QtWidgets import QComboBox
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis  
-from qgis.gui import QgisInterface  
+from qgis.PyQt.QtWidgets import QComboBox # @UnresolvedImport
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis   # @UnresolvedImport
+from qgis.gui import QgisInterface   # @UnresolvedImport
 import os.path
 # import xml.etree.ElementTree as ET
 from typing import Dict, List, Set, Optional, TYPE_CHECKING  # @UnusedImport
@@ -255,6 +255,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.shapesDir = ''
         ## Scenarios directory
         self.scenariosDir = ''
+        ## TxtInOut directory
+        self.txtInOutDir = ''
         ## Results directory
         self.resultsDir = ''
         ## Plots directory
@@ -362,9 +364,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         defaultDir = QSWATUtils.join(self.scenariosDir, 'Default')
         if not os.path.exists(defaultDir):
             os.makedirs(defaultDir)
-        txtInOutDir = QSWATUtils.join(defaultDir, 'TxtInOut')
-        if not os.path.exists(txtInOutDir):
-            os.makedirs(txtInOutDir)
+        self.txtInOutDir = QSWATUtils.join(defaultDir, 'TxtInOut')
+        if not os.path.exists(self.txtInOutDir):
+            os.makedirs(self.txtInOutDir)
         self.resultsDir = QSWATUtils.join(defaultDir, Parameters._RESULTS)
         if not os.path.exists(self.resultsDir):
             os.makedirs(self.resultsDir)
@@ -463,11 +465,12 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         for landuse in self.splitLanduses.keys():
             combo.addItem(landuse)
                
-    def writeProjectConfig(self, doneDelin: int, doneHRUs: int) -> None:
+    def writeProjectConfig(self, doneDelin: int, doneHRUs: int, use_gwflow: int=-1) -> None:
         """
         Write information to project_config table.
          
         done parameters may be -1 (leave as is) 0 (not done, initial default) or 1 (done)
+        use_gwflow similar: if -1 leave as is (or default to 0 (false)), else use parameter
         """
         with self.db.conn as conn:
             if conn is None:
@@ -480,11 +483,20 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
             projectDb = proj.writePath(self.db.dbFile)  # relativise to project directory
             referenceDb = proj.writePath(self.db.dbRefFile)
             # only need to set weather data directory if weather data stored by conversion from ArcSWAT
-            weatherDataDir = proj.writePath(os.path.join(self.scenariosDir, r'Default\TxtInOut'))  if self.fromArcChoice >= 0 else None 
+            weatherDataDir = proj.writePath(self.txtInOutDir)  if self.fromArcChoice >= 0 else None 
             gisType = 'qgis'
             gisVersion = self.version
             row = cur.execute(self.db.sqlSelect(table, '*', '', '')).fetchone()
             if row is not None:
+                # check if 'use_gwflow' is a field; add if not
+                try:
+                    use_gwflow0 = row['use_gwflow']
+                    if use_gwflow == -1:
+                       use_gwflow = use_gwflow0
+                except:
+                    sql = 'ALTER TABLE {0} ADD use_gwflow BOOLEAN DEFAULT(0)'.format(table)
+                    cur.execute(sql)
+                    use_gwflow = 0
                 if doneDelin == -1:
                     doneDelinNum = row['delineation_done']
                 else:
@@ -494,8 +506,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                 else:
                     doneHRUsNum = doneHRUs
                 # always update version in case running old project
-                sql = 'UPDATE ' + table + ' SET gis_version=?,delineation_done=?,hrus_done=?'
-                cur.execute(sql, (gisVersion, doneDelinNum, doneHRUsNum))
+                sql = 'UPDATE ' + table + ' SET gis_version=?,delineation_done=?,hrus_done=?,use_gwflow=?'
+                cur.execute(sql, (gisVersion, doneDelinNum, doneHRUsNum, use_gwflow))
             else:
                 if doneDelin == -1:
                     doneDelinNum = 0
@@ -505,13 +517,15 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                     doneHRUsNum = 0
                 else:
                     doneHRUsNum = doneHRUs
+                if use_gwflow == -1:
+                    use_gwflow = 0
                 cur.execute('DROP TABLE IF EXISTS {0}'.format(table))
                 cur.execute(DBUtils._CREATEPROJECTCONFIG)
                 cur.execute(DBUtils._INSERTPROJECTCONFIG, 
                             (1, projectName, projectDirectory, None, 
                             gisType, gisVersion, projectDb, referenceDb, None, None, weatherDataDir, None, None, None, None, 
                             doneDelinNum, doneHRUsNum, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME,
-                            None, 0, 0))
+                            None, 0, 0, use_gwflow))
             conn.commit()
   
     def isDelinDone(self) -> bool:

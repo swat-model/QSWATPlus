@@ -12,4 +12,9 @@
 *.*.pyd
 *.so
 *.*~
-
+*.pyd
+*.*.pyd
+*.zip
+*.tgz
+*.o
+git reset

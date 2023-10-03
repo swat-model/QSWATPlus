@@ -20,9 +20,9 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QSettings, QVariant
+from qgis.PyQt.QtCore import QSettings, QVariant # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
-from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter
+from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter # @UnresolvedImport
 from osgeo import gdal  # type: ignore
 from numpy import * # @UnusedWildImport
 import os.path
@@ -1488,11 +1488,16 @@ class QSWATTopology:
                 else:
                     reachData = self.getReachData(channel, demLayer)
                     assert reachData is not None
-                    point = QgsPointXY(reachData.lowerX, reachData.lowerY)
                     elev = reachData.lowerZ
                     data.elevation += elev
-                    self.pointId += 1
-                    data.inChLinks[chLink] = (self.pointId, point, elev)
+                    # may already have point for channel outlet
+                    (pointId, point) = self.chOutlets.get(chLink, (None, None))
+                    if point is None:
+                        # need to add a point
+                        point = QgsPointXY(reachData.lowerX, reachData.lowerY)
+                        self.pointId += 1
+                        pointId = self.pointId
+                    data.inChLinks[chLink] = (pointId, point, elev)
                     self.chLinkIntoLake[chLink] = lakeIn
             elif lakeWithin > 0:
                 data = self.lakesData.get(lakeWithin, None)

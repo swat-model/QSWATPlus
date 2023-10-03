@@ -9,8 +9,8 @@ if 'QSWAT_PROJECT' in os.environ and 'Linux' in os.environ['QSWAT_PROJECT']:
     sep = ':'
     is32 = '_32' in os.environ['QSWAT_PROJECT']
 elif 'QSWAT_PROJECT' in os.environ and 'Mac' in os.environ['QSWAT_PROJECT']:
-    includePath = '/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.7/Headers'
-    numpyInclude = '/Library/Python/3.7/site-packages/numpy/core/include'
+    includePath = '/usr/local/opt/python@3.9/Frameworks/Python.framework/Versions/3.9/include/python3.9'
+    numpyInclude = '/usr/local/lib/python3.9/site-packages/numpy/core/include'
     sep = ':'
     is32 = '_32' in os.environ['QSWAT_PROJECT']
 else:
@@ -19,7 +19,7 @@ else:
     sep = ';'
     is32 = False
 if 'INCLUDE' in os.environ:
-    os.environ['INCLUDE'] = os.environ['INCLUDE'] + sep + includePath + sep + numpyInclude
+    os.environ['INCLUDE'] = os.environ['INCLUDE'] + sep + includePath + sep + numpyInclude 
 else:
     os.environ['INCLUDE'] = includePath + sep + numpyInclude
     

@@ -52,7 +52,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.py)
-	EXTRAPACKAGES = imageio
+	EXTRAPACKAGES = imageio rtree
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -65,7 +65,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3_64)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.py)
-	EXTRAPACKAGES = imageio
+	EXTRAPACKAGES = imageio rtree
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -77,7 +77,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3_32)
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp37-win32.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
-	EXTRAPACKAGES = imageio
+	EXTRAPACKAGES = imageio rtree
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -86,7 +86,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	METADATA = metadatalinux3_64.txt
 	PLUGINNAME = QSWATPlusLinux3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-310-x86_64-linux-gnu.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-311-x86_64-linux-gnu.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh runnose.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC.py)
@@ -114,7 +114,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusMac3_64)
 	METADATA = metadatamac3_64.txt
 	PLUGINNAME = QSWATPlusMac3_64
 	DOXYGEN = doxygen
-	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-38-darwin.so)
+	OBJ_FILES = $(PYX_FILES:.pyx=.cpython-39-darwin.so)
 	BAT_FILES = $(addprefix ../, runtestn.sh)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py)
 	HUC_FILES = $(addprefix ../, runHUC.py)
@@ -143,14 +143,15 @@ PY_FILES = \
 	elevationbands.py elevationbandsdialog.py selectsubs.py selectsubsdialog.py about.py aboutdialog.py visualise.py visualisedialog.py \
 	QSWATBatch.py QSWATUtils.py DBUtils.py landscape.py landscapedialog.py floodplain.py polygonize.py QSWATTopology.py TauDEMUtils.py \
 	globals.py raster.py swatgraph.py graphdialog.py graphdialog1.py setuppyx.py setuppyx3.9.py convertFromArc.py convertdialog.py exporttable.py exporttabledialog.py  \
-	ui_convert.py ui_graph.py comparedialog.py
+	ui_convert.py ui_graph.py comparedialog.py gwflow.py gwflowdialog.py
 
 PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
 
 C_FILES = $(PYX_FILES:.pyx=.c)
 
 UI_FILES = ui_qswat.py ui_delineation.py ui_hrus.py ui_outlets.py ui_exempt.py ui_split.py ui_selectlu.py ui_parameters.py ui_elevationbands.py \
-			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_graph1.py ui_convert.py ui_exporttable.py ui_comparescenarios.py
+			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_graph1.py ui_convert.py ui_exporttable.py ui_comparescenarios.py \
+			ui_gwflow.py
 
 QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml floodwhite.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \
@@ -160,6 +161,8 @@ QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate
 			PrintTemplate2Portrait.qpt PrintTemplate3Landscape.qpt PrintTemplate3Portrait.qpt \
 			PrintTemplate4Landscape.qpt PrintTemplate4Portrait.qpt PrintTemplate6Landscape.qpt \
 			PrintTemplate6Portrait.qpt
+
+INI_FILES = gwflow.ini
 
 EXTRAS = Changelog.txt swatplus32.png
 
@@ -215,8 +218,15 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	python setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
-%.cpython-310-x86_64-linux-gnu.so : %.pyx
+%.cpython-311-x86_64-linux-gnu.so : %.pyx
 	python3 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
+
+%.cpython-39-darwin.so : %.pyx
+	@echo
+	@echo "------"
+	@echo "Cython"
+	@echo "------"
+	/usr/local/bin/python3.9 setuppyx.py build_ext --inplace --compiler=$(COMPILER)
 
 # 32 bit Linux
 # this is a hack to mimic what distutils.setup can do
@@ -286,6 +296,7 @@ deploy: compile
 	$(CPFILE) $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
+	$(CPFILE) $(INI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(BAT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	$(CPFILE) $(TEST_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	$(CPFILE) $(HUC_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"

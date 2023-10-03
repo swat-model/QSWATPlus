@@ -1646,7 +1646,7 @@ class ConvertFromArc(QObject):
             cursor.execute(DBUtils._INSERTPROJECTCONFIG, 
                            (1, self.qProjName, self.qProjDir, None, 
                             gisType, gisVersion, qProjDb, qRefDb, None, None, weatherDataDir, None, None, None, None, 
-                            1, 1, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME, None, 0, 0))
+                            1, 1, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME, None, 0, 0, 0))
             conn.commit()
             
     def createWgnTables(self) -> None:
@@ -1786,7 +1786,7 @@ class ConvertFromArc(QObject):
                         else:
                             # try in own type data:
                             typStations = stations.get(typ, None)
-                            if typStations is not None:
+                            if typStations is not None and len(typStations) > 0:
                                 station1 = typStations[minRec]
                             elif typ == 'slr':
                                 # order is order in tmp data
@@ -1803,6 +1803,7 @@ class ConvertFromArc(QObject):
             # no weather data for this typ
             return
         print('Writing {0} data ...'.format(descr))
+        #print('Station ids ' + str(stationTable.keys()))
         now = datetime.datetime.now()
         timeNow = now.strftime("%Y-%m-%d %H:%M")
         staFile = os.path.join(qTxtInOutDir, '{0}.cli'.format(typ))
@@ -2470,7 +2471,7 @@ class ConvertFromArc(QObject):
             cursor.execute('DROP TABLE IF EXISTS print_prt')
             cursor.execute(ConvertFromArc._CREATEPRINTPRT)
             cursor.execute(ConvertFromArc._INSERTTIMESIM, (1, idaf, iyr, idal, iyr + nbyr - 1, idt))
-            cursor.execute(ConvertFromArc._INSERTPRINTPRT, (1, nyskip, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0))
+            cursor.execute(ConvertFromArc._INSERTPRINTPRT, (1, nyskip, 0, 0, 0, 0, 1, 0, 0, 0, 'b', 0, 0, 0))
             qConn.commit()
                 
     @staticmethod 
@@ -2775,7 +2776,7 @@ class ConvertFromArc(QObject):
     csvout    INTEGER NOT NULL,
     dbout     INTEGER NOT NULL,
     cdfout    INTEGER NOT NULL,
-    soilout   INTEGER NOT NULL,
+    crop_yld  CHAR,
     mgtout    INTEGER NOT NULL,
     hydcon    INTEGER NOT NULL,
     fdcout    INTEGER NOT NULL

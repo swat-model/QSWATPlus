@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_9"
 #define MyAppVersion "2.4"
-#define MyAppSubVersion "1"
+#define MyAppSubVersion "7"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -45,10 +45,10 @@ Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
 Type: files; Name: "C:\SWAT\SWATPlus\TauDEM539Bin\*";
 
 [Files]
-Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Excludes: "testdata\test,__pycache__"; Flags: ignoreversion recursesubdirs createallsubdirs   
+Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Excludes: "testdata,__pycache__"; Flags: ignoreversion recursesubdirs createallsubdirs   
 Source: "C:\SWAT\SWATPlus\TauDEM539_304Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
-Source: "C:\SWAT\SWATPlus\Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-Source: "C:\SWAT\SWATPlus\Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 
 [Code]
 var
@@ -79,13 +79,13 @@ var
   pfDir: String;
 begin
   pfDir := ExpandConstant('{pf64}');
-  QGISDirectory := QGISDir(pfDir, 'QGIS 3.22');
+  QGISDirectory := QGISDir(pfDir, 'QGIS 3.28');
   if QGISDirectory = '' then begin
     QGISDirectory := QGISDir(pfDir, 'QGIS 3.16');
     if QGISDirectory = '' then begin
-      QGISDirectory := QGISDir(pfDir, 'QGIS 3.26');
+      QGISDirectory := QGISDir(pfDir, 'QGIS 3.22');
       if QGISDirectory = '' then begin
-        QGISDirectory := QGISDir(pfDir, 'QGIS 3.24');
+        QGISDirectory := QGISDir(pfDir, 'QGIS 3.30');
         if QGISDirectory = '' then begin 
           QGISDirectory := pfDir;
           if not BrowseForFolder('Please locate QGIS directory', QGISDirectory, False) then
@@ -110,7 +110,7 @@ begin
   Result := MainQGISPluginDirResult;
 end;
 
-// Dir is pf64, PartName is eg QGIS 3.22 and we are searching for eg QGIS 3.22.8
+// Dir is pf64, PartName is eg QGIS 3.28 and we are searching for eg QGIS 3.28.8
 function QGISDir(Dir: String; PartName: String): String;
 var
   DirResult: String;

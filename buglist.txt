@@ -116,3 +116,17 @@ BasinNo field not added to existing streams shapefile
 5/5/2023 # 30
 Reservoirs formed by threshold could remove all HRUs from a landscape unit, which was not catered for.
 
+25/8/2023 # 31
+Continuation of 30: lsus with no hrus not always removed.
+
+30/8/2023 # 32
+Import from Cython accidentally inserted int dataInC.pyx
+
+5/9/2023 # 33
+gwflow dependency on matplotlib_scalebar provented loading of plugin
+
+
+6/9/2023 # 34
+QGIS 3.28 miswrites multipolygon with multiple parts: classifies a separate part as a hole.
+
+

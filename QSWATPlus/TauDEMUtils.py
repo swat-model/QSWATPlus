@@ -227,7 +227,7 @@ class TauDEMUtils:
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
         # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
         MacPrefixNeeded = Parameters._ISMAC
-        MacPrefix = 'export DYLD_FALLBACK_LIBRARY_PATH=/Applications/QGIS-LTR.app/Contents/MacOS/lib; export PROJ_LIB=/Applications/QGIS-LTR.app/Contents/Resources/proj; '
+        MacPrefix = 'export DYLD_FALLBACK_LIBRARY_PATH={0}/Contents/MacOS/lib; export PROJ_LIB={0}/Contents/Resources/proj; '.format(Parameters._MACQGISDIR)
         procCommand = commands if Parameters._ISWIN else MacPrefix + command if MacPrefixNeeded else command
         if Parameters._ISMAC:
             QSWATUtils.loginfo(procCommand)
@@ -239,6 +239,7 @@ class TauDEMUtils:
         if hasQGIS:
             assert output is not None
             output.append(proc.stdout)
+            output.append(proc.stderr)
             output.moveCursor(QTextCursor.End)
         else:
             print(proc.stdout)

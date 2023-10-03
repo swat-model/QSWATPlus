@@ -20,10 +20,10 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtCore import Qt, QSettings # @UnresolvedImport
 #from PyQt5.QtGui import *  # @UnusedWildImport 
-from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget
-from qgis.core import QgsFeatureRequest, QgsVectorLayer
+from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget # @UnresolvedImport
+from qgis.core import QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
 import os.path
 import shutil
 import hashlib
@@ -909,8 +909,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     frac_lai2   REAL          NOT NULL,
     frac_sw_gro REAL          NOT NULL,
     aeration    REAL          NOT NULL,
-    wnd_dead    REAL          NOT NULL,
-    wnd_flat    REAL          NOT NULL,
+    rsd_pctcov  REAL          NOT NULL,
+    rsd_covfac  REAL          NOT NULL,
     description TEXT)
     """
     
@@ -3122,11 +3122,13 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     imported_gis             BOOLEAN  DEFAULT (0) 
                                       NOT NULL,
     is_lte                   BOOLEAN  DEFAULT (0) 
+                                      NOT NULL,
+    use_gwflow               BOOLEAN  DEFAULT (0)
                                       NOT NULL
     )
     """
     
-    _INSERTPROJECTCONFIG = 'INSERT INTO project_config VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'  
+    _INSERTPROJECTCONFIG = 'INSERT INTO project_config VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'  
     
     _CREATELAKESDATA = \
     """

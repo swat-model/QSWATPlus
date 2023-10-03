@@ -19,12 +19,12 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries 
-from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL
-from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator
-from qgis.PyQt.QtWidgets import QMessageBox
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject
-from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL # @UnresolvedImport
+from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QMessageBox # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject # @UnresolvedImport
+from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint # @UnresolvedImport
+from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry # @UnresolvedImport
 import os
 import glob
 import shutil
@@ -34,7 +34,7 @@ import time
 from osgeo import gdal, ogr  # type: ignore
 import csv
 import locale
-import processing  # type: ignore
+import processing  # type: ignore  # @UnresolvedImport
 from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport
 import traceback
 from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
@@ -928,8 +928,12 @@ assumed that its crossing the lake boundary is an inaccuracy.
             return False
         # if channel shapefile is a directory, set path to .shp, since not done earlier if channel did not exist then
         self._gv.channelFile = QSWATUtils.dirToShapefile(self._gv.channelFile)
+        # seems channel shapefile's prj file can be changed, so restore it
+        QSWATUtils.copyPrj(self._gv.demFile, self._gv.channelFile)
+        QSWATUtils.copyPrj(self._gv.demFile, self._gv.channelBasinFile)
         QSWATUtils.removeLayer(self._gv.wshedFile, root)
         self.createWatershedShapefile(self._gv.channelBasinFile, self._gv.wshedFile, FileTypes._WATERSHED, root)
+        QSWATUtils.copyPrj(self._gv.demFile, self._gv.wshedFile)
         # make demLayer (or hillshadelayer if exists) active so channelsLayer loads above it and below outlets
         # (or use Full HRUs layer if there is one)
         fullHRUsLayer = QSWATUtils.getLayerByLegend(QSWATUtils._FULLHRUSLEGEND, root.findLayers())
@@ -2221,6 +2225,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         except Exception:
             # fail gracefully
             epsg = ''
+        self._gv.epsg = epsg
         if units == QgsUnitTypes.DistanceMeters:
             self._gv.horizontalFactor = 1.0
             self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._METRES))
@@ -3589,15 +3594,15 @@ If you want to start again from scratch, reload the lakes shapefile."""
             self._gv.topo.basinCentroids.clear()
         for basin in shapes.shapes:
             geometry = shapes.getGeometry(basin)
-            geometry1 = geometry.makeValid()
-            error = geometry1.lastError()
+            #geometry1 = geometry.makeValid()
+            error = geometry.lastError()
             if error != '':
                 QSWATUtils.loginfo('Error in {0} forming geomtry for basin {1}: {2}'.format(subbasinsFile, basin, error))
             feature = QgsFeature(fields)
             # basin is a numpy.int32 so we need to convert it to a Python int
             feature.setAttribute(basinIndex, int(basin))
             feature.setAttribute(areaIndex, shapes.area(basin) * self._gv.horizontalFactor * self._gv.horizontalFactor / 1E4)
-            feature.setGeometry(geometry1)
+            feature.setGeometry(geometry)
             if not provider.addFeatures([feature]):
                 QSWATUtils.error('Unable to add feature to watershed shapefile {0}'. \
                                  format(subbasinsFile), self._gv.isBatch)
@@ -3605,6 +3610,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if ft == FileTypes._SUBBASINS:
                 centroid = geometry.centroid().asPoint()
                 self._gv.topo.basinCentroids[basin] = (centroid.x(), centroid.y())
+        del provider
                 
         # load it if ft is FileTypes._SUBBASINS
         if ft == FileTypes._SUBBASINS:

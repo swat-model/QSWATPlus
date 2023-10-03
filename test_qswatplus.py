@@ -22,13 +22,13 @@
 
 # derived from http://snorf.net/blog/2014/01/04/writing-unit-tests-for-qgis-python-plugins/
 
-from qgis.PyQt.QtCore import pyqtSlot, QCoreApplication, QFileInfo, QObject, Qt 
+from qgis.PyQt.QtCore import pyqtSlot, QCoreApplication, QFileInfo, QObject, Qt  # @UnresolvedImport
 #from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.PyQt.QtWidgets import * # @UnusedWildImport
-from qgis.PyQt import QtTest
-from qgis.core import QgsApplication, QgsProject, QgsUnitTypes
+from qgis.PyQt import QtTest # @UnresolvedImport
+from qgis.core import QgsApplication, QgsProject, QgsUnitTypes # @UnresolvedImport
 #from qgis.gui import * # @UnusedWildImport
-from qgis.analysis import QgsNativeAlgorithms
+from qgis.analysis import QgsNativeAlgorithms # @UnresolvedImport
 
 import os.path
 from osgeo import gdal
@@ -921,7 +921,7 @@ class TestQswat(unittest.TestCase):
         
     def test03(self):
         """No MPI; stream threshold 14400 cells; channel threshold 1440 cells; single outlet; 
-        merge subbasins; split and exempts; target by area 100; rerun HRU creation."""
+        merge subbasins; split and exempts; target by area 400."""
         print('\nTest 3')
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
@@ -1016,7 +1016,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(hrudlg.areaButton.isEnabled(), 'Area button not enabled')
         QtTest.QTest.mouseClick(hrudlg.areaButton, Qt.LeftButton)
         self.assertTrue(hrudlg.stackedWidget.currentIndex() == 2, 'Wrong threshold page {0} selected'.format(hrudlg.stackedWidget.currentIndex()))
-        hrudlg.targetSlider.setValue(100)
+        hrudlg.targetSlider.setValue(400)
         self.assertTrue(hrudlg.createButton.isEnabled(), 'Create button not enabled')
         QtTest.QTest.mouseClick(hrudlg.createButton, Qt.LeftButton)
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._HRUSREPORT)))
@@ -1029,7 +1029,7 @@ class TestQswat(unittest.TestCase):
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 26, 'Subbasin count is {0} instead of 26'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 329, 'Channel count is {0} instead of 329'.format(self.hrus.CreateHRUs.countChannels()))
         self.assertEqual(self.hrus.CreateHRUs.countLsus(), 329, 'LSU count is {0} instead of 329'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 479, 'HRU count is {0} instead of 479'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 557, 'HRU count is {0} instead of 557'.format(self.hrus.CreateHRUs.countHRUs()))
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable3)
         self.assertTrue(self.dlg.hrusButton.isEnabled(), 'HRUs button not enabled')
@@ -1057,13 +1057,13 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(hrudlg.areaButton.isChecked(), 'Area button not checked')
         self.assertTrue(hrudlg.stackedWidget.currentIndex() == 2, 
                         'Wrong threshold page {0} selected'.format(hrudlg.stackedWidget.currentIndex()))
-        self.assertTrue(hrudlg.targetSlider.value() == 100, 'Area slider set to wrong value: {0}'.format(hrudlg.targetSlider.value()))
+        self.assertTrue(hrudlg.targetSlider.value() == 400, 'Area slider set to wrong value: {0}'.format(hrudlg.targetSlider.value()))
         self.assertTrue(hrudlg.createButton.isEnabled(), 'Create button not enabled')
         QtTest.QTest.mouseClick(hrudlg.createButton, Qt.LeftButton)
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 26, 'Subbasin count after rerun is {0} instead of 26'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 329, 'Channel count after rerun is {0} instead of 329'.format(self.hrus.CreateHRUs.countChannels()))
         self.assertEqual(self.hrus.CreateHRUs.countLsus(), 329, 'LSU count is {0} instead of 329'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 479, 'HRU count after rerun is {0} instead of 479'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 557, 'HRU count after rerun is {0} instead of 557'.format(self.hrus.CreateHRUs.countHRUs()))
         #====This test does not work, because HRU numbering can change, and perhaps numerical accuracy also
         # # check tables again to confirm recalculating HRUs from saved data made no difference
         # self.checkHashes(HashTable3)

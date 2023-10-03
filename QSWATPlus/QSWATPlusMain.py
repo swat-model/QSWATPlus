@@ -20,11 +20,11 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer, QgsApplication
-from qgis.analysis import QgsNativeAlgorithms
-from qgis.PyQt.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion
-from qgis.PyQt.QtGui import QFontDatabase, QIcon, QFont
-from qgis.PyQt.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog
+from qgis.core import Qgis, QgsProject, QgsRasterLayer, QgsUnitTypes, QgsVectorLayer, QgsApplication # @UnresolvedImport
+from qgis.analysis import QgsNativeAlgorithms # @UnresolvedImport
+from qgis.PyQt.QtCore import QObject, QSettings, Qt, QTranslator, QFileInfo, QCoreApplication, qVersion # @UnresolvedImport
+from qgis.PyQt.QtGui import QFontDatabase, QIcon, QFont # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QApplication, QInputDialog, QMessageBox, QAction, QFileDialog # @UnresolvedImport
 import os
 import subprocess
 import time
@@ -32,8 +32,8 @@ import shutil
 import sys
 import traceback
 import locale
-import processing  # type: ignore @UnusedImport
-from processing.core.Processing import Processing  # type: ignore
+import processing  # type: ignore @UnusedImport @UnresolvedImport
+from processing.core.Processing import Processing  # @UnresolvedImport type: ignore 
 
 # Initialize Qt resources from file resources_rc.py
 try:
@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.4.1'
+    __version__ = '2.4.7'
 
     def __init__(self, iface):
         """Constructor."""

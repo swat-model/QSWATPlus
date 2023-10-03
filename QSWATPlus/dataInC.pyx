@@ -105,6 +105,7 @@ cdef enum WaterRole:
     _UNKNOWN = 0
     _RESERVOIR = 1
     _POND = 2
+    _WETLAND = 3
         
 cdef class WaterBody:
 
@@ -124,7 +125,8 @@ cdef class WaterBody:
         """Constructor."""
         ## Cell count
         self.cellCount = count
-        ## Total area in square metres
+        ## Total area in square metres.  
+        # downstream area is increased when waterbodies on adjacent channels are merged
         self.area = area
         ## Original area before any merging
         self.originalArea = area
@@ -486,16 +488,17 @@ cdef class LSUData:
             if len(self.cropSoilSlopeNumbers[crop]) == 0:
                 del self.cropSoilSlopeNumbers[crop]
                 
+    # Note unlike removeHRU it changes the cropSoilSlopeArea            
     cpdef void removeWaterHRUs(self, int waterLanduse):
         """Remove HRUs with landuse water"""
         cdef:
-            int crop 
+            int crop
             dict soilSlopeNumbers
             int soil
             dict slopeNumbers
             int slope
             int hru 
-            
+    
         # note use of list as dictionaries changed within loop
         for crop, soilSlopeNumbers in list(self.cropSoilSlopeNumbers.items()):
             if crop == waterLanduse:
