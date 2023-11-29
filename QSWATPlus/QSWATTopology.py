@@ -24,7 +24,7 @@ from qgis.PyQt.QtCore import QSettings, QVariant # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter # @UnresolvedImport
 from osgeo import gdal  # type: ignore
-from numpy import * # @UnusedWildImport
+from numpy import math, array, ndarray, zeros # @UnusedWildImport
 import os.path
 import time
 import csv
@@ -162,7 +162,7 @@ class QSWATTopology:
     _HUCPointId = 100000  # for HUC models all point ids are this number or greater (must match value in HUC12Models.py in HUC12Watersheds 
     
     
-    def __init__(self, isBatch: bool, isHUC: bool) -> None:
+    def __init__(self, isBatch: bool, isHUC: bool, isHAWQS: bool) -> None:
         """Initialise class variables."""
         ## Link to project database
         self.db: Optional[DBUtils] = None
@@ -291,6 +291,8 @@ class QSWATTopology:
         self.isBatch = isBatch
         ## flag for HUC projects
         self.isHUC = isHUC
+        ## flag for HAWQS projects
+        self.isHAWQS = isHAWQS
         ## table for memorizing distances from basin to join in flowpath with other basin:
         # basin -> otherBasin -> join distance in metres
         self.distancesToJoins: Dict[int, Dict[int, float]] = dict()
@@ -409,7 +411,7 @@ class QSWATTopology:
         ignoreWithGrid = useGridModel or not reportErrors
         ignoreWithGridOrExisting = ignoreWithGrid or ignoreWithExisting
         ignoreWithGridOrExistingOrWin = ignoreWithGridOrExisting or Parameters._ISWIN
-        ignoreTotDA = not self.isHUC
+        ignoreTotDA = not (self.isHUC or self.isHAWQS)
         self.channelIndex = self.getIndex(channelLayer, QSWATTopology._LINKNO, ignoreMissing=ignoreError)
         if self.channelIndex < 0:
             QSWATUtils.loginfo('No LINKNO field in channels layer')
@@ -477,11 +479,11 @@ class QSWATTopology:
         maxChLink = 0
         SWATChannel = 0
         # drainAreas is a mapping from link number (used as index to array) of grid cell areas in sq m
-        if self.isHUC:
+        if self.isHUC or self.isHAWQS:
             # make it a dictionary rather than a numpy array because there is a big gap
             # between most basin numbers and the nunbers for inlets (100000 +)
             # and we need to do no calculation
-            # create it here for HUC models as we set it up from totDASqKm field in channelLayer
+            # create it here for HUC and HAWQS models as we set it up from totDASqKm field in channelLayer
             self.drainAreas = dict()
         for channel in channelLayer.getFeatures():
             chLink: int = channel[self.channelIndex]
@@ -492,7 +494,7 @@ class QSWATTopology:
                 length = geom.length() * gv.horizontalFactor
             else:
                 length = channel[lengthIndex] * gv.horizontalFactor
-            if self.isHUC and length == 0:  # allow for zero length inlet channels
+            if (self.isHUC or self.isHAWQS) and length == 0:  # allow for zero length inlet channels
                 data = None
             else:
                 data = self.getReachData(channel, demLayer)
@@ -522,8 +524,8 @@ class QSWATTopology:
                     SWATChannel += 1
                     self.channelToSWATChannel[chLink] = SWATChannel
                     self.SWATChannelToChannel[SWATChannel] = chLink
-                # inlets in HUC models are zero length channels, and these have positive DSNODEIDs
-                elif dsNode < 0 or self.isHUC:
+                # inlets in HUC and HAWQS models are zero length channels, and these have positive DSNODEIDs
+                elif dsNode < 0 or self.isHUC or self.isHAWQS:
                     self.zeroChannels.add(chLink)
             maxChLink = max(maxChLink, chLink)
             self.downChannels[chLink] = dsChLink
@@ -535,7 +537,7 @@ class QSWATTopology:
             if dsNode2 >= 0:
                 dsNodeToLink[dsNode2] = chLink
                 #QSWATUtils.loginfo('Minor DSNode {0} mapped to channel link {1}'.format(dsNode2, chLink))
-            if dsChLink >= 0 and not (self.isHUC and chLink >= QSWATTopology._HUCPointId):  # keep HUC links out of us map
+            if dsChLink >= 0 and not ((self.isHUC or self.isHAWQS) and chLink >= QSWATTopology._HUCPointId):  # keep HUC links out of us map
                 ups = us.setdefault(dsChLink, [])
                 ups.append(chLink)
                 if not useGridModel:  # try later to fix circularities in grid models
@@ -543,7 +545,7 @@ class QSWATTopology:
                     if QSWATTopology.reachable(dsChLink, [chLink], us):
                         QSWATUtils.error('Circular drainage network from channel link {0}'.format(dsChLink), self.isBatch)
                         return False
-            if self.isHUC:
+            if self.isHUC or self.isHAWQS:
                 self.drainAreas[chLink] = channel[totDAIndex] * 1E6  # sq km to sq m
         time2 = time.process_time()
         QSWATUtils.loginfo('Topology setup for channels took {0} seconds'.format(int(time2 - time1)))
@@ -579,7 +581,7 @@ class QSWATTopology:
                 elif dsNode in self.lostDsNodeIds:
                     chLink = -1
                 elif dsNode not in dsNodeToLink:
-                    if self.isHUC:  # extra points can occur, typically duplicates: ignore
+                    if self.isHUC or self.isHAWQS:  # extra points can occur, typically duplicates: ignore
                         continue
                     if reportErrors:
                         QSWATUtils.error("""ID value {0} from inlets/outlets file {1} not found as DSNODEID in channels file {2}.  Will be ignored.
@@ -641,7 +643,7 @@ class QSWATTopology:
                     # else an outlet: nothing to do
                     
                     # check for user-defined outlets coincident with stream junctions
-                    if chLink in self.zeroChannels and chLink not in self.chLinkIntoLake and not (isInlet and self.isHUC):
+                    if chLink in self.zeroChannels and chLink not in self.chLinkIntoLake and not (isInlet and (self.isHUC or self.isHAWQS)):
                         if isInlet: typ = 'Inlet'
                         elif isPtSource: typ = 'Point source'
                         elif isReservoir: typ = 'Reservoir'
@@ -658,7 +660,7 @@ class QSWATTopology:
         QSWATUtils.loginfo('Topology setup for inlets/outlets took {0} seconds'.format(int(time4 - time3)))
         # add any extra reservoirs and point sources
         # create drainAreas here for non-HUC models as we now have maxChLink value to size the numpy array
-        if not self.isHUC:
+        if not (self.isHUC or self.isHAWQS):
             self.drainAreas = zeros((maxChLink + 1), dtype=float)
             if useGridModel:
                 gridCellArea = self.dx * self.dy * gv.gridSize * gv.gridSize
@@ -678,7 +680,7 @@ class QSWATTopology:
         time5 = time.process_time()
         QSWATUtils.loginfo('Topology drainage took {0} seconds'.format(int(time5 - time4)))
         # Strahler order
-        if self.isHUC:
+        if self.isHUC or self.isHAWQS:
             # use dict because of range of channel links, as we did for drainAreas
             self.strahler = dict()
         else:
@@ -2200,7 +2202,7 @@ class QSWATTopology:
         """
         Generate ReachData record for reach geometry.  demLayer may be none, or point may give nodata for elevation, in which case elevations are set zero.
         """
-        if self.isHUC:
+        if self.isHUC or self.isHAWQS:
             wsno = reach[self.wsnoIndex]
             pStart = self.chPointSources[wsno][1]
             pFinish = self.chOutlets[wsno][1]
@@ -2222,7 +2224,7 @@ class QSWATTopology:
         else:
             startVal = QSWATTopology.valueAtPoint(pStart, demLayer)
             finishVal = QSWATTopology.valueAtPoint(pFinish, demLayer)
-            # with grid models centre of cell at edage can have no data for elevation
+            # with grid models centre of cell at edge can have no data for elevation
             if startVal is None:
                 startVal = 0.0
             if finishVal is None:
@@ -3974,7 +3976,7 @@ class QSWATTopology:
         Assumes the orientation found for this shape can be used generally for the layer.
         For HUC models just returns False immediately as NHD flowlines start from source end.
         """
-        if self.isHUC:
+        if self.isHUC or self.isHAWQS:
             return False
         streamIndex = self.getIndex(streamLayer, QSWATTopology._LINKNO, ignoreMissing=False)
         if streamIndex < 0:
@@ -4060,15 +4062,20 @@ class QSWATTopology:
         chLinkIndex = self.getIndex(channelLayer, QSWATTopology._LINKNO)
         DSLINKNO = QSWATTopology._DSLINKNO1 if self.isHUC else QSWATTopology._DSLINKNO
         dsChLinkIndex = self.getIndex(channelLayer, DSLINKNO)
-        self.wsnoIndex = self.getIndex(channelLayer, QSWATTopology._WSNO, ignoreMissing=not useGridModel and not self.isHUC)
-        sourceXIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEX, ignoreMissing=not self.isHUC)
-        sourceYIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEY, ignoreMissing=not self.isHUC)
-        outletXIndex = self.getIndex(channelLayer, QSWATTopology._OUTLETX, ignoreMissing=not self.isHUC)
-        outletYIndex = self.getIndex(channelLayer, QSWATTopology._OUTLETY, ignoreMissing=not self.isHUC)
+        isHUCOrHAWQS = self.isHUC or self.isHAWQS
+        self.wsnoIndex = self.getIndex(channelLayer, QSWATTopology._WSNO, ignoreMissing=not useGridModel and not isHUCOrHAWQS)
+        sourceXIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEX, ignoreMissing=not isHUCOrHAWQS)
+        sourceYIndex = self.getIndex(channelLayer, QSWATTopology._SOURCEY, ignoreMissing=not isHUCOrHAWQS)
+        outletXIndex = self.getIndex(channelLayer, QSWATTopology._OUTLETX, ignoreMissing=not isHUCOrHAWQS)
+        outletYIndex = self.getIndex(channelLayer, QSWATTopology._OUTLETY, ignoreMissing=not isHUCOrHAWQS)
         if chLinkIndex < 0 or dsChLinkIndex < 0:
             return False
-        # ignoreMissing for subbasinIndex necessary when useGridModel, since channelLayer is then a streams layer
-        subbasinIndex = self.getIndex(channelLayer, QSWATTopology._BASINNO, ignoreMissing=useGridModel)
+        if self.isHAWQS:
+            # channel file has a Subbasin field
+            subbasinIndex = self.getIndex(channelLayer, QSWATTopology._SUBBASIN)
+        else:
+            # ignoreMissing for subbasinIndex necessary when useGridModel, since channelLayer is then a streams layer
+            subbasinIndex = self.getIndex(channelLayer, QSWATTopology._BASINNO, ignoreMissing=useGridModel)
         if useGridModel:
             if self.wsnoIndex < 0:
                 return False

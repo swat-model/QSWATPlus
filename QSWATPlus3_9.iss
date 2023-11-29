@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_9"
 #define MyAppVersion "2.4"
-#define MyAppSubVersion "7"
+#define MyAppSubVersion "8"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -49,6 +49,9 @@ Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugi
 Source: "C:\SWAT\SWATPlus\TauDEM539_304Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
 Source: "{#SourcePath}Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 Source: "{#SourcePath}Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\QSWATPlusProjHAWQS.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\QSWATPlusRefHAWQS.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\SSURGO_Soils_HUC.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
 
 [Code]
 var

@@ -1118,9 +1118,9 @@ assumed that its crossing the lake boundary is an inaccuracy.
                             break
                     if not mainOutletChosen:
                         # second pass: find a non-candidate channel downstream from a candidate and not upstream of amother candidate
-                        chLink = channel[channelLinkIndex]
-                        dsLink = channel[channelDsLinkIndex]
                         for channel in channelsProvider.getFeatures():
+                            chLink = channel[channelLinkIndex]
+                            dsLink = channel[channelDsLinkIndex]
                             if chLink not in candidateLinks and chLink in candidateDsLinks and dsLink not in candidateLinks:
                                 mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
                                 QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
@@ -1465,7 +1465,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             assert self._dlg.tabWidget.currentIndex() == 0
             box = self._dlg.selectOutlets
             self.thresholdChanged = True
-        (outletFile, outletLayer) = QSWATUtils.openAndLoadFile(root, FileTypes._OUTLETS, box, self._gv.shapesDir,
+        ft = FileTypes._OUTLETSHUC if self._gv.isHUC or self._gv.isHAWQS else FileTypes._OUTLETS
+        (outletFile, outletLayer) = QSWATUtils.openAndLoadFile(root, ft, box, self._gv.shapesDir,
                                                                self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         if outletFile and outletLayer:
             self._gv.snapFile = ''
@@ -1490,7 +1491,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 self._gv.subbasinsFile = subbasinsFile
                 subbasinsLayer.setLabelsEnabled(True)
                 if self._gv.useGridModel:
-                    # don'texpand grid layer legend
+                    # don't expand grid layer legend
                     treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDLEGEND, root.findLayers())
                     if treeLayer is not None:
                         treeLayer.setExpanded(False)   
@@ -2030,7 +2031,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
             else:
                 QSWATUtils.setLayerVisibility(wshedLayer, False, root)
         if outletFile != '':
-            outletLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._OUTLETS,
+            ft = FileTypes._OUTLETSHUC if self._gv.isHUC or self._gv.isHAWQS else FileTypes._OUTLETS
+            outletLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, ft,
                                                                 self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
             if not outletLayer:
                 QSWATUtils.error('Cannot load inlets/outlets shapefile {0}'.format(outletFile), self._gv.isBatch)
@@ -4865,6 +4867,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if os.path.exists(wshedFile):
             self._dlg.selectWshed.setText(wshedFile)
             self._gv.wshedFile = wshedFile
+            if self._gv.isHAWQS and self._gv.subbasinsFile == '': # use wshed file for subbasins
+                self._dlg.selectSubbasins.setText(wshedFile)
+                self._gv.subbasinsFile = wshedFile
         else:
             self._gv.wshedFile = ''
         lakeFile, found = proj.readEntry(title, 'delin/lakes', '')
@@ -4960,6 +4965,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 self._gv.channelFile = channelFile
             else:
                 self._gv.channelFile = ''
+                if self._gv.isHAWQS and self._gv.streamFile != '': # use streams file for channels
+                    self._dlg.selectStreams.setText(self._gv.streamFile)
+                    self._gv.channelFile = self._gv.streamFile
         useOutlets, found = proj.readBoolEntry(title, 'delin/useOutlets', True)
         if found:
             self._dlg.useOutlets.setChecked(useOutlets)

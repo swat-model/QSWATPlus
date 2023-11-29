@@ -884,7 +884,7 @@ class CreateHRUs(QObject):
                                     crop = cropNoData
                             # landuse maps used for HUC models have 0 in Canada
                             # so to prevent messages about 0 not recognised as a landuse
-                            if self._gv.isHUC and crop == 0:
+                            if (self._gv.isHUC or self._gv.isHAWQS) and crop == 0:
                                 crop = cropNoData
                             if crop == cropNoData:
                                 landuseNoDataCount += 1
@@ -937,7 +937,7 @@ class CreateHRUs(QObject):
                                     slopeValue = min(slopeValue, Parameters._WATERMAXSLOPE)
                             if slopeValue != slopeNoData:
                                 # for HUC, slope bands only used for agriculture
-                                if not self._gv.isHUC or self._gv.db.isAgriculture(crop):
+                                if not (self._gv.isHUC or self._gv.isHAWQS) or self._gv.db.isAgriculture(crop):
                                     slope = self._gv.db.slopeIndex(slopeValue * 100)
                                 else:
                                     slope = 0
@@ -2804,7 +2804,7 @@ class CreateHRUs(QObject):
             self._reportsCombo.addItem(Parameters._TOPOITEM)
         self._db.writeElevationBands(self.basinElevBands, self._gv.numElevBands)
                 
-    def writeTopoReportSection(self, mapp: List[int], fw: fileWriter, string: str) -> Optional[List[Tuple[float, float]]]:
+    def writeTopoReportSection(self, mapp: List[int], fw: fileWriter, string: str) -> Optional[List[Tuple[float, float, float]]]:
         """Write topographic report file section for 1 subbasin."""
         fw.writeLine('')
         fw.writeLine(QSWATUtils.trans('Statistics: All elevations reported in meters'))
@@ -2824,9 +2824,19 @@ class CreateHRUs(QObject):
         summ = 0.0
         if string == 'subbasin' and self._gv.elevBandsThreshold > 0  and \
         self._gv.numElevBands > 0 and maximum + self.minElev > self._gv.elevBandsThreshold:
-            bandWidth = (maximum - minimum) / self._gv.numElevBands
-            bands: Optional[List[Tuple[float, float]]] = [(minimum + self.minElev, 0)]
-            nextBand = minimum + self.minElev + bandWidth
+            if self._gv.isHUC or self._gv.isHAWQS:
+                # HUC models use fixed bandwidth of 500m
+                bandWidth = 500
+                self._gv.numElevBands = int(1 + (maximum - minimum) / bandWidth)
+                thisWidth = min(maximum + 1 - minimum, bandWidth)  # guard against first band < 500 wide
+                midPoint = minimum + self.minElev + (thisWidth - 1) / 2.0
+                bands = [(minimum + self.minElev, midPoint, 0.0)]
+                nextBand = minimum + self.minElev + thisWidth 
+            else:
+                bandWidth = (maximum - minimum) / self._gv.numElevBands
+                midPoint = minimum + self.minElev + (bandWidth - 1) / 2.0
+                bands: Optional[List[Tuple[float, float, float]]] = [(minimum + self.minElev, midPoint, 0)]
+                nextBand = minimum + self.minElev + bandWidth
         else:
             bands = None
         for i in range(minimum, maximum+1):
@@ -2839,11 +2849,13 @@ class CreateHRUs(QObject):
             percent = (freq / totalFreq) * 100.0
             if bands is not None:
                 if elev > nextBand: # start a new band
-                    bands.append((nextBand, percent))
-                    nextBand += bandWidth
+                    nextWidth = min(maximum + 1 + self.minElev - elev, bandWidth)
+                    nextMidPoint = elev + (nextWidth - 1) / 2.0
+                    bands.append((nextBand, nextMidPoint, percent))
+                    nextBand = min(nextBand + bandWidth, maximum + 1 + self.minElev)
                 else: 
-                    el, frac = bands[-1]
-                    bands[-1] = (el, frac + percent)
+                    el, mid, frac = bands[-1]
+                    bands[-1] = (el, mid, frac + percent)
             fw.write(locale.str(elev).rjust(20))
             fw.write(locale.format_string('%.2F', upto).rjust(25))
             fw.writeLine(locale.format_string('%.2F', percent).rjust(25))

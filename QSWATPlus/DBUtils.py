@@ -55,12 +55,14 @@ class DBUtils:
     _MUIDPLUSNAMEPATTERN = r'^[A-Z]{2}[0-9]{3}\+[A-Z]+$'
     _S5IDPATTERN = r'^[A-Z]{2}[0-9]{4}$' 
     
-    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isHUC: bool, logFile: Optional[str], isBatch: bool) -> None:
+    def __init__(self, projDir: str, projName: str, dbProjTemplate: str, dbRefTemplate: str, isHUC: bool, isHAWQS: bool, logFile: Optional[str], isBatch: bool) -> None:
         """Initialise class variables."""
         ## Flag showing if batch run
         self.isBatch = isBatch
         ## flag for HUC projects
         self.isHUC = isHUC
+        ## flag for HAWQS projects
+        self.isHAWQS = isHAWQS
         ## message logging file for HUC projects
         self.logFile = logFile
         ## project directory
@@ -90,6 +92,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbPr
 Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbProjTemplate, self.dbFile)
+                QSWATUtils.loginfo('Made project database from {0}'.format(dbProjTemplate))
         # copy template reference database to project folder if not already there
         if not os.path.exists(self.dbRefFile):
             if not os.path.exists(dbRefTemplate):
@@ -102,6 +105,7 @@ If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRe
 Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             else:
                 shutil.copyfile(dbRefTemplate, self.dbRefFile)
+                QSWATUtils.loginfo('Made reference database from {0}'.format(dbRefTemplate))
         self.connectToProjectDatabase()
         ## sqlite3 connection to reference database
         self.connRef: Any = sqlite3.connect(self.dbRefFile)
@@ -186,14 +190,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.useSSURGO = False
         ## map of SSURGO map values to SSURGO MUID (only used with HUC)
         self.SSURGOsoils: Dict[int, int] = dict()
-        if isHUC:
-            ## SSURGO soil database (only used with HUC)
-            # changed to use copy one up frpm projDir
-            self.SSURGODbFile = QSWATUtils.join(projDir + '/..', Parameters._SSURGODB_HUC)
+        if isHUC or isHAWQS:
+            ## SSURGO soil database (only used with HUC and HAWQS)
+            if isHUC:
+                # changed to use copy one up frpm projDir
+                self.SSURGODbFile = QSWATUtils.join(projDir + '/..', Parameters._SSURGODB_HUC)
+            else: # HAWQS
+                self.SSURGODbFile = QSWATUtils.join(QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._DBDIR), Parameters._SSURGODB_HUC)
             self.SSURGOConn = sqlite3.connect(self.SSURGODbFile)  # @UndefinedVariable
-        ## nodata value from soil map to replace undefined SSURGO soils (only used with HUC)
+        ## nodata value from soil map to replace undefined SSURGO soils (only used with HUC and HAWQS)
         self.SSURGOUndefined = -1
-        ## regular expression for checking if SSURGO soils are water (only used with HUC)
+        ## regular expression for checking if SSURGO soils are water (only used with HUC and HAWQS)
         self.waterPattern = re.compile(r'\bwaters?\b', re.IGNORECASE)  # @UndefinedVariable
         ## flag indicating, if useSTATSGO is true, that muid+seqn is being used
         self.addSeqn = False
@@ -1104,7 +1111,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """Translate a soil id to its equivalent id in soilNames, plUs flag indicating lookup success."""
         self.soilVals.add(sid)
         if self.useSSURGO:
-            if self.isHUC:
+            if self.isHUC or self.isHAWQS:
                 return self.translateSSURGOSoil(sid)
             else:
                 return sid, True
@@ -1112,9 +1119,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         return sid1, True
     
     def translateSSURGOSoil(self, sid: int) -> Tuple[int, bool]:
-        """Use table to convert soil map values to SSURGO muids, plUs flag indicating lookup success.  
+        """Use statsgo_ssurgo_lkey table to convert soil map lkey values to SSURGO muids, plUs flag indicating lookup success.  
         Replace any soil with sname Water with Parameters._SSURGOWater.  
-        Report undefined SSURGO soils.  Only used with HUC."""
+        Report undefined SSURGO soils.  Only used with HUC and HAWQS."""
         if sid in self._undefinedSoilIds:
             return self.SSURGOUndefined, False
         muid = self.SSURGOsoils.get(sid, -1)
@@ -1131,7 +1138,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             QSWATUtils.information('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey'.format(sid), self.isBatch, logFile=self.logFile)
             # self._undefinedSoilIds.append(sid)
             # return sid
-        sql = self.sqlSelect('SSURGO_Soils', 'SNAM', '', 'MUID=?')
+        sql = self.sqlSelect('SSURGO_Soils', 'TEXTURE', '', 'MUID=?')
         row = self.SSURGOConn.execute(sql, (lookup_row[1],)).fetchone()
         if row is None:
             QSWATUtils.information('WARNING: SSURGO soil lkey value {0} and MUID {1} not defined in project {2}'.format(sid, lookup_row[1], self.projName), self.isBatch, logFile=self.logFile)

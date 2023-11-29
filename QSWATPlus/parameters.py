@@ -59,6 +59,8 @@ class Parameters:
     _DBDIR = 'Databases'
     _DBPROJ = 'QSWATPlusProj.sqlite'
     _DBREF = 'swatplus_datasets.sqlite'
+    _DBPROJHAWQS = 'QSWATPlusProjHAWQS.sqlite'
+    _DBREFHAWQS = 'QSWATPlusRefHAWQS.sqlite'
     _RESULTS = 'Results'
     _PLOTS = 'Plots'
     _TXTINOUT = 'TxtInOut'

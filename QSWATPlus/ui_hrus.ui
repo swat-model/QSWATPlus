@@ -29,7 +29,7 @@
       </sizepolicy>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <widget class="QWidget" name="tab">
       <attribute name="title">
@@ -795,6 +795,12 @@ p, li { white-space: pre-wrap; }
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>109</width>
+         <height>0</height>
+        </size>
+       </property>
        <property name="maximumSize">
         <size>
          <width>180</width>
@@ -850,7 +856,7 @@ p, li { white-space: pre-wrap; }
         <rect>
          <x>124</x>
          <y>9</y>
-         <width>182</width>
+         <width>190</width>
          <height>142</height>
         </rect>
        </property>
@@ -859,6 +865,12 @@ p, li { white-space: pre-wrap; }
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>190</width>
+         <height>0</height>
+        </size>
        </property>
        <property name="title">
         <string>Single/Multiple HRUs</string>
@@ -961,7 +973,7 @@ with the largest areas in that landscape unit.</string>
         <rect>
          <x>124</x>
          <y>158</y>
-         <width>165</width>
+         <width>190</width>
          <height>73</height>
         </rect>
        </property>
@@ -970,6 +982,12 @@ with the largest areas in that landscape unit.</string>
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>190</width>
+         <height>0</height>
+        </size>
        </property>
        <property name="title">
         <string>Threshold method</string>
@@ -1015,9 +1033,9 @@ with the largest areas in that landscape unit.</string>
       <widget class="QStackedWidget" name="stackedWidget">
        <property name="geometry">
         <rect>
-         <x>310</x>
+         <x>350</x>
          <y>0</y>
-         <width>185</width>
+         <width>190</width>
          <height>222</height>
         </rect>
        </property>
@@ -1026,6 +1044,12 @@ with the largest areas in that landscape unit.</string>
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>190</width>
+         <height>0</height>
+        </size>
        </property>
        <property name="currentIndex">
         <number>0</number>

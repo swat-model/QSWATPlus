@@ -24,7 +24,8 @@ from osgeo import gdal  # type: ignore
 from qgis.core import QgsRasterLayer
 import numpy as np
 import os
-from distutils.version import LooseVersion
+from packaging.version import Version
+# deprecated from distutils.version import LooseVersion
 from typing import Any, Dict, Union, Optional, cast
 
 try:
@@ -162,7 +163,7 @@ class Raster():
             if self.canWrite:
                 dtype = np.int_ if self.isInt else np.float_
                 # mumpy.core.full introduced in version 1.8
-                if LooseVersion(np.__version__) < LooseVersion('1.8'):
+                if Version(np.__version__) < Version('1.8'):
                     self.array = np.empty((chunkSize, self.numCols), dtype)
                     assert self.array is not None
                     self.array.fill(noData)

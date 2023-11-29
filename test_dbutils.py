@@ -66,7 +66,8 @@ class TestDBUtils(unittest.TestCase):
         dbRef = QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, QSWATUtils.join(Parameters._DBDIR, Parameters._DBREF))
         self.assertTrue(os.path.exists(dbRef), 'Reference database {0} does not exist'.format(dbRef))
         isHUC = False
-        self.db = DBUtils(projDir, 'test', dbTemplate, dbRef, isHUC, None, True)
+        isHAWQS = False
+        self.db = DBUtils(projDir, 'test', dbTemplate, dbRef, isHUC, isHAWQS, None, True)
         self.db.populateTableNames()
         
     def tearDown(self):

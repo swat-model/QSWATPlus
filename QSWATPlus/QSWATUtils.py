@@ -1351,6 +1351,7 @@ class FileTypes:
     _OBSERVATIONLOCATIONS = 34
     _TILEDRAINS = 35
     _OUTPUTTIMES = 36
+    _OUTLETSHUC = 37
     _OTHER = 99
     
     @staticmethod
@@ -1362,13 +1363,13 @@ class FileTypes:
             return QgsProviderRegistry.instance().fileRasterFilters()
         elif ft == FileTypes._MASK:
             return 'All files (*)' # TODO: use dataprovider.fileRasterFilters + fileVectorFilters
-        elif ft == FileTypes._BURN or ft == FileTypes._OUTLETS or \
+        elif ft == FileTypes._BURN or ft == FileTypes._OUTLETS or ft == FileTypes._OUTLETSHUC or \
                     ft == FileTypes._STREAMS or ft == FileTypes._SUBBASINS or \
                     ft == FileTypes._CHANNELREACHES or ft == FileTypes._STREAMREACHES or ft == FileTypes._WATERSHED or \
                     ft == FileTypes._EXISTINGSUBBASINS or ft == FileTypes._EXISTINGWATERSHED or \
                     ft == FileTypes._GRID or ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS or \
                     ft == FileTypes._BUFFERSHAPE or ft == FileTypes._CHANNELS or ft == FileTypes._LAKES or \
-                    ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS or \
+                    ft == FileTypes._LSUS or ft == FileTypes._EXTRAPTSRCANDRES or ft == FileTypes._AQUIFERS or \
                     ft == FileTypes._PERMEABILITY or ft == FileTypes._OBSERVATIONLOCATIONS or ft == FileTypes._TILEDRAINS:
             return QgsProviderRegistry.instance().fileVectorFilters()
         elif ft == FileTypes._CSV:
@@ -1401,7 +1402,7 @@ class FileTypes:
             return 'Mask'
         elif ft == FileTypes._BURN:
             return 'Stream burn-in'
-        elif ft == FileTypes._OUTLETS:
+        elif ft == FileTypes._OUTLETS or ft == FileTypes._OUTLETSHUC:
             return 'Inlets/outlets'
         elif ft == FileTypes._STREAMS:
             return QSWATUtils._STREAMSLEGEND
@@ -1491,6 +1492,8 @@ class FileTypes:
             return 'lakes.qml'
         elif ft == FileTypes._AQUIFERS or ft == FileTypes._HRUS:
             return 'polygons.qml'
+        elif ft == FileTypes._OUTLETSHUC:
+            return 'outletsHUC.qml'
         else:
             return None
 
@@ -1503,7 +1506,7 @@ class FileTypes:
             return 'Select mask'
         elif ft == FileTypes._BURN:
             return 'Select stream reaches shapefile to burn-in'
-        elif ft == FileTypes._OUTLETS:
+        elif ft == FileTypes._OUTLETS or ft == FileTypes._OUTLETSHUC:
             return 'Select inlets/outlets shapefile'
         elif ft == FileTypes._STREAMS:
             return 'Select streams shapefile'
@@ -1535,6 +1538,8 @@ class FileTypes:
     def mapTip(ft: int) -> str:
         if ft == FileTypes._OUTLETS or ft == FileTypes._EXTRAPTSRCANDRES:
             return '<b>Point id:</b> [% "PointId" %]'
+        elif ft == FileTypes._OUTLETSHUC:
+            return '<b> Point id:</b> [% "ID" %] [% "Name" %]'
         elif ft == FileTypes._CHANNELREACHES:
             return '<b>Channel:</b> [% "Channel" %]'
         elif ft == FileTypes._GRIDSTREAMS or ft == FileTypes._DRAINSTREAMS:

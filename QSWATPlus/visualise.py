@@ -20,12 +20,12 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant
-from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator
-from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem
-from qgis.PyQt.QtXml import QDomDocument
-from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop
-from qgis.gui import QgsMapCanvas, QgsMapCanvasItem
+from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant   # @UnresolvedImport
+from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem # @UnresolvedImport
+from qgis.PyQt.QtXml import QDomDocument # @UnresolvedImport
+from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop  # @UnresolvedImport
+from qgis.gui import QgsMapCanvas, QgsMapCanvasItem # @UnresolvedImport
 import os
 # import random
 import numpy
@@ -1768,7 +1768,7 @@ class Visualise(QObject):
         self.summaryChanged = False
         
     def makeJenksRenderer(self, vals: List[float], ramp: QgsColorRamp, var: str) -> QgsGraduatedSymbolRenderer:
-        """Make renderer with Jenks algorithm using vals of var, setting colour rampe to ramp, inverted if invert"""
+        """Make renderer with Jenks algorithm using vals of var, setting colour rampe to ramp"""
         count = 5
         cbreaks = jenks(vals, count)
         QSWATUtils.loginfo('Breaks: {0!s}'.format(cbreaks))

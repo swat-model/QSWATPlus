@@ -155,7 +155,7 @@ UI_FILES = ui_qswat.py ui_delineation.py ui_hrus.py ui_outlets.py ui_exempt.py u
 
 QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml floodwhite.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \
-			ptsrcandreservoir.qml lakes.qml lakesnores.qml polygons.qml
+			ptsrcandreservoir.qml lakes.qml lakesnores.qml polygons.qml outletsHUC.qml
 
 QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate2Landscape.qpt \
 			PrintTemplate2Portrait.qpt PrintTemplate3Landscape.qpt PrintTemplate3Portrait.qpt \

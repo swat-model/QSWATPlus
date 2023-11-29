@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.4.7'
+    __version__ = '2.4.8'
 
     def __init__(self, iface):
         """Constructor."""
@@ -323,7 +323,7 @@ class QSWATPlus(QObject):
         self._odlg.raise_()
         self.setupProject(proj, False)
     
-    def setupProject(self, proj, isBatch, isHUC=False, logFile=None):
+    def setupProject(self, proj, isBatch, isHUC=False, isHAWQS=False, logFile=None):
         """Set up the project."""
         self._odlg.mainBox.setVisible(True)
         self._odlg.mainBox.setEnabled(False)
@@ -337,9 +337,16 @@ class QSWATPlus(QObject):
             proj.writeEntryBool(title, 'delin/isHUC', isHUC)
         else:
             isHUC = isHUCFromProjfile
+        isHAWQSFromProjfile, found = proj.readBoolEntry(title, 'delin/isHAWQS', False)
+        if not found:
+            # isHAWQS not previously set.  Use parameter above and record
+            proj.writeEntryBool(title, 'delin/isHAWQS', isHAWQS)
+        else:
+            isHAWQS = isHAWQSFromProjfile
+        QSWATUtils.loginfo('isHAWQS is {0}'.format(isHAWQS))
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
-        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC, logFile)
+        self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC, isHAWQS, logFile)
         if self._gv.SWATPlusDir == '':
             # failed to find SWATPlus directory
             return
@@ -518,8 +525,9 @@ class QSWATPlus(QObject):
         outletFile, found = proj.readEntry(title, 'delin/outlets', '')
         if found and outletFile != '':
             outletFile = proj.readPath(outletFile)
+            ft = FileTypes._OUTLETSHUC if self._gv.isHUC or self._gv.isHAWQS else FileTypes._OUTLETS
             outletLayer, _ = \
-                QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._OUTLETS,
+                QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, ft,
                                               self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
             if not outletLayer:
                 QSWATUtils.loginfo('demProcessed failed: no outlet layer')
@@ -809,7 +817,9 @@ class QSWATPlus(QObject):
                 if self._gv.db.conn:
                     self._gv.db.conn.close()
                 if self._gv.db.connRef:
-                    self._gv.db.connRef.close() 
+                    self._gv.db.connRef.close()
+                    if (self._gv.isHUC or self._gv.isHAWQS) and self._gv.db.SSURGOConn:
+                        self._gv.db.SSURGOConn.close() 
             if QSWATUtils is not None:
                 QSWATUtils.loginfo('Databases closed') 
         except Exception:

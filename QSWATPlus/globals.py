@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 class GlobalVars:
     """Data used across across the plugin, and some utilities on it."""
-    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool, isHUC: bool=False, logFile: Optional[str]=None) -> None:
+    def __init__(self, iface: QgisInterface, version: str, plugin_dir: str, isBatch: bool, isHUC: bool=False, isHAWQS: bool=False, logFile: Optional[str]=None) -> None:
         """Initialise class variables."""
         settings = QSettings()
         if settings.contains('/QSWATPlus/SWATPlusDir'):
@@ -70,9 +70,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         # containing template project and reference databases, plus soil database for STATSGO and SSURGO
         self.dbPath = QSWATUtils.join(self.SWATPlusDir, Parameters._DBDIR)
         ## Path of template project database
-        self.dbProjTemplate =  QSWATUtils.join(self.dbPath, Parameters._DBPROJ)
+        self.dbProjTemplate =  QSWATUtils.join(self.dbPath, Parameters._DBPROJHAWQS) if isHAWQS else QSWATUtils.join(self.dbPath, Parameters._DBPROJ)
         ## Path of template reference database
-        self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREF)
+        self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREFHAWQS) if isHAWQS else QSWATUtils.join(self.dbPath, Parameters._DBREF)
         ## Directory of TauDEM executables
         self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)[0]
         ## Path of mpiexec
@@ -227,7 +227,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Number of elevation bands
         self.numElevBands = 0
         ## Topology object
-        self.topo: QSWATTopology = QSWATTopology(isBatch, isHUC)
+        self.topo: QSWATTopology = QSWATTopology(isBatch, isHUC, isHAWQS)
         projFile: str = proj.fileName()
         projPath: str = QFileInfo(projFile).canonicalFilePath()
         pdir, base = os.path.split(projPath)
@@ -278,10 +278,12 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.isBatch = isBatch
         ## flag for HUC projects
         self.isHUC = isHUC
+        ## flag for HAWQS projects
+        self.isHAWQS = isHAWQS
         ## log file for message output for HUC projects
         self.logFile = logFile
         ## Path of project database
-        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.logFile, self.isBatch)
+        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isHAWQS, self.logFile, self.isBatch)
         ## multiplier to turn DEM distances to metres
         self.horizontalFactor = 1
         ## multiplier to turn elevations to metres
