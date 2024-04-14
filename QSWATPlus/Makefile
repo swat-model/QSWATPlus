@@ -51,7 +51,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
 	OBJ_FILES = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
-	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py)
 	EXTRAPACKAGES = imageio rtree
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -161,8 +161,6 @@ QPT_FILES = PrintTemplate1Landscape.qpt PrintTemplate1Portrait.qpt PrintTemplate
 			PrintTemplate2Portrait.qpt PrintTemplate3Landscape.qpt PrintTemplate3Portrait.qpt \
 			PrintTemplate4Landscape.qpt PrintTemplate4Portrait.qpt PrintTemplate6Landscape.qpt \
 			PrintTemplate6Portrait.qpt
-
-INI_FILES = gwflow.ini
 
 EXTRAS = Changelog.txt swatplus32.png
 
@@ -296,7 +294,6 @@ deploy: compile
 	$(CPFILE) $(UI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(QML_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(QPT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
-	$(CPFILE) $(INI_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)"
 	$(CPFILE) $(BAT_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	$(CPFILE) $(TEST_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"
 	$(CPFILE) $(HUC_FILES) "$(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)"

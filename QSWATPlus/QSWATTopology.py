@@ -24,7 +24,7 @@ from qgis.PyQt.QtCore import QSettings, QVariant # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter # @UnresolvedImport
 from osgeo import gdal  # type: ignore
-from numpy import math, array, ndarray, zeros # @UnusedWildImport
+from numpy import math, array, ndarray, zeros
 import os.path
 import time
 import csv
@@ -1621,12 +1621,13 @@ class QSWATTopology:
                 point = lakeData.outPoint[2]
                 if point is None:
                     if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE, QSWATTopology._WETLANDTYPE}:
-                        QSWATUtils.loginfo('No outpoint for lake {0}'.format(lakeId))
+                        QSWATUtils.error('There is no outlet point for lake {0}'.format(lakeId), self.isBatch)
                     x = 0
                     y = 0
+                    lakeData.outPoint = (0, -1, QgsPointXY(x, y), 0) # point defined to avoid crash later
                 else:
-                    x = lakeData.outPoint[2].x()
-                    y = lakeData.outPoint[2].y()
+                    x = point.x()
+                    y = point.y()
                 curs.execute(db._INSERTLAKESDATA, (lakeId, lakeData.outPoint[0], lakeData.waterRole, lakeData.area, 
                                                    lakeData.overrideArea, lakeData.elevation, lakeData.outChLink,
                                                    lakeData.outPoint[1], x, y,

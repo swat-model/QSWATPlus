@@ -614,7 +614,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setColumnWidth(0, 100)
         self._dlg.tableWidget.setColumnWidth(1, 100)
         self._dlg.tableWidget.setColumnWidth(2, 45)
-        self._dlg.tableWidget.setColumnWidth(4, 90)
+        self._dlg.tableWidget.setColumnWidth(3, 90)
         self._dlg.plotType.clear()
         self._dlg.plotType.addItem(Visualise._CHOOSEPLOT)
         self._dlg.plotType.addItem(Visualise._GRAPHORBAR)
@@ -2626,7 +2626,7 @@ class Visualise(QObject):
         needLayer4 = True
         if changeFileExists:
             layer4 = QSWATUtils.getLayerByFilename(root.findLayers(), changeFile, ft, None, None, None)[0]
-            if layer3 is not None:
+            if layer4 is not None:
                 needLayer4 = False
         else:
             QSWATUtils.copyShapefile(resultsBase, changeBase, direc)

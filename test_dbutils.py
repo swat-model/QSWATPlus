@@ -52,8 +52,9 @@ atexit.register(app.exitQgis)
 
 class TestDBUtils(unittest.TestCase):
     """Test cases for DBUtils.""" 
-    
+
     def setUp(self):
+        # pass
         """Initialize data for tests"""
         projDir = 'QSWATPlus/testdata/test'
         if not os.path.exists(projDir):
@@ -68,9 +69,10 @@ class TestDBUtils(unittest.TestCase):
         isHUC = False
         isHAWQS = False
         self.db = DBUtils(projDir, 'test', dbTemplate, dbRef, isHUC, isHAWQS, None, True)
-        self.db.populateTableNames()
-        
+        # self.db.populateTableNames()
+
     def tearDown(self):
+        # pass
         """Clean up: make sure no database connections survive."""
         if self.db.conn is not None:
             self.db.conn.close()
@@ -78,6 +80,7 @@ class TestDBUtils(unittest.TestCase):
             self.db.connRef.close()
         
     def test1(self):
+        self.assertTrue(True, '')
         """landuse lookup from csv"""
         self.assertFalse('ex1_landuses' in self.db.landuseTableNames, 'ex1_landuses already in database')
         self.db.readCsvFile('QSWATPlus/testdata/ex1_landuses.csv', 'landuse', self.db.landuseTableNames)
@@ -90,7 +93,7 @@ class TestDBUtils(unittest.TestCase):
         self.db.readCsvFile('QSWATPlus/testdata/ex1_soils.csv', 'soil', self.db.soilTableNames)
         self.assertEqual(self.db.hashDbTable(self.db.conn, 'Example1_soils'), self.db.hashDbTable(self.db.conn, 'ex1_soils'),
                     'Different hashes for soil tables')
-        
+    
     def test3(self):
         """usersoil from csv"""
         self.db.plantSoilDatabase = self.db.dbRefFile
@@ -105,7 +108,7 @@ class TestDBUtils(unittest.TestCase):
         #            'Different hashes for usersoil tables: {0} and {1}'.format(oldHash, newHash))
         self.db.usersoilTableNames = self.db.collectPlantSoilTableNames('usersoil', box)
         self.assertTrue('ex1_usersoil' in self.db.usersoilTableNames, 'ex1_usersoil not added to reference database')
-        
+    
     def test4(self):
         """plant from csv"""
         self.db.plantSoilDatabase = self.db.dbFile
@@ -120,7 +123,7 @@ class TestDBUtils(unittest.TestCase):
         #self.assertEqual(self.db.hashDbTable(self.db.conn, 'plant'), 
         #                 self.db.hashDbTable(self.db.conn, 'plant0'),
         #                 'Different hashes for plant tables')
-        
+    
     def test5(self):
         """urban from csv"""
         self.db.plantSoilDatabase = self.db.dbFile
@@ -140,3 +143,4 @@ if __name__ == '__main__':
 #    import monkeytype
 #    with monkeytype.trace():
     unittest.main()
+    

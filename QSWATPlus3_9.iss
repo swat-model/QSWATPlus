@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus3_9"
 #define MyAppVersion "2.4"
-#define MyAppSubVersion "8"
+#define MyAppSubVersion "10"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -39,7 +39,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [InstallDelete]
 ; replaced by QSWATPlusMain.py
 Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
-; was installed in wrong blace
+; was installed in wrong place
 Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
 ; clean up  TauDEM539Bin
 Type: files; Name: "C:\SWAT\SWATPlus\TauDEM539Bin\*";

@@ -186,7 +186,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.slopeLimits: List[float] = []
         ## flag indicating STATSGO soil data is being used
         self.useSTATSGO = False
-        ## flag indicating SSURGO or STATSGO2 soil data is being used
+        ## flag indicating SSURGO soil data is being used
         self.useSSURGO = False
         ## map of SSURGO map values to SSURGO MUID (only used with HUC)
         self.SSURGOsoils: Dict[int, int] = dict()

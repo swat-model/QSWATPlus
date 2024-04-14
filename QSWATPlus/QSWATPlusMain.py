@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.4.8'
+    __version__ = '2.4.10'
 
     def __init__(self, iface):
         """Constructor."""
@@ -124,7 +124,7 @@ class QSWATPlus(QObject):
             pointSize = int(settings.value('/QSWATPlus/FontSize'))
         except Exception:
             pointSize = 8
-        self.setUbuntuFont(pointSize)
+        # self.setUbuntuFont(pointSize)
         # an experiment - probably not use
         # self.setStyles()
         # Create the dialog (after translation) and keep reference
@@ -408,7 +408,7 @@ class QSWATPlus(QObject):
             return
         report = QSWATUtils.join(self._gv.textDir, report)
         if not os.path.exists(report):
-            QSWATUtils.error('Cannot find report {0}'.format(report))
+            QSWATUtils.error('Cannot find report {0}'.format(report), self._gv.isBatch)
             return
         if Parameters._ISWIN : # Windows
             os.startfile(report)  # @UndefinedVariable since not defined in Linux or Mac

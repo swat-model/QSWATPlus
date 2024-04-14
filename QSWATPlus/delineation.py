@@ -22,7 +22,7 @@
 from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL # @UnresolvedImport
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator # @UnresolvedImport
 from qgis.PyQt.QtWidgets import QMessageBox # @UnresolvedImport
-from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject # @UnresolvedImport
+from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsRectangle # @UnresolvedImport
 from qgis.gui import QgsMapCanvas, QgsMapTool, QgsMapToolEmitPoint # @UnresolvedImport
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry # @UnresolvedImport
 import os
@@ -514,26 +514,149 @@ class Delineation(QObject):
         
         Not used with grid models or existing watersheds."""
         
-        def makeNewPoint(points: List[QgsPointXY], source: QgsPointXY, outlet: QgsPointXY, newPoints: List[QgsFeature], currentPointId: int,
+        # def makeOutletAndResPoint(points: List[QgsPointXY], source: QgsPointXY, outlet: QgsPointXY, Geometry: channelGeom, newPoints: List[QgsFeature], currentPointId: int,
+        #                  chLink: int, lakeId: int, fields: QgsFields, transform: Dict[int, float]) -> int:
+        #     """points contains two points.  This function chooses one as the lake entry point (an outlet for the stream segment) and the other as a reservoir point, 
+        #     where the channel exits the lake.  The choice is made by moving along the channel from the start (the outlet if outletatstart is true) and 
+        #     choosing the reservoir point (if outletatstart is true, else the lake entry) as the first of the points encountered.)  Add the points to newPoints in the order 
+        #     reservoir point and lake entry, incrementing currentPointId for each, and returning the last pointId used."""
+        #
+        #     resIndex = -1
+        #     topo = self._gv.topo
+        #     if topo.outletAtStart:
+        #         line = topo.reachLastLine(channelGeom, topo.xThreshold, topo.yThreshold)
+        #     else:
+        #         line = topo.reachFirstLine(channelGeom, topo.xThreshold, topo.yThreshold)
+        #     for i in range(0, len(line)):
+        #         pt = line[i]
+        #         if topo.coincidentPoints(pt, points[0], topo.xThreshold, topo.yThreshold):
+        #             if topo.outletAtStart:
+        #                 # points[0] will be the reservoir point
+        #                 resIndex = 0
+        #             else: # found the entry point: other one will be reservoir
+        #                 resIndex = 1
+        #             break
+        #         elif topo.coincidentPoints(pt, points[1], topo.xThreshold, topo.yThreshold):
+        #             if topo.outletAtStart:
+        #                 resIndex = 1
+        #             else:
+        #                 resindex = 0
+        #             break
+        #     if resIndex == -1:
+        #         QSWATUtils.error('Internal error: failed to find lake entry and exit points for channel with LINKNO {0} and lake {1}'
+        #                          .format(chLink, lakeId), self._gv.isBatch)
+        #         return currentPointId
+        #     entryIndex = 0 if resIndex == 1 else 1
+        #     otherIndex = 1 if resIndex == 1 else 0
+        #     res = 1 # first point is a reservoir
+        #     for crossingPoint in [points[resIndex], points[otherIndex]]:
+        #         point = QgsFeature(fields)
+        #         currentPointId += 1
+        #         point.setAttribute(idIndex, currentPointId)
+        #         point.setAttribute(resIndex, res)
+        #         point.setAttribute(inletIndex, 0)
+        #         point.setAttribute(srcIndex, 0)
+        #         point.setAttribute(addIndex, 1)
+        #         # check point not too close to (in same dem pixel as) source or outlet
+        #         # else this point will be ignored by TauDEM
+        #         crossingPointMoved1 = QSWATTopology.separatePoints(source, crossingPoint, transform)
+        #         crossingPointMoved2 = QSWATTopology.separatePoints(outlet, crossingPointMoved1, transform)
+        #         point.setGeometry(QgsGeometry.fromPointXY(crossingPointMoved2))
+        #         newPoints.append(point)
+        #         if res == 0:
+        #             self._gv.topo.lakeInlets[lakeId].add(currentPointId)
+        #         else:
+        #             self._gv.topo.lakeOutlets[lakeId].add(currentPointId)
+        #             QSWATUtils.loginfo('Outlet to lake {0} on link {1} at ({2},{3})'
+        #                            .format(lakeId, chLink, int(crossingPointMoved2.x()), int(crossingPointMoved2.y())))
+        #         res = 0 # for second point
+        #     return currentPointId
+            
+            
+        
+        def makeNewPoint(points: List[QgsPointXY], source: QgsPointXY, outlet: QgsPointXY, channelGeom : QgsGeometry, newPoints: List[QgsFeature], currentPointId: int,
                          res: int, chLink: int, lakeId: int, fields: QgsFields, transform: Dict[int, float]) -> int:
             """Select from points the nearest to source (if res is zero) or outlet and add a new point with the same geometry to newPoints.
-            Return next point id used."""
+            Nearest means the first point encountered on the channel, starting from source (if res is zero) or outlet.  
+            All points are assumed to be on the line.  Return next point id used."""
+            
+            
+            def nearest(points: List[QgsPointXY], pt : QgsPointXY) -> QgsPointXY:
+                """Select the nearest point in points (assumed non-empty) to pt"""
+                point = points.pop(0)
+                measure = QSWATTopology.distanceMeasure(point, pt)
+                for point0 in points:
+                    measure0 = QSWATTopology.distanceMeasure(point0, pt)
+                    if measure0 < measure:
+                        measure = measure0
+                        point = point0
+                return point
+            
             if QSWATTopology.withinPixels(1, source, outlet, transform):
                 QSWATUtils.error("""Channel with LINKNO {0} crosses the boundary of lake {1} 
 but is too short to allow the creation of a crossing point.  You can try rerunning delineation with a different channel threshold,
 either smaller to lengthen the stream or larger to remove it.  Or if the lake is very small you may need to remove it or enlarge it."""
                                 .format(chLink, lakeId), self._gv.isBatch)
                 return currentPointId
-            minMeasure = float('inf')
-            crossingPoint = None
-            # select endpoint as source or outlet
-            endPoint = source if res == 0 else outlet
-            for pt in points:
-                measure = QSWATTopology.distanceMeasure(endPoint, pt)
-                if measure < minMeasure:
-                    crossingPoint = pt
-                    minMeasure = measure
-            if crossingPoint is None:
+            # original algorithm used distance from source or outlet to point, but can choose wrong one.
+            # minMeasure = float('inf')
+            # crossingPoint = None
+            # # select endpoint as source or outlet
+            # endPoint = source if res == 0 else outlet
+            # for pt in points:
+            #     measure = QSWATTopology.distanceMeasure(endPoint, pt)
+            #     if measure < minMeasure:
+            #         crossingPoint = pt
+            #         minMeasure = measure
+            # if crossingPoint is None:
+            #     QSWATUtils.error('Cannot find crossing point for channel with LINKNO {0} and lake {1}'
+            #                      .format(chLink, lakeId), self._gv.isBatch)
+            #     return currentPointId
+            topo = self._gv.topo
+            isReverse = False
+            if topo.outletAtStart:
+                if res == 1:
+                    # looking for lake exit from the outlet of stream
+                    line = topo.reachFirstLine(channelGeom, topo.xThreshold, topo.yThreshold)
+                else:
+                    # looking for lake entry from source of stream
+                    line = topo.reachLastLine(channelGeom, topo.xThreshold, topo.yThreshold)
+                    isReverse = True
+            else:
+                if res == 1:
+                    # looking for lake exit from the outlet of stream
+                    line = topo.reachLastLine(channelGeom, topo.xThreshold, topo.yThreshold)
+                    isReverse = True
+                else:
+                    # looking for lake entry from source of stream
+                    line = topo.reachFirstLine(channelGeom, topo.xThreshold, topo.yThreshold)
+            # all points are on the line, so a point is on a segment (piece of line between adjacent vertices)
+            # if it is in the rectangle defined by the points at the ends of the segment
+            found = False
+            length = len(line)
+            for i in range(length - 1):
+                # first point in segment is line end point if i = 0
+                # else the end point of the previous segment
+                if i == 0:
+                    pt1 = line[length - 1 if isReverse else 0]
+                    pt2 = line[length - 2 if isReverse else 1]
+                else:
+                    pt1 = pt2
+                pt2 = line[length - 2 - i if isReverse else i + 1]
+                rectangle = QgsRectangle(pt1, pt2)
+                candidates = []
+                for point in points:
+                    if rectangle.contains(point):
+                        candidates.append(point)
+                num = len(candidates)
+                if num > 0:
+                    if num == 1:
+                        crossingPoint = candidates[0]
+                    else:
+                        crossingPoint = nearest(candidates, pt1) # pt1 is the point nearer to the start of the line, or the finish if isReverse
+                    found = True
+                    break
+            if not found:
                 QSWATUtils.error('Cannot find crossing point for channel with LINKNO {0} and lake {1}'
                                  .format(chLink, lakeId), self._gv.isBatch)
                 return currentPointId
@@ -792,7 +915,7 @@ the lake it will be assumed that its extra crossings of the lake
 boundary are an inaccuaracy of delineation and that it enters 
 the lake at its first crossing point.
 """.format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
-                            currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
+                            currentPointId = makeNewPoint(points, source, outlet, line, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                         else:
                             if QSWATTopology.polyContains(source, geom, box):
                                 QSWATUtils.information(
@@ -802,7 +925,7 @@ outside it will be assumed that its multiple crossings
 of the lake boundary are an inaccuaracy of delineation and 
 that it flows out the lake at its last crossing point.
 """.format(chLink, lakeId), self._gv.isBatch, reportErrors=reportErrors)
-                                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
+                                currentPointId = makeNewPoint(points, source, outlet, line, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
                             else:
                                 crossingChannels.append((channel, points))
                     elif intersectType == QgsWkbTypes.Point:
@@ -815,7 +938,7 @@ that it flows out the lake at its last crossing point.
                             res1 = 0
                         else:
                             res1 = res
-                        currentPointId = makeNewPoint([intersect.asPoint()], source, outlet, newPoints, currentPointId, res1, chLink, lakeId, fields, transform)
+                        currentPointId = makeNewPoint([intersect.asPoint()], source, outlet, line, newPoints, currentPointId, res1, chLink, lakeId, fields, transform)
             # check for channels which cross lake if no other outlets
             numOutlets = len(self._gv.topo.lakeOutlets[lakeId])
             if numOutlets == 0 and len(crossingChannels) > 0:
@@ -826,8 +949,9 @@ that it flows out the lake at its last crossing point.
                 outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
                 source = QgsPointXY(reachData.upperX, reachData.upperY)
                 chLink = channel[channelLinkIndex]
-                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
-                currentPointId = makeNewPoint(points, source, outlet, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
+                line = channel.geometry()
+                currentPointId = makeNewPoint(points, source, outlet, line, newPoints, currentPointId, res, chLink, lakeId, fields, transform)
+                currentPointId = makeNewPoint(points, source, outlet, line, newPoints, currentPointId, 0, chLink, lakeId, fields, transform)
                 # check the two points created (the outlet and inlet for the lake) are not in the same pixel.
                 # If they are, move the outlet downstream, else gridnet will not find both of them.
                 count = len(newPoints)
@@ -3341,9 +3465,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
                     streamLayer.changeAttributeValue(idM, dropField, dropA + dropD)
                 elif slopeField >= 0:
                     dataA = self._gv.topo.getReachData(reachA, demLayer)
-                    dropA = dataA.upperZ = dataA.lowerZ
+                    dropA = dataA.upperZ - dataA.lowerZ
                     dataD = self._gv.topo.getReachData(reachD, demLayer)
-                    dropD = dataD.upperZ = dataD.lowerZ
+                    dropD = dataD.upperZ - dataD.lowerZ
                 if slopeField >= 0:
                     streamLayer.changeAttributeValue(idM, slopeField, (dropA + dropD) / (lengthA + lengthD))
                 if straight_lField >= 0:
@@ -4497,7 +4621,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         if len(unplaced) > 0:
             QSWATUtils.information('Warning: failed to place inlet/outlet points with IDs {0!s}'.format(unplaced), self._gv.isBatch)
         time2 = time.process_time()
-        QSWATUtils.loginfo('Wrinting drainage grid streams took {0} seconds'.format(int(time2 - time1)))
+        QSWATUtils.loginfo('Writing drainage grid streams took {0} seconds'.format(int(time2 - time1)))
         # load grid streams shapefile
         # try to load above subbasins layer layer
         drainStreamsLayer = QSWATUtils.getLayerByFilename(root.findLayers(), drainStreamsFile, FileTypes._DRAINSTREAMS, 

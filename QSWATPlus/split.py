@@ -93,7 +93,7 @@ class Split:
         """Delete selected row from the table."""
         row = self._dlg.table.currentRow()
         numRows = self._dlg.table.rowCount()
-        if row < 0 or row >= numRows:
+        if row not in range(numRows):
             QSWATUtils.information('Please select a row to delete', self._gv.isBatch)
             return
         if row == 0:
@@ -151,6 +151,9 @@ class Split:
         self._splitLanduses[luse] = dict()
         for row in range(numRows):
             subluse = self._dlg.table.item(row, 1).text()
+            if subluse != luse and subluse in self._splitLanduses:
+                QSWATUtils.error('Target {0} of a split may not itself be split'.format(subluse), self._gv.isBatch)
+                return False
             percent = int(self._dlg.table.item(row, 2).text())
             self._splitLanduses[luse][subluse] = percent
         self.addItemToCombo(luse, self._dlg.splitCombo)

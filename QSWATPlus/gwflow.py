@@ -28,7 +28,7 @@ from PyQt5 import QtCore, QtWidgets # @UnusedImport
 from PyQt5.QtCore import Qt, QSettings # @UnresolvedImport
 from PyQt5.QtWidgets import QFileDialog, QDialog # @UnresolvedImport
 
-from qgis.core import QgsProject # @UnresolvedImport
+from qgis.core import QgsProject, QgsRasterLayer, QgsProcessingContext,  QgsFeatureRequest 
 
 from osgeo import gdal, ogr, osr
 from shapely import geometry
@@ -38,6 +38,10 @@ import math
 from datetime import datetime
 import os
 import shutil
+import re
+import processing
+import subprocess
+from osgeo._gdalconst import GA_ReadOnly
 try:
     import geopandas as gpd # @UnresolvedImport
     import matplotlib.pyplot as plt
@@ -56,6 +60,7 @@ from .globals import GlobalVars
 from .gwflowdialog import gwflowDialog
 from .QSWATUtils import QSWATUtils, FileTypes
 from .QSWATTopology import QSWATTopology
+from .parameters import Parameters
 from numpy.ma.core import _get_dtype_of
 from osgeo.gdalconst import GA_Update
 from . import rtree
@@ -83,6 +88,7 @@ class GWFlow():
         self._dlg.useObservationLocations.stateChanged.connect(self.setObservation)
         self._dlg.useTileDrains.stateChanged.connect(self.setTileDrains)
         self._dlg.setOutputTimes.stateChanged.connect(self.setOutputTimes)
+        self._dlg.useUnstructured.stateChanged.connect(self.setUnstructured)
         self._dlg.observationLocationsButton.clicked.connect(self.getObservationFile)
         self._dlg.tileDrainsButton.clicked.connect(self.getTileDrainsFile)
         self._dlg.outputTimesButton.clicked.connect(self.getOutputTimesFile)
@@ -90,16 +96,17 @@ class GWFlow():
         self._dlg.buttonBox.rejected.connect(self._dlg.close)
         ## function defined later (in fishnet) to convert (x, y) pair to (row, column) in grid
         self.coordToCell = None
-        # store SWAT+ executable, years_example.xlsx and default initialization file
-        SWATExecutable = os.path.join(self.gwflowDir, 'SWAT+gwflow.exe')
-        if not os.path.isfile(SWATExecutable):
-            shutil.copy(os.path.join(self._gv.SWATPlusDir, 'gwflow/SWAT+gwflow.exe'), self.gwflowDir)
+        # February 2024 no longer a special executable SWAT+gwflow.exe
+        # # store SWAT+ executable, years_example.xlsx and default initialization file
+        # SWATExecutable = os.path.join(self.gwflowDir, 'SWAT+gwflow.exe')
+        # if not os.path.isfile(SWATExecutable):
+        #     shutil.copy(os.path.join(self._gv.SWATPlusDir, 'gwflow/SWAT+gwflow.exe'), self.gwflowDir)
         # excelFile = os.path.join(self.gwflowDir, 'years_example.xlsx')
         # if not os.path.isfile(excelFile):
         #     shutil.copy(os.path.join(self._gv.SWATPlusDir, 'gwflow/years_example.xlsx'), self.gwflowDir)
-        iniFile = os.path.join(self.gwflowDir, 'gwflow.ini')
+        iniFile = os.path.join(gv.defaultDir, 'gwflow.ini')
         if not os.path.isfile(iniFile):
-            shutil.copy(os.path.join(self._gv.SWATPlusDir, 'gwflow/gwflow.ini'), self.gwflowDir)
+            shutil.copy(os.path.join(self.gwflowDir, 'gwflow.ini'), gv.defaultDir)
         self._dlg.initialization.setText(iniFile)
         ## optional observation locations file
         self.obs_file = ''
@@ -200,6 +207,10 @@ class GWFlow():
             return
         self._dlg.close()
         
+    def setUnstructured(self):
+        self._dlg.refinementLabel.setEnabled(self._dlg.useUnstructured.isChecked())
+        self._dlg.refinementLevel.setEnabled(self._dlg.useUnstructured.isChecked())
+        
     def setObservation(self):
         self._dlg.observationLocations.setEnabled(self._dlg.useObservationLocations.isChecked())
         self._dlg.observationLocationsButton.setEnabled(self._dlg.useObservationLocations.isChecked())
@@ -217,6 +228,14 @@ class GWFlow():
         if res ==  QDialog.Rejected:
             return False
         self.saveProj()
+        if self._dlg.useUnstructured.isChecked():
+            os.makedirs(os.path.join(self.gwflowDir, 'output_usgdata'), exist_ok = True)
+            os.makedirs(os.path.join(self.gwflowDir, 'output_shapefiles'), exist_ok = True)
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'runGridGen.bat'), self.gwflowDir)
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'clean.bat'), self.gwflowDir)
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'action01_buildqtg.template'), self.gwflowDir)
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'action02_writeusgdata.dfn'), self.gwflowDir)
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'action03_shapefile.dfn'), self.gwflowDir)
         thick_file_dir = os.path.dirname(self._dlg.aquiferThickness.text())
         if not QSWATUtils.samePath(thick_file_dir, self.gwflowDir):
             shutil.copy(self._dlg.aquiferThickness.text(), self.gwflowDir)
@@ -275,6 +294,8 @@ class GWFlow():
         self.floodplain_exchange = default.getint('floodplain_exchange', 1) # Groundwater-floodplain exchange (0=off; 1=on)
         self.canal_seepage = default.getint('canal_seepage', 0) # Canal seepage to groundwater (0=off; 1=on)
         self.solute_transport = default.getint('solute_transport', 1) # Groundwater solute transport (0=off; 1=on)
+        self.transport_steps = default.getint('transport_steps', 1) #Number of transport time steps per flow time step
+        self.disp_coef = default.getfloat('disp_coef', 5.00) #Dispersion coefficient (m2/day)
         self.recharge_delay = default.getfloat('recharge_delay', 0.0) #Recharge delay (days) between soil profile and water table
         self.EXDP = default.getfloat('EXDP', 1.00) #Groundwater ET extinction depth (m)
         self.WT_depth = default.getfloat('WT_depth', 5) #Water table depth (m) at start of simulation
@@ -300,10 +321,8 @@ class GWFlow():
         self.init_P = default.getfloat('init_P', 0.05) #Initial P concentration
         self.tile_groups_number = default.getint('tile_groups_number', 1) #Number of tile cell groups
         self.denit_constant = default.getfloat('denit_constant', -0.0001) #First-order rate constant for denitrification (1/day)
-        self.disp_coef = default.getfloat('disp_coef', 5.00) #Dispersion coefficient (m2/day)
         self.nit_sorp = default.getfloat('nit_sorp', 1.00) #Sorption retardation coefficient for Nitrate
-        self.pho_sorp = default.getfloat('pho_sorp', 1.00) #Sorption retardation coefficient for Phosphorus
-        self.transport_steps = default.getint('transport_steps', 1) #Number of transport time steps per flow time step
+        self.pho_sorp = default.getfloat('pho_sorp', 2.00) #Sorption retardation coefficient for Phosphorus
         self.Tiledrain_flow_sim = 1 if self._dlg.useTileDrains.isChecked() else 0 #Tile drain flow is simulated (0 = no; 1 = yes)
         
         #%% EPSG code and file names
@@ -382,6 +401,34 @@ class GWFlow():
             # copying the files to the
             # destination directory
             shutil.copy2(os.path.join(src, fname), trg)
+            
+        if self._dlg.useUnstructured.isChecked():
+            try:
+                subprocess.run('clean.bat',
+                                  cwd=self.gwflowDir, 
+                                  shell=True, 
+                                  stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True,    # text=True) only in python 3.7 
+                                  check=True)
+            except subprocess.CalledProcessError as ex:
+                QSWATUtils.error('GridGen clean failed: ' + ex.output, self._gv.isBatch)
+            self.createBuildDfn()
+            self.createBoundary()
+            rows, cols = self.createDatFiles(EPSG)
+            try:
+                subprocess.run('runGridGen.bat',
+                                  cwd=self.gwflowDir, 
+                                  shell=True, 
+                                  stdout=subprocess.DEVNULL,
+                                  stderr=subprocess.PIPE,
+                                  universal_newlines=True,    # text=True) only in python 3.7 
+                                  check=True)
+            except subprocess.CalledProcessError as ex:
+                QSWATUtils.error('GridGen failed: ' + ex.stderr, self._gv.isBatch)
+            # bat files creates two shapefiles in gwflow/output_shapefiles that need .prj files
+            QSWATUtils.copyPrj(self._gv.demFile, os.path.join(self.gwflowDir, 'output_shapefiles/grid02qtg_pts.shp'))
+            QSWATUtils.copyPrj(self._gv.demFile, os.path.join(self.gwflowDir, 'output_shapefiles/grid02qtg.shp'))
         
         #%%Executing GIS rotuines to generate necessary information
         #GRID CREATION AND OTHER GIS ROUTINES
@@ -391,7 +438,7 @@ class GWFlow():
         
         # Next function is to create grid2 as a GeoDataFrame, must be used like this:
         '''activecells(Basin GeoDataFrame, Grid1 GeoDataFrame, grid2 filename) '''
-        grid2_gdf = self.activecells(basin_gdf, grid1_gdf, os.path.join(self.grids, 'grid2.shp)'))
+        grid2_gdf = self.activecells(basin_gdf, grid1_gdf, os.path.join(self.grids, 'grid2.shp'))
         
         # Next functions are to get Grid 3, whether with global raster file or local shapefile
         # if type(thick_file_local) != type(None):
@@ -400,7 +447,7 @@ class GWFlow():
         #     '''aquif_thickness(thickness raster file, Grid2 GeoDataFrame, grid3 filename, EPSG) '''
         #     grid3_gdf = self.aquif_thickness(thick_raster_file, grid2_gdf, 'grids/grid3.shp', EPSG)
         grid3_gdf = self.aquif_thickness(thick_file_local, grid2_gdf, os.path.join(self.grids, 'grid3.shp'), EPSG)
-            
+        
         # Next function is to get grid 4 as a GeoDataFrame, must be used like this:
         '''aquif_elevation(dem_raster filename, grid3 GeoDataFrame, grid4 filename) '''
         grid4_gdf = self.aquif_elevation(dem_raster, grid3_gdf, os.path.join(self.grids, 'grid4.shp'), EPSG, self.cell_size)
@@ -500,7 +547,7 @@ class GWFlow():
             hru_intersection.to_file(os.path.join(self.grids, 'hrus_inter.shp')) #Save to shapefile
             end = datetime.now()
             QSWATUtils.loginfo('That took '+str(end-start)) 
-                
+                    
         
         #%%Plotting Maps
         
@@ -563,15 +610,15 @@ class GWFlow():
             self.progress('Writing gwflow tables')
             self.createTables(conn)
             # basic settings
-            sql = 'INSERT INTO gwflow_base VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            sql = 'INSERT INTO gwflow_base VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             conn.execute(sql, (self.cell_size, rows, cols, self.Boundary_conditions, self.HRUorLSU_recharge,
                                self.GW_soiltransfer, self.Saturation_excess, self.ext_pumping, self.Tiledrain_flow_sim,
                                self.reservoir_exchange, self.wetland_exchange, self.floodplain_exchange,
-                               self.canal_seepage, self.solute_transport, self.recharge_delay, self.EXDP,
+                               self.canal_seepage, self.solute_transport, self.transport_steps, self.disp_coef, self.recharge_delay, self.EXDP,
                                self.WT_depth, self.river_depth, self.tile_depth, self.tile_area,
                                self.tile_k, self.tile_groups, self.resbed_thickness, self.resbed_k,
                                self.wet_thickness, self.daily_output, self.annual_output, self.aa_output,
-                               self.row_det, self.col_det))
+                               self.row_det, self.col_det, self.timestep_balance))
             
             # zones
             sql = 'INSERT INTO gwflow_zone VALUES(?,?,?,?,?)'
@@ -579,12 +626,12 @@ class GWFlow():
                 conn.execute(sql, (row['zone'], row['K[m/day]'], self.init_sy, self.streambed_k, self.streambed_thickness))
                            
             # grid cells (active cells only)  
-            sql = 'INSERT INTO gwflow_grid VALUES(?,?,?,?,?,?,?)'
+            sql = 'INSERT INTO gwflow_grid VALUES(?,?,?,?,?,?,?,?)'
             for _,row in grid6_gdf.iterrows():
                 status = row['Avg_active']+row['boundary']
                 if status > 0:
                     conn.execute(sql, (row['Id'], status, row['zone'], row['Avg_elevat'], row['Avg_Thick'],
-                                       self.EXDP, row['tile_cell']))
+                                       self.EXDP, row['Avg_elevat'] - self.WT_depth, row['tile_cell']))
             
             # output times
             if self._dlg.setOutputTimes.isChecked():
@@ -610,8 +657,17 @@ class GWFlow():
                     conn.execute(sql, (row['Id'],))
             
             # chemical transport
-            sql = 'INSERT INTO gwflow_solutes (no3, p, denit_constant, disp_coef, nit_sorp, pho_sorp, transport_steps,init_no3, init_p) VALUES(?,?,?,?,?,?,?,?,?)'
-            conn.execute(sql, (1, 1, self.denit_constant, self.disp_coef, self.nit_sorp, self.pho_sorp, self.transport_steps, self.init_NO3, self.init_P))
+            sql = 'INSERT INTO gwflow_solutes (solute_name, sorption, rate_const, canal_irr, init_data, init_conc) VALUES(?,?,?,?,?,?)'
+            conn.execute(sql, ('no3-n', self.nit_sorp, self.denit_constant, 3, 'single', self.init_NO3))
+            conn.execute(sql, ('p', self.pho_sorp, 0, 0.05, 'single', self.init_P))
+            conn.execute(sql, ('so4', 1, 0, 0, 'single', 100))
+            conn.execute(sql, ('ca', 1, 0, 0, 'single', 50))
+            conn.execute(sql, ('mg', 1, 0, 0, 'single', 30))
+            conn.execute(sql, ('na', 1, 0, 0, 'single', 40))
+            conn.execute(sql, ('k', 1, 0, 0, 'single', 1))
+            conn.execute(sql, ('cl', 1, 0, 0, 'single', 25))
+            conn.execute(sql, ('co3', 1, 0, 0, 'single', 1))
+            conn.execute(sql, ('hco3', 1, 0, 0, 'single', 80))
             
             # hrucells
             if self.HRU_recharge:
@@ -624,7 +680,7 @@ class GWFlow():
             
             # landscape units and floodplain
             sql1 = 'INSERT INTO gwflow_lsucell VALUES(?,?,?)'
-            sql2 = 'INSERT INTO gwflow_fpcell VALUES(?,?,?)'
+            sql2 = 'INSERT INTO gwflow_fpcell VALUES(?,?,?,?)'
             for _, row in lsu_intersection.iterrows():
                 lsuId = int(row['LSUID'])
                 cellId = row['Id']
@@ -633,7 +689,7 @@ class GWFlow():
                     conn.execute(sql1, (cellId, lsuId, area))
                 if lsuId % 2 == 1: # floodplain lsu
                     channel = lsuId // 10
-                    conn.execute(sql2, (cellId, channel, area))
+                    conn.execute(sql2, (cellId, channel, area, 0))
             
             # reservoirs
             sql = 'INSERT INTO gwflow_rescell VALUES(?,?,?)'
@@ -655,49 +711,49 @@ class GWFlow():
         
         #%%Input file creation (gwflow.input / gwflow.rivcells / gwflow.hrucell / gwflow.cellhru)
         #------- Creating gwflow.input file---------------
-        QSWATUtils.loginfo('...Creating gwflow.input file...')
-        gwflow_input = open(os.path.join(self.inputFiles, 'gwflow.input'), "w") # create file
-        gwflow_input.write('INPUT FOR GWFLOW MODULE'+'\n')
-        gwflow_input.write('Basic information'+'\n')
-        gwflow_input.write(str(self.cell_size)+3*'\t'+'Grid cell size (m)'+'\n')
-        gwflow_input.write(str(rows)+' '+str(cols)+3*'\t'+'Number of rows and columns in the grid'+'\n')
-        #gwflow_input.write(str(self.WTI_flag)+3*'\t'+'Water table initiation flag (1 = water table depth is specified'+'\n')
-        gwflow_input.write(str(self.WT_depth)+3*'\t'+'Water table depth (m) at start of simulation'+'\n')
-        gwflow_input.write(str(self.Boundary_conditions)+3*'\t'+'Boundary conditions (1 = constant head; 2 = no flow)'+'\n')
-        gwflow_input.write(str(self.GW_soiltransfer)+3*'\t'+'Groundwater --> soil transfer is simulated (0 = n; 1 = yes)'+'\n')
-        gwflow_input.write(str(self.Saturation_excess)+3*'\t'+'Saturation excess flow is simulated (0 = no; 1 = yes)'+'\n')
-        gwflow_input.write(str(self.ext_pumping)+3*'\t'+'External groundwater pumping (0 = off, 1 = on)'+'\n')
-        gwflow_input.write(str(self.Tiledrain_flow_sim)+3*'\t'+'Tile drain flow is simulated (0 = no; 1 = yes)'+'\n')
-        gwflow_input.write(str(self.HRUorLSU_recharge)+3*'\t'+'Recharge connection type (HRU-cell = 1, LSU-cell = 2)'+'\n')
-        #gwflow_input.write(str(self.GW_nutrient_sim)+3*'\t'+'Groundwater nutrient transport is simulated (0 = no; 1 = yes)'+'\n')
-        gwflow_input.write(str(self.timestep_balance)+3*'\t'+'Time step (days) to solve groundwater balance equation'+'\n')
-        gwflow_input.write('1 1 0'+3*'\t'+'Flags for groundwater and nutrient mass balance files (daily; annual; average annual)'+'\n')
-        
-        self.input_zones(gwflow_input, '\n'+'Aquifer and Streambed Parameter Zones'+'\n'+'Aquifer Hydraulic Conductivity (m/day) Zones', K_gdf_zones, K_gdf_zones['K[m/day]'])
-        self.input_zones(gwflow_input, 'Aquifer Specific Yield Zones', K_gdf_zones, self.init_sy)
-        self.input_zones(gwflow_input, 'Aquifer Porosity Zones', K_gdf_zones, self.init_n)
-        self.input_zones(gwflow_input, 'Streambed Hydraulic Conductivity (m/day) Zones', K_gdf_zones, self.streambed_k)
-        self.input_zones(gwflow_input, 'Streambed Thickness (m) Zones', K_gdf_zones, self.streambed_thickness)
-        
-        # Grid Cell Information
-        gwflow_input.write('\n'+'Grid Cell Information'+'\n')
-        gwflow_input.write('Cell'+'\t'+'status'+'\t'+'top_m'+'\t'+'thick_m'+'\t'+'K_zone'+'\t'+'Sy_zone'+'\t'+'n_zone'+'\t'+'EXDP'+'\t'+'ET_fix'+'\t'+'Tile'+'\t'+'InitN'+'\t'+'InitP')
-        grid_info = pd.DataFrame()
-        grid_info['Cell'] = grid6_gdf['Id']
-        grid_info['status'] = grid6_gdf['Avg_active']+grid6_gdf['boundary']
-        grid_info['top_m'] = grid6_gdf['Avg_elevat']
-        grid_info['thick_m'] = grid6_gdf['Avg_Thick']
-        grid_info['K_zone'] = grid_info['Sy_zone'] = grid_info['n_zone'] = grid6_gdf['zone']
-        grid_info['EXDP'] = self.EXDP
-        grid_info['ET_fix'] = 0  # self.ET_fix
-        grid_info['Tile'] = grid6_gdf['tile_cell']
-        grid_info['InitN'] = self.init_NO3
-        grid_info['InitP'] = self.init_P
-        grid_info = grid_info.to_numpy()
-        fmt = '%d\t%d\t%1.2f\t%1.2f\t%d\t%d\t%d\t%1.2f\t%1.2f\t%d\t%1.2f\t%1.2f'
-        np.savetxt(os.path.join(self.supplementary, 'cellinfo.txt'), grid_info, fmt = fmt)
-        cell_txt = open(os.path.join(self.supplementary, 'cellinfo.txt'), 'r')
-        gwflow_input.write('\n'+cell_txt.read())
+        # QSWATUtils.loginfo('...Creating gwflow.input file...')
+        # gwflow_input = open(os.path.join(self.inputFiles, 'gwflow.input'), "w") # create file
+        # gwflow_input.write('INPUT FOR GWFLOW MODULE'+'\n')
+        # gwflow_input.write('Basic information'+'\n')
+        # gwflow_input.write(str(self.cell_size)+3*'\t'+'Grid cell size (m)'+'\n')
+        # gwflow_input.write(str(rows)+' '+str(cols)+3*'\t'+'Number of rows and columns in the grid'+'\n')
+        # #gwflow_input.write(str(self.WTI_flag)+3*'\t'+'Water table initiation flag (1 = water table depth is specified'+'\n')
+        # gwflow_input.write(str(self.WT_depth)+3*'\t'+'Water table depth (m) at start of simulation'+'\n')
+        # gwflow_input.write(str(self.Boundary_conditions)+3*'\t'+'Boundary conditions (1 = constant head; 2 = no flow)'+'\n')
+        # gwflow_input.write(str(self.GW_soiltransfer)+3*'\t'+'Groundwater --> soil transfer is simulated (0 = n; 1 = yes)'+'\n')
+        # gwflow_input.write(str(self.Saturation_excess)+3*'\t'+'Saturation excess flow is simulated (0 = no; 1 = yes)'+'\n')
+        # gwflow_input.write(str(self.ext_pumping)+3*'\t'+'External groundwater pumping (0 = off, 1 = on)'+'\n')
+        # gwflow_input.write(str(self.Tiledrain_flow_sim)+3*'\t'+'Tile drain flow is simulated (0 = no; 1 = yes)'+'\n')
+        # gwflow_input.write(str(self.HRUorLSU_recharge)+3*'\t'+'Recharge connection type (HRU-cell = 1, LSU-cell = 2)'+'\n')
+        # #gwflow_input.write(str(self.GW_nutrient_sim)+3*'\t'+'Groundwater nutrient transport is simulated (0 = no; 1 = yes)'+'\n')
+        # gwflow_input.write(str(self.timestep_balance)+3*'\t'+'Time step (days) to solve groundwater balance equation'+'\n')
+        # gwflow_input.write('1 1 0'+3*'\t'+'Flags for groundwater and nutrient mass balance files (daily; annual; average annual)'+'\n')
+        #
+        # self.input_zones(gwflow_input, '\n'+'Aquifer and Streambed Parameter Zones'+'\n'+'Aquifer Hydraulic Conductivity (m/day) Zones', K_gdf_zones, K_gdf_zones['K[m/day]'])
+        # self.input_zones(gwflow_input, 'Aquifer Specific Yield Zones', K_gdf_zones, self.init_sy)
+        # self.input_zones(gwflow_input, 'Aquifer Porosity Zones', K_gdf_zones, self.init_n)
+        # self.input_zones(gwflow_input, 'Streambed Hydraulic Conductivity (m/day) Zones', K_gdf_zones, self.streambed_k)
+        # self.input_zones(gwflow_input, 'Streambed Thickness (m) Zones', K_gdf_zones, self.streambed_thickness)
+        #
+        # # Grid Cell Information
+        # gwflow_input.write('\n'+'Grid Cell Information'+'\n')
+        # gwflow_input.write('Cell'+'\t'+'status'+'\t'+'top_m'+'\t'+'thick_m'+'\t'+'K_zone'+'\t'+'Sy_zone'+'\t'+'n_zone'+'\t'+'EXDP'+'\t'+'ET_fix'+'\t'+'Tile'+'\t'+'InitN'+'\t'+'InitP')
+        # grid_info = pd.DataFrame()
+        # grid_info['Cell'] = grid6_gdf['Id']
+        # grid_info['status'] = grid6_gdf['Avg_active']+grid6_gdf['boundary']
+        # grid_info['top_m'] = grid6_gdf['Avg_elevat']
+        # grid_info['thick_m'] = grid6_gdf['Avg_Thick']
+        # grid_info['K_zone'] = grid_info['Sy_zone'] = grid_info['n_zone'] = grid6_gdf['zone']
+        # grid_info['EXDP'] = self.EXDP
+        # grid_info['ET_fix'] = 0  # self.ET_fix
+        # grid_info['Tile'] = grid6_gdf['tile_cell']
+        # grid_info['InitN'] = self.init_NO3
+        # grid_info['InitP'] = self.init_P
+        # grid_info = grid_info.to_numpy()
+        # fmt = '%d\t%d\t%1.2f\t%1.2f\t%d\t%d\t%d\t%1.2f\t%1.2f\t%d\t%1.2f\t%1.2f'
+        # np.savetxt(os.path.join(self.supplementary, 'cellinfo.txt'), grid_info, fmt = fmt)
+        # cell_txt = open(os.path.join(self.supplementary, 'cellinfo.txt'), 'r')
+        # gwflow_input.write('\n'+cell_txt.read())
         
         # # Times for Groundwater Head Output
         # if self._dlg.setOutputTimes.isChecked():
@@ -710,268 +766,268 @@ class GWFlow():
         
         # Groundwater Observation Locations
         
-        if self.obs_file != '':
-            try:
-                obs_gdf = gpd.read_file(self.obs_file)
-                obs_cells_gdf = gpd.overlay(obs_gdf, grid6_gdf, keep_geom_type = True)
-                obs_cells = obs_cells_gdf['Id'].to_numpy()
-                np.savetxt(os.path.join(self.supplementary, 'obs_cells.txt'), obs_cells, fmt = '%d')
-                obs_txt = open(os.path.join(self.supplementary, 'obs_cells.txt'))
-                gwflow_input.write('Groundwater Observation Locations'+'\n')
-                gwflow_input.write(str(len(obs_cells)))
-                gwflow_input.write('\n'+obs_txt.read())
-                obs_txt.close()
-            except:
-                QSWATUtils.error('No observation cells defined', self._gv.isBatch)
-                gwflow_input.write('Groundwater Observation Locations'+'\n')
-                gwflow_input.write('0'+'\n')
-        else:
-            QSWATUtils.loginfo('No observation cells defined')
-            gwflow_input.write('Groundwater Observation Locations'+'\n')
-            gwflow_input.write('0'+'\n')
+        # if self.obs_file != '':
+        #     try:
+        #         obs_gdf = gpd.read_file(self.obs_file)
+        #         obs_cells_gdf = gpd.overlay(obs_gdf, grid6_gdf, keep_geom_type = True)
+        #         obs_cells = obs_cells_gdf['Id'].to_numpy()
+        #         np.savetxt(os.path.join(self.supplementary, 'obs_cells.txt'), obs_cells, fmt = '%d')
+        #         obs_txt = open(os.path.join(self.supplementary, 'obs_cells.txt'))
+        #         gwflow_input.write('Groundwater Observation Locations'+'\n')
+        #         gwflow_input.write(str(len(obs_cells)))
+        #         gwflow_input.write('\n'+obs_txt.read())
+        #         obs_txt.close()
+        #     except:
+        #         QSWATUtils.error('No observation cells defined', self._gv.isBatch)
+        #         gwflow_input.write('Groundwater Observation Locations'+'\n')
+        #         gwflow_input.write('0'+'\n')
+        # else:
+        #     QSWATUtils.loginfo('No observation cells defined')
+        #     gwflow_input.write('Groundwater Observation Locations'+'\n')
+        #     gwflow_input.write('0'+'\n')
             
         
-        # Cell for detailed sources/sink u = output
-        if self.row_det > 0 and self.col_det > 0:
-            gwflow_input.write('Cell for detailed daily sources/sink output'+'\n')
-            gwflow_input.write('Row\tColumn'+'\n')
-            gwflow_input.write(str(self.row_det)+'\t'+str(self.col_det)+2*'\n')
+        # # Cell for detailed sources/sink u = output
+        # if self.row_det > 0 and self.col_det > 0:
+        #     gwflow_input.write('Cell for detailed daily sources/sink output'+'\n')
+        #     gwflow_input.write('Row\tColumn'+'\n')
+        #     gwflow_input.write(str(self.row_det)+'\t'+str(self.col_det)+2*'\n')
+        #
+        # #River cell information
+        # gwflow_input.write('River Cell Information'+'\n')
+        # gwflow_input.write(str(self.river_depth)+3*'\t'+'Vertical distance (m) of streambed below the DEM value'+2*'\n')
         
-        #River cell information
-        gwflow_input.write('River Cell Information'+'\n')
-        gwflow_input.write(str(self.river_depth)+3*'\t'+'Vertical distance (m) of streambed below the DEM value'+2*'\n')
+        # # Tile cell information
+        #
+        # if tiles_file != '':
+        #     tiles_df = grid6_gdf.loc[grid6_gdf['tile_cell'] == 1]
+        #     gwflow_input.write('Tile Cell Information'+'\n')
+        #     gwflow_input.write(str(self.tile_depth)+3*'\t'+'Depth (m) of tiles below ground surface'+'\n')
+        #     gwflow_input.write(str(self.tile_area)+3*'\t'+'Area (m2) of groundwater inflow (circumference*length) * flow length'+'\n')
+        #     gwflow_input.write(str(self.tile_k)+3*'\t'+'Hydraulic conductivity (m/day) of the drain perimeter'+'\n')
+        #     gwflow_input.write(str(self.tile_groups)+3*'\t'+'Tile cell groups (flag: 0 = no; 1 = yes)'+'\n')
+        #     gwflow_input.write(str(self.tile_groups_number)+3*'\t'+'Number of tile cells groups'+'\n')       
+        #     if self.tile_groups == 1:
+        #         for k in range(0, self.tile_groups_number):
+        #             gwflow_input.write('Group '+str(k+1)+'\n')
+        #             tile_by_group = tiles_df.loc[tiles_df['group'] == k+1]
+        #             gwflow_input.write(str(len(tile_by_group))+3*'\t'+'Number of cells in the tile group'+'\n')
+        #             gwflow_input.write(str(tile_by_group['Id'].iloc[0])+3*'\t'+'Cell ID')
+        #             for i in range(1, len(tile_by_group)):
+        #                 gwflow_input.write('\n'+str(tile_by_group['Id'].iloc[i]))
+        #             gwflow_input.write('\n')
+        # else:
+        #     gwflow_input.write('Tile Cell Information'+'\n')
+        #     gwflow_input.write(str(self.tile_depth)+3*'\t'+'Depth (m) of tiles below ground surface'+'\n')
+        #     gwflow_input.write(str(self.tile_area)+3*'\t'+'Area (m2) of groundwater inflow (circumference*length) * flow length'+'\n')
+        #     gwflow_input.write(str(self.tile_k)+3*'\t'+'Hydraulic conductivity (m/day) of the drain perimeter'+'\n')
+        #     gwflow_input.write(str(0)+3*'\t'+'Tile cell groups (flag: 0 = no; 1 = yes)'+'\n')
+        #     QSWATUtils.loginfo('No tile cells defined') 
+        #
+        # # Chemical Transport Information
+        # gwflow_input.write('\n'+'Chemical Transport Information'+'\n')
+        # gwflow_input.write(str(self.denit_constant)+3*'\t'+'First-order rate constant for denitrification (1/day)'+'\n')
+        # gwflow_input.write(str(self.disp_coef)+3*'\t'+'Dispersion coefficient (m2/day)'+'\n')
+        # gwflow_input.write(str(self.nit_sorp)+3*'\t'+'Sorption retardation coefficient for Nitrate'+'\n')
+        # gwflow_input.write(str(self.pho_sorp)+3*'\t'+'Sorption retardation coefficient for Phosphorus'+'\n')
+        # gwflow_input.write(str(self.transport_steps)+3*'\t'+'Number of transport time steps per flow time step')
+        #
+        # #years_txt.close()
+        # cell_txt.close()
+        # gwflow_input.close()
         
-        # Tile cell information
+        # #------- Creating gwflow.rivcells file---------------
+        # QSWATUtils.loginfo('...Creating gwflow.rivercells file...')
+        # gwflow_river = open(os.path.join(self.inputFiles, 'gwflow.rivcells'), "w") # create file
+        # gwflow_river.write('Cell-Channel Connection Information'+'\n')
+        # gwflow_river.write('\n'+'ID\telev_m\tchannel\triv_length(m)\tzone')
+        # river_cell_df = pd.DataFrame()
+        # river_cell_df['ID'] = river_cell_gdf['Id']
+        # river_cell_df['elev_m'] = river_cell_gdf['Avg_elevat']
+        # river_cell_df['channel'] = river_cell_gdf['Channel']
+        # river_cell_df['riv_length(m)'] = river_cell_gdf['riv_length']
+        # river_cell_df['zone'] = river_cell_gdf['zone']
+        # river_cell_df = river_cell_df.sort_values(by = ['ID', 'channel'])
+        # river_cell = river_cell_df.to_numpy()
+        # fmt = '%d\t%1.2f\t%d\t%1.2f\t%d'
+        # np.savetxt(os.path.join(self.supplementary, 'rivercells.txt'), river_cell, fmt = fmt)
+        # riv_txt = open(os.path.join(self.supplementary, 'rivercells.txt'), 'r')
+        # gwflow_river.write('\n'+riv_txt.read())
+        # gwflow_river.close()
+        # riv_txt.close()
+        # riv_unique = np.unique(river_cell_df['ID'].to_numpy())
+        # riv_unique_nr = len(riv_unique)
         
-        if tiles_file != '':
-            tiles_df = grid6_gdf.loc[grid6_gdf['tile_cell'] == 1]
-            gwflow_input.write('Tile Cell Information'+'\n')
-            gwflow_input.write(str(self.tile_depth)+3*'\t'+'Depth (m) of tiles below ground surface'+'\n')
-            gwflow_input.write(str(self.tile_area)+3*'\t'+'Area (m2) of groundwater inflow (circumference*length) * flow length'+'\n')
-            gwflow_input.write(str(self.tile_k)+3*'\t'+'Hydraulic conductivity (m/day) of the drain perimeter'+'\n')
-            gwflow_input.write(str(self.tile_groups)+3*'\t'+'Tile cell groups (flag: 0 = no; 1 = yes)'+'\n')
-            gwflow_input.write(str(self.tile_groups_number)+3*'\t'+'Number of tile cells groups'+'\n')       
-            if self.tile_groups == 1:
-                for k in range(0, self.tile_groups_number):
-                    gwflow_input.write('Group '+str(k+1)+'\n')
-                    tile_by_group = tiles_df.loc[tiles_df['group'] == k+1]
-                    gwflow_input.write(str(len(tile_by_group))+3*'\t'+'Number of cells in the tile group'+'\n')
-                    gwflow_input.write(str(tile_by_group['Id'].iloc[0])+3*'\t'+'Cell ID')
-                    for i in range(1, len(tile_by_group)):
-                        gwflow_input.write('\n'+str(tile_by_group['Id'].iloc[i]))
-                    gwflow_input.write('\n')
-        else:
-            gwflow_input.write('Tile Cell Information'+'\n')
-            gwflow_input.write(str(self.tile_depth)+3*'\t'+'Depth (m) of tiles below ground surface'+'\n')
-            gwflow_input.write(str(self.tile_area)+3*'\t'+'Area (m2) of groundwater inflow (circumference*length) * flow length'+'\n')
-            gwflow_input.write(str(self.tile_k)+3*'\t'+'Hydraulic conductivity (m/day) of the drain perimeter'+'\n')
-            gwflow_input.write(str(0)+3*'\t'+'Tile cell groups (flag: 0 = no; 1 = yes)'+'\n')
-            QSWATUtils.loginfo('No tile cells defined') 
-           
-        # Chemical Transport Information
-        gwflow_input.write('\n'+'Chemical Transport Information'+'\n')
-        gwflow_input.write(str(self.denit_constant)+3*'\t'+'First-order rate constant for denitrification (1/day)'+'\n')
-        gwflow_input.write(str(self.disp_coef)+3*'\t'+'Dispersion coefficient (m2/day)'+'\n')
-        gwflow_input.write(str(self.nit_sorp)+3*'\t'+'Sorption retardation coefficient for Nitrate'+'\n')
-        gwflow_input.write(str(self.pho_sorp)+3*'\t'+'Sorption retardation coefficient for Phosphorus'+'\n')
-        gwflow_input.write(str(self.transport_steps)+3*'\t'+'Number of transport time steps per flow time step')
-                           
-        #years_txt.close()
-        cell_txt.close()
-        gwflow_input.close()
+        # if self.HRU_recharge:
+        #     #------- Creating gwflow.hrucell file---------------
+        #     QSWATUtils.loginfo('...Creating gwflow.hrucell file...')
+        #     # cwg need to guard against possible split HRUs and NA for removed HRUs
+        #     # can safely use split even for single values
+        #     # change hru_intersection before copying to mod1_intersection_df so both are OK
+        #     hru_intersection['HRUS'] = hru_intersection['HRUS'].map(lambda x: '0' if x == 'NA' else x.split(',')[0])
+        #     mod1_intersection_df = hru_intersection.copy() #Deep copy of the gdf to be able to modify it
+        #     mod1_intersection_df  = mod1_intersection_df.reindex(columns = ['HRUS', 'Area', 'Id', 'Poly_area'])#Rearrange the position of columns
+        #     mod1_intersection_df = mod1_intersection_df.apply(pd.to_numeric)
+        #     mod1_intersection_df = mod1_intersection_df.sort_values(by = ['HRUS', 'Id'])
+        #     mod1_intersection_df_array = mod1_intersection_df.values
+        #     np.savetxt(os.path.join(self.supplementary, 'hrucell_table.txt'), mod1_intersection_df_array, fmt = '%d', delimiter = '\t')
+        #     cellhru = open(os.path.join(self.inputFiles, 'gwflow.hrucell'), 'w')
+        #     cellhru.write('HRU-Cell Connection Information'+ 2*'\n'+'HRU'+'\t'+'area_m2'+'\t'+'Cell_Id'+'\t'+'Poly_area_m2')
+        #     txt = open(os.path.join(self.supplementary, 'hrucell_table.txt'), 'r')
+        #     cellhru.write('\n'+txt.read())
+        #     cellhru.close()
+        #     txt.close()
+        #
+        #     #------- Creating gwflow.cellhru file---------------
+        #     hrucell1 = pd.DataFrame()                       #Generation of dataframe
+        #     hrucell1['ID'] = hru_intersection["Id"]               #New data frame based on former hru data frame from previous code lines     
+        #     hrucell1['hrus'] = hru_intersection["HRUS"]
+        #     hrucell1['cellarea'] = self.cell_size*self.cell_size
+        #     hrucell1['POLY_AREA'] = hru_intersection['Poly_area']
+        #     hrucell1 = hrucell1.sort_values(by = ['ID', 'hrus'])
+        #     hrucell2 = hrucell1.to_numpy(dtype = 'float')       #New numpy array based on the data frame generated specifying data type
+        #     hrucell3 = hrucell1['ID'].to_numpy(dtype = 'float') #Generation of new array only with ID values to proceed to unique cells calculation
+        #     uniquecell = np.unique(hrucell3, axis = 0)         #Discretization of unique cells from the ID of the array
+        #     HRUCELL =  open(os.path.join(self.inputFiles, 'gwflow.cellhru'), 'w')            #Generation of base file
+        #     HRUCELL.write("Cell-HRU Connection Information"+2*'\n'+ str( len (uniquecell))+ "\tNumber of cells that intersect HRUs"+'\n'\
+        #                   "Cell_Id"+'\t'+"HRU_Id"+'\t'+"cell_area_(m2)"+'\t'+"poly_area_(m2)")      #generation of column titles and 
+        #                                                                                             #unique cells number
+        #     np.savetxt(os.path.join(self.supplementary, "tablacellhru.txt"), hrucell2, fmt = '%d\t%d\t%d\t%d')    #Conversion of data values from numpy array and format imposition
+        #     text = open(os.path.join(self.supplementary, "tablacellhru.txt"), 'r')
+        #     HRUCELL.write('\n'+text.read())                                     #Combination of column titles and array data values(from the .txt file) 
+        #     HRUCELL.close()
+        #     text.close()
         
-        #------- Creating gwflow.rivcells file---------------
-        QSWATUtils.loginfo('...Creating gwflow.rivercells file...')
-        gwflow_river = open(os.path.join(self.inputFiles, 'gwflow.rivcells'), "w") # create file
-        gwflow_river.write('Cell-Channel Connection Information'+'\n')
-        gwflow_river.write('\n'+'ID\telev_m\tchannel\triv_length(m)\tzone')
-        river_cell_df = pd.DataFrame()
-        river_cell_df['ID'] = river_cell_gdf['Id']
-        river_cell_df['elev_m'] = river_cell_gdf['Avg_elevat']
-        river_cell_df['channel'] = river_cell_gdf['Channel']
-        river_cell_df['riv_length(m)'] = river_cell_gdf['riv_length']
-        river_cell_df['zone'] = river_cell_gdf['zone']
-        river_cell_df = river_cell_df.sort_values(by = ['ID', 'channel'])
-        river_cell = river_cell_df.to_numpy()
-        fmt = '%d\t%1.2f\t%d\t%1.2f\t%d'
-        np.savetxt(os.path.join(self.supplementary, 'rivercells.txt'), river_cell, fmt = fmt)
-        riv_txt = open(os.path.join(self.supplementary, 'rivercells.txt'), 'r')
-        gwflow_river.write('\n'+riv_txt.read())
-        gwflow_river.close()
-        riv_txt.close()
-        riv_unique = np.unique(river_cell_df['ID'].to_numpy())
-        riv_unique_nr = len(riv_unique)
+        # #%%Modification of SWAT+ files (file.cio / object.cnt / rout_unit.con)
+        # #------- Modifying file.cio file---------------
+        # QSWATUtils.loginfo('...Modifying file.cio file...')
+        # file_cio = open(filename_cio, 'r')
+        # file_cio_lst = file_cio.readlines()
+        # file_cio.close()
+        #
+        # file_cio_lst[4] = file_cio_lst[4].split(' ')
+        # file_cio_lst[12] = file_cio_lst[12].split(' ')
+        # count = 0
+        #
+        # for i in range(0, len(file_cio_lst[4])):
+        #     if file_cio_lst[4][i] != '':
+        #         count+= 1
+        #         if count == 5:
+        #             file_cio_lst[4][i] = 'gwflow.con'
+        #         if count == 6:
+        #             file_cio_lst[4][i] = 'null'
+        # count = 0
+        #
+        # for i in range(0, len(file_cio_lst[12])):
+        #     if file_cio_lst[12][i] != '':
+        #         count+= 1
+        #         if count == 3:
+        #             file_cio_lst[12][i] = 'null'        
+        #
+        # file_cio_lst[4] = ' '.join(file_cio_lst[4])
+        # file_cio_lst[12] = ' '.join(file_cio_lst[12])
+        #
+        # file_cio_out = open(os.path.join(self.inputFiles, 'file.cio'), 'w')
+        # for line in file_cio_lst:
+        #     file_cio_out.write(line)    
+        #
+        # file_cio_out.close()
         
-        if self.HRU_recharge:
-            #------- Creating gwflow.hrucell file---------------
-            QSWATUtils.loginfo('...Creating gwflow.hrucell file...')
-            # cwg need to guard against possible split HRUs and NA for removed HRUs
-            # can safely use split even for single values
-            # change hru_intersection before copying to mod1_intersection_df so both are OK
-            hru_intersection['HRUS'] = hru_intersection['HRUS'].map(lambda x: '0' if x == 'NA' else x.split(',')[0])
-            mod1_intersection_df = hru_intersection.copy() #Deep copy of the gdf to be able to modify it
-            mod1_intersection_df  = mod1_intersection_df.reindex(columns = ['HRUS', 'Area', 'Id', 'Poly_area'])#Rearrange the position of columns
-            mod1_intersection_df = mod1_intersection_df.apply(pd.to_numeric)
-            mod1_intersection_df = mod1_intersection_df.sort_values(by = ['HRUS', 'Id'])
-            mod1_intersection_df_array = mod1_intersection_df.values
-            np.savetxt(os.path.join(self.supplementary, 'hrucell_table.txt'), mod1_intersection_df_array, fmt = '%d', delimiter = '\t')
-            cellhru = open(os.path.join(self.inputFiles, 'gwflow.hrucell'), 'w')
-            cellhru.write('HRU-Cell Connection Information'+ 2*'\n'+'HRU'+'\t'+'area_m2'+'\t'+'Cell_Id'+'\t'+'Poly_area_m2')
-            txt = open(os.path.join(self.supplementary, 'hrucell_table.txt'), 'r')
-            cellhru.write('\n'+txt.read())
-            cellhru.close()
-            txt.close()
-            
-            #------- Creating gwflow.cellhru file---------------
-            hrucell1 = pd.DataFrame()                       #Generation of dataframe
-            hrucell1['ID'] = hru_intersection["Id"]               #New data frame based on former hru data frame from previous code lines     
-            hrucell1['hrus'] = hru_intersection["HRUS"]
-            hrucell1['cellarea'] = self.cell_size*self.cell_size
-            hrucell1['POLY_AREA'] = hru_intersection['Poly_area']
-            hrucell1 = hrucell1.sort_values(by = ['ID', 'hrus'])
-            hrucell2 = hrucell1.to_numpy(dtype = 'float')       #New numpy array based on the data frame generated specifying data type
-            hrucell3 = hrucell1['ID'].to_numpy(dtype = 'float') #Generation of new array only with ID values to proceed to unique cells calculation
-            uniquecell = np.unique(hrucell3, axis = 0)         #Discretization of unique cells from the ID of the array
-            HRUCELL =  open(os.path.join(self.inputFiles, 'gwflow.cellhru'), 'w')            #Generation of base file
-            HRUCELL.write("Cell-HRU Connection Information"+2*'\n'+ str( len (uniquecell))+ "\tNumber of cells that intersect HRUs"+'\n'\
-                          "Cell_Id"+'\t'+"HRU_Id"+'\t'+"cell_area_(m2)"+'\t'+"poly_area_(m2)")      #generation of column titles and 
-                                                                                                    #unique cells number
-            np.savetxt(os.path.join(self.supplementary, "tablacellhru.txt"), hrucell2, fmt = '%d\t%d\t%d\t%d')    #Conversion of data values from numpy array and format imposition
-            text = open(os.path.join(self.supplementary, "tablacellhru.txt"), 'r')
-            HRUCELL.write('\n'+text.read())                                     #Combination of column titles and array data values(from the .txt file) 
-            HRUCELL.close()
-            text.close()
+        # #------ Modifying object.cnt -----
+        # QSWATUtils.loginfo('...object.cnt file...')
+        # object_cnt = open(filename_objectcnt, 'r')
+        # object_cnt_lines = object_cnt.readlines()
+        # object_cnt.close()
+        #
+        # object_cnt_lines[2] = object_cnt_lines[2].split(' ')
+        # count = 0
+        # for i in range(0, len(object_cnt_lines[2])):
+        #     if object_cnt_lines[2][i] != '':
+        #         count+= 1
+        #
+        #         if count == 8:
+        #             object_cnt_lines[2][i] = str(riv_unique_nr)
+        #         if count == 9:
+        #             object_cnt_lines[2][i] = '0'
+        #
+        # obj_numr = 0     
+        # count = 0       
+        # for i in range(0, len(object_cnt_lines[2])):
+        #     if object_cnt_lines[2][i] != '':
+        #         count+= 1
+        #         if count >= 5 and count != 22:
+        #             obj_numr+= float(object_cnt_lines[2][i])  
+        # count = 0
+        # for i in range(0, len(object_cnt_lines[2])):
+        #     if object_cnt_lines[2][i] != '':
+        #         count+= 1
+        #         if count == 4:
+        #             object_cnt_lines[2][i] = str(int(obj_numr))
+        #
+        # object_cnt_lines[2] = ' '.join(object_cnt_lines[2])
+        #
+        # object_cnt_out = open(os.path.join(self.inputFiles, 'object.cnt'), 'w')
+        # for line in object_cnt_lines:
+        #     object_cnt_out.write(line)    
+        #
+        # #object_cnt.close()
+        # object_cnt_out.close()
         
-        #%%Modification of SWAT+ files (file.cio / object.cnt / rout_unit.con)
-        #------- Modifying file.cio file---------------
-        QSWATUtils.loginfo('...Modifying file.cio file...')
-        file_cio = open(filename_cio, 'r')
-        file_cio_lst = file_cio.readlines()
-        file_cio.close()
+        # #----------Modifying rout_unit.con---------
+        # QSWATUtils.loginfo('...rout_unit.con file...')
+        # nru = open(filename_routunit, "r")              #Delete first line of text generated by the model to be able to work in a dataframe
+        # lines = nru.readlines()
+        # line0 = lines[0]
+        # rout_unit_data = lines[1:]
+        # nru.close()
+        #
+        # for i in range(0, len(rout_unit_data)):
+        #     rout_unit_data[i] = rout_unit_data[i].split()
+        #     if i>0:
+        #         rout_unit_data[i][12] = '1'
+        #         del rout_unit_data[i][-4:]
+        #
+        #
+        # rout_unit_array = np.array(rout_unit_data)
+        # np.savetxt(os.path.join(self.supplementary, 'rout_unit_data.txt'), rout_unit_array, fmt = '%-8s', delimiter = '\t')
+        # rout_txt = open(os.path.join(self.supplementary, 'rout_unit_data.txt'), 'r')
+        #
+        # routunit = open(os.path.join(self.inputFiles, 'rout_unit.con'), 'w')            #Generation of base file
+        #
+        # routunit.write(line0)
+        # routunit.write(rout_txt.read())
+        # rout_txt.close()
+        # routunit.close()                          
         
-        file_cio_lst[4] = file_cio_lst[4].split(' ')
-        file_cio_lst[12] = file_cio_lst[12].split(' ')
-        count = 0
-        
-        for i in range(0, len(file_cio_lst[4])):
-            if file_cio_lst[4][i] != '':
-                count+= 1
-                if count == 5:
-                    file_cio_lst[4][i] = 'gwflow.con'
-                if count == 6:
-                    file_cio_lst[4][i] = 'null'
-        count = 0
-        
-        for i in range(0, len(file_cio_lst[12])):
-            if file_cio_lst[12][i] != '':
-                count+= 1
-                if count == 3:
-                    file_cio_lst[12][i] = 'null'        
-                    
-        file_cio_lst[4] = ' '.join(file_cio_lst[4])
-        file_cio_lst[12] = ' '.join(file_cio_lst[12])
-        
-        file_cio_out = open(os.path.join(self.inputFiles, 'file.cio'), 'w')
-        for line in file_cio_lst:
-            file_cio_out.write(line)    
-            
-        file_cio_out.close()
-        
-        #------ Modifying object.cnt -----
-        QSWATUtils.loginfo('...object.cnt file...')
-        object_cnt = open(filename_objectcnt, 'r')
-        object_cnt_lines = object_cnt.readlines()
-        object_cnt.close()
-        
-        object_cnt_lines[2] = object_cnt_lines[2].split(' ')
-        count = 0
-        for i in range(0, len(object_cnt_lines[2])):
-            if object_cnt_lines[2][i] != '':
-                count+= 1
-                
-                if count == 8:
-                    object_cnt_lines[2][i] = str(riv_unique_nr)
-                if count == 9:
-                    object_cnt_lines[2][i] = '0'
-            
-        obj_numr = 0     
-        count = 0       
-        for i in range(0, len(object_cnt_lines[2])):
-            if object_cnt_lines[2][i] != '':
-                count+= 1
-                if count >= 5 and count != 22:
-                    obj_numr+= float(object_cnt_lines[2][i])  
-        count = 0
-        for i in range(0, len(object_cnt_lines[2])):
-            if object_cnt_lines[2][i] != '':
-                count+= 1
-                if count == 4:
-                    object_cnt_lines[2][i] = str(int(obj_numr))
-        
-        object_cnt_lines[2] = ' '.join(object_cnt_lines[2])
-        
-        object_cnt_out = open(os.path.join(self.inputFiles, 'object.cnt'), 'w')
-        for line in object_cnt_lines:
-            object_cnt_out.write(line)    
-            
-        #object_cnt.close()
-        object_cnt_out.close()
-        
-        #----------Modifying rout_unit.con---------
-        QSWATUtils.loginfo('...rout_unit.con file...')
-        nru = open(filename_routunit, "r")              #Delete first line of text generated by the model to be able to work in a dataframe
-        lines = nru.readlines()
-        line0 = lines[0]
-        rout_unit_data = lines[1:]
-        nru.close()
-        
-        for i in range(0, len(rout_unit_data)):
-            rout_unit_data[i] = rout_unit_data[i].split()
-            if i>0:
-                rout_unit_data[i][12] = '1'
-                del rout_unit_data[i][-4:]
-        
-        
-        rout_unit_array = np.array(rout_unit_data)
-        np.savetxt(os.path.join(self.supplementary, 'rout_unit_data.txt'), rout_unit_array, fmt = '%-8s', delimiter = '\t')
-        rout_txt = open(os.path.join(self.supplementary, 'rout_unit_data.txt'), 'r')
-        
-        routunit = open(os.path.join(self.inputFiles, 'rout_unit.con'), 'w')            #Generation of base file
-        
-        routunit.write(line0)
-        routunit.write(rout_txt.read())
-        rout_txt.close()
-        routunit.close()                          
-        
-        #%%Run the GWFLOW MODULE EXECUTABLE
-        #Copying contents on input folder to a new folder for gwflow
-        src = self.inputFiles # 'input_files'
-        trg = self.TxtInOut_gwflow  # 'TxtInOut_gwflow'
-         
-        files = os.listdir(src)
-         
-        # iterating over all the files in
-        # the source directory
-        for fname in files:
-             
-            # copying the files to the
-            # destination directory
-            shutil.copy2(os.path.join(src, fname), trg)
-        
-        
-        #Copying swatgwflow exe to the gwflow folder
-        swat_exe = os.path.join(self.gwflowDir, 'SWAT+gwflow.exe')
-        # swat_exe = self.look_file(swat_exe)
-        # cwg makes no sense: look_file returns full path
-        # shutil.copy2(os.path.join(root_dir, swat_exe), trg)
-        shutil.copy2(swat_exe, trg)
-        #Change new working directory as the same as all the inputs are
-        # cwg simpler
-        # new_dir = os.path.dirname(os.path.abspath(os.path.join(self.TxtInOut_gwflow, 'SWAT+gwflow.exe')))
-        new_dir = self.TxtInOut_gwflow
-        os.chdir(new_dir)
-        
-        os.startfile('SWAT+gwflow.exe')
+        # #%%Run the GWFLOW MODULE EXECUTABLE
+        # #Copying contents on input folder to a new folder for gwflow
+        # src = self.inputFiles # 'input_files'
+        # trg = self.TxtInOut_gwflow  # 'TxtInOut_gwflow'
+        #
+        # files = os.listdir(src)
+        #
+        # # iterating over all the files in
+        # # the source directory
+        # for fname in files:
+        #
+        #     # copying the files to the
+        #     # destination directory
+        #     shutil.copy2(os.path.join(src, fname), trg)
+        #
+        #
+        # #Copying swatgwflow exe to the gwflow folder
+        # swat_exe = os.path.join(self.gwflowDir, 'SWAT+gwflow.exe')
+        # # swat_exe = self.look_file(swat_exe)
+        # # cwg makes no sense: look_file returns full path
+        # # shutil.copy2(os.path.join(root_dir, swat_exe), trg)
+        # shutil.copy2(swat_exe, trg)
+        # #Change new working directory as the same as all the inputs are
+        # # cwg simpler
+        # # new_dir = os.path.dirname(os.path.abspath(os.path.join(self.TxtInOut_gwflow, 'SWAT+gwflow.exe')))
+        # new_dir = self.TxtInOut_gwflow
+        # os.chdir(new_dir)
+        #
+        # os.startfile('SWAT+gwflow.exe')
 
 
     #-----no longer used---------------------------------------------
@@ -1089,14 +1145,15 @@ class GWFlow():
         # # Reproject the clipped raster to the one of the basin, and save as a different file
         # thick_clip_ds = gdal.Warp(os.path.join(self.supplementary, 'Aq_thicknessRaster.tif'), thick_clip_ds, dstSRS = EPSG) 
         
-        thick_ds = gdal.Open(raster, GA_Update)
-        # Fill in missing values with an interpolation method from GDAL, it will find look information from a maximum of 5 pixels away from the missing data
-        gdal.FillNodata(targetBand = thick_ds.GetRasterBand(1), maskBand = None, maxSearchDist = 5, smoothingIterations = 0)
-        
-        #Close all GDAL datasources (this is necessary because otherwise all modifications do not take place in the files 
-        # after running the code, they just stay in python)
-        # thick_clip_ds = None
-        thick_ds = None
+        if not self._dlg.useUnstructured.isChecked():  # else already done in createDatFiles
+            thick_ds = gdal.Open(raster, GA_Update)
+            # Fill in missing values with an interpolation method from GDAL, it will find look information from a maximum of 5 pixels away from the missing data
+            gdal.FillNodata(targetBand = thick_ds.GetRasterBand(1), maskBand = None, maxSearchDist = 5, smoothingIterations = 0)
+            
+            #Close all GDAL datasources (this is necessary because otherwise all modifications do not take place in the files 
+            # after running the code, they just stay in python)
+            # thick_clip_ds = None
+            thick_ds = None
     
         # Raster to polygon the aquifer thickness
         # Based on the tutorial: https://www.youtube.com/watch?v = q3DLdMj5zLA&ab_channel = GeoGISLabs
@@ -1236,7 +1293,7 @@ class GWFlow():
         return(grid4)    
     
     def aquif_conductivity(self, K_FileName, grid4, basin_gdf, OutputFileName, EPSG):
-        
+
         start = datetime.now()
         QSWATUtils.loginfo('...Assigning aquifer conductivity zone to each cell...')
         self.progress('Assigning aquifer conductivity zone')
@@ -1307,20 +1364,114 @@ class GWFlow():
         QSWATUtils.loginfo('That took '+str(end-start))
         return(grid5, K_gdf_zones)
     
-    # Aquifer and Streambed Parameter Zones
-    def input_zones(self, gwflow_input, title, original_gdf, value):
-        gwflow_input.write(title+'\n')
-        gwflow_input.write(str(len(original_gdf))+'\n')
-        zonesdf = pd.DataFrame()
-        zonesdf['zone'] = original_gdf['zone']
-        zonesdf['Value'] = value
-        zones = zonesdf.to_numpy()
-        fmt = '%d\t%1.6f'
-        np.savetxt(os.path.join(self.supplementary, 'zones.txt'), zones, fmt = fmt)
-        zones_txt = open(os.path.join(self.supplementary, 'zones.txt'), 'r')
-        gwflow_input.write(zones_txt.read())
-        zones_txt.close()
+    # # Aquifer and Streambed Parameter Zones
+    # def input_zones(self, gwflow_input, title, original_gdf, value):
+    #     gwflow_input.write(title+'\n')
+    #     gwflow_input.write(str(len(original_gdf))+'\n')
+    #     zonesdf = pd.DataFrame()
+    #     zonesdf['zone'] = original_gdf['zone']
+    #     zonesdf['Value'] = value
+    #     zones = zonesdf.to_numpy()
+    #     fmt = '%d\t%1.6f'
+    #     np.savetxt(os.path.join(self.supplementary, 'zones.txt'), zones, fmt = fmt)
+    #     zones_txt = open(os.path.join(self.supplementary, 'zones.txt'), 'r')
+    #     gwflow_input.write(zones_txt.read())
+    #     zones_txt.close()
     
+    def createBuildDfn(self):
+        """Create build dfn file for GridGen."""
+        demLayer = QgsRasterLayer(self._gv.demFile, 'dem')
+        extent = demLayer.extent()
+        xMin = extent.xMinimum()
+        yMin = extent.yMinimum()
+        xMax = extent.xMaximum()
+        yMax = extent.yMaximum()
+        ncols = int(abs(xMax - xMin) / self.cell_size)
+        nrows = int(abs(yMax - yMin) / self.cell_size)
+        refinementLevel = self._dlg.refinementLevel.value()
+        template = os.path.join(self.gwflowDir, 'action01_buildqtg.template')
+        buildDfn = re.sub('.template$', '.dfn', template)
+        with open(template) as tmpl, open(buildDfn, 'w') as build:
+            for line in tmpl:
+                if '%%' in line:
+                    line = line.replace('%%xorigin%%', str(xMin))
+                    line = line.replace('%%yorigin%%', str(yMin))
+                    line = line.replace('%%nrow%%', str(nrows))
+                    line = line.replace('%%ncol%%', str(ncols))
+                    line = line.replace('%%cellsize%%', str(self.cell_size))
+                    line = line.replace('%%channelslevel%%', str(refinementLevel))
+                build.write(line)
+                
+    def createBoundary(self):
+        """Create boundary shapefile by dissolving subbasins."""
+        boundaryFile = os.path.join(self._gv.shapesDir, 'boundary.shp')
+        root = QgsProject.instance().layerTreeRoot()
+        QSWATUtils.removeLayerAndFiles(boundaryFile, root)
+        # create context to make processing turn off detection of what it claims are invalid shapes
+        # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
+        context = QgsProcessingContext()
+        context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
+        processing.run('native:dissolve', {'INPUT': self._gv.subbasinsFile, 'OUTPUT': boundaryFile}, context=context)
+        if not os.path.exists(boundaryFile):
+            QSWATUtils.error('Failed to create boundary shapefile {0}'.format(boundaryFile), self._gv.isBatch)
+            
+    def createDatFiles(self, EPSG):
+        """Create .dat files for top (equals dem) and bottom (dem - aquifer thickness) of layer."""
+        original_ds = gdal.Open(self._gv.demFile, GA_ReadOnly)
+        elev_ds = gdal.Warp(os.path.join(self.supplementary, 'coarse_DEM.tif'), original_ds, dstSRS = EPSG, xRes = self.cell_size, yRes = self.cell_size, resampleAlg = 'average')
+        thick_ds = gdal.Open(self.thick_file_local, GA_Update)
+        # Fill in missing values with an interpolation method from GDAL, it will find look information from a maximum of 5 pixels away from the missing data
+        gdal.FillNodata(targetBand = thick_ds.GetRasterBand(1), maskBand = None, maxSearchDist = 5, smoothingIterations = 0)
+        #Close GDAL datasource to write file
+        thick_ds = None 
+        # need to convert elevation row, col to aquifer thickness row, col
+        thick_ds = gdal.Open(self.thick_file_local, GA_ReadOnly)
+        elevNumberRows = elev_ds.RasterYSize
+        elevNumberCols = elev_ds.RasterXSize
+        thickNumberRows = thick_ds.RasterYSize
+        thickNumberCols = thick_ds.RasterXSize
+        elevTransform = elev_ds.GetGeoTransform()
+        thickTransform = thick_ds.GetGeoTransform()
+        thickRowFun, thickColFun = \
+            QSWATTopology.translateCoords(elevTransform, thickTransform, 
+                                          elevNumberRows, elevNumberCols)  
+        elevBand = elev_ds.GetRasterBand(1) 
+        thickBand = thick_ds.GetRasterBand(1)   
+        elevCurrentRow = -1
+        elevData = np.empty([1, elevNumberCols], dtype=float)  
+        thickCurrentRow = -1
+        thickData = np.empty([1, thickNumberCols], dtype=float)
+        with open(os.path.join(self.gwflowDir,'grid01mfg.top.dat'), 'w') as top, open(os.path.join(self.gwflowDir,'grid01mfg.bot1.dat'), 'w') as bottom:
+            for row in range(elevNumberRows):
+                if row != elevCurrentRow:
+                    elevCurrentRow = row
+                    elevData = elevBand.ReadAsArray(0, row, elevNumberCols, 1)
+                y = QSWATTopology.rowToY(row, elevTransform)
+                thickRow = thickRowFun(row, y)
+                if thickRow != thickCurrentRow:
+                    if 0 <= thickRow < thickNumberRows:
+                        thickCurrentRow = thickRow
+                        thickData = thickBand.ReadAsArray(0, thickRow, thickNumberCols, 1)
+                    else:
+                        QSWATUtils.error('DEM row {0} for latitude {1} gives thickness row {2} which exceeds maximum row {3}.  Using zero.'
+                                         .format(row, int(y), thickRow, thickNumberRows), self._gv.isBatch)
+                        thickData = np.zeros([1, thickNumberCols], dtype=float)
+                for col in range(elevNumberCols):
+                    # coerce to float else considered to be a numpy float
+                    elev = float(elevData[0, col])
+                    x = QSWATTopology.colToX(col, elevTransform)
+                    thickCol = thickColFun(col, x)
+                    if 0 <= thickCol < thickNumberCols:
+                        thick = float(thickData[0, thickCol]) / 100 # converted to metres
+                    else:
+                        QSWATUtils.error('DEM column {0} for longitude {1} gives thickness column {2} which exceeds maximum column {3}.  Using zero.',format(col, int(x), thickCol, thickNumberCols), self._gv.isBatch)
+                        thick = 0
+                    top.write('{0}\n'.format(elev))
+                    bottom.write('{0}\n'.format(elev - thick))
+        elev_ds =  None 
+        thick_ds = None 
+        return elevNumberRows, elevNumberCols                
+        
     @staticmethod
     def scale_north(ax):
         ax.add_artist(ScaleBar(dx = 1, units = "km", dimension = "si-length", length_fraction = 0.25, 
@@ -1331,7 +1482,7 @@ class GWFlow():
         
     def createTables(self, conn):
         # remove tables in case of redesign.  Last two must come last because of foreign key constraints
-        for table in ['gwflow_base', 'gwflow_out_days', 'gwflow_obs_locs', 'gwflow_solutes', 'gwflow_hrucell', 
+        for table in ['gwflow_base', 'gwflow_out_days', 'gwflow_obs_locs', 'gwflow_solutes', 'gwflow_init_conc', 'gwflow_hrucell', 
                        'gwflow_fpcell', 'gwflow_rivcell', 'gwflow_lsucell', 'gwflow_rescell', 'gwflow_grid', 'gwflow_zone']:
             sql = 'DROP TABLE IF EXISTS ' + table
             conn.execute(sql)
@@ -1341,6 +1492,7 @@ class GWFlow():
         conn.execute(_GWFLOW_OUT_DAYS)
         conn.execute(_GWFLOW_OBS_LOCS)
         conn.execute(_GWFLOW_SOLUTES)
+        conn.execute(_GWFLOW_INIT_CONC)
         conn.execute(_GWFLOW_HRUCELL)
         conn.execute(_GWFLOW_FPCELL)
         conn.execute(_GWFLOW_RIVCELL)
@@ -1499,6 +1651,8 @@ wetland_exchange INTEGER,
 floodplain_exchange INTEGER,
 canal_seepage INTEGER,
 solute_transport INTEGER,
+transport_steps REAL,
+disp_coef REAL,
 recharge_delay INTEGER,
 et_extinction_depth REAL,
 water_table_depth REAL,
@@ -1514,7 +1668,8 @@ daily_output INTEGER,
 annual_output INTEGER,
 aa_output INTEGER,
 daily_output_row INTEGER,
-daily_output_col INTEGER
+daily_output_col INTEGER,
+timestep_balance REAL
 );'''
 
 _GWFLOW_GRID = '''CREATE TABLE gwflow_grid (
@@ -1523,6 +1678,7 @@ status INTEGER,
 zone INTEGER REFERENCES gwflow_zone (zone_id),
 elevation REAL,
 aquifer_thickness REAL,
+extinction_depth REAL,
 initial_head REAL,
 tile INTEGER
 );'''
@@ -1546,27 +1702,18 @@ cell_id INTEGER
 );'''
 
 _GWFLOW_SOLUTES = '''CREATE TABLE gwflow_solutes (
-no3 INTEGER,
-p INTEGER,
-so4 INTEGER DEFAULT 0,
-ca INTEGER DEFAULT 0,
-mg INTEGER DEFAULT 0,
-na INTEGER DEFAULT 0,
-k INTEGER DEFAULT 0,
-cl INTEGER DEFAULT 0,
-co3 INTEGER DEFAULT 0,
-hco3 INTEGER DEFAULT 0,
-seo4 INTEGER DEFAULT 0,
-seo3 INTEGER DEFAULT 0,
-boron INTEGER DEFAULT 0,
-pest INTEGER DEFAULT 0,
-denit_constant REAL,
-disp_coef REAL,
-nit_sorp REAL,
-pho_sorp REAL,
-transport_steps REAL,
-init_no3 REAL,
-init_p REAL,
+solute_name TEXT,
+sorption REAL,
+rate_const REAL,
+canal_irr REAL,
+init_data TEXT,
+init_conc REAL
+);'''
+
+_GWFLOW_INIT_CONC = '''CREATE TABLE gwflow_init_conc (
+cell_id INTEGER REFERENCES gwflow_grid (cell_id),
+init_no3 REAL DEFAULT 0,
+init_p REAL DEFAULT 0,
 init_so4 REAL DEFAULT 0,
 init_ca REAL DEFAULT 0,
 init_mg REAL DEFAULT 0,
@@ -1574,11 +1721,7 @@ init_na REAL DEFAULT 0,
 init_k REAL DEFAULT 0,
 init_cl REAL DEFAULT 0,
 init_co3 REAL DEFAULT 0,
-init_hco3 REAL DEFAULT 0,
-init_seo4 REAL DEFAULT 0,
-init_seo3 REAL DEFAULT 0,
-init_boron REAL DEFAULT 0,
-init_pest REAL DEFAULT 0
+init_hco3 REAL DEFAULT 0
 );'''
 
 _GWFLOW_HRUCELL = '''CREATE TABLE gwflow_hrucell (
@@ -1590,7 +1733,8 @@ area_m2 REAL
 _GWFLOW_FPCELL = '''CREATE TABLE gwflow_fpcell (
 cell_id INTEGER REFERENCES gwflow_grid (cell_id),
 channel INTEGER REFERENCES gis_channels (id),
-area_m2 REAL
+area_m2 REAL,
+conductivity REAL
 );'''
 
 _GWFLOW_RIVCELL = '''CREATE TABLE gwflow_rivcell (

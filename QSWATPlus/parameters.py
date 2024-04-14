@@ -61,6 +61,7 @@ class Parameters:
     _DBREF = 'swatplus_datasets.sqlite'
     _DBPROJHAWQS = 'QSWATPlusProjHAWQS.sqlite'
     _DBREFHAWQS = 'QSWATPlusRefHAWQS.sqlite'
+    _GWFLOWDIR = _SWATPLUSDEFAULTDIR + r'/gwflow'
     _RESULTS = 'Results'
     _PLOTS = 'Plots'
     _TXTINOUT = 'TxtInOut'

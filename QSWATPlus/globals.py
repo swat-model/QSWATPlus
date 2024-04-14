@@ -255,6 +255,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.shapesDir = ''
         ## Scenarios directory
         self.scenariosDir = ''
+        ## Default directory
+        self.defaultDir = ''
         ## TxtInOut directory
         self.txtInOutDir = ''
         ## Results directory
@@ -363,13 +365,13 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.scenariosDir = QSWATUtils.join(self.projDir, 'Scenarios')
         if not os.path.exists(self.scenariosDir):
             os.makedirs(self.scenariosDir)
-        defaultDir = QSWATUtils.join(self.scenariosDir, 'Default')
-        if not os.path.exists(defaultDir):
-            os.makedirs(defaultDir)
-        self.txtInOutDir = QSWATUtils.join(defaultDir, 'TxtInOut')
+        self.defaultDir = QSWATUtils.join(self.scenariosDir, 'Default')
+        if not os.path.exists(self.defaultDir):
+            os.makedirs(self.defaultDir)
+        self.txtInOutDir = QSWATUtils.join(self.defaultDir, 'TxtInOut')
         if not os.path.exists(self.txtInOutDir):
             os.makedirs(self.txtInOutDir)
-        self.resultsDir = QSWATUtils.join(defaultDir, Parameters._RESULTS)
+        self.resultsDir = QSWATUtils.join(self.defaultDir, Parameters._RESULTS)
         if not os.path.exists(self.resultsDir):
             os.makedirs(self.resultsDir)
         self.plotsDir = QSWATUtils.join(self.resultsDir, Parameters._PLOTS)

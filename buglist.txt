@@ -105,7 +105,7 @@ Merging channel that is a lake outlet left lake with no outlet
 hrus.py line 1264-70
 
 12/4/2023 # 27
-Inadequate check for usegrid chacked
+Inadequate check for usegrid checked
 
 12/4/2023 # 28
 Channels meeting at their last points regarded as connected
@@ -128,5 +128,23 @@ gwflow dependency on matplotlib_scalebar provented loading of plugin
 
 6/9/2023 # 34
 QGIS 3.28 miswrites multipolygon with multiple parts: classifies a separate part as a hole.
+
+30/10/2023 # 35
+error in calculating drop for merged streams when merging subbasins
+delineation.py lines 3467, 3469
+
+4/12/2023 # 36
+Poor algorithm for finding lake entry/exit points
+
+3/1/2024 # 37
+Looking for valley depths file with user-generated floodplain raster
+hrus.py lines 3889-90
+
+13/4/2024 # 38
+Improved check to distinguish inlet/outlet from lake by searches from end of stream
+References to STATSGO2 removed
+
+
+
 
 

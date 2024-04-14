@@ -30,7 +30,7 @@ import glob
 from osgeo import gdal, ogr  # type: ignore
 from multiprocessing import Pool
 
-from QSWATPlus.QSWATPlus import QSWATPlus  # @UnresolvedImport
+from QSWATPlus.QSWATPlusMain import QSWATPlus  # @UnresolvedImport
 from QSWATPlus.delineation import Delineation  # @UnresolvedImport
 from QSWATPlus.hrus import HRUs  # @UnresolvedImport
 import traceback
@@ -243,15 +243,15 @@ if __name__ == '__main__':
             print('You must supply a directory or project file, a scale (14, 12, 10 or 8), a minimum HRU size in ha, and 0 or a inlet number as argument')
             exit()
         direc = sys.argv[1]
-        #print('direc is {0}'.format(direc))
+        print('direc is {0}'.format(direc))
         dataDir = sys.argv[2]
-        #print('dataDir is {0}'.format(dataDir))
+        print('dataDir is {0}'.format(dataDir))
         scale = int(sys.argv[3])
-        #print('Scale is {0}'.format(scale))
+        print('Scale is {0}'.format(scale))
         minHRUha = int(sys.argv[4])
-        #print('Minimum HRU size {0} ha'.format(minHRUha))
+        print('Minimum HRU size {0} ha'.format(minHRUha))
         inletId = int(sys.argv[5])
-        #print('inletId is {0}'.format(inletId))
+        print('inletId is {0}'.format(inletId))
     if inletId > 0:
         # add inlet point with this id to points table of existing project
         print('Adding inlet {0} to project {1}'.format(inletId, direc))

@@ -54,7 +54,8 @@ from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
 from .delineation import Delineation  # type: ignore
 from .globals import GlobalVars   # type: ignore #  @Reimport
-from .gwflow import GWFlow   # type: ignore
+if Parameters._ISWIN:
+    from .gwflow import GWFlow   # type: ignore
 
 class CreateHRUs(QObject):
     
@@ -2666,7 +2667,7 @@ class CreateHRUs(QObject):
                 if exemptWater: # all rest is reservoir or pond
                     lsuData.hruMap = dict()
                     lsuData.cropSoilSlopeNumbers = dict()
-                    return
+                    return False
                 raise ValueError('No HRUs for channel {2!s} landscape {1!s} in subbasin {0!s}'
                                      .format(self._gv.topo.subbasinToSWATBasin.get(basin, -1), landscape, self._gv.topo.channelToSWATChannel.get(channel, -1))) 
             redistributeFactor = hrusArea / (hrusArea - areaToRedistribute)
@@ -3881,7 +3882,11 @@ class CreateHRUs(QObject):
                 if not os.path.exists(self._gv.valleyDepthsFile):
                     if self._gv.useLandscapes:
                         # should be valley depths file unless using a buffer for floodplain
-                        if os.path.split(self._gv.floodFile)[1].startswith('bufferflood'):
+                        # or imported floodplain file, which will not contain 'flood'
+                        floodFilename = os.path.split(self._gv.floodFile)[1]
+                        if floodFilename.startswith('bufferflood'):
+                            valleyDepthsLayer = None
+                        elif 'flood' not in floodFilename:
                             valleyDepthsLayer = None
                         else:
                             QSWATUtils.error('Cannot find valley depths raster {0}'.format(self._gv.valleyDepthsFile), self._gv.isBatch)
