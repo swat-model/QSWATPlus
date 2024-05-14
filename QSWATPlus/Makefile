@@ -43,7 +43,21 @@ PACKAGE = QSWATPlus
 
 TESTOUTPUT = testdata/test
 
-ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
+ifeq ($(QSWAT_PROJECT), QSWATPlus3_12)
+	COMPILER = msvc
+	METADATA = metadata3_12.txt
+	PLUGINNAME = QSWATPlus3_12
+	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
+	OBJ_FILES = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py)
+	EXTRAPACKAGES = imageio rtree
+	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
+	CPFILE = cp -vuf
+	CPDIR = cp -vufr
+	PYTHON = $(OSGEO4W_ROOT)\apps\Python312\python
+else ifeq ($(QSWAT_PROJECT), QSWATPlus3_9)
 	COMPILER = msvc
 	METADATA = metadata3_9.txt
 	PLUGINNAME = QSWATPlus3_9
@@ -194,6 +208,13 @@ HTML = html
 default: deploy
 
 compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
+
+%.cp312-win_amd64.pyd : %.pyx
+	@echo
+	@echo "------"
+	@echo "Cython"
+	@echo "------"
+	$(PYTHON) setuppyx3.12.py build_ext --inplace --compiler=$(COMPILER)
 
 %.cp39-win_amd64.pyd : %.pyx
 	@echo

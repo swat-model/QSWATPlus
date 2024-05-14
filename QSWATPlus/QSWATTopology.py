@@ -24,7 +24,8 @@ from qgis.PyQt.QtCore import QSettings, QVariant # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, QgsJsonExporter # @UnresolvedImport
 from osgeo import gdal  # type: ignore
-from numpy import math, array, ndarray, zeros
+import math
+from numpy import array, ndarray, zeros
 import os.path
 import time
 import csv

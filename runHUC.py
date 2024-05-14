@@ -109,7 +109,7 @@ class runHUC():
         self.delin._dlg.selectDem.setText(self.projDir + '/Watershed/Rasters/DEM/dem.tif')
         self.delin._dlg.drainStreamsButton.setChecked(True)
         self.delin._dlg.selectSubbasins.setText(self.projDir + '/Watershed/Shapes/subbasins.shp')
-        self.delin._dlg.selectWshed.setText(self.projDir + '/Watershed/Shapes/subbasins.shp')
+        self.delin._dlg.selectWshed.setText(self.projDir + '/Watershed/Shapes/demwshed.shp')
         self.delin._dlg.selectStreams.setText(self.projDir + '/Watershed/Shapes/channels.shp')
         self.delin._dlg.selectExistOutlets.setText(self.projDir + '/Watershed/Shapes/points.shp')
         self.delin._dlg.recalcButton.setChecked(False)  # want to use length field in channels shapefile
