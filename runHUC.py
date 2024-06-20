@@ -101,7 +101,7 @@ class runHUC():
         ogr.UseExceptions()
         
     def runProject(self, dataDir, scale, minHRUha):
-        """Run QSWAT project."""
+        """Run QSWAT+ project."""
         gv = self.plugin._gv
         #print('Dem is processed is {0}'.format(self.plugin._demIsProcessed))
         self.delin = Delineation(gv, self.plugin._demIsProcessed)
@@ -121,10 +121,6 @@ class runHUC():
         gv.useGridModel = False
         gv.existingWshed = True
         self.delin.runExisting()
-        lakesFile = self.projDir + '/Watershed/Shapes/lakes.shp'
-        if os.path.isfile(lakesFile):
-            self.delin._dlg.selectLakes.setText(lakesFile)
-            self.delin.addLakesMap()
         self.delin.finishDelineation()
         self.delin._dlg.close()
         self.hrus = HRUs(gv, self.dlg.reportsBox)
@@ -231,12 +227,12 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = False 
+    debugging = True 
     if debugging:
-        direc = "C:/HUCModels/SWAT/Fields_CDL/HUC14/14/huc140100010308.qgs" 
-        dataDir = "H:/Data" 
+        direc = r"K:\HUCModels\Models3\SWATPlus\Fields_CDL\HUC14\020801020403\huc020801020403\huc020801020403.qgs" 
+        dataDir = "K:/Data" 
         scale = 14 
-        minHRUHa = 1 
+        minHRUha = 1 
         inletId = 0
     else:
         if len(sys.argv) < 5:
@@ -258,7 +254,7 @@ if __name__ == '__main__':
         huc = runHUC(direc)
         huc.addInlet(inletId)
     elif direc.endswith('.qgs'):
-        d = direc[:-4]
+        d, _ = os.path.split(direc)
         print('Running project {0}'.format(d))
         try:
             huc = runHUC(d, None)

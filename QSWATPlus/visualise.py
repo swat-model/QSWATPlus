@@ -2155,7 +2155,7 @@ class Visualise(QObject):
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
         # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
-        with open(templateIn, 'rU') as inFile:
+        with open(templateIn, 'r') as inFile:
             with open(self.animationTemplate, 'w') as outFile:
                 for line in inFile:
                     outFile.write(Visualise.replaceInLine(line, subs))
@@ -2991,7 +2991,7 @@ class Visualise(QObject):
             else:  # remove unused ones
                 subs['%%WshedLayer{0}%%'.format(i)] = ''
         # seems to do no harm to leave unused <Layer> items with original pattern, so we don't bother removing them
-        with open(templateIn, 'rU') as inFile:
+        with open(templateIn, 'r') as inFile:
             with open(templateOut, 'w') as outFile:
                 for line in inFile:
                     outFile.write(Visualise.replaceInLine(line, subs))

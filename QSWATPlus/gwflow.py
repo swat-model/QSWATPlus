@@ -42,13 +42,13 @@ import re
 import processing
 import subprocess
 from osgeo._gdalconst import GA_ReadOnly
+import configparser
 try:
     import geopandas as gpd # @UnresolvedImport
-    import matplotlib.pyplot as plt
-    from matplotlib_scalebar.scalebar import ScaleBar # @UnresolvedImport
-    import matplotlib.patches as mpatches
-    import configparser
-    from functools import reduce
+    # import matplotlib.pyplot as plt
+    # from matplotlib_scalebar.scalebar import ScaleBar # @UnresolvedImport
+    # import matplotlib.patches as mpatches
+    # from functools import reduce
 except:
     pass
 
@@ -94,6 +94,8 @@ class GWFlow():
         self._dlg.outputTimesButton.clicked.connect(self.getOutputTimesFile)
         self._dlg.buttonBox.accepted.connect(self.checkFiles)
         self._dlg.buttonBox.rejected.connect(self._dlg.close)
+        # for now unstructured option is not available
+        self.hideUnstructured()
         ## function defined later (in fishnet) to convert (x, y) pair to (row, column) in grid
         self.coordToCell = None
         # February 2024 no longer a special executable SWAT+gwflow.exe
@@ -104,6 +106,8 @@ class GWFlow():
         # excelFile = os.path.join(self.gwflowDir, 'years_example.xlsx')
         # if not os.path.isfile(excelFile):
         #     shutil.copy(os.path.join(self._gv.SWATPlusDir, 'gwflow/years_example.xlsx'), self.gwflowDir)
+        if not os.path.isfile(os.path.join(self.gwflowDir, 'gwflow.ini')):
+            shutil.copy(os.path.join(Parameters._GWFLOWDIR, 'gwflow.ini'), self.gwflowDir)
         iniFile = os.path.join(gv.defaultDir, 'gwflow.ini')
         if not os.path.isfile(iniFile):
             shutil.copy(os.path.join(self.gwflowDir, 'gwflow.ini'), gv.defaultDir)
@@ -206,6 +210,12 @@ class GWFlow():
             QSWATUtils.information('Please select an output times file', self._gv.isBatch)
             return
         self._dlg.close()
+        
+    def hideUnstructured(self):
+        """Remove option to use unstructured grids"""
+        self._dlg.useUnstructured.setVisible(False)
+        self._dlg.refinementLabel.setVisible(False)
+        self._dlg.refinementLevel.setVisible(False)
         
     def setUnstructured(self):
         self._dlg.refinementLabel.setEnabled(self._dlg.useUnstructured.isChecked())
@@ -1472,13 +1482,13 @@ class GWFlow():
         thick_ds = None 
         return elevNumberRows, elevNumberCols                
         
-    @staticmethod
-    def scale_north(ax):
-        ax.add_artist(ScaleBar(dx = 1, units = "km", dimension = "si-length", length_fraction = 0.25, 
-         scale_formatter = lambda value, unit: f' {value * 1000} km ', location = 'lower left'))
-        x, y, arrow_length = 0.07, 0.95, 0.2
-        ax.annotate('N', color = 'black', xy = (x, y), xytext = (x, y-arrow_length), arrowprops = dict(facecolor = 'black', width = 1, headwidth = 5), 
-                    ha = 'center', va = 'center', fontsize = 12, xycoords = ax.transAxes)
+    # @staticmethod
+    # def scale_north(ax):
+    #     ax.add_artist(ScaleBar(dx = 1, units = "km", dimension = "si-length", length_fraction = 0.25, 
+    #      scale_formatter = lambda value, unit: f' {value * 1000} km ', location = 'lower left'))
+    #     x, y, arrow_length = 0.07, 0.95, 0.2
+    #     ax.annotate('N', color = 'black', xy = (x, y), xytext = (x, y-arrow_length), arrowprops = dict(facecolor = 'black', width = 1, headwidth = 5), 
+    #                 ha = 'center', va = 'center', fontsize = 12, xycoords = ax.transAxes)
         
     def createTables(self, conn):
         # remove tables in case of redesign.  Last two must come last because of foreign key constraints

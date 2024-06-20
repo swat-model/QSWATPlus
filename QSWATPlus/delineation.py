@@ -111,7 +111,7 @@ class Delineation(QObject):
     
     """Do watershed delineation."""
     
-    def __init__(self, gv: GlobalVars, isDelineated: bool) -> None:
+    def __init__(self, gv: GlobalVars, isDelineated: bool) -> None:  # @UndefinedVariable
         """Initialise class variables."""
         QObject.__init__(self)
         self._gv = gv
@@ -615,7 +615,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             topo = self._gv.topo
             isReverse = False
             if topo.outletAtStart:
-                if res == 1:
+                if res != 0:
                     # looking for lake exit from the outlet of stream
                     line = topo.reachFirstLine(channelGeom, topo.xThreshold, topo.yThreshold)
                 else:
@@ -623,7 +623,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
                     line = topo.reachLastLine(channelGeom, topo.xThreshold, topo.yThreshold)
                     isReverse = True
             else:
-                if res == 1:
+                if res != 0:
                     # looking for lake exit from the outlet of stream
                     line = topo.reachLastLine(channelGeom, topo.xThreshold, topo.yThreshold)
                     isReverse = True
@@ -691,7 +691,8 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             self._gv.playaFile = ''
         if not hasResOrPondOrWetland:  # nothing to do
             return True
-        lakeResIndex = self._gv.topo.getIndex(lakesLayer, QSWATTopology._RES, ignoreMissing=True)
+        RES = QSWATTopology._HUCRES if self._gv.isHUC else QSWATTopology._RES
+        lakeResIndex = self._gv.topo.getIndex(lakesLayer, RES, ignoreMissing=True)
         if lakeIdIndex < 0:
             return False
         if not self._dlg.useOutlets.isChecked():
@@ -854,6 +855,8 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             lakeId = lake[lakeIdIndex]
             if lakeResIndex < 0:
                 res = QSWATTopology._RESTYPE  # default to reservoir
+            elif self._gv.isHUC:
+                res = 1 if lake[lakeResIndex] == 'Reservoir' else 2
             else:
                 res = lake[lakeResIndex]
             geom = geoMap[lake.id()]
@@ -1095,167 +1098,173 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not os.path.isfile(subsNoLakes):
             QSWATUtils.error('Failed to create {0} file'.format(subsNoLakes), self._gv.isBatch)
             return False
-        QSWATUtils.removeLayer(self._gv.chBasinNoLakeFile, root)
-        wChannelNoLakeFile = self.createBasinFile(subsNoLakes, demLayer, 'wChannelNoLake', root)
-        if not os.path.isfile(wChannelNoLakeFile):
-            QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
-            return False
-        self._gv.chBasinNoLakeFile = wChannelNoLakeFile
-        # now populate LakeIn etc fields
-        self._gv.topo.addLakeFieldsToChannels(channelsLayer)
-        channelsProvider = channelsLayer.dataProvider()
-        channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
-        channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO1)
-        channelDsNodeindex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID1)
-        channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
-        channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
-        channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
-        channelLakeMainIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEMAIN)
-        areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
-        lakesProvider = lakesLayer.dataProvider()
-        lakeIdIndex = lakesProvider.fieldNameIndex(QSWATTopology._LAKEID)
-        mmap = dict()
-        for lake in lakesProvider.getFeatures():
-            lakeId = lake[lakeIdIndex]
-            QSWATUtils.loginfo('Adding lake {0} to HUC model'.format(lakeId))
-            geom = lake.geometry()
-            if geom.type() != QgsWkbTypes.PolygonGeometry:
-                QSWATUtils.error('Lake {0} does not seem to be a polygon shape'.format(lakeId), self._gv.isbatch)
-                return False
-            if geom.isMultipart():
-                # find the part with largest area to use as the lake
-                maxArea = 0.0 
-                secondArea = 0.0
-                maxPart = None
-                secondPart = None
-                polys = geom.asMultiPolygon()
-                QSWATUtils.loginfo('Lake {0} has {1} parts'.format(lakeId, len(polys)))
-                partNum = 0
-                for poly in polys:
-                    nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
-                    nextArea = nextPart.area() * areaFactor
-                    nextLen = len(poly[0])
-                    partNum += 1
-                    QSWATUtils.loginfo('Part {0} has {1} perimeter vertices and area {2}'.format(partNum, nextLen, int(nextArea)))
-                    if nextArea > maxArea:
-                        if maxArea > secondArea:
-                            secondPart = maxPart
-                            secondArea = maxArea
-                        maxPart = nextPart
-                        maxArea = nextArea
-                if maxPart is None:
-                    QSWATUtils.error('Lake {0} seems to be empty'.format(lakeId), self._gv.isBatch)
-                    return False
-                if secondPart is not None:
-                    percent = int(secondArea * 100.0 / maxArea + 0.5)
-                    QSWATUtils.loginfo('Second part area is {0}% of first'.format(percent))
-                    if percent >= 5:
-                        QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch)
-                perim = maxPart
-            else:
-                perim = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
-            perimBox = perim.boundingBox()
-            mainOutletChosen = False
-            # channels that intersect with the lake: candidates for outlet
-            candidates = []
-            selected = []
-            for channel in channelsProvider.getFeatures():
-                chLink = channel[channelLinkIndex]
-                line = channel.geometry()
-                lineBox = line.boundingBox()
-                if QSWATTopology.disjointBoxes(perimBox, lineBox):
-                    continue
-                intersect = line.intersection(perim)
-                if intersect.isEmpty():
-                    # no intersection
-                    continue
-                candidates.append(channel)
-                channelIsWatershedOutlet = channel[channelDsLinkIndex] == -1 and channel[channelDsNodeindex] > 0
-                reachData = self._gv.topo.getReachData(channel, None)
-                outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
-                source = QgsPointXY(reachData.upperX, reachData.upperY)
-                outletInLake = QSWATTopology.polyContains(outlet, perim, perimBox)
-                sourceInlake = QSWATTopology.polyContains(source, perim, perimBox)
-                if outletInLake:
-                    if sourceInlake:
-                        if channelIsWatershedOutlet:  # watershed outlet is within lake
-                            if mainOutletChosen:
-                                mmap[channel.id()] = {channelLakeOutIndex: lakeId}
-                                QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
-                            else:
-                                mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
-                                QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
-                                mainOutletChosen = True
-                        else:            
-                            mmap[channel.id()] = {channelLakeWithinIndex: lakeId}
-                            QSWATUtils.loginfo('Channel with link number {0} is within lake {1}'.format(chLink, lakeId))
-                            selected.append(chLink)
-                    else:
-                        mmap[channel.id()] = {channelLakeInIndex: lakeId}
-                        QSWATUtils.loginfo('Channel with link number {0} flows into lake {1}'.format(chLink, lakeId))
-                        selected.append(chLink)
-                elif sourceInlake:
-                    if mainOutletChosen:
-                        mmap[channel.id()] = {channelLakeOutIndex: lakeId}
-                        QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
-                    else:
-                        # arbitrary choice of first (and probably only) outlet as main
-                        mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
-                        QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
-                        mainOutletChosen = True
-                #===============================================================
-                # # alternative method: fails probably because we can have joins outside lakes, so everything looks like an outlet
-                # outletOutside = False
-                # sourceOutside = False 
-                # if line.isMultipart():
-                #     #get returns underlying abstract geometry
-                #     #constGet is faster version returning non-modifiable abstrac geometry
-                #     segments = line.constGet()  # QgsMultiLineString
-                # else:
-                #     segments = [line.constGet()]
-                # for segment in segments:
-                #     # HUC flowlines have source st start
-                #     source = QgsPointXY(segment[0])
-                #     outlet = QgsPointXY(segment[-1])
-                #     outletOutside = outletOutside or not QSWATTopology.polyContains(outlet, perim, perimBox)
-                #     sourceOutside = sourceOutside or not QSWATTopology.polyContains(source, perim, perimBox)
-                # if outletOutside:
-                #     QSWATUtils.loginfo('{0} is an outlet'.format(chLink))
-                # elif sourceOutside:
-                #     QSWATUtils.loginfo('{0} is an inlet'.format(chLink))
-                # else:
-                #     QSWATUtils.loginfo('{0} is inside'.format(chLink))
-                #===============================================================
-            if not mainOutletChosen:
-                if len(candidates) > 0:
-                    # select a channel that is downstream from a candidate but not in candidates
-                    candidateLinks = [channel[channelLinkIndex] for channel in candidates]
-                    candidateDsLinks = [channel[channelDsLinkIndex] for channel in candidates]
-                    # first pass: find a channel in candidates but not selected that is not upstream of amother candidate
-                    for channel in channelsProvider.getFeatures():
-                        chLink = channel[channelLinkIndex]
-                        dsLink = channel[channelDsLinkIndex]
-                        if chLink in candidateLinks and chLink not in selected and dsLink not in candidateLinks:
-                            mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
-                            QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
-                            mainOutletChosen = True
-                            break
-                    if not mainOutletChosen:
-                        # second pass: find a non-candidate channel downstream from a candidate and not upstream of amother candidate
-                        for channel in channelsProvider.getFeatures():
-                            chLink = channel[channelLinkIndex]
-                            dsLink = channel[channelDsLinkIndex]
-                            if chLink not in candidateLinks and chLink in candidateDsLinks and dsLink not in candidateLinks:
-                                mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
-                                QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
-                                mainOutletChosen = True
-                                break
-            if not mainOutletChosen:
-                QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self._gv.isBatch, logFile=self._gv.logFile)
-                return False
-        if not channelsProvider.changeAttributeValues(mmap):
-            QSWATUtils.error('Cannot update channels layer with lake data', self._gv.isBatch)
-            return False  
+        # QSWATUtils.removeLayer(self._gv.chBasinNoLakeFile, root)
+        # wChannelNoLakeFile = self.createBasinFile(subsNoLakes, demLayer, 'wChannelNoLake', root)
+        # if not os.path.isfile(wChannelNoLakeFile):
+        #     QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
+        #     return False
+        # channelbasinfile has lakes removed already for HUC12 + models
+        self._gv.chBasinNoLakeFile = self._gv.channelBasinFile
+        # # now populate LakeIn etc fields
+        # self._gv.topo.addLakeFieldsToChannels(channelsLayer)
+        # channelsProvider = channelsLayer.dataProvider()
+        # channelLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._LINKNO)
+        # channelDsLinkIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSLINKNO1)
+        # channelDsNodeindex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID1)
+        # channelLakeInIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEIN)
+        # channelLakeOutIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEOUT)
+        # channelLakeWithinIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEWITHIN)
+        # channelLakeMainIndex = channelsProvider.fieldNameIndex(QSWATTopology._LAKEMAIN)
+        # areaFactor = self._gv.horizontalFactor * self._gv.horizontalFactor
+        # lakesProvider = lakesLayer.dataProvider()
+        # lakeIdIndex = lakesProvider.fieldNameIndex('OBJECTID')
+        # mmap = dict()
+        # extent = channelsProvider.extent()
+        # for lake in lakesProvider.getFeatures():
+        #     lakeId = int(lake[lakeIdIndex])
+        #     QSWATUtils.loginfo('Adding lake {0} to HUC model'.format(lakeId))
+        #     geom = lake.geometry()
+        #     # HUC projects have more possible lakes suggested than will have interactions with channels
+        #     if not geom.boundingBoxIntersects(extent):
+        #         continue
+        #     if geom.type() != QgsWkbTypes.PolygonGeometry:
+        #         QSWATUtils.error('Lake {0} does not seem to be a polygon shape'.format(lakeId), self._gv.isbatch)
+        #         return False
+        #     if geom.isMultipart():
+        #         # find the part with largest area to use as the lake
+        #         maxArea = 0.0 
+        #         secondArea = 0.0
+        #         maxPart = None
+        #         secondPart = None
+        #         polys = geom.asMultiPolygon()
+        #         QSWATUtils.loginfo('Lake {0} has {1} parts'.format(lakeId, len(polys)))
+        #         partNum = 0
+        #         for poly in polys:
+        #             nextPart = QgsGeometry.fromPolygonXY([poly[0]]) # removes any islands within the polygon, by using outer (first) ring only
+        #             nextArea = nextPart.area() * areaFactor
+        #             nextLen = len(poly[0])
+        #             partNum += 1
+        #             QSWATUtils.loginfo('Part {0} has {1} perimeter vertices and area {2}'.format(partNum, nextLen, int(nextArea)))
+        #             if nextArea > maxArea:
+        #                 if maxArea > secondArea:
+        #                     secondPart = maxPart
+        #                     secondArea = maxArea
+        #                 maxPart = nextPart
+        #                 maxArea = nextArea
+        #         if maxPart is None:
+        #             QSWATUtils.error('Lake {0} seems to be empty'.format(lakeId), self._gv.isBatch)
+        #             return False
+        #         if secondPart is not None:
+        #             percent = int(secondArea * 100.0 / maxArea + 0.5)
+        #             QSWATUtils.loginfo('Second part area is {0}% of first'.format(percent))
+        #             if percent >= 5:
+        #                 QSWATUtils.information('Warning: part with {0} percent of main part of lake {1} is being ignored.'.format(percent, lakeId), self._gv.isBatch)
+        #         perim = maxPart
+        #     else:
+        #         perim = QgsGeometry.fromPolygonXY([geom.asPolygon()[0]]) # keep only outer (first) ring to remove islands
+        #     perimBox = perim.boundingBox()
+        #     mainOutletChosen = False
+        #     # channels that intersect with the lake: candidates for outlet
+        #     candidates = []
+        #     selected = []
+        #     for channel in channelsProvider.getFeatures():
+        #         chLink = channel[channelLinkIndex]
+        #         line = channel.geometry()
+        #         lineBox = line.boundingBox()
+        #         if QSWATTopology.disjointBoxes(perimBox, lineBox):
+        #             continue
+        #         intersect = line.intersection(perim)
+        #         if intersect.isEmpty():
+        #             # no intersection
+        #             continue
+        #         candidates.append(channel)
+        #         channelIsWatershedOutlet = channel[channelDsLinkIndex] == -1 and channel[channelDsNodeindex] > 0
+        #         reachData = self._gv.topo.getReachData(channel, None)
+        #         outlet = QgsPointXY(reachData.lowerX, reachData.lowerY)
+        #         source = QgsPointXY(reachData.upperX, reachData.upperY)
+        #         outletInLake = QSWATTopology.polyContains(outlet, perim, perimBox)
+        #         sourceInlake = QSWATTopology.polyContains(source, perim, perimBox)
+        #         if outletInLake:
+        #             if sourceInlake:
+        #                 if channelIsWatershedOutlet:  # watershed outlet is within lake
+        #                     if mainOutletChosen:
+        #                         mmap[channel.id()] = {channelLakeOutIndex: lakeId}
+        #                         QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
+        #                     else:
+        #                         mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+        #                         QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+        #                         mainOutletChosen = True
+        #                 else:            
+        #                     mmap[channel.id()] = {channelLakeWithinIndex: lakeId}
+        #                     QSWATUtils.loginfo('Channel with link number {0} is within lake {1}'.format(chLink, lakeId))
+        #                     selected.append(chLink)
+        #             else:
+        #                 mmap[channel.id()] = {channelLakeInIndex: lakeId}
+        #                 QSWATUtils.loginfo('Channel with link number {0} flows into lake {1}'.format(chLink, lakeId))
+        #                 selected.append(chLink)
+        #         elif sourceInlake:
+        #             if mainOutletChosen:
+        #                 mmap[channel.id()] = {channelLakeOutIndex: lakeId}
+        #                 QSWATUtils.loginfo('Channel with link number {0} flows out of lake {1}'.format(chLink, lakeId))
+        #             else:
+        #                 # arbitrary choice of first (and probably only) outlet as main
+        #                 mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+        #                 QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+        #                 mainOutletChosen = True
+        #         #===============================================================
+        #         # # alternative method: fails probably because we can have joins outside lakes, so everything looks like an outlet
+        #         # outletOutside = False
+        #         # sourceOutside = False 
+        #         # if line.isMultipart():
+        #         #     #get returns underlying abstract geometry
+        #         #     #constGet is faster version returning non-modifiable abstrac geometry
+        #         #     segments = line.constGet()  # QgsMultiLineString
+        #         # else:
+        #         #     segments = [line.constGet()]
+        #         # for segment in segments:
+        #         #     # HUC flowlines have source st start
+        #         #     source = QgsPointXY(segment[0])
+        #         #     outlet = QgsPointXY(segment[-1])
+        #         #     outletOutside = outletOutside or not QSWATTopology.polyContains(outlet, perim, perimBox)
+        #         #     sourceOutside = sourceOutside or not QSWATTopology.polyContains(source, perim, perimBox)
+        #         # if outletOutside:
+        #         #     QSWATUtils.loginfo('{0} is an outlet'.format(chLink))
+        #         # elif sourceOutside:
+        #         #     QSWATUtils.loginfo('{0} is an inlet'.format(chLink))
+        #         # else:
+        #         #     QSWATUtils.loginfo('{0} is inside'.format(chLink))
+        #         #===============================================================
+        #     if not mainOutletChosen:
+        #         if len(candidates) > 0:
+        #             # select a channel that is downstream from a candidate but not in candidates
+        #             candidateLinks = [channel[channelLinkIndex] for channel in candidates]
+        #             candidateDsLinks = [channel[channelDsLinkIndex] for channel in candidates]
+        #             # first pass: find a channel in candidates but not selected that is not upstream of amother candidate
+        #             for channel in channelsProvider.getFeatures():
+        #                 chLink = channel[channelLinkIndex]
+        #                 dsLink = channel[channelDsLinkIndex]
+        #                 if chLink in candidateLinks and chLink not in selected and dsLink not in candidateLinks:
+        #                     mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+        #                     QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+        #                     mainOutletChosen = True
+        #                     break
+        #             if not mainOutletChosen:
+        #                 # second pass: find a non-candidate channel downstream from a candidate and not upstream of amother candidate
+        #                 for channel in channelsProvider.getFeatures():
+        #                     chLink = channel[channelLinkIndex]
+        #                     dsLink = channel[channelDsLinkIndex]
+        #                     if chLink not in candidateLinks and chLink in candidateDsLinks and dsLink not in candidateLinks:
+        #                         mmap[channel.id()] = {channelLakeOutIndex: lakeId, channelLakeMainIndex: lakeId}
+        #                         QSWATUtils.loginfo('Channel with link number {0} main outlet of lake {1}'.format(chLink, lakeId))
+        #                         mainOutletChosen = True
+        #                         break
+        #     # HUC projects have more possible lakes suggested than will have interactions with channels
+        #     if not self._gv.isHUC and not mainOutletChosen:
+        #         QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self._gv.isBatch, logFile=self._gv.logFile)
+        #         return False
+        # if not channelsProvider.changeAttributeValues(mmap):
+        #     QSWATUtils.error('Cannot update channels layer with lake data', self._gv.isBatch)
+        #     return False  
         return True
     
     def identifyLakes(self, lakesLayer: QgsVectorLayer) -> Tuple[int, bool, bool]:
@@ -1264,6 +1273,9 @@ assumed that its crossing the lake boundary is an inaccuracy.
         Also return true second result if lakes include reservoirs or ponds or wetlands, 
         and true third result if they include playas."""
         lakeProvider = lakesLayer.dataProvider()
+        if self._gv.isHUC:
+            lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._HUCLAKEID)
+            return (lakeIdIndex, True, False)
         # label lakes with water body numbers
         lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
         lakeResIndex = lakeProvider.fieldNameIndex(QSWATTopology._RES)
@@ -1509,7 +1521,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             #QSWATUtils.printLayers(root, 6)
 
     @staticmethod            
-    def addHillshade(demFile: str, root: QgsLayerTree, demMapLayer: QgsRasterLayer, gv: GlobalVars) -> None:
+    def addHillshade(demFile: str, root: QgsLayerTree, demMapLayer: QgsRasterLayer, gv: GlobalVars) -> None:  # @UndefinedVariable
         """ Create hillshade layer and load."""
         hillshadeFile = os.path.splitext(demFile)[0] + 'hillshade.tif'
         if not QSWATUtils.isUpToDate(demFile, hillshadeFile):
@@ -2183,6 +2195,17 @@ assumed that its crossing the lake boundary is an inaccuracy.
             QSWATUtils.error('Cannot load channels shapefile {0}'.format(channelFile), self._gv.isBatch)
             self.cleanUp(-1)
             return
+        # for HUC projects load lakes file 
+        if self._gv.isHUC:
+            lakeFile = self._gv.projDir + '/../lakes.shp'
+            lakeLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), lakeFile, FileTypes._LAKES, 
+                                                             self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
+            if not lakeLayer:
+                QSWATUtils.error('Cannot load lakes shapefile {0}'.format(lakeFile), self._gv.isBatch)
+                self.cleanUp(-1)
+                return
+            else:
+                self._gv.lakeFile = lakeFile
         # ready to start processing
         (base, suffix) = os.path.splitext(self._gv.demFile)
         numProcesses = self._dlg.numProcesses.value()
@@ -4802,7 +4825,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
     
     
     @staticmethod
-    def createOutletFile(filePath: str, sourcePath: str, basinWanted: bool, root: QgsLayerTree, gv: GlobalVars) -> bool:
+    def createOutletFile(filePath: str, sourcePath: str, basinWanted: bool, root: QgsLayerTree, gv: GlobalVars) -> bool:  # @UndefinedVariable
         """Create filePath with fields needed for outlets file, 
         copying .prj from sourcePath, and adding Subbasin field if wanted.
         """

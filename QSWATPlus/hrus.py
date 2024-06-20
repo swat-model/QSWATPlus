@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TY
 from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal # @UnresolvedImport
 from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator # @UnresolvedImport
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox # @UnresolvedImport
-from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsJsonExporter, QgsCoordinateTransformContext  # @UnresolvedImport
+from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsCoordinateTransformContext  # @UnresolvedImport
 # from qgis.gui import * # @UnusedWildImport
 import os.path
 from osgeo import gdal  # type: ignore
@@ -115,7 +115,8 @@ class CreateHRUs(QObject):
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
         self._dlg = dialog
-        dialog.gwGroupBox.setVisible(False)
+        # comment out next line to expose gwflow
+        # dialog.gwGroupBox.setVisible(False)
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -1027,7 +1028,10 @@ class CreateHRUs(QObject):
             QSWATUtils.loginfo('Landuse cover percent: {0}'.format(locale.format_string('%.1F', landusePercent)))
             if landusePercent < 95:
                 QSWATUtils.information('WARNING: only {0} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(locale.format_string('%.1F', landusePercent)), self._gv.isBatch)
-            soilMapPercent = (float(soilDefinedCount + soilUndefinedCount) / (soilDefinedCount + soilUndefinedCount + soilNoDataCount)) * 100
+            if soilDefinedCount + soilUndefinedCount + soilNoDataCount == 0:
+                soilMapPercent = 0
+            else:
+                soilMapPercent = (float(soilDefinedCount + soilUndefinedCount) / (soilDefinedCount + soilUndefinedCount + soilNoDataCount)) * 100
             QSWATUtils.loginfo('Soil cover percent: {0}'.format(locale.format_string('%.1F', soilMapPercent)))
             if soilDefinedCount + soilUndefinedCount > 0:
                 soilDefinedPercent = (float(soilDefinedCount) / (soilDefinedCount + soilUndefinedCount)) * 100
@@ -1564,7 +1568,8 @@ class CreateHRUs(QObject):
                                    '{0} ({1})'.format(QSWATUtils._FULLLSUSLEGEND, Parameters._LSUS1),
                                    'ogr')
         fields: List[QgsField] = []
-        fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
+        if not self._gv.isHUC: # HUC wshed files have LSUID field
+            fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
         # If grid model we should have subbasin, if not grid we should have channel
         lsusFields = lsusLayer.fields()
         subIndx = lsusFields.indexOf(QSWATTopology._SUBBASIN)
@@ -3624,13 +3629,7 @@ class CreateHRUs(QObject):
         """Copy actual hrus file to results folder; remove fields except HRUS."""
         QSWATUtils.copyShapefile(actHRUsFile, Parameters._HRUS, self._gv.resultsDir)
         hrusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.shp')
-        hrusJson = QSWATUtils.join(self._gv.resultsDir, Parameters._HRUS + '.json')
         hrusLayer = QgsVectorLayer(hrusFile, 'hrus', 'ogr')
-        provider = hrusLayer.dataProvider()
-        exporter = QgsJsonExporter(hrusLayer)
-        QSWATUtils.removeLayer(hrusJson, root)
-        with open(hrusJson, 'w') as jsonFile:
-            jsonFile.write(exporter.exportFeatures(provider.getFeatures()))
         QSWATTopology.removeFields(hrusLayer, [QSWATTopology._HRUS], hrusFile, self._gv.isBatch)
     
     def mergeLSUs(self, root: QgsLayerTree) -> bool:
@@ -3787,25 +3786,13 @@ class CreateHRUs(QObject):
         QSWATUtils.copyShapefile(subs1File, Parameters._SUBS, self._gv.resultsDir)
         # QSWATUtils.loginfo('subs1 copied to subs')
         subsFile = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.shp')
-        subsJson = QSWATUtils.join(self._gv.resultsDir, Parameters._SUBS + '.json')
         subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
-        subsProvider = subsLayer.dataProvider()
-        exporter = QgsJsonExporter(subsLayer)
-        QSWATUtils.removeLayer(subsJson, root)
-        with open(subsJson, 'w') as jsonFile:
-            jsonFile.write(exporter.exportFeatures(subsProvider.getFeatures()))
         if not addToSubs1:
             QSWATTopology.removeFields(subsLayer, [QSWATTopology._SUBBASIN], subsFile, self._gv.isBatch)
         # copy lsus2 to results directory and remove fields other than LSUID
         QSWATUtils.copyShapefile(lsus2File, Parameters._LSUS, self._gv.resultsDir)
         lsusFile = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.shp')
-        lsusJson = QSWATUtils.join(self._gv.resultsDir, Parameters._LSUS + '.json')
         lsusLayer = QgsVectorLayer(lsusFile, 'LSUs', 'ogr')
-        lsusProvider = lsusLayer.dataProvider()
-        exporter = QgsJsonExporter(lsusLayer)
-        QSWATUtils.removeLayer(lsusJson, root)
-        with open(lsusJson, 'w') as jsonFile:
-            jsonFile.write(exporter.exportFeatures(lsusProvider.getFeatures()))
         QSWATTopology.removeFields(lsusLayer, [QSWATTopology._LSUID], lsusFile, self._gv.isBatch)
         if addToSubs1:
             # add fields from gis_subbasins table to subs1
@@ -4091,13 +4078,50 @@ class CreateHRUs(QObject):
                 QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
             return newIndex
                 
-        def findOutlet(basin: int, downBasins: Dict[int, int]) -> int:
+        def findOutlet(basin: int, downBasins: Dict[int, int]) -> Tuple[int, int]:
             """downBasins maps basin to downstream basin or -1 if none.  Return final basin starting from basin."""
-            downBasin = downBasins.get(basin, -1)
-            if downBasin < 0:
-                return basin
-            else:
-                return findOutlet(downBasin, downBasins)
+            steps = 0
+            while basin >= 0 and steps < 1E6:
+                downBasin = downBasins.get(basin, -1)
+                if downBasin < 0:
+                    return basin, steps
+                else:
+                    basin = downBasin
+                    steps += 1
+            return -1, steps
+        
+        def makeOutbasins(downSubbasins, outbasins):
+            path = []
+            maxx = len(downSubbasins)
+            for basin in downSubbasins:
+                nxt = basin
+                while len(path) <= maxx:
+                    outBasin = outbasins.get(nxt, -1)
+                    if outBasin >= 0:
+                        for p in path:
+                            outbasins[p] = outBasin
+                        path = []
+                        break
+                    path.append(nxt)
+                    dsBasin = downSubbasins.get(nxt, -1)
+                    if dsBasin < 0:
+                        for p in path:
+                            outbasins[p] = basin
+                        path = []
+                        break
+                    nxt = dsBasin
+                if len(path) > maxx:
+                    #QSWATUtils.error('Failed to find outlet for basin {0} on path {1}'.format(basin, path), self._gv.isBatch)
+                    l = len(path)
+                    last = path[l - 1]
+                    i = l - 2
+                    while i >= 0:
+                        if last == path[i]:
+                            QSWATUtils.error('Path has loop length {0}'.format(l - i))
+                            return
+                        i -= 1
+                    QSWATUtils.error('Path has no loop', self._gv.isBatch)
+                    return
             
         def writeAquifersTables(outletSubbasins: Dict[int, int], outletLakes: Dict[int, int]) -> None:
             """Write gis_aquifers and gis_deep_aquifers tables"""
@@ -4271,9 +4295,7 @@ class CreateHRUs(QObject):
             subsLayer = QgsVectorLayer(subsFile, 'Subbasins', 'ogr')
             subsProvider = subsLayer.dataProvider()
         aqFile = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.shp')
-        aqJson = QSWATUtils.join(self._gv.resultsDir, Parameters._AQUIFERS + '.json')
         QSWATUtils.removeLayer(aqFile, root)
-        QSWATUtils.removeLayer(aqJson, root)
         # create context to make processing turn off detection of what it claims are invalid shapes
         # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
         context = QgsProcessingContext()
@@ -4285,10 +4307,6 @@ class CreateHRUs(QObject):
             aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
             addNewField(aqLayer, aqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN,  lambda x: 10 * x)
             QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER], aqFile, self._gv.isBatch)
-            aqProvider = aqLayer.dataProvider()
-            exporter = QgsJsonExporter(aqLayer)
-            with open(aqJson, 'w') as jsonFile:
-                jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
         else:
             try:
                 # merge shapes in actual LSUs file that have same subbasin and same landscape
@@ -4321,7 +4339,6 @@ class CreateHRUs(QObject):
                     raise Exception('Failed to write aquifers shapefile {0}'.format(aqFile))
                 del writer
                 aqLayer = QgsVectorLayer(aqFile, 'Aquifers', 'ogr')
-                aqProvider = aqLayer.dataProvider()
                 
 #                 # first convert floodplain to polygons
 #                 floodFile = self._dlg.floodplainCombo.currentText()
@@ -4428,9 +4445,6 @@ class CreateHRUs(QObject):
 #                 aqProvider = aqLayer.dataProvider()
 #                 # has odd fields like DN, layer and path we don't need in GeoJSON
 #                 QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER, Parameters._AREA, QSWATTopology._SUBBASIN], aqFile, self._gv.isBatch)
-                exporter = QgsJsonExporter(aqLayer)
-                with open(aqJson, 'w') as jsonFile:
-                    jsonFile.write(exporter.exportFeatures(aqProvider.getFeatures()))
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
                                        .format(repr(ex)), self._gv.isBatch)
@@ -4441,10 +4455,19 @@ class CreateHRUs(QObject):
         # to make deepAquiferId when watershed outlet is in lake and there is no outlet SWATBasin
         baseDeepAquiferId = max(self._gv.topo.SWATBasinToSubbasin.keys())
         outlets: Set[int] = set()
+        # make map basin to outbasin
+        outbasins: Dict[int, int] = dict()
+        makeOutbasins(self._gv.topo.downSubbasins, outbasins)
         for basin in self._gv.topo.downSubbasins:
             SWATBasin = self._gv.topo.subbasinToSWATBasin.get(basin, 0)
             if SWATBasin > 0:
-                outBasin = findOutlet(basin, self._gv.topo.downSubbasins)
+                # outBasin, steps = findOutlet(basin, self._gv.topo.downSubbasins)
+                # if steps > 1000:
+                #     QSWATUtils.loginfo('Finding outlet from {0} took {1} steps'.format(SWATBasin, steps), self._gv.isBatch)
+                outBasin = outbasins.get(basin, -1)
+                if outBasin < 0:
+                    QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch)
+                    continue
                 outlets.add(outBasin)
                 # check if outlet in lake
                 lakeId = self._gv.topo.outletsInLake.get(basin, -1)
@@ -4588,6 +4611,8 @@ class CreateHRUs(QObject):
                     continue  # don't include playas
                 lsuId = 0  # no LSU for a reservoir, pond or wetland lake
                 (subbasin, _, _, _) = lakeData.outPoint
+                if self._gv.isHUC and subbasin < 0:
+                    continue  # lakes file is larger than watershed for HUC12 models
                 # out point may have no subbasin if internal to lake
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
                 areaHa = lakeData.overrideArea / 1E4

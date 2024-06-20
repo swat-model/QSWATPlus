@@ -103,6 +103,7 @@ class Parameters:
     _SOIL = 'Soil'
     _SLOPEBAND = 'SlopeBand'
     _AREA = 'Area'
+    _AREASQKM = 'AREASQKM'
     _PERCENTSUB = '%Subbasin'
     _PERCENTLSU = '%Landscape'
     
@@ -167,6 +168,9 @@ class Parameters:
     # landuses for which we use just one SSURGO soil and where we make the slope at most _WATERMAXSLOPE 
     _WATERLANDUSES = {'WATR', 'WETN', 'WETF', 'RIWF', 'UPWF', 'RIWN', 'UPWN'}
     _WATERMAXSLOPE = 0.001
+    
+    # percentage of flow for major when there is a bifurcation: HUC and HAWQS models only
+    _MAJORPERCENT = 60
     
     
     def __init__(self, gv: Any) -> None:

@@ -4,7 +4,7 @@ from Cython.Build import cythonize  # @UnresolvedImport
 import os
 import numpy
 if 'QSWAT_PROJECT' in os.environ and 'Linux' in os.environ['QSWAT_PROJECT']:
-    includePath = '/usr/include/python3.6'
+    includePath = '/usr/include/python3.'
     numpyInclude = numpy.get_include()
     sep = ':'
     is32 = '_32' in os.environ['QSWAT_PROJECT']
@@ -24,6 +24,10 @@ else:
     os.environ['INCLUDE'] = includePath + sep + numpyInclude
     
 print('include path is {0}'.format(os.environ['INCLUDE']))
+
+# NB for Linux also had to 
+#sudo ln -s  /usr/lib/python3/dist-packages/numpy/core/include/numpy /usr/include/numpy
+# for it to find numpy/arrayobject.h
 
 if is32:
     # only run cythonize to get .c files from .pyx
