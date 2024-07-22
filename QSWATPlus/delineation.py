@@ -2203,13 +2203,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if willRun:
             if self._dlg.showTaudem.isChecked():
                 self._dlg.tabWidget.setCurrentIndex(3)
-            depmask = QSWATUtils.join(os.path.split(self._gv.demFile)[0], 'depmask.tif')
-            if not os.path.isfile(depmask):
-                depmask = None
-            ok = TauDEMUtils.runPitFill(demFile, depmask, felFile, numProcesses, self._dlg.taudemOutput) 
-            if not ok:
-                self.cleanUp(3)
-                return
             ok = TauDEMUtils.runDinfFlowDir(felFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
             if not ok:
                 self.cleanUp(3)
