@@ -2203,7 +2203,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if willRun:
             if self._dlg.showTaudem.isChecked():
                 self._dlg.tabWidget.setCurrentIndex(3)
-            ok = TauDEMUtils.runDinfFlowDir(felFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
+            ok = TauDEMUtils.runDinfFlowDir(demFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
             if not ok:
                 self.cleanUp(3)
                 return
