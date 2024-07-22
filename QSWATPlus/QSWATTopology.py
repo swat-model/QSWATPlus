@@ -545,7 +545,8 @@ class QSWATTopology:
                     self.channelToSWATChannel[chLink] = SWATChannel
                     self.SWATChannelToChannel[SWATChannel] = chLink
                 # inlets in HUC and HAWQS models are zero length channels, and these have positive DSNODEIDs
-                elif dsNode < 0 or HUCorHAWQS:
+                # elif dsNode < 0 or HUCorHAWQS: cwg 14/7/24 mark all zero length channels so eg reservoirs too close to junctions detected
+                else:
                     self.zeroChannels.add(chLink)
             maxChLink = max(maxChLink, chLink)
             self.downChannels[chLink] = dsChLink
@@ -599,6 +600,8 @@ class QSWATTopology:
             features = []
         if dsNodeIndex >= 0:
             doneNodes: Set[int] = set()
+            pointsToShift: List[int] = []
+            lastTyp = ''
             for point in features:
                 # ignore HUC reservoir and pond points: only for display
                 if self.isHUC and point[resIndex] > 0:
@@ -674,7 +677,7 @@ class QSWATTopology:
                         self.chLinkToWater[chLink] = (point[ptIdIndex], pt, QSWATTopology._PONDTYPE)
                     # else an outlet: nothing to do
                     
-                    # check for user-defined outlets coincident with stream junctions
+                    # check for user-defined non-outlets coincident with stream junctions
                     if chLink in self.zeroChannels and chLink not in self.chLinkIntoLake and not (isInlet and (self.isHUC or self.isHAWQS)):
                         if isInlet: typ = 'Inlet'
                         elif isPtSource: typ = 'Point source'
@@ -682,12 +685,18 @@ class QSWATTopology:
                         elif isPond: typ = 'Pond'
                         else: typ = 'Outlet'
                         if typ != 'Outlet':
-                            msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(typ, dsNode)
-                            if reportErrors:
-                                QSWATUtils.error(msg, self.isBatch)
-                            else:
-                                QSWATUtils.loginfo(msg)
-                            return False
+                            pointsToShift.append(dsNode)
+                            lastType = typ
+            if len(pointsToShift) > 0:
+                if len(pointsToShift) == 1:
+                    msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(lastType, pointsToShift[0])
+                else:
+                    msg = 'Points {0} have zero length channels leading to them: please remove or move downstream'.format(pointsToShift)
+                if reportErrors:
+                    QSWATUtils.error(msg, self.isBatch)
+                else:
+                    QSWATUtils.loginfo(msg)
+                return False
         time4 = time.process_time()
         QSWATUtils.loginfo('Topology setup for inlets/outlets took {0} seconds'.format(int(time4 - time3)))
         # add any extra reservoirs and point sources

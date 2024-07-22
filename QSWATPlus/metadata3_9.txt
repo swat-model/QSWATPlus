@@ -13,7 +13,7 @@ name=QSWATPlus3_9
 qgisMinimumVersion=3.28.13
 qgisMaximumVersion=3.34.5
 description=Create SWAT+ inputs
-version=2.5.3
+version=2.5.4
 author=Chris George
 email=cgeorge@tamu.edu
 

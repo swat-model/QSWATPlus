@@ -143,6 +143,9 @@ class Parameters:
     # too large a threshold and very short stream segments can apparently be circular
     # too small and connected stream segments can appear to be disconnected
     _NEARNESSTHRESHOLD = 0.51
+    # default used to replace slope no data
+    # slope no data can occur more often since change to using non-pitfilled data for dinf slopes
+    _DEFAULTSLOPE = 0.005
     
     # channel width and depth in metres are computed as multiplier * (A ** exponent)
     # where A is the drain area in sq km (area includes upstream subbasins for main channel,

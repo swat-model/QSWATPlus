@@ -748,7 +748,7 @@ class TestQswat(unittest.TestCase):
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 25, 'Subbasin count is {0} instead of 25'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 259, 'Channel count is {0} instead of 259'.format(self.hrus.CreateHRUs.countChannels()))
         self.assertEqual(self.hrus.CreateHRUs.countLsus(), 259, 'LSU count is {0} instead of 259'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 848, 'HRU count is {0} instead of 848'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 851, 'HRU count is {0} instead of 848'.format(self.hrus.CreateHRUs.countHRUs()))
         #self.checkHashes(HashTable1)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
         self.assertTrue(self.dlg.paramsButton.isEnabled(), 'Parameters button not enabled')

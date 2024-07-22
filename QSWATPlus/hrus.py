@@ -711,13 +711,10 @@ class CreateHRUs(QObject):
                                     slopeValue = slopeNoData 
                             else:
                                 slopeValue = slopeNoData
-                            if slopeValue != slopeNoData:
-                                slope = self._db.slopeIndex(slopeValue * 100)
-                            else:
-                                # when using grid model small amounts of
-                                # no data for crop, soil or slope could lose subbasin
-                                slopeValue = 0.005
-                                slope = 0
+                            # slopes will be nodata in pits
+                            if slopeValue == slopeNoData:
+                                slopeValue = Parameters._DEFAULTSLOPE
+                            slope = self._db.slopeIndex(slopeValue * 100)
                             distSt = diag
                             distCh = halfDiag
                             if not self._gv.existingWshed:
@@ -931,12 +928,12 @@ class CreateHRUs(QObject):
                                 slopeValue = cast(float, slopeData[0, slopeCol])
                             else:
                                 slopeValue = slopeNoData
+                            # slopes will be nodata in pits
+                            if slopeValue == slopeNoData:
+                                slopeValue = Parameters._DEFAULTSLOPE
                             # set water or wetland pixels to have slope at most WATERMAXSLOPE
                             if isWet:
-                                if slopeValue == slopeNoData:
-                                    slopeValue = Parameters._WATERMAXSLOPE
-                                else:
-                                    slopeValue = min(slopeValue, Parameters._WATERMAXSLOPE)
+                                slopeValue = min(slopeValue, Parameters._WATERMAXSLOPE)
                             if slopeValue != slopeNoData:
                                 # for HUC, slope bands only used for agriculture
                                 if not (self._gv.isHUC or self._gv.isHAWQS) or self._gv.db.isAgriculture(crop):

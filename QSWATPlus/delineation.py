@@ -1824,7 +1824,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSWATUtils.removeLayer(slpFile, root)
         QSWATUtils.removeLayer(angFile, root)
         self.progress('DinfFlowDir ...')
-        ok = TauDEMUtils.runDinfFlowDir(felFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
+        # Dinf slopes based on non-pitfilled and non-burned-in DEM
+        ok = TauDEMUtils.runDinfFlowDir(demFile, slpFile, angFile, numProcesses, self._dlg.taudemOutput)  
         if not ok:
             self.cleanUp(3)
             return
@@ -2050,27 +2051,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not self._gv.useGridModel:
             self._gv.channelBasinFile = wChannelFile
         self._gv.srcChannelFile = '' if self._gv.useGridModel else srcChannelFile
-        if self._dlg.checkBurn.isChecked():
-            # need to make slope file from original dem
-            felNoburn = base + 'felnoburn' + suffix
-            QSWATUtils.removeLayer(felNoburn, root)
-            self.progress('PitFill ...')
-            ok = TauDEMUtils.runPitFill(demFile, depmask, felNoburn, numProcesses, self._dlg.taudemOutput)  
-            if not ok:
-                self.cleanUp(3)
-                return
-            slopeFile = base + 'slope' + suffix
-            angleFile = base + 'angle' + suffix
-            QSWATUtils.removeLayer(slopeFile, root)
-            QSWATUtils.removeLayer(angleFile, root)
-            self.progress('DinfFlowDir ...')
-            ok = TauDEMUtils.runDinfFlowDir(felNoburn, slopeFile, angleFile, numProcesses, self._dlg.taudemOutput)  
-            if not ok:
-                self.cleanUp(3)
-                return
-            self._gv.slopeFile = slopeFile
-        else:
-            self._gv.slopeFile = slpFile
+        self._gv.slopeFile = slpFile
         self._gv.streamFile = streamFile
         self._gv.delinStreamFile = streamFile
         if not self._gv.useGridModel:

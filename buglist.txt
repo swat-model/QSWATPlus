@@ -148,6 +148,10 @@ References to STATSGO2 removed
 Check for res==1 replaced by res!=0 since omitted to allow for res==2
 delineation.py lines 618, 626
 
+16/7/2024 # 40
+all zero length channels included in zeroChannels so that inlet/outlet points too close to junctions detected
+QSWATTopology.py line 540
+
 
 
 

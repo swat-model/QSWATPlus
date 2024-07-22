@@ -485,9 +485,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             try:
                 for row in conn.execute(sql):
                     table = row[0]
-                    if 'landuse' in table:
+                    if 'landuse' in table and table != 'config_landuse':
                         self.landuseTableNames.append(table)
-                    elif 'soil' in table and 'usersoil' not in table and DBUtils._SOILS_SOL_NAME not in table:
+                    elif 'soil' in table and 'usersoil' not in table and DBUtils._SOILS_SOL_NAME not in table and table != 'config_soil':
                         self.soilTableNames.append(table)
                     self._allTableNames.append(table)
             except Exception:

@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.5.3'
+    __version__ = '2.5.4'
 
     def __init__(self, iface):
         """Constructor."""
@@ -613,11 +613,7 @@ class QSWATPlus(QObject):
                 if not os.path.exists(burnFile):
                     QSWATUtils.loginfo('demProcessed failed: no burn file')
                     return False
-                self._gv.slopeFile = base + 'slope.tif'
-            else:
-                self._gv.slopeFile = base + 'slp.tif'
-        else:
-            self._gv.slopeFile = base + 'slp.tif'
+        self._gv.slopeFile = base + 'slp.tif'
         if not os.path.exists(self._gv.slopeFile):
             QSWATUtils.loginfo('demProcessed failed: no slope raster')
             return False
