@@ -1,11 +1,14 @@
-# QSWATPlus3
+# QSWATPlus
 
-QGIS 3 plugin for creating inputs for SWAT+.
+QGIS plugin for creating inputs for SWAT+.
 
 ## Build
 The repository holds an Eclipse project.  It was created on Windows but runs in Eclipse on Windows and Linux (Ubuntu at least).
 
-There is a Makefile that should provide enough information to build QSWATPlus3.  It runs on Windows and Linux (Ubuntu at least).  There are projects QSWATPlus3\_64 and QSWATPlus3\_32 for Windows 64 and 32 bit respectively, and QSWATPlusLinux3\_64.  (QSWATPlusLinux3\_32 could be added easily.)
+There is a Makefile that should provide enough information to build QSWATPlus.  It runs on Windows and Linux (Ubuntu at least).  
+
+Note that the only interesting projects in the Makefile are QSWATPlus, QSWATPlusLinux3_64 and QSWATPlusMac3_64.
+QSWATPlus3_32 is 32-bit for use with 32-bit Microsoft Office.  QSWATPlus3_64 is only for 64-bit Microsoft Office and QGIS before 3.16.14 using Python 3.7.  QSWATPlus3_9 is 64 bit, only for Windows QGIS using Python 3.9, and QSWATPlus3_12 is only for Windows QGIS using Python 3.12.
 
 ### Build on Windows
 64-bit QGIS Desktop does not include Python development files (Python.h and other header files, and python27.lib).  So to compile the Cython files it is necessary to install the _OSGeo4W Network Installer (64 bit)_:
@@ -14,7 +17,7 @@ There is a Makefile that should provide enough information to build QSWATPlus3. 
 - select _Advanced Install_
 - include the packages QGIS, GDAL and GRASS GIS (probably the default)
 - select _Install from Internet_
-- use the default root directory _C:\OSGeo4W64_, choose _All Users_ if you have admin privileges, create icons if you wish
+- use the default root directory  _C:\OSGeo4W64_, choose _All Users_  if you have admin privileges, create icons if you wish
 - take default local package directory
 - use _Direct Connection_ or as appropriate for your internet connection
 - choose a download site
@@ -34,19 +37,17 @@ where _pathtomsi_ is the full path, e.g. _C:\Users\<user>\Downloads\VCForPython2
 You also need to install [MinGW](http://www.mingw.org/).  MinGW supplies the version of make we need, namely _mingw32-make_, and also the appropriate versions of utilities like _mkdir_.  We assume it is installed in C:\Mingw.
 
 ### Environment variables for Windows
-The following need to be set to run make assuming _VCforP_ is the path to _Visual C++ for Python\9.0_, e.g _C:\Program Files (x86)\Common Files\Microsoft\Visual C++ for Python\9.0_
+The following need to be set to run make assuming  _VCforP_  is the path to _Visual C++ for Python\9.0_, e.g  _C:\Program Files (x86)\Common Files\Microsoft\Visual C++ for Python\9.0_ 
 
-- DISTUTILS\_USE\_SDK: 1
+- HOME: User's home directory
 - INCLUDE: VCforP\VC\Include;VCforP\WinSDK\Include
 - LIB: VCforP\VC\Lib\amd64;VCforP\WinSDK\Lib\x64 (64 bit) or VCforP\VC\Lib;VCforP\WinSDK\Lib (32 bit)
-- MSSdk: 1
-- OSGEO4W_ROOT: Path to QGIS e.g. C:\OSgeo4W64 (64 bit) or C:\Program Files (x86)\QGIS 2.18 (32 bit)
+- OSGEO4W_ROOT: Path to QGIS e.g. C:\OSgeo4W64
 - PATH: C:\MinGW\bin;C:\MinGW\msys\1.0\bin;VCforP\VC\bin\amd64;%OSGEO4W\_ROOT%\bin (64 bit) or C:\MinGW\bin;C:\MinGW\msys\1.0\bin;VCforP\VC\bin;%OSGEO4W\_ROOT%\bin (32 bit)
-- PYTHONHOME: 		%OSGEO4W\_ROOT%\apps\Python37
-- QSWAT\_PROJECT: 	QSWATPlus3\_64 or QSWATPlus3\_32
+- QSWAT\_PROJECT: 	QSWATPlus
 
 ### Build on Linux
 The only environment variable required is QSWAT\_PROJECT, set to QSWATPlusLinux3\_64.
 
-The project location for make in Eclipse is hard-wired to /media/sf\_Public/QSWATPlus3.  This was used since the QSWATPlus3 source directory was shared between Windows and a Linux virtual machine.  Change this in Eclipse with _Run -> External Tools -> External Tools Configuration_ and change _Working Directory_ as appropriate for the _make QSWATPlus3\_64_ and _clean QSWATPlus3\_64_ programs.
+The project location for make in Eclipse is hard-wired to /media/sf\_Public/QSWATPlus3.  This was used since the QSWATPlus3 source directory was shared between Windows and a Linux virtual machine.  Change this in Eclipse with  _Run -> External Tools -> External Tools Configuration_  and change  _Working Directory_  as appropriate for the  _make QSWATPlus3\_64_  and  _clean QSWATPlus3\_64_  programs.
 
