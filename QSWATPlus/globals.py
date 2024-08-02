@@ -78,7 +78,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## Path of mpiexec
         self.mpiexecPath = TauDEMUtils.findMPIExecPath(settings)
         proj: QgsProject = QgsProject.instance()
-        title = proj.title()
+        # attribute used in project file is title without spaces
+        self.attTitle = proj.title().replace(' ', '')
         ## QGIS interface
         self.iface = iface
         ## QGIS sub version number
@@ -86,27 +87,27 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## project projection (set from DEM)
         self.crsProject: Optional[QgsCoordinateReferenceSystem] = None
         ## Stream burn-in depth
-        self.burninDepth: int = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
+        self.burninDepth: int = proj.readNumEntry(self.attTitle, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
         ## Channel width multiplier
-        self.channelWidthMultiplier: float = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
+        self.channelWidthMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
         ## Channel width exponent
-        self.channelWidthExponent: float = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
+        self.channelWidthExponent: float = proj.readDoubleEntry(self.attTitle, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
         ## Channel depth multiplier
-        self.channelDepthMultiplier: float = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
+        self.channelDepthMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
         ## Channel depth exponent
-        self.channelDepthExponent: float = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
+        self.channelDepthExponent: float = proj.readDoubleEntry(self.attTitle, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
         ## reach slope multiplier
-        self.reachSlopeMultiplier: float = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.reachSlopeMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## tributary slope multiplier
-        self.tributarySlopeMultiplier: float = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.tributarySlopeMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## mean slope multiplier
-        self.meanSlopeMultiplier: float = proj.readDoubleEntry(title, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        self.meanSlopeMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
         ## main length multiplier
-        self.mainLengthMultiplier: float = proj.readDoubleEntry(title, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
+        self.mainLengthMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
         ## tributary length multiplier
-        self.tributaryLengthMultiplier: float = proj.readDoubleEntry(title, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
+        self.tributaryLengthMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
         ## upslope HRU drain percent
-        self.upslopeHRUDrain: int = proj.readNumEntry(title, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
+        self.upslopeHRUDrain: int = proj.readNumEntry(self.attTitle, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
         ## Index of slope group in Layers panel
         self.slopeGroupIndex = -1
         ## Index of landuse group in Layers panel

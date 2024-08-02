@@ -168,7 +168,9 @@ class CreateHRUs(QObject):
         ## threshold (% of lsu area) for water landuse to form a reservoir
         self.reservoirThreshold = 0
         ## default nodata value used for crop and soil maps with no defined noData value (which would otherwise be None)
-        self.defaultNoData = -32768
+        # and for crop and soil maps with nodata values larger in absolute size
+        # this value is assumed in the code to be negative
+        self.defaultNoData = 1 - 2 ** 31
      
     ## Signal for progress messages       
     progress_signal = pyqtSignal(str)
@@ -334,11 +336,35 @@ class CreateHRUs(QObject):
             if not self._gv.useGridModel:
                 distChNoData = distChBand.GetNoDataValue()
         cropNoData: int = cropBand.GetNoDataValue()
-        if cropNoData is None or cropNoData < self.defaultNoData:  # guard against floats that cannot be converted to int
+        # restrict cropNoData value to C integer
+        # and assume any value beyond that is no data
+        # note this allows large positive values if original nodata is negative
+        if cropNoData is None: 
             cropNoData = self.defaultNoData
+        if cropNoData <= self.defaultNoData:  # large negative
+            cropNoData = self.defaultNoData
+            cropIsNoDataFun = lambda x: x is None or math.isnan(x) or x <= self.defaultNoData
+        elif cropNoData >= 0 - self.defaultNoData:  # large positive
+            cropNoData = self.defaultNoData
+            cropIsNoDataFun = lambda x: x is None or math.isnan(x) or x >= 0 - self.defaultNoData
+        else:
+            # leave existing value of cropNoData
+            cropIsNoDataFun = lambda x: x is None or math.isnan(x) or x == cropNoData
         soilNoData: int = soilBand.GetNoDataValue()
-        if soilNoData is None or soilNoData < self.defaultNoData:  # guard against floats that cannot be converted to int
+        # restrict soilNoData value to C integer
+        # and assume any value beyond that is no data
+        # note this allows large positive values if original nodata is negative
+        if soilNoData is None: 
             soilNoData = self.defaultNoData
+        if soilNoData <= self.defaultNoData:  # large negative
+            soilNoData = self.defaultNoData
+            soilIsNoDataFun = lambda x: x is None or math.isnan(x) or x <= self.defaultNoData
+        elif soilNoData >= 0 - self.defaultNoData:  # large positive
+            soilNoData = self.defaultNoData
+            soilIsNoDataFun = lambda x: x is None or math.isnan(x) or x >= 0 - self.defaultNoData
+        else:
+            # leave existing value of soilNoData
+            soilIsNoDataFun = lambda x: x is None or math.isnan(x) or x == soilNoData
         slopeNoData: int = slopeBand.GetNoDataValue()
         if not self._gv.useGridModel:
             self._gv.basinNoData = basinNoData
@@ -669,9 +695,8 @@ class CreateHRUs(QObject):
                                     else:
                                         crop = cropNoData 
                                 else:
-                                    crop = cropNoData
-                            # no data read from map is None or Nan if no noData value defined 
-                            if crop is None or math.isnan(crop) or crop <= cropNoData < 0:  # use <= since may have been set to defaultNoData
+                                    crop = cropNoData 
+                            if cropIsNoDataFun(crop):
                                 landuseNoDataCount += 1
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -688,7 +713,7 @@ class CreateHRUs(QObject):
                                     soil = soilNoData 
                             else:
                                 soil = soilNoData
-                            if soil is None or math.isnan(soil) or soil <= soilNoData < 0:
+                            if soilIsNoDataFun(soil):
                                 soilIsNoData = True
                                 # when using grid model small amounts of
                                 # no data for crop, soil or slope could lose subbasin
@@ -877,7 +902,7 @@ class CreateHRUs(QObject):
                                 cropCol = cropColFun(col, x)
                                 if 0 <= cropCol < cropNumberCols and 0 <= cropRow < cropNumberRows:
                                     crop = cast(int, cropData[0, cropCol])
-                                    if crop is None or math.isnan(crop) or crop <= cropNoData < 0: # may have been set to defaultNoData
+                                    if cropIsNoDataFun(crop):
                                         crop = cropNoData
                                 else:
                                     crop = cropNoData
@@ -894,7 +919,7 @@ class CreateHRUs(QObject):
                             soilCol = soilColFun(col, x)
                             if 0 <= soilCol < soilNumberCols and 0 <= soilRow < soilNumberRows:
                                 soil = cast(int, soilData[0, soilCol])
-                                if soil is None or math.isnan(soil) or soil <= soilNoData < 0: # may have been set to defaultNoData
+                                if soilIsNoDataFun(soil):
                                     soil = soilNoData
                             else:
                                 soil = soilNoData
@@ -966,7 +991,10 @@ class CreateHRUs(QObject):
                                     farDistance = -1
                                 data = BasinData(self._db.waterLanduse, farDistance, 0)
                                 self.basins[subbasin] = data
-                            data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elev, slopeValue, distSt, distCh, x, y, self._gv)
+                            try:
+                                data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elev, slopeValue, distSt, distCh, x, y, self._gv)
+                            except:
+                                QSWATUtils.error('Cannot add cell for link {0} landscape {1} crop {2} soil {3} slope {4}'.format(chLink, landscape, crop, soil, slope), self._gv.isBatch)
                             self.basins[subbasin] = data
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 index = int(elevation) - self.minElev
@@ -6231,9 +6259,8 @@ class HRUs(QObject):
     def readProj(self) -> None:
         """Read landuse, soil, LSU, HRU settings from the project file."""
         proj = QgsProject.instance()
-        title = proj.title()
         root = proj.layerTreeRoot()
-        landuseFile, found = proj.readEntry(title, 'landuse/file', '')
+        landuseFile, found = proj.readEntry(self._gv.attTitle, 'landuse/file', '')
         landuseLayer: Optional[QgsRasterLayer] = None
         if found and landuseFile != '':
             landuseFile = proj.readPath(landuseFile)
@@ -6252,7 +6279,7 @@ class HRUs(QObject):
             self._dlg.selectLanduse.setText(landuseFile)
             self.landuseFile = landuseFile
             self.landuseLayer = landuseLayer
-        soilFile, found = proj.readEntry(title, 'soil/file', '')
+        soilFile, found = proj.readEntry(self._gv.attTitle, 'soil/file', '')
         soilLayer: Optional[QgsRasterLayer] = None
         if found and soilFile != '':
             soilFile = proj.readPath(soilFile)
@@ -6271,20 +6298,20 @@ class HRUs(QObject):
             self._dlg.selectSoil.setText(soilFile)
             self.soilFile = soilFile
             self.soilLayer = soilLayer
-        self._db.useSTATSGO, found = proj.readBoolEntry(title, 'soil/useSTATSGO', False)
+        self._db.useSTATSGO, found = proj.readBoolEntry(self._gv.attTitle, 'soil/useSTATSGO', False)
         if found and self._db.useSTATSGO:
             self._dlg.STATSGOButton.setChecked(True)
-        self._db.useSSURGO, found = proj.readBoolEntry(title, 'soil/useSSURGO', False)
+        self._db.useSSURGO, found = proj.readBoolEntry(self._gv.attTitle, 'soil/useSSURGO', False)
         if found and self._db.useSSURGO:
             self._dlg.SSURGOButton.setChecked(True)
-        landuseTable, found = proj.readEntry(title, 'landuse/table', '')
+        landuseTable, found = proj.readEntry(self._gv.attTitle, 'landuse/table', '')
         if found and landuseTable != '':
             index = self._dlg.selectLanduseTable.findText(landuseTable)
             if index >= 0:
                 self._dlg.selectLanduseTable.setCurrentIndex(index)
             self.landuseTable = landuseTable
-        self._db.waterLanduse, _ = proj.readNumEntry(title, 'landuse/water', -1)
-        plantTable, found = proj.readEntry(title, 'landuse/plant', '')
+        self._db.waterLanduse, _ = proj.readNumEntry(self._gv.attTitle, 'landuse/water', -1)
+        plantTable, found = proj.readEntry(self._gv.attTitle, 'landuse/plant', '')
         if found and plantTable != '':
             index = self._dlg.selectPlantTable.findText(plantTable)
             if index >= 0:
@@ -6292,7 +6319,7 @@ class HRUs(QObject):
         else:
             plantTable = 'plant'
         self._db.plantTable = plantTable
-        urbanTable, found = proj.readEntry(title, 'landuse/urban', '')
+        urbanTable, found = proj.readEntry(self._gv.attTitle, 'landuse/urban', '')
         if found and urbanTable != '':
             index = self._dlg.selectUrbanTable.findText(urbanTable)
             if index >= 0:
@@ -6300,13 +6327,13 @@ class HRUs(QObject):
         else:
             urbanTable = 'urban'
         self._db.urbanTable = urbanTable
-        soilTable, found = proj.readEntry(title, 'soil/table', '')
+        soilTable, found = proj.readEntry(self._gv.attTitle, 'soil/table', '')
         if found and soilTable != '':
             index = self._dlg.selectSoilTable.findText(soilTable)
             if index >= 0:
                 self._dlg.selectSoilTable.setCurrentIndex(index)
             self.soilTable = soilTable
-        plantSoilDatabase, found = proj.readEntry(title, 'soil/database', '')
+        plantSoilDatabase, found = proj.readEntry(self._gv.attTitle, 'soil/database', '')
         if found and plantSoilDatabase != '':
             plantSoilDatabase = proj.readPath(plantSoilDatabase)
             self._db.plantSoilDatabase = plantSoilDatabase
@@ -6315,7 +6342,7 @@ class HRUs(QObject):
             self._db.plantSoilDatabase = self._db.dbFile
         self._dlg.plantSoilDatabase.setText(self._db.plantSoilDatabase)
         self._db.soilDatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
-        usersoilTable, found = proj.readEntry(title, 'soil/databaseTable', '')
+        usersoilTable, found = proj.readEntry(self._gv.attTitle, 'soil/databaseTable', '')
         if found and usersoilTable != '':
             self._db.usersoilTable = usersoilTable
         else:
@@ -6324,44 +6351,44 @@ class HRUs(QObject):
                 self._db.usersoilTable = ''
             else:
                 self._db.usersoilTable = 'usersoil'
-        useLandscapes, found = proj.readBoolEntry(title, 'lsu/useLandscapes', False)
+        useLandscapes, found = proj.readBoolEntry(self._gv.attTitle, 'lsu/useLandscapes', False)
         if found:
             self._gv.useLandscapes = useLandscapes
-        useLeftRight, found = proj.readBoolEntry(title, 'lsu/useLeftRight', False)
+        useLeftRight, found = proj.readBoolEntry(self._gv.attTitle, 'lsu/useLeftRight', False)
         if found:
             self._gv.useLeftRight = useLeftRight
-        floodFile, found = proj.readEntry(title, 'lsu/floodplainFile', '')
+        floodFile, found = proj.readEntry(self._gv.attTitle, 'lsu/floodplainFile', '')
         if found:
             floodFile =  proj.readPath(floodFile)
             if os.path.exists(floodFile):
                 self._gv.floodFile = floodFile
-        reservoirThresholdNoLandscape, _ = proj.readNumEntry(title, 'lsu/thresholdResNoFlood', 101)
-        reservoirThresholdFloodplain, _ = proj.readNumEntry(title, 'lsu/thresholdResFlood', 101)
+        reservoirThresholdNoLandscape, _ = proj.readNumEntry(self._gv.attTitle, 'lsu/thresholdResNoFlood', 101)
+        reservoirThresholdFloodplain, _ = proj.readNumEntry(self._gv.attTitle, 'lsu/thresholdResFlood', 101)
         if useLandscapes:
             self._dlg.reservoirThreshold.setValue(reservoirThresholdFloodplain)
         else:   
             self._dlg.reservoirThreshold.setValue(reservoirThresholdNoLandscape)
-        channelThresholdArea, found = proj.readNumEntry(title, 'delin/thresholdCh', 0)
+        channelThresholdArea, found = proj.readNumEntry(self._gv.attTitle, 'delin/thresholdCh', 0)
         if found and channelThresholdArea > 0:
             self._gv.channelThresholdArea = channelThresholdArea * self._gv.cellArea
-        channelMergeByPercent, _ = proj.readBoolEntry(title, 'lsu/channelMergeByPercent', True)
+        channelMergeByPercent, _ = proj.readBoolEntry(self._gv.attTitle, 'lsu/channelMergeByPercent', True)
         if channelMergeByPercent:
             self._dlg.channelPercentButton.setChecked(True)
         else:
             self._dlg.channelAreaButton.setChecked(True)
-        channelMergeVal, _ = proj.readNumEntry(title, 'lsu/channelMergeVal', 0)
+        channelMergeVal, _ = proj.readNumEntry(self._gv.attTitle, 'lsu/channelMergeVal', 0)
         self._dlg.channelMergeVal.setText(str(channelMergeVal))
         self.readChannelThreshold()
-        elevBandsThreshold, found = proj.readNumEntry(title, 'hru/elevBandsThreshold', 0)
+        elevBandsThreshold, found = proj.readNumEntry(self._gv.attTitle, 'hru/elevBandsThreshold', 0)
         if found:
             self._gv.elevBandsThreshold = elevBandsThreshold
-        numElevBands, found = proj.readNumEntry(title, 'hru/numElevBands', 0)
+        numElevBands, found = proj.readNumEntry(self._gv.attTitle, 'hru/numElevBands', 0)
         if found:
             self._gv.numElevBands = numElevBands
-        slopeBands, found = proj.readEntry(title, 'hru/slopeBands', '')
+        slopeBands, found = proj.readEntry(self._gv.attTitle, 'hru/slopeBands', '')
         if found and slopeBands != '':
             self._db.slopeLimits = QSWATUtils.parseSlopes(slopeBands)
-        slopeBandsFile, found = proj.readEntry(title, 'hru/slopeBandsFile', '')
+        slopeBandsFile, found = proj.readEntry(self._gv.attTitle, 'hru/slopeBandsFile', '')
         slopeBandsLayer = None
         if found and slopeBandsFile != '':
             slopeBandsFile = proj.readPath(slopeBandsFile)
@@ -6381,11 +6408,11 @@ class HRUs(QObject):
             self._gv.slopeBandsFile = slopeBandsFile
         else:
             self._gv.slopeBandsFile = ''
-        self.CreateHRUs.isMultiple, found = proj.readBoolEntry(title, 'hru/isMultiple', False)
-        self.CreateHRUs.isDominantHRU, found = proj.readBoolEntry(title, 'hru/isDominantHRU', True)
-        self.CreateHRUs.isArea, found = proj.readBoolEntry(title, 'hru/isArea', False)
-        self.CreateHRUs.isTarget, found = proj.readBoolEntry(title, 'hru/isTarget', False)
-        self.CreateHRUs.useArea, found = proj.readBoolEntry(title, 'hru/useArea', False)
+        self.CreateHRUs.isMultiple, found = proj.readBoolEntry(self._gv.attTitle, 'hru/isMultiple', False)
+        self.CreateHRUs.isDominantHRU, found = proj.readBoolEntry(self._gv.attTitle, 'hru/isDominantHRU', True)
+        self.CreateHRUs.isArea, found = proj.readBoolEntry(self._gv.attTitle, 'hru/isArea', False)
+        self.CreateHRUs.isTarget, found = proj.readBoolEntry(self._gv.attTitle, 'hru/isTarget', False)
+        self.CreateHRUs.useArea, found = proj.readBoolEntry(self._gv.attTitle, 'hru/useArea', False)
         if self.CreateHRUs.isMultiple:
             if self.CreateHRUs.isArea:
                 self._dlg.filterAreaButton.setChecked(True)
@@ -6401,22 +6428,22 @@ class HRUs(QObject):
             self._dlg.areaButton.setChecked(True)
         else:
             self._dlg.percentButton.setChecked(True)
-        self.CreateHRUs.areaVal, found = proj.readNumEntry(title, 'hru/areaVal', 0)
+        self.CreateHRUs.areaVal, found = proj.readNumEntry(self._gv.attTitle, 'hru/areaVal', 0)
         if found and self.CreateHRUs.areaVal > 0:
             self._dlg.areaVal.setText(str(self.CreateHRUs.areaVal))
-        self.CreateHRUs.landuseVal, found = proj.readNumEntry(title, 'hru/landuseVal', 0)
+        self.CreateHRUs.landuseVal, found = proj.readNumEntry(self._gv.attTitle, 'hru/landuseVal', 0)
         if found and self.CreateHRUs.landuseVal > 0:
             self._dlg.landuseVal.setText(str(self.CreateHRUs.landuseVal))
-        self.CreateHRUs.soilVal, found = proj.readNumEntry(title, 'hru/soilVal', 0)
+        self.CreateHRUs.soilVal, found = proj.readNumEntry(self._gv.attTitle, 'hru/soilVal', 0)
         if found and self.CreateHRUs.soilVal > 0:
             self._dlg.soilVal.setText(str(self.CreateHRUs.soilVal))
-        self.CreateHRUs.slopeVal, found = proj.readNumEntry(title, 'hru/slopeVal', 0)
+        self.CreateHRUs.slopeVal, found = proj.readNumEntry(self._gv.attTitle, 'hru/slopeVal', 0)
         if found and self.CreateHRUs.slopeVal > 0:
             self._dlg.slopeVal.setText(str(self.CreateHRUs.slopeVal))
-        self.CreateHRUs.targetVal, found = proj.readNumEntry(title, 'hru/targetVal', 0)
+        self.CreateHRUs.targetVal, found = proj.readNumEntry(self._gv.attTitle, 'hru/targetVal', 0)
         if found and self.CreateHRUs.targetVal > 0:
             self._dlg.targetVal.setText(str(self.CreateHRUs.targetVal))
-        useGWFlow, found = proj.readBoolEntry(title, 'hru/useGWFlow', False)
+        useGWFlow, found = proj.readBoolEntry(self._gv.attTitle, 'hru/useGWFlow', False)
         if found and useGWFlow:
             self._dlg.gwGroupBox.setVisible(True)
             self._dlg.gwflowButton.setChecked(True)
@@ -6429,27 +6456,26 @@ class HRUs(QObject):
         
     def saveEntries1(self, proj: QgsProject) -> None:
         """Write entries for landuse, soil, and landscape choices to project file."""
-        title = proj.title()
-        proj.writeEntry(title, 'landuse/file', proj.writePath(self.landuseFile))
-        proj.writeEntry(title, 'soil/file', proj.writePath(self.soilFile))
-        proj.writeEntry(title, 'landuse/table', self.landuseTable)
-        proj.writeEntry(title, 'landuse/plant', self._db.plantTable)
-        proj.writeEntry(title, 'landuse/urban', self._db.urbanTable)
-        proj.writeEntry(title, 'landuse/water', self._db.waterLanduse)
-        proj.writeEntry(title, 'soil/table', self.soilTable)
-        proj.writeEntry(title, 'soil/useSTATSGO', self._db.useSTATSGO)
-        proj.writeEntry(title, 'soil/useSSURGO', self._db.useSSURGO)
-        proj.writeEntry(title, 'soil/database', proj.writePath(self._db.plantSoilDatabase))
-        proj.writeEntry(title, 'soil/databaseTable', self._db.usersoilTable)
-        proj.writeEntry(title, 'lsu/useLandscapes', self._gv.useLandscapes)
+        proj.writeEntry(self._gv.attTitle, 'landuse/file', proj.writePath(self.landuseFile))
+        proj.writeEntry(self._gv.attTitle, 'soil/file', proj.writePath(self.soilFile))
+        proj.writeEntry(self._gv.attTitle, 'landuse/table', self.landuseTable)
+        proj.writeEntry(self._gv.attTitle, 'landuse/plant', self._db.plantTable)
+        proj.writeEntry(self._gv.attTitle, 'landuse/urban', self._db.urbanTable)
+        proj.writeEntry(self._gv.attTitle, 'landuse/water', self._db.waterLanduse)
+        proj.writeEntry(self._gv.attTitle, 'soil/table', self.soilTable)
+        proj.writeEntry(self._gv.attTitle, 'soil/useSTATSGO', self._db.useSTATSGO)
+        proj.writeEntry(self._gv.attTitle, 'soil/useSSURGO', self._db.useSSURGO)
+        proj.writeEntry(self._gv.attTitle, 'soil/database', proj.writePath(self._db.plantSoilDatabase))
+        proj.writeEntry(self._gv.attTitle, 'soil/databaseTable', self._db.usersoilTable)
+        proj.writeEntry(self._gv.attTitle, 'lsu/useLandscapes', self._gv.useLandscapes)
         if self._gv.useLandscapes:
-            proj.writeEntry(title, 'lsu/thresholdResFlood', self._dlg.reservoirThreshold.value())
+            proj.writeEntry(self._gv.attTitle, 'lsu/thresholdResFlood', self._dlg.reservoirThreshold.value())
         else:    
-            proj.writeEntry(title, 'lsu/thresholdResNoFlood', self._dlg.reservoirThreshold.value())
-        proj.writeEntry(title, 'lsu/useLeftRight', self._gv.useLeftRight)
-        proj.writeEntry(title, 'lsu/floodplainFile', proj.writePath(self._gv.floodFile))
-        proj.writeEntry(title, 'lsu/channelMergeByPercent', self._dlg.channelPercentButton.isChecked())
-        proj.writeEntry(title, 'lsu/channelMergeVal', self._dlg.channelMergeSlider.value())
+            proj.writeEntry(self._gv.attTitle, 'lsu/thresholdResNoFlood', self._dlg.reservoirThreshold.value())
+        proj.writeEntry(self._gv.attTitle, 'lsu/useLeftRight', self._gv.useLeftRight)
+        proj.writeEntry(self._gv.attTitle, 'lsu/floodplainFile', proj.writePath(self._gv.floodFile))
+        proj.writeEntry(self._gv.attTitle, 'lsu/channelMergeByPercent', self._dlg.channelPercentButton.isChecked())
+        proj.writeEntry(self._gv.attTitle, 'lsu/channelMergeVal', self._dlg.channelMergeSlider.value())
             
     def saveProj(self) -> None:
         """Write settings to the project file."""
@@ -6460,20 +6486,19 @@ class HRUs(QObject):
         
     def saveEntries2(self, proj: QgsProject) -> None:
         """Write entries for hru choices to project file."""
-        title = proj.title()
-        proj.writeEntry(title, 'hru/elevBandsThreshold', self._gv.elevBandsThreshold)
-        proj.writeEntry(title, 'hru/numElevBands', self._gv.numElevBands)
-        proj.writeEntry(title, 'hru/slopeBands', QSWATUtils.slopesToString(self._db.slopeLimits))
-        proj.writeEntry(title, 'hru/slopeBandsFile', proj.writePath(self._gv.slopeBandsFile))
-        proj.writeEntry(title, 'hru/isMultiple', self.CreateHRUs.isMultiple)
-        proj.writeEntry(title, 'hru/isDominantHRU', self.CreateHRUs.isDominantHRU)
-        proj.writeEntry(title, 'hru/isArea', self.CreateHRUs.isArea)
-        proj.writeEntry(title, 'hru/isTarget', self.CreateHRUs.isTarget)
-        proj.writeEntry(title, 'hru/useArea', self.CreateHRUs.useArea)
-        proj.writeEntry(title, 'hru/areaVal', self.CreateHRUs.areaVal)
-        proj.writeEntry(title, 'hru/landuseVal', self.CreateHRUs.landuseVal)
-        proj.writeEntry(title, 'hru/soilVal', self.CreateHRUs.soilVal)
-        proj.writeEntry(title, 'hru/slopeVal', self.CreateHRUs.slopeVal)
-        proj.writeEntry(title, 'hru/targetVal', self.CreateHRUs.targetVal)
-        proj.writeEntry(title, 'hru/useGWFlow', self._dlg.gwflowButton.isChecked())
+        proj.writeEntry(self._gv.attTitle, 'hru/elevBandsThreshold', self._gv.elevBandsThreshold)
+        proj.writeEntry(self._gv.attTitle, 'hru/numElevBands', self._gv.numElevBands)
+        proj.writeEntry(self._gv.attTitle, 'hru/slopeBands', QSWATUtils.slopesToString(self._db.slopeLimits))
+        proj.writeEntry(self._gv.attTitle, 'hru/slopeBandsFile', proj.writePath(self._gv.slopeBandsFile))
+        proj.writeEntry(self._gv.attTitle, 'hru/isMultiple', self.CreateHRUs.isMultiple)
+        proj.writeEntry(self._gv.attTitle, 'hru/isDominantHRU', self.CreateHRUs.isDominantHRU)
+        proj.writeEntry(self._gv.attTitle, 'hru/isArea', self.CreateHRUs.isArea)
+        proj.writeEntry(self._gv.attTitle, 'hru/isTarget', self.CreateHRUs.isTarget)
+        proj.writeEntry(self._gv.attTitle, 'hru/useArea', self.CreateHRUs.useArea)
+        proj.writeEntry(self._gv.attTitle, 'hru/areaVal', self.CreateHRUs.areaVal)
+        proj.writeEntry(self._gv.attTitle, 'hru/landuseVal', self.CreateHRUs.landuseVal)
+        proj.writeEntry(self._gv.attTitle, 'hru/soilVal', self.CreateHRUs.soilVal)
+        proj.writeEntry(self._gv.attTitle, 'hru/slopeVal', self.CreateHRUs.slopeVal)
+        proj.writeEntry(self._gv.attTitle, 'hru/targetVal', self.CreateHRUs.targetVal)
+        proj.writeEntry(self._gv.attTitle, 'hru/useGWFlow', self._dlg.gwflowButton.isChecked())
             

@@ -352,7 +352,7 @@ class Visualise(QObject):
         leftShortCut.activated.connect(self.animateStepLeft)  # type: ignore
         rightShortCut.activated.connect(self.animateStepRight)  # type: ignore
         self.title = proj.title()
-        observedFileName, found = proj.readEntry(self.title, 'observed/observedFile', '')
+        observedFileName, found = proj.readEntry(self.title.replace(' ', ''), 'observed/observedFile', '')
         if found:
             self.observedFileName = observedFileName
             self._dlg.observedFileEdit.setText(observedFileName)
@@ -1559,7 +1559,7 @@ class Visualise(QObject):
         self.observedFileName = observedFileName
         self._dlg.observedFileEdit.setText(observedFileName)
         proj = QgsProject.instance()
-        proj.writeEntry(self.title, 'observed/observedFile', self.observedFileName)
+        proj.writeEntry(self.title.replaces(' ', ''), 'observed/observedFile', self.observedFileName)
         proj.write()
         
     def selectBase(self, scenario:str=None) -> Optional[Tuple[str, int]]:

@@ -1609,28 +1609,28 @@ class GWFlow():
     def readProj(self) -> None:
         """Read aquifer thickness, permeability, observation and tile drain settings from the project file."""
         proj = QgsProject.instance()
-        title = proj.title()
-        aquiferThickness, found = proj.readEntry(title, 'gwflow/aquiferThickness', '')
+        attTitle = proj.title().replace(' ', '')
+        aquiferThickness, found = proj.readEntry(attTitle, 'gwflow/aquiferThickness', '')
         if found and aquiferThickness != '':
             aquiferThickness = proj.readPath(aquiferThickness)
             self._dlg.aquiferThickness.setText(aquiferThickness)
-        permeability, found = proj.readEntry(title, 'gwflow/aquiferPermeability', '')
+        permeability, found = proj.readEntry(attTitle, 'gwflow/aquiferPermeability', '')
         if found and permeability != '':
             permeability = proj.readPath(permeability)
             self._dlg.aquiferPermeability.setText(permeability)
-        observationLocations, found = proj.readEntry(title, 'gwflow/observationLocations', '')
+        observationLocations, found = proj.readEntry(attTitle, 'gwflow/observationLocations', '')
         if found and observationLocations != '':
             self.obs_file = proj.readPath(observationLocations)
             self._dlg.observationLocations.setText(self.obs_file)
-        tileDrains, found = proj.readEntry(title, 'gwflow/tileDrains', '')
+        tileDrains, found = proj.readEntry(attTitle, 'gwflow/tileDrains', '')
         if found and tileDrains != '':
             self.tiles_file = proj.readPath(tileDrains)
             self._dlg.tileDrains.setText(self.tiles_file)
-        initFile, found = proj.readEntry(title, 'gwflow/initFile', '')
+        initFile, found = proj.readEntry(attTitle, 'gwflow/initFile', '')
         if found and initFile != '':
             initFile = proj.readPath(initFile)
             self._dlg.initialization.setText(initFile)
-        outputTimes, found = proj.readEntry(title, 'gwflow/outputTimes', '')
+        outputTimes, found = proj.readEntry(attTitle, 'gwflow/outputTimes', '')
         if found and outputTimes != '':
             outputTimes = proj.readPath(outputTimes)
             self._dlg.outputTimes.setText(outputTimes)
@@ -1638,13 +1638,13 @@ class GWFlow():
     def saveProj(self):
         """Write entries for aquifer thickness, permeability, observation and tile drain files to project file."""
         proj = QgsProject.instance()
-        title = proj.title()
-        proj.writeEntry(title, 'gwflow/aquiferThickness', proj.writePath(self._dlg.aquiferThickness.text()))
-        proj.writeEntry(title, 'gwflow/aquiferPermeability', proj.writePath(self._dlg.aquiferPermeability.text()))
-        proj.writeEntry(title, 'gwflow/observationLocations', proj.writePath(self.obs_file))
-        proj.writeEntry(title, 'gwflow/tileDrains', proj.writePath(self.tiles_file))
-        proj.writeEntry(title, 'gwflow/initFile', proj.writePath(self._dlg.initialization.text()))
-        proj.writeEntry(title, 'gwflow/outputTimes', proj.writePath(self._dlg.outputTimes.text()))
+        attTitle = proj.title().replace(' ', '')
+        proj.writeEntry(attTitle, 'gwflow/aquiferThickness', proj.writePath(self._dlg.aquiferThickness.text()))
+        proj.writeEntry(attTitle, 'gwflow/aquiferPermeability', proj.writePath(self._dlg.aquiferPermeability.text()))
+        proj.writeEntry(attTitle, 'gwflow/observationLocations', proj.writePath(self.obs_file))
+        proj.writeEntry(attTitle, 'gwflow/tileDrains', proj.writePath(self.tiles_file))
+        proj.writeEntry(attTitle, 'gwflow/initFile', proj.writePath(self._dlg.initialization.text()))
+        proj.writeEntry(attTitle, 'gwflow/outputTimes', proj.writePath(self._dlg.outputTimes.text()))
         
 _GWFLOW_BASE = '''CREATE TABLE gwflow_base (
 cell_size INTEGER,

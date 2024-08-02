@@ -360,28 +360,28 @@ class Parameters:
     def readProj(self) -> None:
         """Read parameter data from project file."""
         proj = QgsProject.instance()
-        title = proj.title()
-        burninDepth = proj.readNumEntry(title, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
+        attTitle = proj.title().replace(' ','')
+        burninDepth = proj.readNumEntry(attTitle, 'params/burninDepth', Parameters._BURNINDEPTH)[0]
         self._dlg.burninDepth.setText(str(burninDepth))
-        channelWidthMultiplier = proj.readDoubleEntry(title, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
+        channelWidthMultiplier = proj.readDoubleEntry(attTitle, 'params/channelWidthMultiplier', Parameters._CHANNELWIDTHMULTIPLIER)[0]
         self._dlg.widthMult.setText(locale.str(channelWidthMultiplier))
-        channelWidthExponent = proj.readDoubleEntry(title, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
+        channelWidthExponent = proj.readDoubleEntry(attTitle, 'params/channelWidthExponent', Parameters._CHANNELWIDTHEXPONENT)[0]
         self._dlg.widthExp.setText(locale.str(channelWidthExponent))
-        channelDepthMultiplier = proj.readDoubleEntry(title, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
+        channelDepthMultiplier = proj.readDoubleEntry(attTitle, 'params/channelDepthMultiplier', Parameters._CHANNELDEPTHMULTIPLIER)[0]
         self._dlg.depthMult.setText(locale.str(channelDepthMultiplier))
-        channelDepthExponent = proj.readDoubleEntry(title, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
+        channelDepthExponent = proj.readDoubleEntry(attTitle, 'params/channelDepthExponent', Parameters._CHANNELDEPTHEXPONENT)[0]
         self._dlg.depthExp.setText(locale.str(channelDepthExponent))
-        reachSlopeMultiplier = proj.readDoubleEntry(title, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        reachSlopeMultiplier = proj.readDoubleEntry(attTitle, 'params/reachSlopeMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.reachSlopeMultiplier.setValue(reachSlopeMultiplier)
-        tributarySlopeMultiplier = proj.readDoubleEntry(title, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
+        tributarySlopeMultiplier = proj.readDoubleEntry(attTitle, 'params/tributarySlopeMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.tributarySlopeMultiplier.setValue(tributarySlopeMultiplier)
-        meanSlopeMultiplier = proj.readDoubleEntry(title, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
+        meanSlopeMultiplier = proj.readDoubleEntry(attTitle, 'params/meanSlopeMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.meanSlopeMultiplier.setValue(meanSlopeMultiplier)
-        mainLengthMultiplier = proj.readDoubleEntry(title, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
+        mainLengthMultiplier = proj.readDoubleEntry(attTitle, 'params/mainLengthMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.mainLengthMultiplier.setValue(mainLengthMultiplier)
-        tributaryLengthMultiplier = proj.readDoubleEntry(title, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
+        tributaryLengthMultiplier = proj.readDoubleEntry(attTitle, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
         self._dlg.tributaryLengthMultiplier.setValue(tributaryLengthMultiplier)
-        upslopeHRUDrain = proj.readNumEntry(title, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
+        upslopeHRUDrain = proj.readNumEntry(attTitle, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
         self._dlg.upslopeHRUDrain.setText(str(upslopeHRUDrain))
         settings = QSettings()
         if settings.contains('/QSWATPlus/FontSize'):
@@ -424,20 +424,20 @@ class Parameters:
             QSWATUtils.error('Tributary channel length multiplier may not be set to zero', self.isBatch)
             return
         proj = QgsProject.instance()
-        title = proj.title()
-        proj.writeEntry(title, 'params/burninDepth', int(self._dlg.burninDepth.text()))
-        proj.writeEntryDouble(title, 'params/channelWidthMultiplier', locale.atof(self._dlg.widthMult.text()))
-        proj.writeEntryDouble(title, 'params/channelWidthExponent', locale.atof(self._dlg.widthExp.text()))
-        proj.writeEntryDouble(title, 'params/channelDepthMultiplier', locale.atof(self._dlg.depthMult.text()))
-        proj.writeEntryDouble(title, 'params/channelDepthExponent', locale.atof(self._dlg.depthExp.text()))
-        proj.writeEntryDouble(title, 'params/reachSlopeMultiplier', locale.atof(self._dlg.reachSlopeMultiplier.text()))
-        proj.writeEntryDouble(title, 'params/tributarySlopeMultiplier', locale.atof(self._dlg.tributarySlopeMultiplier.text()))
-        proj.writeEntryDouble(title, 'params/meanSlopeMultiplier', locale.atof(self._dlg.meanSlopeMultiplier.text()))
-        proj.writeEntryDouble(title, 'params/mainLengthMultiplier', locale.atof(self._dlg.mainLengthMultiplier.text()))
-        proj.writeEntryDouble(title, 'params/tributaryLengthMultiplier', locale.atof(self._dlg.tributaryLengthMultiplier.text()))
+        attTitle = proj.title().replace(' ','')
+        proj.writeEntry(attTitle, 'params/burninDepth', int(self._dlg.burninDepth.text()))
+        proj.writeEntryDouble(attTitle, 'params/channelWidthMultiplier', locale.atof(self._dlg.widthMult.text()))
+        proj.writeEntryDouble(attTitle, 'params/channelWidthExponent', locale.atof(self._dlg.widthExp.text()))
+        proj.writeEntryDouble(attTitle, 'params/channelDepthMultiplier', locale.atof(self._dlg.depthMult.text()))
+        proj.writeEntryDouble(attTitle, 'params/channelDepthExponent', locale.atof(self._dlg.depthExp.text()))
+        proj.writeEntryDouble(attTitle, 'params/reachSlopeMultiplier', locale.atof(self._dlg.reachSlopeMultiplier.text()))
+        proj.writeEntryDouble(attTitle, 'params/tributarySlopeMultiplier', locale.atof(self._dlg.tributarySlopeMultiplier.text()))
+        proj.writeEntryDouble(attTitle, 'params/meanSlopeMultiplier', locale.atof(self._dlg.meanSlopeMultiplier.text()))
+        proj.writeEntryDouble(attTitle, 'params/mainLengthMultiplier', locale.atof(self._dlg.mainLengthMultiplier.text()))
+        proj.writeEntryDouble(attTitle, 'params/tributaryLengthMultiplier', locale.atof(self._dlg.tributaryLengthMultiplier.text()))
         upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
         if 0 <= upslopeHRUDrain <= 100:
-            proj.writeEntry(title, 'params/upslopeHRUDrain', int(self._dlg.upslopeHRUDrain.text()))
+            proj.writeEntry(attTitle, 'params/upslopeHRUDrain', int(self._dlg.upslopeHRUDrain.text()))
         proj.write()
         if self._gv is not None:
             self._gv.burninDepth = burninDepth

@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '2.5.4'
+    __version__ = '3.0.0'
 
     def __init__(self, iface):
         """Constructor."""
@@ -331,16 +331,18 @@ class QSWATPlus(QObject):
         self._odlg.projPath.setText('Restarting project ...')
         title = QFileInfo(proj.fileName()).baseName()
         proj.setTitle(title)
-        isHUCFromProjfile, found = proj.readBoolEntry(title, 'delin/isHUC', False)
+        # In project file, title without spaces is used as attribute
+        attTitle = title.replace(' ', '')
+        isHUCFromProjfile, found = proj.readBoolEntry(attTitle, 'delin/isHUC', False)
         if not found:
             # isHUC not previously set.  Use parameter above and record
-            proj.writeEntryBool(title, 'delin/isHUC', isHUC)
+            proj.writeEntryBool(attTitle, 'delin/isHUC', isHUC)
         else:
             isHUC = isHUCFromProjfile
-        isHAWQSFromProjfile, found = proj.readBoolEntry(title, 'delin/isHAWQS', False)
+        isHAWQSFromProjfile, found = proj.readBoolEntry(attTitle, 'delin/isHAWQS', False)
         if not found:
             # isHAWQS not previously set.  Use parameter above and record
-            proj.writeEntryBool(title, 'delin/isHAWQS', isHAWQS)
+            proj.writeEntryBool(attTitle, 'delin/isHAWQS', isHAWQS)
         else:
             isHAWQS = isHAWQSFromProjfile
         QSWATUtils.loginfo('isHAWQS is {0}'.format(isHAWQS))
@@ -357,8 +359,7 @@ class QSWATPlus(QObject):
         if 'native' not in [p.id() for p in QgsApplication.processingRegistry().providers()]:
             QgsApplication.processingRegistry().addProvider(QgsNativeAlgorithms())
         # enable edit button if converted from Arc with 'No GIS' option
-        title = proj.title()
-        choice, found = proj.readNumEntry(title, 'fromArc', -1)
+        choice, found = proj.readNumEntry(self._gv.attTitle, 'fromArc', -1)
         if found:
             self._gv.fromArcChoice = choice
             if choice == 2:  # NB value from convertFromArc.py
@@ -500,9 +501,8 @@ class QSWATPlus(QObject):
         if not proj:
             QSWATUtils.loginfo('demProcessed failed: no project')
             return False
-        title = proj.title()
         root = proj.layerTreeRoot()
-        demFile, found = proj.readEntry(title, 'delin/DEM', '')
+        demFile, found = proj.readEntry(self._gv.attTitle, 'delin/DEM', '')
         if not found or demFile == '':
             QSWATUtils.loginfo('demProcessed failed: no DEM')
             return False
@@ -522,7 +522,7 @@ class QSWATPlus(QObject):
         self._gv.cellArea = demLayer.rasterUnitsPerPixelX() * demLayer.rasterUnitsPerPixelY() * factor * factor
         # hillshade
         Delineation.addHillshade(demFile, root, demLayer, self._gv)
-        outletFile, found = proj.readEntry(title, 'delin/outlets', '')
+        outletFile, found = proj.readEntry(self._gv.attTitle, 'delin/outlets', '')
         if found and outletFile != '':
             outletFile = proj.readPath(outletFile)
             ft = FileTypes._OUTLETSHUC if self._gv.isHUC or self._gv.isHAWQS else FileTypes._OUTLETS
@@ -535,10 +535,10 @@ class QSWATPlus(QObject):
         else:
             outletLayer = None
         self._gv.outletFile = outletFile
-        self._gv.existingWshed = proj.readBoolEntry(title, 'delin/existingWshed', False)[0]
-        self._gv.useGridModel = proj.readBoolEntry(title, 'delin/useGridModel', False)[0]
-        self._gv.useLandscapes = proj.readBoolEntry(title, 'lsu/useLandscapes', False)[0]
-        streamFile, found = proj.readEntry(title, 'delin/net', '')
+        self._gv.existingWshed = proj.readBoolEntry(self._gv.attTitle, 'delin/existingWshed', False)[0]
+        self._gv.useGridModel = proj.readBoolEntry(self._gv.attTitle, 'delin/useGridModel', False)[0]
+        self._gv.useLandscapes = proj.readBoolEntry(self._gv.attTitle, 'lsu/useLandscapes', False)[0]
+        streamFile, found = proj.readEntry(self._gv.attTitle, 'delin/net', '')
         if self._gv.useGridModel or not self._gv.existingWshed:
             if not found or streamFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no streams shapefile')
@@ -553,12 +553,12 @@ class QSWATPlus(QObject):
                 return False
             self._gv.streamFile = streamFile
         if self._gv.useGridModel:
-            self._gv.gridSize, found = proj.readNumEntry(title, 'delin/gridSize', 0)
+            self._gv.gridSize, found = proj.readNumEntry(self._gv.attTitle, 'delin/gridSize', 0)
             if not found or self._gv.gridSize <= 0:
                 QSWATUtils.loginfo('demProcessed failed: grid size not set')
                 return False
         else:
-            channelFile, found = proj.readEntry(title, 'delin/channels', '')
+            channelFile, found = proj.readEntry(self._gv.attTitle, 'delin/channels', '')
             if not found or channelFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no channels shapefile')
                 return False
@@ -570,7 +570,7 @@ class QSWATPlus(QObject):
                 QSWATUtils.loginfo('demProcessed failed: no channels layer')
                 return False
             self._gv.channelFile = channelFile
-        subbasinsFile, found = proj.readEntry(title, 'delin/subbasins', '')
+        subbasinsFile, found = proj.readEntry(self._gv.attTitle, 'delin/subbasins', '')
         if not found or subbasinsFile == '':
             QSWATUtils.loginfo('demProcessed failed: no subbasins shapefile')
             return False
@@ -584,11 +584,11 @@ class QSWATPlus(QObject):
             QSWATUtils.loginfo('demProcessed failed: no subbasins layer')
             return False
         self._gv.subbasinsFile = subbasinsFile
-        self._gv.subsNoLakesFile, _ = proj.readEntry(title, 'delin/subsNoLakes', '')
+        self._gv.subsNoLakesFile, _ = proj.readEntry(self._gv.attTitle, 'delin/subsNoLakes', '')
         if self._gv.subsNoLakesFile != '':
             self._gv.subsNoLakesFile = proj.readPath(self._gv.subsNoLakesFile)
         if not self._gv.useGridModel:
-            wshedFile, found = proj.readEntry(title, 'delin/wshed', '')
+            wshedFile, found = proj.readEntry(self._gv.attTitle, 'delin/wshed', '')
             if not found or wshedFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no wshed shapefile')
                 return False
@@ -607,7 +607,7 @@ class QSWATPlus(QObject):
             return False
         base = QSWATUtils.join(demInfo.absolutePath(), demInfo.baseName())
         if not self._gv.existingWshed:
-            burnFile, found = proj.readEntry(title, 'delin/burn', '')
+            burnFile, found = proj.readEntry(self._gv.attTitle, 'delin/burn', '')
             if found and burnFile != '':
                 burnFile = proj.readPath(burnFile)
                 if not os.path.exists(burnFile):
@@ -621,7 +621,7 @@ class QSWATPlus(QObject):
         if not self._gv.useGridModel:
             self._gv.channelBasinFile = base + 'wChannel.tif'
             self._gv.srcChannelFile = base + 'srcChannel.tif'
-        streamDrainage = proj.readBoolEntry(title, 'delin/streamDrainage', False)[0]
+        streamDrainage = proj.readBoolEntry(self._gv.attTitle, 'delin/streamDrainage', False)[0]
         if self._gv.existingWshed:
             if not self._gv.useGridModel:
                 if not os.path.exists(self._gv.basinFile):
@@ -666,7 +666,7 @@ class QSWATPlus(QObject):
             if not os.path.exists(self._gv.channelBasinFile):
                 QSWATUtils.loginfo('demProcessed failed: no channel basins raster')
                 return False
-        snapFile, found = proj.readEntry(title, 'delin/snapOutlets', '')
+        snapFile, found = proj.readEntry(self._gv.attTitle, 'delin/snapOutlets', '')
         if found and snapFile != '':
             snapFile = proj.readPath(snapFile)
             if os.path.exists(snapFile):
@@ -676,14 +676,14 @@ class QSWATPlus(QObject):
         else:
             snapFile = ''
         lakeLayer = None
-        lakeFile, found = proj.readEntry(title, 'delin/lakes', '')
+        lakeFile, found = proj.readEntry(self._gv.attTitle, 'delin/lakes', '')
         if found and lakeFile != '':
             lakeFile = proj.readPath(lakeFile)
             if os.path.exists(lakeFile):
                 self._gv.lakeFile = lakeFile
                 lakeLayer = QgsVectorLayer(lakeFile, 'Lakes', 'ogr')
                 if self._gv.useGridModel:
-                    gridLakesAdded = proj.readBoolEntry(title, 'delin/gridLakesAdded', False)[0]
+                    gridLakesAdded = proj.readBoolEntry(self._gv.attTitle, 'delin/gridLakesAdded', False)[0]
                     if not gridLakesAdded:
                         QSWATUtils.loginfo('demProcessed failed: grid lakes not added')
                         return False
@@ -692,7 +692,7 @@ class QSWATPlus(QObject):
                     if os.path.exists(chBasinNoLakeFile):
                         self._gv.chBasinNoLakeFile = chBasinNoLakeFile
                         if not self._gv.existingWshed:
-                            lakePointsAdded = proj.readBoolEntry(title, 'delin/lakePointsAdded', False)[0]
+                            lakePointsAdded = proj.readBoolEntry(self._gv.attTitle, 'delin/lakePointsAdded', False)[0]
                             if not lakePointsAdded:
                                 QSWATUtils.loginfo('demProcessed failed: lake points not added')
                                 return False
