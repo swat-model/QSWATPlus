@@ -3,9 +3,9 @@
 QGIS plugin for creating inputs for SWAT+.
 
 ## Build
-The repository holds an Eclipse project.  It was created on Windows but runs in Eclipse on Windows and Linux (Ubuntu at least).
+The repository holds an Eclipse project.  It was created on Windows but runs in Eclipse on Windows and Linux (Ubuntu at least) and Macs.
 
-There is a Makefile that should provide enough information to build QSWATPlus.  It runs on Windows and Linux (Ubuntu at least).  
+There is a Makefile that should provide enough information to build QSWATPlus.   
 
 Note that the only interesting projects in the Makefile are QSWATPlus, QSWATPlusLinux3_64 and QSWATPlusMac3_64.
 QSWATPlus3_32 is 32-bit for use with 32-bit Microsoft Office.  QSWATPlus3_64 is only for 64-bit Microsoft Office and QGIS before 3.16.14 using Python 3.7.  QSWATPlus3_9 is 64 bit, only for Windows QGIS using Python 3.9, and QSWATPlus3_12 is only for Windows QGIS using Python 3.12.

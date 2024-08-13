@@ -273,6 +273,7 @@ class Visualise(QObject):
         """Initialise the visualise form."""
         self._dlg.tabWidget.setCurrentIndex(0)
         self._dlg.QtabWidget.setCurrentIndex(0)
+        self._dlg.finished.connect(self.doClose)
         self.setSummary()
         self.fillScenarios()
         self._dlg.scenariosCombo.activated.connect(self.setupDb)
@@ -932,7 +933,9 @@ class Visualise(QObject):
         for animation in QSWATUtils.getLayersInGroup(QSWATUtils._ANIMATION_GROUP_NAME, proj.layerTreeRoot()):
             proj.removeMapLayer(animation.layerId())
         # only close connection after removing animation layers as the map title is affected and recalculation needs connection
-        self.conn = None
+        if self.conn:
+            self.conn.close()
+            self.conn = None
         self._dlg.close()
         
     def plotSetUnit(self) -> None:
@@ -1559,7 +1562,7 @@ class Visualise(QObject):
         self.observedFileName = observedFileName
         self._dlg.observedFileEdit.setText(observedFileName)
         proj = QgsProject.instance()
-        proj.writeEntry(self.title.replaces(' ', ''), 'observed/observedFile', self.observedFileName)
+        proj.writeEntry(self.title.replace(' ', ''), 'observed/observedFile', self.observedFileName)
         proj.write()
         
     def selectBase(self, scenario:str=None) -> Optional[Tuple[str, int]]:

@@ -808,6 +808,8 @@ class QSWATPlus(QObject):
         try:
             self.delin = None
             self.hrus = None
+            if self.vis and self.vis.conn:
+                self.vis.conn.close()
             self.vis = None
             if self._gv and self._gv.db:
                 if self._gv.db.conn:
