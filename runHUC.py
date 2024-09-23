@@ -227,9 +227,10 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = True 
+    debugging = False 
     if debugging:
-        direc = r"K:\HUCModels\Models3\SWATPlus\Fields_CDL\HUC14\020801020403\huc020801020403\huc020801020403.qgs" 
+        direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020503040404\huc020503040404\huc020503040404.qgs"
+        #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020801020403\huc020801020403\huc020801020403.qgs" 
         dataDir = "K:/Data" 
         scale = 14 
         minHRUha = 1 

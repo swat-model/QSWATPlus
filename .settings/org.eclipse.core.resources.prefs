@@ -73,6 +73,7 @@ encoding//QSWATPlus/visualisedialog.py=utf-8
 encoding//csharp/QSWATPlus/DBUtils.py=utf-8
 encoding//csharp/QSWATPlus/QSWATPlusMain.py=utf-8
 encoding//csharp/QSWATPlus/QSWATTopology.py=utf-8
+encoding//csharp/QSWATPlus/convertFromArc.py=utf-8
 encoding//csharp/QSWATPlus/dataInC.pyx=utf-8
 encoding//csharp/QSWATPlus/globals.py=utf-8
 encoding//csharp/QSWATPlus/gwflow.py=utf-8

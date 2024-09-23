@@ -4,7 +4,7 @@ from Cython.Build import cythonize  # @UnresolvedImport
 import os
 import numpy
 
-includePath = os.environ['OSGEO4W_ROOT'] + r'/apps/Python39/include'
+includePath = os.environ['OSGEO4W_39_ROOT'] + r'/apps/Python39/include'
 numpyInclude = numpy.get_include()
 sep = ';'
 if 'INCLUDE' in os.environ:

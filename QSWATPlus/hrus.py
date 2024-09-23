@@ -115,8 +115,8 @@ class CreateHRUs(QObject):
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
         self._dlg = dialog
-        # comment out next line to expose gwflow
-        # dialog.gwGroupBox.setVisible(False)
+        # gwflow only available in Windows
+        dialog.gwGroupBox.setVisible(Parameters._ISWIN)
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -4118,6 +4118,7 @@ class CreateHRUs(QObject):
         def makeOutbasins(downSubbasins, outbasins):
             path = []
             maxx = len(downSubbasins)
+            #QSWATUtils.loginfo('Downsubbasins: {0}'.format(downSubbasins))
             for basin in downSubbasins:
                 nxt = basin
                 while len(path) <= maxx:
@@ -4131,18 +4132,18 @@ class CreateHRUs(QObject):
                     dsBasin = downSubbasins.get(nxt, -1)
                     if dsBasin < 0:
                         for p in path:
-                            outbasins[p] = basin
+                            outbasins[p] = nxt
                         path = []
                         break
                     nxt = dsBasin
                 if len(path) > maxx:
-                    #QSWATUtils.error('Failed to find outlet for basin {0} on path {1}'.format(basin, path), self._gv.isBatch)
+                    QSWATUtils.error('Failed to find outlet for basin {0} on path {1}'.format(basin, path), self._gv.isBatch)
                     l = len(path)
                     last = path[l - 1]
                     i = l - 2
                     while i >= 0:
                         if last == path[i]:
-                            QSWATUtils.error('Path has loop length {0}'.format(l - i))
+                            QSWATUtils.error('Path has loop length {0}'.format(l - i), self._gv.isBatch)
                             return
                         i -= 1
                     QSWATUtils.error('Path has no loop', self._gv.isBatch)
@@ -4516,7 +4517,7 @@ class CreateHRUs(QObject):
             tempDeepAqFile = QSWATUtils.join(self._gv.resultsDir, 'deep_temp.shp')
             tempLayer = QgsVectorLayer(tempDeepAqFile, 'temp', 'ogr')
             # add Aquifer field, set to number of outlet subbasin
-            addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins[x])
+            addNewField(tempLayer, tempDeepAqFile, QSWATTopology._AQUIFER, QSWATTopology._SUBBASIN, lambda x: outletSubbasins.get(x, 0))
             QSWATTopology.removeFields(tempLayer, [QSWATTopology._AQUIFER], tempDeepAqFile, self._gv.isBatch)
             aqIndex = 0   # only field left
             # dissolve on Aquifer field

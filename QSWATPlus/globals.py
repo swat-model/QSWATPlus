@@ -23,7 +23,7 @@
 from qgis.PyQt.QtCore import QFileInfo, QPoint, QSettings # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.PyQt.QtWidgets import QComboBox # @UnresolvedImport
-from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis   # @UnresolvedImport
+from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis, QgsProcessingContext, QgsFeatureRequest   # @UnresolvedImport
 from qgis.gui import QgisInterface   # @UnresolvedImport
 import os.path
 # import xml.etree.ElementTree as ET
@@ -227,8 +227,6 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.elevBandsThreshold = 0
         ## Number of elevation bands
         self.numElevBands = 0
-        ## Topology object
-        self.topo: QSWATTopology = QSWATTopology(isBatch, isHUC, isHAWQS)
         projFile: str = proj.fileName()
         projPath: str = QFileInfo(projFile).canonicalFilePath()
         pdir, base = os.path.split(projPath)
@@ -238,6 +236,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.projDir = pdir
         ## QSWAT+ version
         self.version = version
+        ## Topology object
+        self.topo = QSWATTopology(isBatch, isHUC, isHAWQS, self.projName)
         ## DEM directory
         self.demDir = ''
         ## Landuse directory
@@ -286,7 +286,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## log file for message output for HUC projects
         self.logFile = logFile
         ## Path of project database
-        self.db: DBUtils = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isHAWQS, self.logFile, self.isBatch)
+        self.db = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isHAWQS, self.logFile, self.isBatch)
         ## multiplier to turn DEM distances to metres
         self.horizontalFactor = 1
         ## multiplier to turn elevations to metres
@@ -337,6 +337,9 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         # 2: No GIS
         # NB These values are defined in convertFromArc.py
         self.fromArcChoice = -1
+        # processing context
+        self.processingContext = QgsProcessingContext()
+        self.processingContext.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         
     def createSubDirectories(self) -> None:
         """Create subdirectories under project file's directory."""

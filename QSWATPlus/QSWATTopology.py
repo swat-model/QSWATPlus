@@ -69,6 +69,7 @@ class QSWATTopology:
     ## Value used to indicate no basin since channel is zero length and has no points.
     ## Must be negative (since TauDEM basin (WSNO) numbers go from 0 up
     ## and must not be -1 since this indicates a 'not found' in most gets, or a main outlet
+    ## smae number used by makePlus for HUC models, so need to be kept consistent
     _NOBASIN = -2
     
     # lake water roles
@@ -168,7 +169,7 @@ class QSWATTopology:
     _HUCPointId = 100000  # for HUC models all point ids are this number or greater (must match value in HUC12Models.py in HUC12Watersheds 
     
     
-    def __init__(self, isBatch: bool, isHUC: bool, isHAWQS: bool) -> None:
+    def __init__(self, isBatch: bool, isHUC: bool, isHAWQS: bool, projName: str) -> None:
         """Initialise class variables."""
         ## Link to project database
         self.db: Optional[DBUtils] = None
@@ -305,6 +306,8 @@ class QSWATTopology:
         self.isHUC = isHUC
         ## flag for HAWQS projects
         self.isHAWQS = isHAWQS
+        ## project name
+        self.projName = projName
         ## table for memorizing distances from basin to join in flowpath with other basin:
         # basin -> otherBasin -> join distance in metres
         self.distancesToJoins: Dict[int, Dict[int, float]] = dict()
@@ -347,7 +350,7 @@ class QSWATTopology:
         self.outletAtStart = self.hasOutletAtStart(channelLayer, ad8Layer)
         QSWATUtils.loginfo('Outlet at start is {0!s}'.format(self.outletAtStart))
         self.outletsInLake.clear()
-        return self.saveOutletsAndSources(channelLayer, outletLayer, gv.useGridModel)
+        return self.saveOutletsAndSources(channelLayer, outletLayer, gv.streamFile, gv.useGridModel)
     
     def setCrs(self, demLayer: QgsRasterLayer, gv: Any) -> None:
         """Set crsProject and transformToLatLong if necessary."""
@@ -550,7 +553,7 @@ class QSWATTopology:
                     self.zeroChannels.add(chLink)
             maxChLink = max(maxChLink, chLink)
             self.downChannels[chLink] = dsChLink
-            if dsChLink >= 0 or dsNode2 >= 0:
+            if dsChLink2 >= 0 or dsNode2 >= 0:
                 self.downChannels2[chLink] = (dsChLink2, dsNode2)
                 if dsNode2 >= 0:
                     try:
@@ -2324,7 +2327,7 @@ class QSWATTopology:
             self.subbasinToSWATBasin[subbasin] = SWATBasin
             self.SWATBasinToSubbasin[SWATBasin] = subbasin
             SWATBasins.add(SWATBasin)
-        return True
+        return len(self.subbasinToSWATBasin) > 0 # else danger of no SWATBasins
     
     @staticmethod
     def makePositiveOutletIds(outletLayer: QgsVectorLayer) -> int:
@@ -3495,16 +3498,36 @@ class QSWATTopology:
                                         self.db.addToRouting(curs, ptId, ptCat, pointId, ptCat, QSWATTopology._TOTAL, 100)
                                         routedPoints.append(ptId)
                                     routedWater.append(wid)
-                        elif SWATChannel not in routedChannels:    
-                            self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
-                            routedChannels.append(SWATChannel)
+                        elif SWATChannel not in routedChannels:
+                            # need to check if there is a minor channel and if so whether it exits to the same subbasin
                             if dsSWATChannel2 > 0:
-                                self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
-                            elif dsNodeId2 > 0:
-                                self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
-                                if dsNodeId2 not in routedPoints:
-                                    self.db.addToRouting(curs, dsNodeId2, ptCat, 0, xCat, QSWATTopology._TOTAL, 100)
-                                    routedPoints.append(dsNodeId2)
+                                if gv.useGridModel:
+                                    dsSubbasin1 = self.chLinkToChBasin[dsChannel]
+                                    dsSubbasin2 = self.chLinkToChBasin[dsChannel2]
+                                else:
+                                    dsChBasin1 = self.chLinkToChBasin.get(dsChannel, -1)
+                                    dsSubbasin1 = self.chBasinToSubbasin.get(dsChBasin1, -1)
+                                    dsChBasin2 = self.chLinkToChBasin.get(dsChannel2, -1)
+                                    dsSubbasin2 = self.chBasinToSubbasin.get(dsChBasin2, -1)
+                                #if the downstream subbasins are the same, route 100% to the subbasin outlet and then split between the channels
+                                if dsSubbasin1 == dsSubbasin2:
+                                    self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, 100)
+                                    routedChannels.append(SWATChannel)
+                                    self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, mainPercent)
+                                    self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
+                                    routedPoints.append(pointId)
+                                else:
+                                    self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
+                                    routedChannels.append(SWATChannel)
+                                    self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
+                            else:
+                                self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
+                                routedChannels.append(SWATChannel)
+                                if dsNodeId2 > 0:
+                                    self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
+                                    if dsNodeId2 not in routedPoints:
+                                        self.db.addToRouting(curs, dsNodeId2, ptCat, 0, xCat, QSWATTopology._TOTAL, 100)
+                                        routedPoints.append(dsNodeId2)
                         if pointId not in routedPoints:
                             if dsSWATChannel > 0:
                                 widDown, roleDown = channelToWater.get(dsChannel, (-1, -1))
@@ -4142,9 +4165,21 @@ class QSWATTopology:
         QSWATUtils.error('Cannot find physically connected reaches in streams shapefile {0}.  Try increasing nearness threshold'.format(QSWATUtils.layerFileInfo(streamLayer).filePath()), self.isBatch)  
         return True
     
-    def saveOutletsAndSources(self, channelLayer: QgsVectorLayer, outletLayer: Optional[QgsVectorLayer], useGridModel: bool) -> bool:
+    def saveOutletsAndSources(self, channelLayer: QgsVectorLayer, outletLayer: Optional[QgsVectorLayer], streamFile: str, useGridModel: bool) -> bool:
         """Write outlets, downSubbasins, and (unless useGridModel)
-         inlets, upstreamFromInlets, and outletChannels  tables."""
+         inlets, upstreamFromInlets, and outletChannels  tables.
+         streamFile is used with HUC models."""
+         
+        def reachableFrom(a: int, b: int, mapp: Dict[int, int]):
+            """Test if a is reachable from b by stepping through mapp."""
+            if a == b:
+                return True
+            c = mapp.get(b, None)
+            if c is not None:
+                return reachableFrom(a, c, mapp)
+            else:
+                return False
+                      
         # in case called twice
         self.pointId = 0
         self.waterBodyId = 0
@@ -4280,6 +4315,25 @@ class QSWATTopology:
         # now find the channels which are on subbasin boundaries,
         # i.e. their downstream channels are in different basins
         hasInlet = False
+        if self.isHUC:
+            # channels may split and cause circularities in downsubbasins map
+            # so calculate it and subbasin outlets from streams shapefile
+            streamLayer = QgsVectorLayer(streamFile, 'streams', 'ogr')
+            linkIndex = self.getIndex(streamLayer, 'LINKNO')
+            dsLinkIndex = self.getIndex(streamLayer, 'DSLINKNO1')
+            # outlets of merged streams are unreliable
+            #outXIndex = self.getIndex(streamLayer, 'OutletX')
+            #outYIndex = self.getIndex(streamLayer, 'OutletY')
+            #subOutlets = dict()
+            for stream in streamLayer.getFeatures():
+                subbasin = stream[linkIndex]
+                dsSubbasin = stream[dsLinkIndex]
+                self.downSubbasins[subbasin] = dsSubbasin
+                #subOutlets[subbasin] = QgsPointXY(stream[outXIndex], stream[outYIndex])
+            # replace subbasins in other HUC12s with -1
+            for subbasin in self.downSubbasins:
+                if self.downSubbasins[subbasin] not in self.downSubbasins:
+                    self.downSubbasins[subbasin] = -1
         for chLink, dsChLink in downChannels.items():  
             subbasin = chLinkToSubbasin[chLink]
             if subbasin == QSWATTopology._NOBASIN: # from a zero-length channel
@@ -4290,7 +4344,17 @@ class QSWATTopology:
                 dsChLink = downChannels.get(dsChLink, -1)  
                 dsSubbasin = chLinkToSubbasin.get(dsChLink, -1)
             if subbasin != dsSubbasin:
-                self.downSubbasins[subbasin] = dsSubbasin
+                if self.isHUC:
+                    if dsSubbasin == self.downSubbasins[subbasin]:
+                        pass # this confirms outlet found
+                    # also possible for intermediate(s) to cause confusion as long as path does not go backwards
+                    elif not reachableFrom(subbasin, dsSubbasin, self.downSubbasins) and \
+                            reachableFrom(dsSubbasin, subbasin, self.downSubbasins):
+                        pass  # can take it as outlet found
+                    else:
+                        continue  # a false outlet caused by a minor channel
+                else:
+                    self.downSubbasins[subbasin] = dsSubbasin
                 # collect the basin's outlet location:
                 outletId, outletPt = self.chOutlets[chLink]
                 existOutlets = self.outlets.get(subbasin, None)
@@ -4299,8 +4363,12 @@ class QSWATTopology:
                 else:
                     outletid0, outletPt0, chLinks = existOutlets
                     if not QSWATTopology.coincidentPoints(outletPt0, outletPt, self.xThreshold, self.yThreshold):
-                        QSWATUtils.error('Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second'.
-                                         format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y()), self.isBatch)
+                        if self.isHUC:
+                            projRef = ' in ' + self.projName
+                        else:
+                            projRef = ''
+                        QSWATUtils.error('Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second{5}'.
+                                         format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y(), projRef), self.isBatch)
                     #else:
                     self.chOutlets[chLink] = outletid0, outletPt0
                     self.outlets[subbasin] = outletid0, outletPt0, chLinks + [chLink]

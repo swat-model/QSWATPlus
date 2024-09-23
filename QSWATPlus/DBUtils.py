@@ -232,8 +232,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.routingSources: Set[Tuple[int, str]] = set()
         ## routing targets
         self.routingSinks: Set[Tuple[int, str]] = set()
-        if self.isHUC:
-            self.writeSubmapping()
+        # subMapping no longer used
+        # if self.isHUC:
+        #     self.writeSubmapping()
             
     def connectToProjectDatabase(self):
         """ sqlite3 connection to project database"""
@@ -437,15 +438,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     def checkRoutingTable(self) -> None:
         """Checks that all non-exit sinks are sources.  Also checks all LSU and subbasin sources defined in gis_ table.
         Finally checks for circularities in gis_routing. """
+        if self.isHUC:
+            projRef = ' in ' + self.projName
+        else:
+            projRef = ''
         for sink in self.routingSinks:
             if sink[1] != 'X' and sink not in self.routingSources:
-                QSWATUtils.error('Internal error: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1]),
+                QSWATUtils.error('Internal error{2}: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1], projRef),
                                  self.isBatch)
         self.checkRoutedPointsSubbasinsAndLSUsDefined()
         # check routing table for circularities
         errors, warnings = self.checkRouting(self.conn)
         for error in errors:
-            QSWATUtils.error(error, self.isBatch)
+            QSWATUtils.error(error + projRef, self.isBatch)
         if len(warnings) > 5:
             QSWATUtils.information('See QSWAT+ log for {0} warnings about circularities in routing'.
                                    format(len(warnings)), self.isBatch)
@@ -1720,22 +1725,23 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
     
     _URBANTABLE = _URBAN_URB_TABLE
     
-    def writeSubmapping(self) -> None:
-        """Write submapping table for HUC projects."""
-        conn = sqlite3.connect(self.dbFile)  # @UndefinedVariable
-        cursor = conn.cursor()
-        sql0 = 'DROP TABLE IF EXISTS submapping'
-        cursor.execute(sql0)
-        sql1 = DBUtils._SUBMAPPINGCREATESQL
-        cursor.execute(sql1)
-        sql2 = 'INSERT INTO submapping VALUES(?,?,?)'
-        submapping = QSWATUtils.join(self.projDir, 'submapping.csv')
-        with open(submapping, 'r') as csvFile:
-            reader = csv.reader(csvFile)
-            _ = next(reader)  # skip heading
-            for line in reader:
-                cursor.execute(sql2, (int(line[0]), line[1], int(line[2])))
-        conn.commit()
+    # submapping table was used for HUC projects, but no longer
+    # def writeSubmapping(self) -> None:
+    #     """Write submapping table for HUC projects."""
+    #     conn = sqlite3.connect(self.dbFile)  # @UndefinedVariable
+    #     cursor = conn.cursor()
+    #     sql0 = 'DROP TABLE IF EXISTS submapping'
+    #     cursor.execute(sql0)
+    #     sql1 = DBUtils._SUBMAPPINGCREATESQL
+    #     cursor.execute(sql1)
+    #     sql2 = 'INSERT INTO submapping VALUES(?,?,?)'
+    #     submapping = QSWATUtils.join(self.projDir, 'submapping.csv')
+    #     with open(submapping, 'r') as csvFile:
+    #         reader = csv.reader(csvFile)
+    #         _ = next(reader)  # skip heading
+    #         for line in reader:
+    #             cursor.execute(sql2, (int(line[0]), line[1], int(line[2])))
+    #     conn.commit()
     
     def createBasinsDataTables(self, cursor: Any) -> bool:
         """Create BASINSDATA, LUSDATA, WATERDATA and HRUSDATA in project database.""" 
@@ -2473,9 +2479,14 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             for (SWATBasin, bands) in basinElevBands.items():
                 if bands is not None:
                     # need mid-points of bands, but list has start values
-                    el1 = bands[0][0]
-                    el2 = bands[1][0]
-                    semiWidth = (el2 - el1) / 2.0
+                    if len(bands) == 1:
+                        el1 = bands[0][0]
+                        mid = bands[0][1]
+                        semiWidth = mid - el1
+                    else:
+                        el1 = bands[0][0]
+                        el2 = bands[1][0]
+                        semiWidth = (el2 - el1) / 2.0
                     # with very small range of elevations in a subbasin can have fewer bands than numElevBands:
                     # len(bands) is at most number of enteger elevations in subbasin
                     # Conversely, with rounding errors can have more bands than numElevBands
@@ -2845,6 +2856,17 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             tcat = row['sinkcat']
             percent = float(row['percent'])
             hasZero = percent == 0
+            if percent < 100:
+                # add percent to percentages for this source
+                sourcePercentages = percentages.get(scat, None)
+                if sourcePercentages is None:
+                    percentages[scat] = {sid: {hydTyp: percent}}
+                else:
+                    hydTypPercentages = sourcePercentages.get(sid, None)
+                    if hydTypPercentages is None:
+                        hydTypPercentages = {hydTyp: percent}
+                    else:
+                        hydTypPercentages[hydTyp] += percent
             count = maxSteps
             while count > 0:
                 if scat in done and sid in done[scat]:
@@ -2856,18 +2878,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             done[pcat] = pids
                     pending = dict()
                     break  # from while loop
-                if percent < 100:
-                    # add percent to percentages for this source
-                    sourcePercentages = percentages.get(scat, None)
-                    if sourcePercentages is None:
-                        percentages[scat] = {sid: {hydTyp: percent}}
-                    else:
-                        hydTypPercentages = sourcePercentages.get(sid, None)
-                        if hydTypPercentages is None:
-                            hydTypPercentages = {hydTyp: percent}
-                        else:
-                            hydTypPercentages[hydTyp] += percent
-                else:
+                if percent == 100:
                     # Only include source in pending (which should become done) 
                     # if there is only one sink for it, else other sinks will be ignored.
                     # Pending is only used for efficiency, to avoid tracking every source to a final outlet,

@@ -1081,7 +1081,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             self._gv.basinFile = self.createBasinFile(self._gv.subbasinsFile, demLayer, 'wStream', root)
         self._gv.topo.addBasinsToChannelFile(channelsLayer, self._gv.basinFile)
         # recalculate tables dependent on channels
-        if not self._gv.topo.saveOutletsAndSources(channelsLayer, snapLayer, False):
+        if not self._gv.topo.saveOutletsAndSources(channelsLayer, snapLayer, self._gv.streamFile, False):
             return False
         self.lakePointsAdded = True
         return True
@@ -1093,8 +1093,8 @@ assumed that its crossing the lake boundary is an inaccuracy.
         root = QgsProject.instance().layerTreeRoot()
         subsNoLakes = os.path.split(self._gv.subbasinsFile)[0] + '/subsNoLakes.shp'
         QSWATUtils.tryRemoveLayerAndFiles(subsNoLakes, root)
-        params = {'INPUT': self._gv.subbasinsFile, 'OVERLAY': self._gv.lakeFile, 'OUTPUT': subsNoLakes}
-        processing.run('native:difference', params)
+        params = {'INPUT': self._gv.subbasinsFile, 'OVERLAY': self._gv.lakeFile, 'OUTPUT': subsNoLakes, 'GRID_SIZE': None}
+        processing.run('native:difference', params, context=self._gv.processingContext)
         if not os.path.isfile(subsNoLakes):
             QSWATUtils.error('Failed to create {0} file'.format(subsNoLakes), self._gv.isBatch)
             return False
@@ -1103,7 +1103,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # if not os.path.isfile(wChannelNoLakeFile):
         #     QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
         #     return False
-        # channelbasinfile has lakes removed already for HUC12 + models
+        # channelbasinfile has lakes removed already for HUC14 models, not for HUC12/10/8 models
         self._gv.chBasinNoLakeFile = self._gv.channelBasinFile
         # # now populate LakeIn etc fields
         # self._gv.topo.addLakeFieldsToChannels(channelsLayer)

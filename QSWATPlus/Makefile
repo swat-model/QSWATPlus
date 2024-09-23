@@ -50,8 +50,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus)
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES12 = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
 	OBJ_FILES9 = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
-	OBJ_FILES7 = $(PYX_FILES:.pyx=.cp37-win_amd64.pyd)
-	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9) $(OBJ_FILES7)
+	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py)
@@ -60,6 +59,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus)
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
 	PYTHON = $(OSGEO4W_ROOT)\apps\Python312\python
+	PYTHON39 = $(OSGEO4W_39_ROOT)\apps\Python39\python
 else ifeq ($(QSWAT_PROJECT), QSWATPlus3_12)
 	COMPILER = msvc
 	METADATA = metadata3_12.txt
@@ -238,7 +238,7 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 	@echo "------"
 	@echo "Cython"
 	@echo "------"
-	python setuppyx3.9.py build_ext --inplace --compiler=$(COMPILER)
+	$(PYTHON39) setuppyx3.9.py build_ext --inplace --compiler=$(COMPILER)
 
 %.cp37-win_amd64.pyd : %.pyx
 	@echo
