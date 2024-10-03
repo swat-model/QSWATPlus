@@ -44,9 +44,13 @@ class Parameters:
     _ISLINUX = platform.system() == 'Linux'
     _ISMAC = platform.system() == 'Darwin'
     _MACQGISDIR = '/Applications/QGIS-LTR.app'
-    _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus' if _ISWIN else os.path.expanduser('~') + '/.local/share/SWATPlus' if _ISLINUX else os.path.expanduser('~') + '/SWATPlus'
-    if not os.path.isdir(_SWATPLUSDEFAULTDIR) and (_ISLINUX or _ISMAC):
-        _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWATPlus'
+    _HOMEDIR = os.path.expanduser('~')
+    _SWATPLUSDEFAULTDIR = _HOMEDIR + r'\SWATPlus' if _ISWIN else _HOMEDIR + '/.local/share/SWATPlus' if _ISLINUX else _HOMEDIR + '/SWATPlus'
+    if not os.path.isdir(_SWATPLUSDEFAULTDIR):
+        if _ISWIN:
+            _SWATPLUSDEFAULTDIR = r'C:\SWAT\SWATPlus'
+        elif (_ISLINUX or _ISMAC):
+            _SWATPLUSDEFAULTDIR = '/usr/local/share/SWATPlus' if _ISLINUX else '/usr/local/share/SWATPlus'
     _SWATEDITOR = 'SWATPlusEditor.exe' if _ISWIN else 'SWATPlusEditor' if _ISLINUX else 'SWATPlusEditor.app/Contents/MacOS/SWATPlusEditor'
     _SWATEDITORDIR = 'SWATPlusEditor'
     _MPIEXEC = 'mpiexec.exe' if _ISWIN else 'mpiexec' if _ISLINUX else 'mpiexec'
@@ -192,7 +196,7 @@ class Parameters:
         if self.mpiexecDir == '':
             self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
         elif not os.path.isdir(self.mpiexecDir):
-            settings.remove('/QSWATPlus/SWATPlusDir')
+            settings.remove('/QSWATPlus/mpiexecDir')
             self.mpiexecDir = Parameters._MPIEXECDEFAULTDIR
         ## number of MPI processes
         self.numProcesses = settings.value('/QSWATPlus/NumProcesses', '')

@@ -22,7 +22,7 @@
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QFileInfo, QPoint, QSettings # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
-from qgis.PyQt.QtWidgets import QComboBox # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QComboBox, QMessageBox # @UnresolvedImport
 from qgis.core import QgsProject, QgsCoordinateReferenceSystem, QgsVectorFileWriter, Qgis, QgsProcessingContext, QgsFeatureRequest   # @UnresolvedImport
 from qgis.gui import QgisInterface   # @UnresolvedImport
 import os.path
@@ -52,7 +52,21 @@ class GlobalVars:
         """Initialise class variables."""
         settings = QSettings()
         if settings.contains('/QSWATPlus/SWATPlusDir'):
-            SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
+            if Parameters._ISWIN:
+                SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
+                # choice to update to latest SWATPlus location if exists and not current setting
+                newSWATPlusDir = Parameters._HOMEDIR + r'\SWATPlus'
+                if not isBatch and os.path.isdir(newSWATPlusDir) and os.path.normcase(SWATPlusDir) == 'c:\\swat\\swatplus':
+                    if QSWATUtils.question("""
+It looks like you recently upgraded QSWAT+.  The SWATPlus directory has moved to 
+{0}.
+Change your settings to use the new directory?
+
+if {0} is used for some other purpose you might want to rename it to stop this question being repeated.""".
+                        format(newSWATPlusDir), isBatch, False) == QMessageBox.Yes:
+                        SWATPlusDir = newSWATPlusDir
+            else:
+                SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
             if not os.path.isdir(SWATPlusDir):
                 SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR 
         else:

@@ -4321,15 +4321,15 @@ class QSWATTopology:
             streamLayer = QgsVectorLayer(streamFile, 'streams', 'ogr')
             linkIndex = self.getIndex(streamLayer, 'LINKNO')
             dsLinkIndex = self.getIndex(streamLayer, 'DSLINKNO1')
-            # outlets of merged streams are unreliable
-            #outXIndex = self.getIndex(streamLayer, 'OutletX')
-            #outYIndex = self.getIndex(streamLayer, 'OutletY')
-            #subOutlets = dict()
+            # outlets of merged streams are unreliable but can be used to disambiguate multiple channel outlets
+            outXIndex = self.getIndex(streamLayer, 'OutletX')
+            outYIndex = self.getIndex(streamLayer, 'OutletY')
+            subOutlets = dict()
             for stream in streamLayer.getFeatures():
                 subbasin = stream[linkIndex]
                 dsSubbasin = stream[dsLinkIndex]
                 self.downSubbasins[subbasin] = dsSubbasin
-                #subOutlets[subbasin] = QgsPointXY(stream[outXIndex], stream[outYIndex])
+                subOutlets[subbasin] = QgsPointXY(stream[outXIndex], stream[outYIndex])
             # replace subbasins in other HUC12s with -1
             for subbasin in self.downSubbasins:
                 if self.downSubbasins[subbasin] not in self.downSubbasins:
@@ -4365,9 +4365,14 @@ class QSWATTopology:
                     if not QSWATTopology.coincidentPoints(outletPt0, outletPt, self.xThreshold, self.yThreshold):
                         if self.isHUC:
                             projRef = ' in ' + self.projName
+                            if QSWATTopology.coincidentPoints(outletPt, subOutlets[subbasin], self.xThreshold, self.yThreshold):
+                                # choose outletPt as coincident with stream outlet
+                                outletId0 = outletId
+                                outletPt0 = outletPt
+                            # else stick with original
                         else:
                             projRef = ''
-                        QSWATUtils.error('Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second{5}'.
+                        QSWATUtils.information('WARNIING: Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second{5}'.
                                          format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y(), projRef), self.isBatch)
                     #else:
                     self.chOutlets[chLink] = outletid0, outletPt0

@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.0.1'
+    __version__ = '3.0.2'
 
     def __init__(self, iface):
         """Constructor."""
@@ -345,7 +345,7 @@ class QSWATPlus(QObject):
             proj.writeEntryBool(attTitle, 'delin/isHAWQS', isHAWQS)
         else:
             isHAWQS = isHAWQSFromProjfile
-        QSWATUtils.loginfo('isHAWQS is {0}'.format(isHAWQS))
+        #QSWATUtils.loginfo('isHAWQS is {0}'.format(isHAWQS))
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
         self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC, isHAWQS, logFile)

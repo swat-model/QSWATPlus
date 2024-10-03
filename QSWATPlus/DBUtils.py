@@ -978,6 +978,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         # so cannot use sqlite3.Row which returns rows as dictionaries with arbitrary order
         conn.row_factory = lambda _,row : row
         usersoilTable = self.getUsersoilTable()
+        errorReported = False
         try:
             # single usersoil table has 152 columns, one with separate layer table has 11: 
             # we leave room for expansion by using 20 as limit
@@ -1028,14 +1029,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     if not row:
                         if self.isHUC:
                             continue  # assume already reported
-                        QSWATUtils.error('SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
-                                         format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
-                        return False
-                    sid += 1
-                    if hasSeparateLayerTable:
-                        lid = self.writeUsedSoilRowSeparate(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
+                        if not errorReported:
+                            QSWATUtils.error("""
+SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table incomplete.
+See QSWAT+ log messages for full list of undefined soils.""".
+                                             format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
+                            errorReported = True
+                        QSWATUtils.logerror('SSURGO soil {0} not defined'.format(ssurgoId))
                     else:
-                        lid = self.writeUsedSoilRow(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer)
+                        sid += 1
+                        if hasSeparateLayerTable:
+                            lid = self.writeUsedSoilRowSeparate(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
+                        else:
+                            lid = self.writeUsedSoilRow(sid, lid, str(ssurgoId), row, writeCursor, insert, insertLayer)
             else: 
                 for name in self.usedSoilNames.values():
                     if self.useSTATSGO:
@@ -1049,14 +1055,19 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         args = (name,)
                     row = readCursor.execute(sql, args).fetchone()
                     if not row:
-                        QSWATUtils.error('Soil name {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table not written.'.
+                        if not errorReported:
+                            QSWATUtils.error(
+"""Soil name {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table incomplete.
+See QSWAT+ log messages for full list of undefined soils.""".
                                          format(name, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
-                        return False
-                    sid += 1
-                    if hasSeparateLayerTable:
-                        lid = self.writeUsedSoilRowSeparate(sid, lid, name, row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
+                            errorReported = True
+                        QSWATUtils.logerror('Soil name {0} not defined'.format(ssurgoId))
                     else:
-                        lid = self.writeUsedSoilRow(sid, lid, name, row, writeCursor, insert, insertLayer)
+                        sid += 1
+                        if hasSeparateLayerTable:
+                            lid = self.writeUsedSoilRowSeparate(sid, lid, name, row, writeCursor, insert, insertLayer, readCursor, sqlLayer)
+                        else:
+                            lid = self.writeUsedSoilRow(sid, lid, name, row, writeCursor, insert, insertLayer)
             return True
         except Exception:
             QSWATUtils.exceptionError('Could not create {2} and {3} tables from {0} table in soil database {1}'.

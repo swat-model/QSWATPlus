@@ -462,7 +462,7 @@ class ConvertFromArc(QObject):
         return True
     
     def createOutletShapefiles(self, isFull: bool) -> bool:
-        """Create inlets\outlets file and extra inlets\outlets file.  Return true if OK.
+        r"""Create inlets\outlets file and extra inlets\outlets file.  Return true if OK.
         
         The inlets/outlets shapefile is created even if not isFull, although it is not recorded in the project file,
         as it might be useful to users if they decide to delineate again.
@@ -486,7 +486,7 @@ class ConvertFromArc(QObject):
         if not self.makeOutletFile(qOutlets, fields, prjFile):
             return False
         # add main outlets and inlets to outlets file
-        qOutletsLayer = QgsVectorLayer(qOutlets, 'Inlets\outlets', 'ogr')
+        qOutletsLayer = QgsVectorLayer(qOutlets, 'Inlets-outlets', 'ogr')
         provider = qOutletsLayer.dataProvider()
         idIndex = provider.fieldNameIndex('ID')
         inletIndex = provider.fieldNameIndex('INLET')
@@ -2494,7 +2494,7 @@ class ConvertFromArc(QObject):
         
     @staticmethod
     def getMaxFileOrDir(direc: str, base: str, suffix: str) -> str:
-        """Find and return the maximum file of the form 'direc\basensuffix' or 'direc\basen if suffix is empty."""
+        """Find and return the maximum file of the form 'direc/basensuffix' or 'direc/basen if suffix is empty."""
         num = 1
         current = os.path.join(direc, base + str(num) + suffix)
         while True:
@@ -2549,7 +2549,7 @@ class ConvertFromArc(QObject):
     def copyAllFiles(inDir: str, outDir: str) -> None:
         """Copy files (containing at least one .) from inDir to OutDir."""
         if os.path.exists(inDir):
-            patt = inDir + '\*.*'
+            patt = inDir + r'\*.*'
             for f in glob.iglob(patt):
                 shutil.copy(f, outDir)
                 
