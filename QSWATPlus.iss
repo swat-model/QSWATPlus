@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus"
 #define MyAppVersion "3.0"
-#define MyAppSubVersion "2"
+#define MyAppSubVersion "3"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -42,26 +42,42 @@ Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
 ; was installed in wrong place
 Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
 ; clean up  TauDEM539Bin
-Type: files; Name: "C:\SWAT\SWATPlus\TauDEM539Bin\*";
+Type: files; Name: "{code:SWATPlusDir}\TauDEM539Bin\*";
 
 [Files]
 Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Excludes: "testdata,__pycache__"; Flags: ignoreversion recursesubdirs createallsubdirs   
-Source: "C:\SWAT\SWATPlus\TauDEM539_304Bin\*"; DestDir: "C:\SWAT\SWATPlus\TauDEM539Bin"; Flags: ignoreversion 
-Source: "{#SourcePath}Databases\QSWATPlusProj.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-Source: "{#SourcePath}Databases\plant.csv"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-; Source: "{#SourcePath}Databases\QSWATPlusProjHAWQS.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-; Source: "{#SourcePath}Databases\QSWATPlusRefHAWQS.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion
-; Source: "{#SourcePath}Databases\SSURGO_Soils_HUC.sqlite"; DestDir: "C:\SWAT\SWATPlus\Databases";  Flags: ignoreversion  
-Source: "{#SourcePath}\GridGen\*"; DestDir: "C:\SWAT\SWATPlus\gwflow";  Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\SWAT\SWATPlus\TauDEM539_304Bin\*"; DestDir: "{code:SWATPlusDir}\TauDEM539Bin"; Flags: ignoreversion 
+Source: "{#SourcePath}Databases\QSWATPlusProj.sqlite"; DestDir: "{code:SWATPlusDir}\Databases";  Flags: ignoreversion
+Source: "{#SourcePath}Databases\plant.csv"; DestDir: "{code:SWATPlusDir}\Databases";  Flags: ignoreversion
+; Source: "{#SourcePath}Databases\QSWATPlusProjHAWQS.sqlite"; DestDir: "{code:SWATPlusDir}\Databases";  Flags: ignoreversion
+; Source: "{#SourcePath}Databases\QSWATPlusRefHAWQS.sqlite"; DestDir: "{code:SWATPlusDir}\Databases";  Flags: ignoreversion
+; Source: "{#SourcePath}Databases\SSURGO_Soils_HUC.sqlite"; DestDir: "{code:SWATPlusDir}\Databases";  Flags: ignoreversion  
+Source: "{#SourcePath}\GridGen\*"; DestDir: "{code:SWATPlusDir}\gwflow";  Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
-var
+var    
+   SWATPlusDirHasRun : Boolean;
+   SWATPlusDirResult: String;
    QGISPluginDirHasRun : Boolean;
    QGISPluginDirResult: String;
 
 function MainQGISPluginDir(Param: String): String; forward;
 function QGISDir(Dir: String; PartName: String): String; forward;
 function SubSubVersion(Name: String): Integer; forward;
+
+function SWATPlusDir(Param: String): String;
+begin
+  if not SWATPlusDirHasRun then begin
+    if IsAdminInstallMode then begin
+      SWATPlusDirResult := 'C:\SWAT\SWATPlus'
+    end else begin
+      SWATPlusDirResult := ExpandConstant('{%USERPROFILE}') + '\SWATPlus'
+      //MsgBox('SWATPlus directory is ' + SWATPlusDirResult, mbInformation, MB_OK);
+    end
+  end;
+  SWATPlusDirHasRun := True;
+  Result := SWATPlusDirResult;
+end;
 
 function QGISPluginDir(Param: String): String;
 begin

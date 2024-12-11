@@ -3062,9 +3062,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
     _WATERCREATESQL = \
         """
         CREATE TABLE gis_water (
-            id    INTEGER PRIMARY KEY
-                             UNIQUE
-                             NOT NULL,
+            id    INTEGER,
             wtype TEXT,
             lsu   INTEGER,
             subbasin INTEGER,

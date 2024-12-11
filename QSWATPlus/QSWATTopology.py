@@ -562,8 +562,8 @@ class QSWATTopology:
                         features = outletLayer.getFeatures(QgsFeatureRequest(exp))
                         for point in features:
                             pt = point.geometry().asPoint()
+                            self.outlets2.setdefault(subbasin, set()).add((dsNode2, pt, dsNode2))
                             break
-                        self.outlets2.setdefault(subbasin, set()).add((dsNode2, pt, dsNode2))
                     except Exception:
                         QSWATUtils.error('Failed find point {0}: {1}'.format(dsNode2, traceback.format_exc()))
             self.channelLengths[chLink] = length
@@ -2373,7 +2373,7 @@ class QSWATTopology:
         # check p is sufficiently near point
         if QSWATTopology.distanceMeasure(p, point) <= threshold * threshold:
             # before returning p, move it along the stream a little if it is on or close to a '4 corners' position
-            # since TauDEM can fail to make a boundary or use its id as a DSNODEID if is so positioned
+            # since TauDEM can  to make a boundary or use its id as a DSNODEID if is so positioned
             if p1 == p2:
                 # a point on the line was chosen, which is safe (points on the line are centres of DEM cells)
                 return p
@@ -2683,6 +2683,7 @@ class QSWATTopology:
             curs.execute(clearSQL)
             curs.execute(self.db._POINTSCREATESQL)
             waterAdded: List[int] = []
+            outletsAdded: List[int] = []
             # Add outlets from streams
             for subbasin, (pointId, pt, _) in self.outlets.items():
                 if subbasin in self.upstreamFromInlets:
@@ -2691,6 +2692,7 @@ class QSWATTopology:
                 if elev is None:
                     elev = 0
                 self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                outletsAdded.append(pointId)
             # Add minor outlets for HUC and HAWQS models
             for subbasin, outlets in self.outlets2.items():
                 for (pointId, pt, _) in outlets:
@@ -2698,6 +2700,20 @@ class QSWATTopology:
                     if elev is None:
                         elev = 0
                     self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                    outletsAdded.append(pointId)
+            # make sure chOutlets included: seem to be omitted with HUC models
+            for chLink, (pointId, pt) in self.chOutlets.items():
+                if pointId in outletsAdded:
+                    continue
+                chBasin = self.chLinkToChBasin.get(chLink, -1)
+                subbasin = self.chBasinToSubbasin.get(chBasin, -1)
+                if subbasin < 0 or subbasin in self.upstreamFromInlets:
+                    continue
+                elev = QSWATTopology.valueAtPoint(pt, demLayer)
+                if elev is None:
+                    elev = 0
+                self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                outletsAdded.append(pointId)
             # Add inlets
             if useGridModel:
                 for chLink, (pointId, pt) in self.chLinkToInlet.items():
@@ -3095,9 +3111,11 @@ class QSWATTopology:
                 else:
                     chBasin = self.chLinkToChBasin.get(channel, -1)
                     subbasin = self.chBasinToSubbasin.get(chBasin, -1)
-                SWATBasin = 0 if channel in self.chLinkInsideLake else self.subbasinToSWATBasin.get(subbasin, 0)
+                lakeInId = self.chLinkIntoLake.get(channel, 0)
                 lakeOutId = self.chLinkFromLake.get(channel, 0)
-                if SWATBasin == 0 and (lakeOutId == 0 or self.downChannels.get(channel, -1) < 0):
+                solelyInLake = lakeInId == 0 and lakeOutId == 0 and channel in self.chLinkInsideLake
+                SWATBasin = 0 if solelyInLake else self.subbasinToSWATBasin.get(subbasin, 0)
+                if SWATBasin == 0 and (solelyInLake or self.downChannels.get(channel, -1) < 0):
                     toDelete.append(fid)
                     continue
                 if gv.useGridModel:
@@ -3148,7 +3166,6 @@ class QSWATTopology:
                                        channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
                     self.db.addKey(table, SWATChannel)
                 if addToRiv1:
-                    lakeInId = self.chLinkIntoLake.get(channel, 0)
                     mmap[fid] = dict()
                     mmap[fid][areaCIdx] = drainAreaHa
                     mmap[fid][orderIdx] = order
@@ -3455,9 +3472,14 @@ class QSWATTopology:
                             self.db.addToRouting(curs, inletId, ptCat, wid, wCat, QSWATTopology._TOTAL, 100)
                         else:
                             self.db.addToRouting(curs, inletId, ptCat, SWATChannel, chCat, QSWATTopology._TOTAL, 100)
-                    (pointId, _, outletChannels) = self.outlets[subbasin]
-                    if channel in outletChannels or gv.useGridModel:
-                        # subbasin outlet: channel routes to outlet point of subbasin; outlet routes to downstream channel
+                    pointId = -1
+                    (ptId, _, outletChannels) = self.outlets[subbasin]
+                    if channel in outletChannels:
+                        pointId = ptId
+                    elif self.isHUC:  # subbasins can have multiple channel outlets 
+                        pointId, _ = self.chOutlets.get(channel, (-1, None))
+                    if pointId > 0 or gv.useGridModel:
+                        # subbasin outlet: channel routes to some outlet point of subbasin; outlet routes to downstream channel
                         # but with some exceptions:
                         # - if the channel is replaced by a reservoir, this is routed to the outlet instead
                         # - if subbasin has an extra point source, this is added to its outlet channel or reservoir
@@ -3647,6 +3669,7 @@ class QSWATTopology:
                             continue
                     lakeId = self.outletsInLake.get(subbasin, -1)
                     # if one chLink is inside lake, all will be, since they share their outlet point
+                    # does not seem to be true for HUC models, where right link (coincident with stream exit) must be first
                     if lakeId < 0:
                         lakeId = self.chLinkInsideLake.get(chLinks[0], -1)
                     if lakeId < 0:
@@ -4170,13 +4193,16 @@ class QSWATTopology:
          inlets, upstreamFromInlets, and outletChannels  tables.
          streamFile is used with HUC models."""
          
-        def reachableFrom(a: int, b: int, mapp: Dict[int, int]):
+        def reachableFrom(a: int, b: int, mapp: Dict[int, int], maxSteps: int):
             """Test if a is reachable from b by stepping through mapp."""
             if a == b:
                 return True
             c = mapp.get(b, None)
             if c is not None:
-                return reachableFrom(a, c, mapp)
+                if maxSteps <= 0:
+                    QSWATUtils.error('{0} has circukar downstream relation'.format(streamFile), True)
+                    return False
+                return reachableFrom(a, c, mapp, maxSteps - 1)
             else:
                 return False
                       
@@ -4216,7 +4242,8 @@ class QSWATTopology:
         else:
             if subbasinIndex < 0:
                 return False   
-        dsNodeIndex = self.getIndex(channelLayer, QSWATTopology._DSNODEID, ignoreMissing=True)
+        DSNODEID = QSWATTopology._DSNODEID1 if self.isHUC else QSWATTopology._DSNODEID
+        dsNodeIndex = self.getIndex(channelLayer, DSNODEID, ignoreMissing=True)
         if outletLayer is not None:
             outletProvider = outletLayer.dataProvider()
             idIndex = self.getProviderIndex(outletProvider, QSWATTopology._ID, ignoreMissing=False)
@@ -4347,36 +4374,49 @@ class QSWATTopology:
                 if self.isHUC:
                     if dsSubbasin == self.downSubbasins[subbasin]:
                         pass # this confirms outlet found
-                    # also possible for intermediate(s) to cause confusion as long as path does not go backwards
-                    elif not reachableFrom(subbasin, dsSubbasin, self.downSubbasins) and \
-                            reachableFrom(dsSubbasin, subbasin, self.downSubbasins):
-                        pass  # can take it as outlet found
                     else:
-                        continue  # a false outlet caused by a minor channel
+                        # also possible for intermediate(s) to cause confusion as long as path does not go backwards
+                        maxSteps = len(self.downSubbasins)
+                        if not reachableFrom(subbasin, dsSubbasin, self.downSubbasins, maxSteps) and \
+                                reachableFrom(dsSubbasin, subbasin, self.downSubbasins, maxSteps):
+                            pass  # can take it as outlet found
+                        else:
+                            continue  # a false outlet caused by a minor channel
                 else:
                     self.downSubbasins[subbasin] = dsSubbasin
                 # collect the basin's outlet location:
                 outletId, outletPt = self.chOutlets[chLink]
                 existOutlets = self.outlets.get(subbasin, None)
                 if existOutlets is None:
-                    self.outlets[subbasin] = (outletId, outletPt, [chLink])
+                    if self.isHUC:
+                        streamOutlet = subOutlets[subbasin]
+                        if QSWATTopology.coincidentPoints(outletPt, streamOutlet, self.xThreshold, self.yThreshold):
+                            self.outlets[subbasin] = (outletId, outletPt, [chLink])
+                        else:
+                            #pass # it's a subbasin channel outlet but not the main one
+                            # it's better to use it than risk not having any
+                            self.outlets[subbasin] = (outletId, outletPt, [chLink])
+                    else:
+                        self.outlets[subbasin] = (outletId, outletPt, [chLink])
                 else:
-                    outletid0, outletPt0, chLinks = existOutlets
+                    outletId0, outletPt0, chLinks = existOutlets
                     if not QSWATTopology.coincidentPoints(outletPt0, outletPt, self.xThreshold, self.yThreshold):
                         if self.isHUC:
-                            projRef = ' in ' + self.projName
-                            if QSWATTopology.coincidentPoints(outletPt, subOutlets[subbasin], self.xThreshold, self.yThreshold):
-                                # choose outletPt as coincident with stream outlet
-                                outletId0 = outletId
-                                outletPt0 = outletPt
-                            # else stick with original
+                            pass # it's a subbasin channel outlet but not the main one
+                            # elif QSWATTopology.coincidentPoints(outletPt0, streamOutlet, self.xThreshold, self.yThreshold):
+                            #     # choose outletPt0 as coincident with stream outlet: make sure it comes first
+                            #     self.outlets[subbasin] = outletId0, outletPt0, [chLink] + chLinks 
+                            # else:
+                            #     QSWATUtils.information('WARNING: Polygon {0} has a stream outlet at ({1}, {2}) and channel outlets at ({3}, {4}) and ({5}, {6}).  Using channel outlet ({3}, {4}){7}'.
+                            #              format(subbasin, streamOutlet.x(), streamOutlet.y(), outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y(), projRef), self.isBatch)
+                            #     # outlet should be corrected later
+                            #     self.outlets[subbasin] = outletId0, outletPt0, chLinks + [chLink]
                         else:
                             projRef = ''
-                        QSWATUtils.information('WARNIING: Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second{5}'.
-                                         format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y(), projRef), self.isBatch)
-                    #else:
-                    self.chOutlets[chLink] = outletid0, outletPt0
-                    self.outlets[subbasin] = outletid0, outletPt0, chLinks + [chLink]
+                            QSWATUtils.information('WARNIING: Polygon {0} has separate outlets at ({1}, {2}) and ({3}, {4}): ignoring second{5}'.
+                                             format(subbasin, outletPt0.x(), outletPt0.y(), outletPt.x(), outletPt.y(), projRef), self.isBatch)
+                    else:
+                        self.outlets[subbasin] = outletId0, outletPt0, chLinks + [chLink]
                 if not useGridModel:
 #                     self.extraResPoints[subbasin] = chResPoints[chLink]
 #                     self.extraPtSrcPoints[subbasin] = chSources[chLink]
@@ -4385,6 +4425,19 @@ class QSWATTopology:
                         # inlets are associated with downstream basin
                         self.inlets[dsSubbasin] = (inletId, inletPt)
                         hasInlet = True
+        # in HUC projects possible to get here with no outlet chosen
+        # try to select one which is coincident with the stream outlet for the subbasin
+        if self.isHUC:
+            for subbasin, streamOutlet in subOutlets.items():
+                if subbasin not in self.outlets:
+                    for chLink in chLinkToSubbasin.keys():
+                        if chLinkToSubbasin[chLink] == subbasin:
+                            # search for a channel outlet coincident with streamOutlet
+                            outletId, outletPt = self.chOutlets[chLink]
+                            # save it even if not coincident with streamOutlet, so must find something
+                            self.outlets[subbasin] = (outletId, outletPt, [chLink])
+                            if QSWATTopology.coincidentPoints(outletPt, streamOutlet, self.xThreshold, self.yThreshold):
+                                break
         # collect subbasins upstream from inlets
         # this looks inefficient, repeatedly going through all basins, but probably few projects have inlets:
         if not useGridModel and hasInlet:

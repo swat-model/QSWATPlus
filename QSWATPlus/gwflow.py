@@ -28,7 +28,7 @@ from PyQt5 import QtCore, QtWidgets # @UnusedImport
 from PyQt5.QtCore import Qt, QSettings # @UnresolvedImport
 from PyQt5.QtWidgets import QFileDialog, QDialog # @UnresolvedImport
 
-from qgis.core import QgsProject, QgsRasterLayer, QgsProcessingContext,  QgsFeatureRequest 
+from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsProcessingContext,  QgsFeatureRequest 
 
 from osgeo import gdal, ogr, osr
 from shapely import geometry
@@ -94,6 +94,9 @@ class GWFlow():
         self._dlg.outputTimesButton.clicked.connect(self.getOutputTimesFile)
         self._dlg.buttonBox.accepted.connect(self.checkFiles)
         self._dlg.buttonBox.rejected.connect(self._dlg.close)
+        # alignGrids only visible if grid model, and defaults to checked
+        self._dlg.alignGrids.setVisible(gv.useGridModel)
+        self._dlg.alignGrids.setChecked(gv.useGridModel)
         # for now unstructured option is not available
         self.hideUnstructured()
         ## function defined later (in fishnet) to convert (x, y) pair to (row, column) in grid
@@ -410,7 +413,9 @@ class GWFlow():
              
             # copying the files to the
             # destination directory
-            shutil.copy2(os.path.join(src, fname), trg)
+            nxtFile = os.path.join(src, fname)
+            if os.path.isfile(nxtFile):
+                shutil.copy2(nxtFile, trg)
             
         if self._dlg.useUnstructured.isChecked():
             try:
@@ -710,7 +715,10 @@ class GWFlow():
             if os.path.isfile(self._gv.lakeFile):
                 for _,row in lake_intersection.iterrows():
                     lakeId = int(row['LakeId'])
-                    lakeData = self._gv.topo.lakesData[lakeId]
+                    lakeData = self._gv.topo.lakesData.get(lakeId, None)
+                    if lakeData is None:
+                        # no intersection with watershed
+                        continue
                     if lakeData.waterRole == QSWATTopology._RESTYPE or lakeData.waterRole == QSWATTopology._PONDTYPE:
                         elev = lakeData.elevation
                         conn.execute(sql, (row['Id'], lakeId, elev))
@@ -1055,18 +1063,30 @@ class GWFlow():
         start = datetime.now()
         QSWATUtils.loginfo('..Creating Fishnet...')
         self.progress('Creating fishnet grid')
-        ###Part of code obtained from https://spatial-dev.guru/2022/05/22/create-fishnet-grid-using-geopandas-and-shapely/
-        gdf = gpd.read_file(basinFileName)
-    
-        # Get the extent of the shapefile
-        total_bounds = gdf.total_bounds
+        if self._dlg.alignGrids.isChecked():
+            gridFile = QSWATUtils.join(self._gv.shapesDir, 'grid.shp')
+            gridLayer = QgsVectorLayer(gridFile, 'Grid', 'ogr')
+            extent = gridLayer.extent()
+            minX = extent.xMinimum()
+            maxX = extent.xMaximum()
+            minY = extent.yMinimum()
+            maxY = extent.yMaximum()
+            squaresize = self._gv.gridSize * self._gv.topo.dx
+            gdf = gpd.read_file(gridFile)
+        else:
+            ###Part of code obtained from https://spatial-dev.guru/2022/05/22/create-fishnet-grid-using-geopandas-and-shapely/
+            gdf = gpd.read_file(basinFileName)
         
-        # Get minX, minY, maxX and maxY
-        minX, minY, maxX, maxY = total_bounds
+            # Get the extent of the shapefile
+            total_bounds = gdf.total_bounds
+            
+            # Get minX, minY, maxX and maxY
+            minX, minY, maxX, maxY = total_bounds
         
         # Number of rows and columns of the grid
-        rows = math.ceil((maxY-minY)/squaresize)
-        cols = math.ceil((maxX-minX)/squaresize)
+        # this method fails sometimes: better method guaranteeing consistency with grid geometry below
+        #rows = math.ceil((maxY-minY)/squaresize)
+        #cols = math.ceil((maxX-minX)/squaresize)
         
         xToCol = lambda x: math.floor((x - minX) / squaresize)
         yToRow = lambda y: math.floor((y - minY) / squaresize)
@@ -1076,22 +1096,26 @@ class GWFlow():
         x, y = (minX, maxY)
         geom_array = []
         
-    
+        rows = 0
+        size = 0
         while y >= minY:
             while x <= maxX:
                 geom = geometry.Polygon([(x, y), (x, y-squaresize), (x+squaresize, y-squaresize), (x+squaresize, y), (x, y)])
                 geom_array.append(geom)
                 x+= squaresize
+                size += 1
                 
             x = minX
             y-= squaresize
+            rows += 1
+        cols = size // rows
             
         fishnet = gpd.GeoDataFrame(geom_array, columns = ['geometry']).set_crs(EPSG)
      
         
     
         fishnet['Id'] = 0
-        fish_id = np.arange(1, rows*cols+1)
+        fish_id = np.arange(1, size+1)
         
         fishnet['Id'] = fish_id
         end = datetime.now()
@@ -1474,7 +1498,7 @@ class GWFlow():
                     if 0 <= thickCol < thickNumberCols:
                         thick = float(thickData[0, thickCol]) / 100 # converted to metres
                     else:
-                        QSWATUtils.error('DEM column {0} for longitude {1} gives thickness column {2} which exceeds maximum column {3}.  Using zero.',format(col, int(x), thickCol, thickNumberCols), self._gv.isBatch)
+                        QSWATUtils.error('DEM column {0} for longitude {1} gives thickness column {2} which exceeds maximum column {3}.  Using zero.'.format(col, int(x), thickCol, thickNumberCols), self._gv.isBatch)
                         thick = 0
                     top.write('{0}\n'.format(elev))
                     bottom.write('{0}\n'.format(elev - thick))

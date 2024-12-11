@@ -2610,7 +2610,7 @@ class CreateHRUs(QObject):
             for channel, channelData in basinData.getLsus().items(): 
                 for landscape, lsuData in channelData.items():
                     exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
-                    if exemptWater and abs(lsuData.cropSoilSlopeArea - lsuData.waterBody.originalArea) < self._gv.cellArea:  # all reservoir or pond
+                    if exemptWater and round(abs(lsuData.cropSoilSlopeArea - lsuData.waterBody.originalArea)) < round(self._gv.cellArea):  # all reservoir or pond
                         lsuData.hruMap = dict()
                         lsuData.cropSoilSlopeNumbers = dict()
                         continue
@@ -2633,7 +2633,8 @@ class CreateHRUs(QObject):
         removals.sort(key=sortFun)
         # remove HRUs
         # if some are exempt and target is small, can try to remove more than all in removals, so check for this
-        numToRemove = min(self.countHRUs() - self.targetVal, len(removals))
+        # also make sure not negative since HRU count may have been reduced by addReservoirs
+        numToRemove = max(0, min(self.countHRUs() - self.targetVal, len(removals)))
         QSWATUtils.loginfo('targetVal1: {0}'.format(self.targetVal))
         QSWATUtils.loginfo('HRUs count: {0}'.format(self.countHRUs()))
         QSWATUtils.loginfo('Possible removals: {0}'.format(len(removals)))

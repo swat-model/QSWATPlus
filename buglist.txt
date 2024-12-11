@@ -156,7 +156,16 @@ QSWATTopology.py line 540
 Large positive nodata values in soil and landuse maps supported
 Spaces in project name supported
 
+23/10/2024 # 42
+Selecting HRUs by target could start with a negative number to remove, if some already removed by addReservoirs
+hrus.py line 2637
 
+23/10/2024 # 43
+Typo in text format
+gwflow.py line 1477
 
+23/10/2024
+Inaccurate code for calculating columns and rows in fishnet
+gwflow.py line 1070
 
 

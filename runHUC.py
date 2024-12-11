@@ -21,7 +21,7 @@
 """
 
 
-from qgis.core import QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLayer, QgsExpression,  QgsFeatureRequest # @UnresolvedImport
+from qgis.core import QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLayer, QgsExpression,  QgsFeatureRequest, QgsCoordinateTransform, QgsCoordinateReferenceSystem # @UnresolvedImport
 #from PyQt5.QtCore import * # @UnusedWildImport
 import atexit
 import sys
@@ -29,6 +29,7 @@ import os
 import glob
 from osgeo import gdal, ogr  # type: ignore
 from multiprocessing import Pool
+import sqlite3
 
 from QSWATPlus.QSWATPlusMain import QSWATPlus  # @UnresolvedImport
 from QSWATPlus.delineation import Delineation  # @UnresolvedImport
@@ -162,42 +163,46 @@ class runHUC():
         pointsLayer = QgsVectorLayer(pointsFile, 'points', 'ogr')
         exp = QgsExpression('"ID" = {0}'.format(inletId))
         point = next(pointsLayer.getFeatures(QgsFeatureRequest(exp)))
-        pointXY = point.geometry().asPoint()
-        pointll = gv.topo.pointToLatLong(pointXY)
+        geom = point.geometry()
+        pointXY = geom.asPoint()
+        transformToLatLong = QgsCoordinateTransform(pointsLayer.crs(), QgsCoordinateReferenceSystem('EPSG:4326'), QgsProject.instance())
+        geom.transform(transformToLatLong)
+        pointll = geom.asPoint()
         # to find subbasin, find zero length channel with inletId as LINKNO, and then subbasin of its downstream channel
         channelsFile = gv.projDir + '/Watershed/Shapes/channels.shp'
         channelsLayer = QgsVectorLayer(channelsFile, 'channels', 'ogr')
         channelsProvider = channelsLayer.dataProvider()
         dsLinkNoIndex = channelsProvider.fieldNameIndex('DSLINKNO1')
-        wsnoIndex = channelsProvider.fieldNameIndex('WSNO')
+        basinNoIndex = channelsProvider.fieldNameIndex('BasinNo')
         exp1 = QgsExpression('"LINKNO" = {0}'.format(inletId))
         channel = next(channelsLayer.getFeatures(QgsFeatureRequest(exp1).setFlags(QgsFeatureRequest.NoGeometry)))
         dsLinkNo = channel[dsLinkNoIndex]
         exp2 = QgsExpression('"LINKNO" = {0}'.format(dsLinkNo))
         channel = next(channelsLayer.getFeatures(QgsFeatureRequest(exp2).setFlags(QgsFeatureRequest.NoGeometry)))
-        wsno = channel[wsnoIndex]
-        with db.connect() as conn:
-            cursor = conn.cursor()
-            # read MonitoringPoint table to gat max OBJECTID
-            table = 'MonitoringPoint'
-            maxId = 0
-            sql = db.sqlSelect(table, 'OBJECTID', '', '')
-            for row in cursor.execute(sql):
-                maxId = max(maxId, int(row[0]))
-            # add inlet point
-            maxId += 1
-            POINTID  = 0
-            HydroID = maxId + 400000
-            OutletID = maxId + 100000
-            SWATBasin = wsno
-            GRID_CODE = SWATBasin
+        basinNo = channel[basinNoIndex]
+        channelIndex = channelsProvider.fieldNameIndex('Channel')
+        channelNo = channel[channelIndex]
+        subbasinsFile = gv.projDir + '/Watershed/Shapes/subbasins.shp'
+        subbasinsLayer = QgsVectorLayer(subbasinsFile, 'subbasins', 'ogr')
+        subbasinsProvider = subbasinsLayer.dataProvider()
+        subIndex = subbasinsProvider.fieldNameIndex('Subbasin')
+        exp3 = QgsExpression('"PolygonId" = {0}'.format(basinNo))
+        sub = next(subbasinsLayer.getFeatures(QgsFeatureRequest(exp3).setFlags(QgsFeatureRequest.NoGeometry)))
+        basin = sub[subIndex]
+        projName = os.path.split(gv.projDir)[1]
+        projDb = gv.projDir + '/' + projName + '.sqlite'
+        with sqlite3.connect(projDb) as conn:
+            # add inlet to gis_points
+            table = 'gis_points'
             elev = 0 # only used for weather gauges
-            name = '' # only used for weather gauges
-            typ = 'W'
-            sql2 = 'INSERT INTO ' + table + ' VALUES(?,0,?,?,?,?,?,?,?,?,?,?,?,?)'
-            cursor.execute(sql2, maxId, POINTID, GRID_CODE,
-                       float(pointXY.x()), float(pointXY.y()), float(pointll.y()), float(pointll.x()), 
-                       float(elev), name, typ, SWATBasin, HydroID, OutletID)
+            typ = 'I'
+            sql2 = 'INSERT INTO ' + table + ' VALUES(?,?,?,?,?,?,?,?)'
+            conn.execute(sql2, (inletId, basin, typ, 
+                           float(pointXY.x()), float(pointXY.y()), float(pointll.y()), float(pointll.x()), 
+                           float(elev)))
+            # route to channel
+            sql3 = 'INSERT INTO gis_routing VALUES(?,?,?,?,?,?)'
+            conn.execute(sql3, (inletId, 'PT', 'tot', channelNo, 'CH', 100))
             
 def runProject(d, dataDir, scale, minHRUha):
     """Run a QSWAT+ project on directory d"""
@@ -227,13 +232,14 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = True 
+    debugging = False  
     if debugging:
-        direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
-        #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020503040404\huc020503040404\huc020503040404.qgs"
-        #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020801020403\huc020801020403\huc020801020403.qgs" 
+        #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
+        #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
+        direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030103/huc020403030103.qgs'
+        #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020200020302\huc020200020302\huc020200020302.qgs" 
         dataDir = "K:/Data" 
-        scale = 14 
+        scale = 12 
         minHRUha = 1 
         inletId = 0
     else:
@@ -253,7 +259,7 @@ if __name__ == '__main__':
     if inletId > 0:
         # add inlet point with this id to points table of existing project
         print('Adding inlet {0} to project {1}'.format(inletId, direc))
-        huc = runHUC(direc)
+        huc = runHUC(direc, None)
         huc.addInlet(inletId)
     elif direc.endswith('.qgs'):
         d, _ = os.path.split(direc)

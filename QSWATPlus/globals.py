@@ -594,8 +594,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
             return editor2
         if Parameters._ISWIN:
             QSWATUtils.information(r'''Cannot find {0} in {1} or {2}.  
-Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''
+Have you installed SWAT+ as a different directory?
+If so use the QSWAT+ Parameters form to set the SWATPlus directory.'''
                                .format(Parameters._SWATEDITOR, editorDir1, editorDir2), self.isBatch)
         else:
             QSWATUtils.information('''Cannot find {0} in {1} or {2}.  
