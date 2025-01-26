@@ -454,7 +454,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
                 for sublanduse, percent in subs.items():
                     cursor.execute(self.db._SPLITHRUSINSERTSQL, (landuse, sublanduse, percent))
             conn.commit()
-            if not self.isHUC:
+            if not self.isHUC or self.isHAWQS:
                 self.db.hashDbTable(conn, exemptTable)
                 self.db.hashDbTable(conn, splitTable)
         return True

@@ -1593,7 +1593,7 @@ class CreateHRUs(QObject):
                                    '{0} ({1})'.format(QSWATUtils._FULLLSUSLEGEND, Parameters._LSUS1),
                                    'ogr')
         fields: List[QgsField] = []
-        if not self._gv.isHUC: # HUC wshed files have LSUID field
+        if not (self._gv.isHUC or self._gv.isHAWQS): # HUC wshed files have LSUID field
             fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
         # If grid model we should have subbasin, if not grid we should have channel
         lsusFields = lsusLayer.fields()
@@ -1692,9 +1692,14 @@ class CreateHRUs(QObject):
                 # use original lsus
                 lsus = basinData.lsus
                 if channel not in lsus:
-                    # too small?
+                    # too small?  Within lake?
                     if self._gv.useGridModel:
                         area = f.geometry().area() * areaFactor / 1E4
+                    else:
+                        channelData = basinData.getLsus().get(channel, None)
+                        if channelData is not None:
+                            landscapeAreas = {landscape: channelData[landscape].area for landscape in channelData}
+                            area = self.mapSum(landscapeAreas)
                     QSWATUtils.loginfo('Ignoring LSU for link {0} with area {1}'.format(channel, area))
                     toDelete.append(f.id())
                     continue
@@ -2898,6 +2903,8 @@ class CreateHRUs(QObject):
         """Calculate statistics from map elevation -> frequency."""
         # find index of first non-zero frequency
         minimum = 0
+        if mapp is None or len(mapp) == 0:
+            return(0, 0, 0, 0, 0)
         while mapp[minimum] == 0:
             minimum += 1
         # find index of last non-zero frequency
@@ -3159,7 +3166,13 @@ class CreateHRUs(QObject):
                 chLink = self._gv.topo.chBasinToChLink[basin]
                 if chLink in self._gv.topo.chLinkInsideLake or chLink in self._gv.topo.chLinkFromLake:
                     continue
-            basinData = self.basins[basin]
+            basinData = self.basins.get(basin, None)
+            if basinData is None:
+                if self._gv.isHUC or self._gv.isHAWQS:
+                    QSWATUtils.information('WARNING: Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch)
+                else:
+                    QSWATUtils.error('Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch)
+                break
             subHa = basinData.subbasinArea() / 1E4
             #assert subHa > 0, 'SWAT basin {0} seems to be empty'.format(SWATBasin)
             # basinHa earlier asserted to be positive
@@ -4084,13 +4097,13 @@ class CreateHRUs(QObject):
         """Creat aquifers and deep aquifers shapefiles, and write gis_aquifers and gis_deep_aquifers tables."""
         
         def addNewField(layer: QgsVectorLayer, fileName: str, newFieldname: str, oldFieldname: str, fun: Callable[[int], Any]) -> int:
-            """Add new integer field to shapefile; set field to fun applied to value in old integer field.
-            Return the new field's index."""
+            """Add new integer 64 field to shapefile; set field to fun applied to value in old integer field.
+            Return the new field's index.  Needs to be 64 bit for HAWQS projects."""
             provider = layer.dataProvider()
             # new field may already be present
             newIndex: int = self._gv.topo.getIndex(layer, newFieldname, ignoreMissing=True)
             if newIndex < 0:
-                fields = [QgsField(newFieldname, QVariant.Int)]
+                fields = [QgsField(newFieldname, QVariant.LongLong)]
                 provider.addAttributes(fields)
                 layer.updateFields()
                 newIndex = self._gv.topo.getIndex(layer, newFieldname)
@@ -4327,7 +4340,7 @@ class CreateHRUs(QObject):
         # as shapefiles generated from rasters, like the subbasins shapefile, often have such shapes
         context = QgsProcessingContext()
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
-        QSWATUtils.loginfo('Context invalid geometry setting is {0}'.format(context.invalidGeometryCheck()))
+        #QSWATUtils.loginfo('Context invalid geometry setting is {0}'.format(context.invalidGeometryCheck()))
         if self._dlg.floodplainCombo.currentIndex() == 0:
             # use subbasins shapefile as aquifers shapefile
             QSWATUtils.copyShapefile(subsFile, Parameters._AQUIFERS, self._gv.resultsDir)
@@ -4638,7 +4651,7 @@ class CreateHRUs(QObject):
                     continue  # don't include playas
                 lsuId = 0  # no LSU for a reservoir, pond or wetland lake
                 (subbasin, _, _, _) = lakeData.outPoint
-                if self._gv.isHUC and subbasin < 0:
+                if (self._gv.isHUC or self._gv.isHAWQS) and subbasin < 0:
                     continue  # lakes file is larger than watershed for HUC12 models
                 # out point may have no subbasin if internal to lake
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
@@ -4889,6 +4902,9 @@ class CreateHRUs(QObject):
         """Return total reservoir, pond and wetland lakes area in square metres."""
         result = 0.0
         for lakeData in self._gv.topo.lakesData.values():
+            (subbasin, _, _, _) = lakeData.outPoint
+            if (self._gv.isHUC or self._gv.isHAWQS) and subbasin < 0:
+                continue  # lakes file is larger than watershed for HUC12 models
             if lakeData.waterRole in {QSWATTopology._RESTYPE, QSWATTopology._PONDTYPE, QSWATTopology._WETLANDTYPE}:
                 result += lakeData.area
         return result
@@ -4897,6 +4913,9 @@ class CreateHRUs(QObject):
         """Return map of reservoir, pond and wetland lake id to lake area in square metres and category."""
         result: Dict[int, Tuple[float, str]] = dict()
         for lakeId, lakeData in self._gv.topo.lakesData.items():
+            (subbasin, _, _, _) = lakeData.outPoint
+            if (self._gv.isHUC or self._gv.isHAWQS) and subbasin < 0:
+                continue  # lakes file is larger than watershed for HUC12 models
             if lakeData.waterRole == QSWATTopology._RESTYPE:
                 result[lakeId] = (lakeData.area, 'reservoir')
             elif lakeData.waterRole == QSWATTopology._PONDTYPE:
@@ -4912,6 +4931,9 @@ class CreateHRUs(QObject):
         numWetland = 0
         numPlaya = 0
         for lakedata in self._gv.topo.lakesData.values():
+            (subbasin, _, _, _) = lakedata.outPoint
+            if (self._gv.isHUC or self._gv.isHAWQS) and subbasin < 0:
+                continue  # lakes file is larger than watershed for HUC12 models
             if lakedata.waterRole == QSWATTopology._RESTYPE:
                 numRes += 1
             elif lakedata.waterRole == QSWATTopology._PONDTYPE:

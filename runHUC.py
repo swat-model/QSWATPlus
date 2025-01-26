@@ -236,10 +236,10 @@ if __name__ == '__main__':
     if debugging:
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
-        direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030103/huc020403030103.qgs'
+        direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
         #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020200020302\huc020200020302\huc020200020302.qgs" 
         dataDir = "K:/Data" 
-        scale = 12 
+        scale = 14 
         minHRUha = 1 
         inletId = 0
     else:

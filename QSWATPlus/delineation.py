@@ -429,7 +429,7 @@ class Delineation(QObject):
         if demLayer is None:
             QSWATUtils.error('DEM layer not found.', self._gv.isBatch)
             return
-        if self._gv.isHUC:
+        if self._gv.isHUC or self._gv.isHAWQS:
             subbasinsLayer: Optional[QgsVectorLayer] = QSWATUtils.getLayerByFilename(layers, self._gv.subbasinsFile, FileTypes._SUBBASINS, None, None, None)[0]
             if subbasinsLayer is None:
                 QSWATUtils.error('Subbasins layer not found', self._gv.isBatch)
@@ -691,7 +691,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             self._gv.playaFile = ''
         if not hasResOrPondOrWetland:  # nothing to do
             return True
-        RES = QSWATTopology._HUCRES if self._gv.isHUC else QSWATTopology._RES
+        RES = QSWATTopology._HUCRES if self._gv.isHUC or self._gv.isHAWQS else QSWATTopology._RES
         lakeResIndex = self._gv.topo.getIndex(lakesLayer, RES, ignoreMissing=True)
         if lakeIdIndex < 0:
             return False
@@ -855,7 +855,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             lakeId = lake[lakeIdIndex]
             if lakeResIndex < 0:
                 res = QSWATTopology._RESTYPE  # default to reservoir
-            elif self._gv.isHUC:
+            elif self._gv.isHUC or self._gv.isHAWQS:
                 res = 1 if lake[lakeResIndex] == 'Reservoir' else 2
             else:
                 res = lake[lakeResIndex]
@@ -1273,7 +1273,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         Also return true second result if lakes include reservoirs or ponds or wetlands, 
         and true third result if they include playas."""
         lakeProvider = lakesLayer.dataProvider()
-        if self._gv.isHUC:
+        if self._gv.isHUC or self._gv.isHAWQS:
             lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._HUCLAKEID)
             return (lakeIdIndex, True, False)
         # label lakes with water body numbers
@@ -2177,8 +2177,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
             self.cleanUp(-1)
             return
         # for HUC projects load lakes file 
-        if self._gv.isHUC:
-            lakeFile = self._gv.projDir + '/../lakes.shp'
+        if (self._gv.isHUC or self._gv.isHAWQS):
+            if self._gv.isHUC:
+                lakeFile = self._gv.projDir + '/../lakes.shp'
+            else:
+                lakeFile = self._dlg.selectLakes.text()
             lakeLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), lakeFile, FileTypes._LAKES, 
                                                              self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
             if not lakeLayer:
@@ -5040,27 +5043,30 @@ If you want to start again from scratch, reload the lakes shapefile."""
             self._dlg.selectBurn.setText(burnFile)
         else:
             self._gv.burnFile = ''
-        streamFile, found = proj.readEntry(title, 'delin/net', '')
-        streamLayer = None
-        if self._gv.useGridModel:
-            ft = FileTypes._DRAINSTREAMS if self._gv.existingWshed else FileTypes._GRIDSTREAMS
-        else:
-            ft = FileTypes._STREAMS
-        if found and streamFile != '':
-            streamFile = proj.readPath(streamFile)
-            streamLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), streamFile, ft, 
-                                                                self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
-        else:
-            treeLayer = QSWATUtils.getLayerByLegend(FileTypes.legend(ft), root.findLayers())
-            if treeLayer is not None:
-                layer = treeLayer.layer()
-                possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), 
-                                       self._gv.isBatch, True) == QMessageBox.Yes:
-                    streamLayer = layer
-                    streamFile = possFile
-        if streamLayer is not None:
-            self._gv.streamFile = streamFile
+        if self._gv.useGridModel or self._gv.isHUC or not self._gv.existingWshed:
+            streamFile, found = proj.readEntry(title, 'delin/net', '')
+            streamLayer = None
+            if self._gv.useGridModel:
+                ft = FileTypes._DRAINSTREAMS if self._gv.existingWshed else FileTypes._GRIDSTREAMS
+            else:
+                ft = FileTypes._STREAMS
+            if found and streamFile != '':
+                streamFile = proj.readPath(streamFile)
+                streamLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), streamFile, ft, 
+                                                                    self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
+            else:
+                treeLayer = QSWATUtils.getLayerByLegend(FileTypes.legend(ft), root.findLayers())
+                if treeLayer is not None:
+                    layer = treeLayer.layer()
+                    possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), 
+                                           self._gv.isBatch, True) == QMessageBox.Yes:
+                        streamLayer = layer
+                        streamFile = possFile
+            if streamLayer is not None:
+                self._gv.streamFile = streamFile
+            else:
+                self._gv.streamFile = ''
         else:
             self._gv.streamFile = ''
         self._gv.delinStreamFile, _ = proj.readEntry(title, 'delin/delinNet', '')
