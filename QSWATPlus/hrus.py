@@ -22,7 +22,7 @@
 
 from typing import Dict, List, Optional, Any, Tuple, Set, Callable, Iterator, TYPE_CHECKING, cast
 # Import the PyQt and QGIS librariesx
-from qgis.PyQt.QtCore import QObject, QVariant, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal # @UnresolvedImport
+from qgis.PyQt.QtCore import QObject, Qt, QSettings, QCoreApplication, QEventLoop, QFileInfo, pyqtSignal # @UnresolvedImport
 from qgis.PyQt.QtGui import QTextCursor, QDoubleValidator, QIntValidator # @UnresolvedImport
 from qgis.PyQt.QtWidgets import QMessageBox, QFileDialog, QProgressBar, QComboBox # @UnresolvedImport
 from qgis.core import  Qgis, QgsWkbTypes, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsVectorDataProvider, QgsProject, QgsExpression, QgsProcessingContext, QgsCoordinateTransformContext  # @UnresolvedImport
@@ -365,6 +365,8 @@ class CreateHRUs(QObject):
         else:
             # leave existing value of soilNoData
             soilIsNoDataFun = lambda x: x is None or math.isnan(x) or x == soilNoData
+        if self._gv.isHUC or self._gv.isHAWQS:
+            self._gv.db.SSURGOUndefined = soilNoData
         slopeNoData: int = slopeBand.GetNoDataValue()
         if not self._gv.useGridModel:
             self._gv.basinNoData = basinNoData
@@ -916,6 +918,10 @@ class CreateHRUs(QObject):
                                 landuseCount += 1
                                 # use an equivalent landuse if any
                                 crop = self._db.translateLanduse(int(crop))
+                            isWet = False
+                            if crop != cropNoData:
+                                cropCode = self._gv.db.getLanduseCode(crop)
+                                isWet = cropCode in Parameters._WATERLANDUSES 
                             soilCol = soilColFun(col, x)
                             if 0 <= soilCol < soilNumberCols and 0 <= soilRow < soilNumberRows:
                                 soil = cast(int, soilData[0, soilCol])
@@ -923,23 +929,7 @@ class CreateHRUs(QObject):
                                     soil = soilNoData
                             else:
                                 soil = soilNoData
-                            if soil == soilNoData:
-                                soilIsNoData = True
-                            else:
-                                soilIsNoData = False
-                                # use an equivalent soil if any
-                                soil, OK = self._db.translateSoil(int(soil))
-                            if soilIsNoData:
-                                soilNoDataCount += 1
-                            elif OK:
-                                soilDefinedCount += 1
-                            else:
-                                soilUndefinedCount += 1
                             # make sure crop and soil do not conflict about water
-                            isWet = False
-                            if crop != cropNoData:
-                                cropCode = self._gv.db.getLanduseCode(crop)
-                                isWet = cropCode in Parameters._WATERLANDUSES 
                             if self._gv.db.useSSURGO:
                                 if isWet:
                                     soil = Parameters._SSURGOWater
@@ -948,6 +938,21 @@ class CreateHRUs(QObject):
                                         isWet = True
                                         if crop == cropNoData or cropCode not in Parameters._WATERLANDUSES:
                                             crop = self._gv.db.getLanduseCat('WATR')
+                            if soil == soilNoData:
+                                soilIsNoData = True
+                            else:
+                                soilIsNoData = False
+                                if soil == Parameters._SSURGOWater:
+                                    OK = True 
+                                else:  
+                                    # use an equivalent soil if any
+                                    soil, OK = self._db.translateSoil(int(soil))
+                            if soilIsNoData:
+                                soilNoDataCount += 1
+                            elif OK:
+                                soilDefinedCount += 1
+                            else:
+                                soilUndefinedCount += 1
                             slopeCol = slopeColFun(col, x)
                             if 0 <= slopeCol < slopeNumberCols and 0 <= slopeRow < slopeNumberRows:
                                 slopeValue = cast(float, slopeData[0, slopeCol])
@@ -1139,7 +1144,7 @@ class CreateHRUs(QObject):
             # clear memory
             if not self._gv.useGridModel:
                 basinDs = None
-            self.saveAreas(True, redistributeNodata=not (under95 and self._gv.isHUC))
+            self.saveAreas(True, redistributeNodata=not (under95 and (self._gv.isHUC or self._gv.isHAWQS)))
             self.progress('Writing HRU data to database ...')
             if not self._db.createBasinsDataTables(cursor):
                 return False
@@ -1594,7 +1599,7 @@ class CreateHRUs(QObject):
                                    'ogr')
         fields: List[QgsField] = []
         if not (self._gv.isHUC or self._gv.isHAWQS): # HUC wshed files have LSUID field
-            fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._LSUID, Parameters.intFieldType))
         # If grid model we should have subbasin, if not grid we should have channel
         lsusFields = lsusLayer.fields()
         subIndx = lsusFields.indexOf(QSWATTopology._SUBBASIN)
@@ -1602,18 +1607,18 @@ class CreateHRUs(QObject):
             if self._gv.useGridModel:
                 QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, sourceShapefile), self._gv.isBatch)
                 return None
-            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
         chIndx = lsusFields.indexOf(QSWATTopology._CHANNEL)
         if chIndx < 0:
             if not self._gv.useGridModel:
                 QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, sourceShapefile), self._gv.isBatch)
                 return None
-            fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
-        fields.append(QgsField(QSWATTopology._LANDSCAPE, QVariant.String, len=20))
+            fields.append(QgsField(QSWATTopology._CHANNEL, Parameters.intFieldType))
+        fields.append(QgsField(QSWATTopology._LANDSCAPE, Parameters.stringFieldType, len=20))
         areaIndx = lsusFields.indexOf(Parameters._AREA)
         if areaIndx < 0:
-            fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
-        fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
+            fields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType, len=20, prec=2))
+        fields.append(QgsField(Parameters._PERCENTSUB, Parameters.doubleFieldType, len=20, prec=1))
         provider = lsusLayer.dataProvider()
         if not provider.addAttributes(fields):
             QSWATUtils.error('Cannot add fields to lsus shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch)
@@ -1754,12 +1759,12 @@ class CreateHRUs(QObject):
         else:
             QSWATUtils.removeLayer(self._gv.fullLSUsFile, root)
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._LSUID, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._LANDSCAPE, QVariant.String, len=20))
-            fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
-            fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
+            fields.append(QgsField(QSWATTopology._LSUID, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._CHANNEL, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._LANDSCAPE, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType, len=20, prec=2))
+            fields.append(QgsField(Parameters._PERCENTSUB, Parameters.doubleFieldType, len=20, prec=1))
             assert self._gv.crsProject is not None
 #            writer = QgsVectorFileWriter(self._gv.fullLSUsFile, "UTF-8", fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 'ESRI Shapefile')
             writer = QgsVectorFileWriter.create(self._gv.fullLSUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
@@ -1797,17 +1802,17 @@ class CreateHRUs(QObject):
         else:
             QSWATUtils.removeLayer(self._gv.fullHRUsFile, root)
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._LANDSCAPE, QVariant.String, len=20))
-            fields.append(QgsField(Parameters._LANDUSE, QVariant.String, len=20))
-            fields.append(QgsField(Parameters._SOIL, QVariant.String, len=20))
-            fields.append(QgsField(Parameters._SLOPEBAND, QVariant.String, len=20))
-            fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
-            fields.append(QgsField(Parameters._PERCENTSUB, QVariant.Double, len=20, prec=1))
-            fields.append(QgsField(Parameters._PERCENTLSU, QVariant.Double, len=20, prec=1))
-            fields.append(QgsField(QSWATTopology._HRUS, QVariant.String, len=20))
-            fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._CHANNEL, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._LANDSCAPE, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(Parameters._LANDUSE, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(Parameters._SOIL, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(Parameters._SLOPEBAND, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType, len=20, prec=2))
+            fields.append(QgsField(Parameters._PERCENTSUB, Parameters.doubleFieldType, len=20, prec=1))
+            fields.append(QgsField(Parameters._PERCENTLSU, Parameters.doubleFieldType, len=20, prec=1))
+            fields.append(QgsField(QSWATTopology._HRUS, Parameters.stringFieldType, len=20))
+            fields.append(QgsField(QSWATTopology._LINKNO, Parameters.intFieldType))
             assert self._gv.crsProject is not None
             writer = QgsVectorFileWriter.create(self._gv.fullHRUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
@@ -1886,7 +1891,22 @@ class CreateHRUs(QObject):
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
         for data in self.basins.values():
-            data.setAreas(isOriginal, chLinksByLakes, self._gv.db.waterLanduse, redistributeNodata=redistributeNodata)
+            if isOriginal and redistributeNodata and (self._gv.isHUC or self._gv.isHAWQS): # don't redistribute water in wetlands for HUC or HAWQS
+                for chLink, channelData in data.getLsus().items():
+                    for lsuData in channelData.values():
+                        areaToRedistribute = lsuData.area - lsuData.cropSoilSlopeArea
+                        if lsuData.area > areaToRedistribute > 0:
+                            redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
+                            if redistributeFactor > 2:
+                                SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
+                                QSWATUtils.loginfo('Channel {0} has redistribute factor of {1:.2F}'.format(SWATChannel, redistributeFactor))
+                            lsuData.redistribute(redistributeFactor)
+                        lsuData.setCropAreas(isOriginal)
+                        lsuData.setSoilAreas(isOriginal)
+                        lsuData.setSlopeAreas(isOriginal)
+            else:
+                data.setAreas(isOriginal, chLinksByLakes, self._gv.db.waterLanduse, redistributeNodata=redistributeNodata)
+            
     #===========================================================================
     #     if not redistributeNodata:
     #         # need to correct the drain areas of the basins, using the defined area of each
@@ -2334,7 +2354,7 @@ class CreateHRUs(QObject):
                             if areaToRedistribute > 0:
                                 # make sure we don't divide by zero (or close to it)
                                 if abs(hrusArea - areaToRedistribute) < self._gv.cellArea:
-                                    if exemptWater: # all rest is reservoir or pond:
+                                    if exemptWater or (self._gv.isHUC or self._gv.isHAWQS): # all rest is reservoir or pond, or with HUC or HAWQS may be WATR being added to lake
                                         lsuData.hruMap = dict()
                                         lsuData.cropSoilSlopeNumbers = dict()
                                         continue
@@ -3836,16 +3856,16 @@ class CreateHRUs(QObject):
         if addToSubs1:
             # add fields from gis_subbasins table to subs1
             subFields: List[QgsField] = []
-            subFields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=1))
-            subFields.append(QgsField('Slo1', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('Len1', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('Sll', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('Lat', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('Lon', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('Elev', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('ElevMin', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('ElevMax', QVariant.Double, len=20, prec=2))
-            subFields.append(QgsField('WaterId', QVariant.Int))
+            subFields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType, len=20, prec=1))
+            subFields.append(QgsField('Slo1', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('Len1', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('Sll', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('Lat', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('Lon', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('Elev', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('ElevMin', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('ElevMax', Parameters.doubleFieldType, len=20, prec=2))
+            subFields.append(QgsField('WaterId', Parameters.intFieldType))
             subsProvider1 = subs1Layer.dataProvider()
             subsProvider1.addAttributes(subFields)
             subs1Layer.updateFields()
@@ -3864,15 +3884,15 @@ class CreateHRUs(QObject):
             subMap: Dict[int, Dict[int, Any]] = dict()
             # add fields from gis_lsus table to lsus2
             lsuFields: List[QgsField] = []
-            lsuFields.append(QgsField('Category', QVariant.Int))
-            lsuFields.append(QgsField('Slope', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Len1', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Csl', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Wid1', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Dep1', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Lat', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Lon', QVariant.Double, len=20, prec=2))
-            lsuFields.append(QgsField('Elev', QVariant.Double, len=20, prec=2))
+            lsuFields.append(QgsField('Category', Parameters.intFieldType))
+            lsuFields.append(QgsField('Slope', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Len1', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Csl', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Wid1', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Dep1', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Lat', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Lon', Parameters.doubleFieldType, len=20, prec=2))
+            lsuFields.append(QgsField('Elev', Parameters.doubleFieldType, len=20, prec=2))
             lsus2Layer = QgsVectorLayer(lsus2File, 'LSUs ({0})'.format(Parameters._LSUS2), 'ogr')
             lsusProvider2 = lsus2Layer.dataProvider()
             lsusProvider2.addAttributes(lsuFields)
@@ -4103,7 +4123,7 @@ class CreateHRUs(QObject):
             # new field may already be present
             newIndex: int = self._gv.topo.getIndex(layer, newFieldname, ignoreMissing=True)
             if newIndex < 0:
-                fields = [QgsField(newFieldname, QVariant.LongLong)]
+                fields = [QgsField(newFieldname, Parameters.longFieldType)]
                 provider.addAttributes(fields)
                 layer.updateFields()
                 newIndex = self._gv.topo.getIndex(layer, newFieldname)
@@ -4313,6 +4333,8 @@ class CreateHRUs(QObject):
                         basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
                         pointId, _, _ = self._gv.topo.outlets[basin]
                     self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
+                    # route point in case not done
+                    self._gv.db.addToRouting(cursor, pointId, 'PT', 0, 'X', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
         self.progress('Writing aquifers and deep aquifers tables ...')
@@ -4352,7 +4374,7 @@ class CreateHRUs(QObject):
                 # merge shapes in actual LSUs file that have same subbasin and same landscape
                 actLSUsLayer = QgsVectorLayer(self._gv.actLSUsFile, 'lsus', 'ogr')
                 fields = QgsFields()
-                fields.append(QgsField(QSWATTopology._AQUIFER, QVariant.Int))
+                fields.append(QgsField(QSWATTopology._AQUIFER, Parameters.intFieldType))
                 assert self._gv.crsProject is not None
                 writer = QgsVectorFileWriter.create(aqFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                     QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
@@ -4417,7 +4439,7 @@ class CreateHRUs(QObject):
 #                 shapes.finish()
 #                 # create shapefile
 #                 fields = QgsFields()
-#                 fields.append(QgsField('DN', QVariant.Int))
+#                 fields.append(QgsField('DN', Parameters.intFieldType))
 #                 assert self._gv.crsProject is not None
 #                 writer = QgsVectorFileWriter.create(floodShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
 #                                                     QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
@@ -4738,7 +4760,7 @@ class CreateHRUs(QObject):
         ptsourceIndex = provider.fieldNameIndex(QSWATTopology._PTSOURCE)
         ptIdIndex = provider.fieldNameIndex(QSWATTopology._POINTID)
         if ptIdIndex < 0:
-            provider.addAttributes([QgsField(QSWATTopology._POINTID, QVariant.Int)])
+            provider.addAttributes([QgsField(QSWATTopology._POINTID, Parameters.intFieldType)])
             layer.updateFields()
             ptIdIndex = provider.fieldNameIndex(QSWATTopology._POINTID)
         for _, pointId, point in reservoirs.values():

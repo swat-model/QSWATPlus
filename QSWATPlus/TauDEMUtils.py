@@ -226,11 +226,16 @@ class TauDEMUtils:
         # and this has the advantage of dealing with spaces within inidividual components of the list
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
         # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
+        # In windows PROJ seems to need PROJ_LIB instead of the more recent PROJ_DATA
+        # In windows gdalplugins now stored under TauDEMDir so they are compatible with gdal304 dlls stored there
         MacPrefixNeeded = Parameters._ISMAC
         MacPrefix = 'export DYLD_FALLBACK_LIBRARY_PATH={0}/Contents/MacOS/lib; export PROJ_LIB={0}/Contents/Resources/proj; '.format(Parameters._MACQGISDIR)
         procCommand = commands if Parameters._ISWIN else MacPrefix + command if MacPrefixNeeded else command
         if Parameters._ISMAC:
             QSWATUtils.loginfo(procCommand)
+        if Parameters._ISWIN:
+            os.environ['PROJ_LIB'] = os.getenv('PROJ_DATA')
+            os.environ['GDAL_DRIVER_PATH'] = TauDEMDir + '/gdalplugins'
         proc = subprocess.run(procCommand, 
                                 shell=True, 
                                 stdout=subprocess.PIPE,

@@ -20,7 +20,7 @@
  ***************************************************************************/
 """
  
-from qgis.PyQt.QtCore import QObject, Qt, QVariant
+from qgis.PyQt.QtCore import QObject, Qt
 # from PyQt5.QtGui import *  # @UnusedWildImport
 from qgis.PyQt.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes
@@ -757,7 +757,7 @@ class ConvertFromArc(QObject):
 #         shapes.finish()
 #         # create shapefile
 #         fields = QgsFields()
-#         fields.append(QgsField('Basin', QVariant.Int))
+#         fields.append(QgsField('Basin', Parameters.intFieldType))
 #         writer = QgsVectorFileWriter(subbasinsFile, "UTF-8", fields, 
 #                                      QGis.WKBMultiPolygon, None, 'ESRI Shapefile')
 #         if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -795,7 +795,7 @@ class ConvertFromArc(QObject):
         qSubsFile = os.path.join(qShapesDir, 'subbasins.shp')
         qSubsLayer = QgsVectorLayer(qSubsFile, 'Subbasins', 'ogr')
         provider = qSubsLayer.dataProvider()
-        #provider.addAttributes([QgsField(QSWATTopology._POLYGONID, QVariant.Int)])
+        #provider.addAttributes([QgsField(QSWATTopology._POLYGONID, Parameters.intFieldType)])
         subIndex = provider.fieldNameIndex('Subbasin')
         #polyIndex = provider.fieldNameIndex(QSWATTopology._POLYGONID)
         if not provider.renameAttributes({subIndex : QSWATTopology._POLYGONID}):
@@ -821,13 +821,13 @@ class ConvertFromArc(QObject):
         qChanFile = os.path.join(qShapesDir, 'channels.shp')
         qChanLayer = QgsVectorLayer(qChanFile, 'Channels', 'ogr')
         provider = qChanLayer.dataProvider()
-        f1 = QgsField(QSWATTopology._LINKNO, QVariant.Int)
-        f2 = QgsField(QSWATTopology._DSLINKNO, QVariant.Int)
-        f3 = QgsField(QSWATTopology._WSNO, QVariant.Int)
-        f4 = QgsField(QSWATTopology._LENGTH, QVariant.Double)
-        f5 = QgsField(QSWATTopology._ORDER, QVariant.Int)
-        f6 = QgsField(QSWATTopology._DROP, QVariant.Double)
-        f7 = QgsField(QSWATTopology._BASINNO, QVariant.Int)
+        f1 = QgsField(QSWATTopology._LINKNO, Parameters.intFieldType)
+        f2 = QgsField(QSWATTopology._DSLINKNO, Parameters.intFieldType)
+        f3 = QgsField(QSWATTopology._WSNO, Parameters.intFieldType)
+        f4 = QgsField(QSWATTopology._LENGTH, Parameters.doubleFieldType)
+        f5 = QgsField(QSWATTopology._ORDER, Parameters.intFieldType)
+        f6 = QgsField(QSWATTopology._DROP, Parameters.doubleFieldType)
+        f7 = QgsField(QSWATTopology._BASINNO, Parameters.intFieldType)
         provider.addAttributes([f1, f2, f3, f4, f5, f6, f7])
         subIndex = provider.fieldNameIndex('Subbasin')
         fromIndex = provider.fieldNameIndex('FROM_NODE')
@@ -899,10 +899,10 @@ class ConvertFromArc(QObject):
     def makeOutletFields() -> QgsFields:
         """Create fields for outlets file."""
         fields = QgsFields()
-        fields.append(QgsField('ID', QVariant.Int))
-        fields.append(QgsField('INLET', QVariant.Int))
-        fields.append(QgsField('RES', QVariant.Int))
-        fields.append(QgsField('PTSOURCE', QVariant.Int))
+        fields.append(QgsField('ID', Parameters.intFieldType))
+        fields.append(QgsField('INLET', Parameters.intFieldType))
+        fields.append(QgsField('RES', Parameters.intFieldType))
+        fields.append(QgsField('PTSOURCE', Parameters.intFieldType))
         return fields
         
     def makeOutletFile(self, filePath: str, fields: QgsFields, prjFile: str, basinWanted: bool=False) -> bool:
@@ -912,7 +912,7 @@ class ConvertFromArc(QObject):
         if os.path.exists(filePath):
             QSWATUtils.removeFiles(filePath)
         if basinWanted:
-            fields.append(QgsField('Subbasin', QVariant.Int))
+            fields.append(QgsField('Subbasin', Parameters.intFieldType))
         writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, self.crs, QgsCoordinateTransformContext(), self.vectorOptions)
         if writer.hasError() != QgsVectorFileWriter.NoError:
             ConvertFromArc.error('Cannot create outlets shapefile {0}: {1}'.format(filePath, writer.errorMessage()))

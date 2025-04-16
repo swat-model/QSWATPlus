@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.0.4'
+    __version__ = '3.0.6'
 
     def __init__(self, iface):
         """Constructor."""
@@ -539,7 +539,7 @@ class QSWATPlus(QObject):
         self._gv.useGridModel = proj.readBoolEntry(self._gv.attTitle, 'delin/useGridModel', False)[0]
         self._gv.useLandscapes = proj.readBoolEntry(self._gv.attTitle, 'lsu/useLandscapes', False)[0]
         streamFile, found = proj.readEntry(self._gv.attTitle, 'delin/net', '')
-        if self._gv.useGridModel or self._gv.isHUC or not self._gv.existingWshed:
+        if self._gv.useGridModel or self._gv.isHUC or self._gv.isHAWQS or not self._gv.existingWshed:
             if not found or streamFile == '':
                 QSWATUtils.loginfo('demProcessed failed: no streams shapefile')
                 return False

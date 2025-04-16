@@ -19,7 +19,7 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries 
-from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, QVariant, NULL # @UnresolvedImport
+from qgis.PyQt.QtCore import QObject, Qt, QFileInfo, QSettings, NULL # @UnresolvedImport
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator # @UnresolvedImport
 from qgis.PyQt.QtWidgets import QMessageBox # @UnresolvedImport
 from qgis.core import Qgis, QgsUnitTypes, QgsWkbTypes, QgsCoordinateTransformContext, QgsFeature, QgsFeatureRequest, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsLayerTree, QgsLayerTreeModel, QgsLayerTreeLayer, QgsRasterLayer, QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsRectangle # @UnresolvedImport
@@ -715,7 +715,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             dsNodeIdAdded = False
             dsNodeIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._DSNODEID, ignoreMissing=True)
             if dsNodeIndex < 0:
-                channelsProvider.addAttributes([QgsField(QSWATTopology._DSNODEID, QVariant.Int)])
+                channelsProvider.addAttributes([QgsField(QSWATTopology._DSNODEID, Parameters.intFieldType)])
                 channelsLayer.updateFields()
                 dsNodeIndex = channelsProvider.fieldNameIndex(QSWATTopology._DSNODEID)
                 dsNodeIdAdded = True
@@ -772,7 +772,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
         # add ADDED field to define additional points
         addIndex = fields.indexFromName(QSWATTopology._ADDED)
         if addIndex < 0:
-            snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, QVariant.Int)])
+            snapProvider.addAttributes([QgsField(QSWATTopology._ADDED, Parameters.intFieldType)])
             snapLayer.updateFields()
             fields = snapProvider.fields()
             addIndex = fields.indexFromName(QSWATTopology._ADDED)
@@ -1284,7 +1284,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         hasResOrPondOrWetland = lakeResIndex < 0   # sence default is reservoir
         hasPlaya = False
         if lakeIdIndex < 0:
-            if not lakeProvider.addAttributes([QgsField(QSWATTopology._LAKEID, QVariant.Int)]):
+            if not lakeProvider.addAttributes([QgsField(QSWATTopology._LAKEID, Parameters.intFieldType)]):
                 QSWATUtils.error('Unable to edit lakes shapefile {0}'.format(self._gv.lakeFile), self._gv.isBatch)
                 return -1, False, False
             lakeIdIndex = lakeProvider.fieldNameIndex(QSWATTopology._LAKEID)
@@ -1375,7 +1375,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         gridLakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
         gridResIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._RES, ignoreMissing=True)
         if gridResIndex < 0:
-            if not gridProvider.addAttributes([QgsField(QSWATTopology._RES, QVariant.Int)]):
+            if not gridProvider.addAttributes([QgsField(QSWATTopology._RES, Parameters.intFieldType)]):
                 QSWATUtils.error('Unable to edit grid shapefile {0}'.format(QSWATUtils.layerFilename(gridLayer)), self._gv.isBatch)
                 return
             gridLayer.updateFields()
@@ -2202,7 +2202,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSWATUtils.removeLayer(slpFile, root)
         QSWATUtils.removeLayer(angFile, root)
         self.progress('DinfFlowDir ...')
-        willRun = not (QSWATUtils.isUpToDate(demFile, slpFile) and QSWATUtils.isUpToDate(demFile, angFile))
+        # avoid running with HAWQS projects if possible
+        if self._gv.isHAWQS and os.path.isfile(slpFile):
+            willRun = False 
+        else:
+            willRun = not (QSWATUtils.isUpToDate(demFile, slpFile) and QSWATUtils.isUpToDate(demFile, angFile))
         if willRun:
             if self._dlg.showTaudem.isChecked():
                 self._dlg.tabWidget.setCurrentIndex(3)
@@ -2269,7 +2273,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not self._gv.useGridModel:
             self._gv.wshedFile = wshedFile
             self._gv.channelFile = channelFile
-            if self._gv.isHUC:
+            if self._gv.isHUC or self._gv.isHAWQS:
                 self._gv.streamFile = channelFile.replace('channels.shp', 'streams.shp')
         self._gv.outletFile = outletFile
         if self._gv.topo.setUp0(demLayer, channelLayer, outletLayer, None, self._gv):
@@ -3685,14 +3689,14 @@ If you want to start again from scratch, reload the lakes shapefile."""
             QSWATUtils.removeLayer(subbasinsFile, root)
             # create shapefile
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
-            fields.append(QgsField(Parameters._AREA, QVariant.Double, len=20, prec=2))
+            fields.append(QgsField(QSWATTopology._POLYGONID, Parameters.intFieldType))
+            fields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType, len=20, prec=2))
             # for the subbasins layer we will later add the SWAT basin number
             # and for the watershed layer we will later add the SWAT channel number
             if ft == FileTypes._SUBBASINS:
-                fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+                fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
             else:
-                fields.append(QgsField(QSWATTopology._CHANNEL, QVariant.Int))
+                fields.append(QgsField(QSWATTopology._CHANNEL, Parameters.intFieldType))
             writer = QgsVectorFileWriter.create(subbasinsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -4254,11 +4258,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
         else:
             QSWATUtils.removeLayer(gridFile, root)
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._POLYGONID, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DOWNID, QVariant.Int))
-            fields.append(QgsField(Parameters._AREA, QVariant.Double))
-            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._LAKEID, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._POLYGONID, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DOWNID, Parameters.intFieldType))
+            fields.append(QgsField(Parameters._AREA, Parameters.doubleFieldType))
+            fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._LAKEID, Parameters.intFieldType))
             writer = QgsVectorFileWriter.create(gridFile, fields,  QgsWkbTypes.Polygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -4349,12 +4353,12 @@ If you want to start again from scratch, reload the lakes shapefile."""
         else:
             QSWATUtils.removeLayer(gridStreamsFile, root)
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DSNODEID, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DRAINAGE, QVariant.Double))
-            fields.append(QgsField(QSWATTopology._PENWIDTH, QVariant.Double))
+            fields.append(QgsField(QSWATTopology._LINKNO, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DSLINKNO, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DSNODEID, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._WSNO, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DRAINAGE, Parameters.doubleFieldType))
+            fields.append(QgsField(QSWATTopology._PENWIDTH, Parameters.doubleFieldType))
             writer = QgsVectorFileWriter.create(gridStreamsFile, fields, QgsWkbTypes.LineString, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -4485,10 +4489,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
         else:
             QSWATUtils.removeLayer(drainStreamsFile, root)
             fields = QgsFields()
-            fields.append(QgsField(QSWATTopology._LINKNO, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DSLINKNO, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._DSNODEID, QVariant.Int))
-            fields.append(QgsField(QSWATTopology._WSNO, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._LINKNO, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DSLINKNO, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._DSNODEID, Parameters.intFieldType))
+            fields.append(QgsField(QSWATTopology._WSNO, Parameters.intFieldType))
             writer = QgsVectorFileWriter.create(drainStreamsFile, fields, QgsWkbTypes.LineString, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -4749,7 +4753,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         ptIdSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._POINTID, ignoreMissing=True)
         snapProvider = snapLayer.dataProvider()
         if ptIdSnapIndex < 0:
-            snapProvider.addAttributes([QgsField(QSWATTopology._POINTID, QVariant.Int)])
+            snapProvider.addAttributes([QgsField(QSWATTopology._POINTID, Parameters.intFieldType)])
             outletLayer.updateFields()
             ptIdSnapIndex = snapProvider.fieldNameIndex(QSWATTopology._POINTID)
         fields = snapProvider.fields()
@@ -4819,7 +4823,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 if ptIdIndex < 0:
                     OK = outletLayer.startEditing()
                     if OK:
-                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._POINTID, QVariant.Int))
+                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._POINTID, Parameters.intFieldType))
                         if OK:
                             OK = outletLayer.commitChanges()
                             if OK:
@@ -4830,7 +4834,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 if basinIndex < 0:
                     OK = outletLayer.startEditing()
                     if OK:
-                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+                        OK = outletLayer.addAttribute(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
                         if OK:
                             OK = outletLayer.commitChanges()
                             if OK:
@@ -4840,13 +4844,13 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 return True
         QSWATUtils.removeLayer(filePath, root)
         fields = QgsFields()
-        fields.append(QgsField(QSWATTopology._ID, QVariant.Int))
-        fields.append(QgsField(QSWATTopology._INLET, QVariant.Int))
-        fields.append(QgsField(QSWATTopology._RES, QVariant.Int))
-        fields.append(QgsField(QSWATTopology._PTSOURCE, QVariant.Int))
-        fields.append(QgsField(QSWATTopology._POINTID, QVariant.Int))
+        fields.append(QgsField(QSWATTopology._ID, Parameters.intFieldType))
+        fields.append(QgsField(QSWATTopology._INLET, Parameters.intFieldType))
+        fields.append(QgsField(QSWATTopology._RES, Parameters.intFieldType))
+        fields.append(QgsField(QSWATTopology._PTSOURCE, Parameters.intFieldType))
+        fields.append(QgsField(QSWATTopology._POINTID, Parameters.intFieldType))
         if basinWanted:
-            fields.append(QgsField(QSWATTopology._SUBBASIN, QVariant.Int))
+            fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
         writer = QgsVectorFileWriter.create(filePath, fields, QgsWkbTypes.Point, gv.crsProject, 
                                             QgsCoordinateTransformContext(), gv.vectorFileWriterOptions)
         if writer.hasError() != QgsVectorFileWriter.NoError:
@@ -5043,7 +5047,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             self._dlg.selectBurn.setText(burnFile)
         else:
             self._gv.burnFile = ''
-        if self._gv.useGridModel or self._gv.isHUC or not self._gv.existingWshed:
+        if self._gv.useGridModel or self._gv.isHUC or self._gv.isHAWQS or not self._gv.existingWshed:
             streamFile, found = proj.readEntry(title, 'delin/net', '')
             streamLayer = None
             if self._gv.useGridModel:
@@ -5090,11 +5094,11 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if channelLayer is not None:
                 self._dlg.selectStreams.setText(channelFile)
                 self._gv.channelFile = channelFile
-            else:
-                self._gv.channelFile = ''
-                if self._gv.isHAWQS and self._gv.streamFile != '': # use streams file for channels
-                    self._dlg.selectStreams.setText(self._gv.streamFile)
-                    self._gv.channelFile = self._gv.streamFile
+            # else:
+            #     self._gv.channelFile = ''
+            #     if self._gv.isHAWQS and self._gv.streamFile != '': # use streams file for channels
+            #         self._dlg.selectStreams.setText(self._gv.streamFile)
+            #         self._gv.channelFile = self._gv.streamFile
         useOutlets, found = proj.readBoolEntry(title, 'delin/useOutlets', True)
         if found:
             self._dlg.useOutlets.setChecked(useOutlets)

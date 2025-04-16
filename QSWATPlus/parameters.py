@@ -23,12 +23,13 @@
 from qgis.PyQt.QtCore import Qt, QSettings
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator, QFont
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
-from qgis.core import QgsProject
+from qgis.core import Qgis, QgsProject, QgsField
 # Import the code for the dialog
 import os.path
 import platform
 from typing import Any
 import locale 
+from packaging.version import parse
     
 try:
     from .parametersdialog import ParametersDialog  # type: ignore
@@ -173,12 +174,27 @@ class Parameters:
     _MULTIPLIER = 1.0
     
     # landuses for which we use just one SSURGO soil and where we make the slope at most _WATERMAXSLOPE 
-    _WATERLANDUSES = {'WATR', 'WETN', 'WETF', 'RIWF', 'UPWF', 'RIWN', 'UPWN'}
+    _WATERLANDUSES = {'WATR', 'WETN', 'WETF', 'WETW', 'RIWF', 'UPWF', 'RIWN', 'UPWN'}
     _WATERMAXSLOPE = 0.001
     
     # percentage of flow for major when there is a bifurcation: HUC and HAWQS models only
     _MAJORPERCENT = 60
     
+    # QgsField using QVariant deprecated since 3.38
+    qv = Qgis.QGIS_VERSION.split('-', 1)[0]
+    if parse(qv) >= parse('3.38'):
+        from qgis.PyQt.QtCore import QMetaType
+        intFieldType = QMetaType.Int
+        doubleFieldType = QMetaType.Double
+        stringFieldType = QMetaType.QString
+        longFieldType = QMetaType.LongLong
+    else:
+        from qgis.PyQt.QtCore import QVariant
+        intFieldType = QVariant.Int
+        doubleFieldType = QVariant.Double
+        stringFieldType = QVariant.String
+        longFieldType = QVariant.LongLong
+        
     
     def __init__(self, gv: Any) -> None:
         """Initialise class variables."""

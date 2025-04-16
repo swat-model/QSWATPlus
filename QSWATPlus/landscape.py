@@ -38,7 +38,8 @@ from processing.core.Processing import Processing  #  @UnresolvedImport @UnusedI
 import time
 import locale
 from osgeo import gdal
-from pkg_resources import parse_version
+# from pkg_resources import parse_version
+from packaging.version import parse
 
 from .TauDEMUtils import TauDEMUtils
 from .QSWATTopology import QSWATTopology
@@ -238,7 +239,7 @@ class Landscape(QObject):
                 QSWATUtils.tryRemoveLayerAndFiles(clipFile, root)
             # QGIS 3.34.7 added an -overwrite parameter, so cannot add one
             qv = Qgis.QGIS_VERSION.split('-', 1)[0]
-            if parse_version(qv) > parse_version('3.34.6'):
+            if parse(qv) > parse('3.34.6'):
                 extra = '--config GDALWARP_IGNORE_BAD_CUTLINE YES'
             else:
                 extra = '--config GDALWARP_IGNORE_BAD_CUTLINE YES -overwrite'

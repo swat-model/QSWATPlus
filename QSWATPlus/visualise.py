@@ -20,7 +20,7 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QVariant   # @UnresolvedImport
+from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer   # @UnresolvedImport
 from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator # @UnresolvedImport
 from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem # @UnresolvedImport
 from qgis.PyQt.QtXml import QDomDocument # @UnresolvedImport
@@ -49,7 +49,7 @@ from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
 from .jenks import jenks    # type: ignore # @UnresolvedImport 
-from .globals import GlobalVars  # type: ignore # @UnusedImport
+from .globals import GlobalVars  # type: ignore
 from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
  
 # from .images2gif import writeGif
@@ -1663,7 +1663,7 @@ class Visualise(QObject):
             self.currentResultsLayer = self.rivResultsLayer
         varz = self.varList(False)
         for var in varz:
-            field = QgsField(var, QVariant.Double)
+            field = QgsField(var, Parameters.doubleFieldType)
             if not self.currentResultsLayer.dataProvider().addAttributes([field]):
                 QSWATUtils.error('Could not add field {0} to results file {1}'.format(var, self.resultsFile), self._gv.isBatch)
                 return False
@@ -1973,7 +1973,7 @@ class Visualise(QObject):
         self.currentStillNumber = 0
         animateLayer = QgsVectorLayer(animateFile, '{0} {1}'.format(self.scenario, self.animateVar), 'ogr')
         provider = animateLayer.dataProvider()
-        field = QgsField(self.animateVar, QVariant.Double)
+        field = QgsField(self.animateVar, Parameters.doubleFieldType)
         if not provider.addAttributes([field]):
             QSWATUtils.error(u'Could not add field {0} to animation file {1}'.format(self.animateVar, animateFile), self._gv.isBatch)
             return False
@@ -2636,7 +2636,7 @@ class Visualise(QObject):
         resultsGroup = root.findGroup(QSWATUtils._RESULTS_GROUP_NAME)
         assert resultsGroup is not None
         selectVarShort = selectVar[:10]
-        varField = QgsField(selectVarShort, QVariant.Double)
+        varField = QgsField(selectVarShort, Parameters.doubleFieldType)
         addedLayers = []
         if needLayer1:
             legend1 = '{0} {1} {2}'.format(self.scenario1, selectVar, summary)

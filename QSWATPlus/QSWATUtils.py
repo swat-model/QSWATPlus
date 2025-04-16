@@ -20,7 +20,7 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QVariant, QTextStream, QIODevice
+from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QTextStream, QIODevice
 from qgis.PyQt.QtGui import QColor 
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
 from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
@@ -43,6 +43,7 @@ from typing import List, Dict, Tuple, Callable, TypeVar, Any, Optional, Generic,
 from builtins import int
 import traceback
 import processing   # type: ignore # @UnresolvedImport
+from packaging.version import parse
 
 class QSWATUtils:
     """Various utilities."""
@@ -643,7 +644,8 @@ class QSWATUtils:
             mLayer = treeLayer.layer()
             if mLayer is not None and QSWATUtils.layerFileInfo(mLayer) == fileInfo:
                 if isinstance(mLayer, QgsVectorLayer) and mLayer.mapTipTemplate() == '':
-                    mapTip = FileTypes.mapTip(ft)
+                    useOBJECTID = ft == FileTypes._LAKES and (gv is not None and (gv.isHUC or gv.isHAWQS))
+                    mapTip = FileTypes.mapTip(ft, useOBJECTID)
                     if mapTip != '':
                         mLayer.setMapTipTemplate(mapTip)
                 return (mLayer, False)
@@ -686,7 +688,8 @@ class QSWATUtils:
             else: 
                 ogr.RegisterAll()
                 layer = QgsVectorLayer(fileName, '{0} ({1})'.format(legend, baseName), 'ogr')
-                mapTip = FileTypes.mapTip(ft)
+                useOBJECTID = ft == FileTypes._LAKES and gv.isHUC or gv.isHAWQS
+                mapTip = FileTypes.mapTip(ft, useOBJECTID)
                 # map tip is destryed by laodNamedStyle, so set it later
             mapLayer: QgsMapLayer = proj.addMapLayer(layer, False)
             if mapLayer is not None and group is not None:
@@ -1179,7 +1182,7 @@ class QSWATUtils:
         return result
     
     @staticmethod
-    def landscapeFromName(name: QVariant) -> int:
+    def landscapeFromName(name: str) -> int:
         """Return landscape code."""
         if name is None or name == '' or name == 'NA': return QSWATUtils._NOLANDSCAPE
         elif name == 'Floodplain': return QSWATUtils._FLOODPLAIN
@@ -1535,7 +1538,7 @@ class FileTypes:
             return ''
         
     @staticmethod
-    def mapTip(ft: int) -> str:
+    def mapTip(ft: int, useOBJECTID: bool=False) -> str:
         if ft == FileTypes._OUTLETS or ft == FileTypes._EXTRAPTSRCANDRES:
             return '<b>Point id:</b> [% "PointId" %]'
         elif ft == FileTypes._OUTLETSHUC:
@@ -1551,7 +1554,7 @@ class FileTypes:
         elif ft == FileTypes._SUBBASINS or ft == FileTypes._EXISTINGSUBBASINS:
             return '<b>Subbasin:</b> [% "Subbasin" %]'
         elif ft == FileTypes._LAKES:
-            return '<b>Lake:</b> [% "LakeId" %]'
+            return '<b>Lake:</b> [% "OBJECTID" %]' if useOBJECTID else '<b>Lake:</b> [% "LakeId" %]'
         elif ft == FileTypes._AQUIFERS:
             return '<b>Aquifer:</b> [% "Aquifer" %]'
         else:
@@ -1588,7 +1591,11 @@ class FileTypes:
     def colourDEM(layer: QgsRasterLayer, gv: Any) -> None:
         """Layer colouring function for DEM."""
         shader: QgsRasterShader = QgsRasterShader()
-        stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1,
+        qv = Qgis.QGIS_VERSION.split('-', 1)[0]
+        if parse(qv) >= parse('3.40'):
+            stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1, Qgis.RasterBandStatistic.Range)
+        else:
+            stats: QgsRasterBandStats = layer.dataProvider().bandStatistics(1,
                                                                         QgsRasterBandStats.Min | QgsRasterBandStats.Max)
         minVal: int = int(stats.minimumValue + 0.5)
         maxVal: int = int(stats.maximumValue + 0.5)

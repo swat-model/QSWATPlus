@@ -65,10 +65,12 @@ Change your settings to use the new directory?
 if {0} is used for some other purpose you might want to rename it to stop this question being repeated.""".
                         format(newSWATPlusDir), isBatch, False) == QMessageBox.Yes:
                         SWATPlusDir = newSWATPlusDir
+                else:
+                    SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
             else:
                 SWATPlusDir = settings.value('/QSWATPlus/SWATPlusDir')
             if not os.path.isdir(SWATPlusDir):
-                SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR 
+                SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
         else:
             SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR
         if not os.path.isdir(SWATPlusDir):

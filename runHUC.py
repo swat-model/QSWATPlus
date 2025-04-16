@@ -236,8 +236,9 @@ if __name__ == '__main__':
     if debugging:
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
-        direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        #direc = r"K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC14\020200020302\huc020200020302\huc020200020302.qgs" 
+        #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
+        #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0203010104/huc0203010104.qgs'
+        direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC14\02\huc020301040103\huc020301040103.qgs" 
         dataDir = "K:/Data" 
         scale = 14 
         minHRUha = 1 
@@ -282,6 +283,7 @@ if __name__ == '__main__':
             _ = res.get()
         sys.stdout.flush()
     app.exitQgis()
+    app.deleteLater()
     app.exit()
     del app     
         

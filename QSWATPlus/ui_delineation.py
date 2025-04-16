@@ -14,7 +14,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_DelineationDialog(object):
     def setupUi(self, DelineationDialog):
         DelineationDialog.setObjectName("DelineationDialog")
-        DelineationDialog.resize(549, 600)
+        DelineationDialog.resize(553, 600)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -747,7 +747,7 @@ class Ui_DelineationDialog(object):
         self.selectWshedLabel.setText(_translate("DelineationDialog", "Watershed shapefile"))
         self.selectWshedButton.setToolTip(_translate("DelineationDialog", "<html><head/><body><p>Select a polygon shapefile showing the drainage areas for all the channels in the channels shapefile.</p><p><br/></p><p>This is usually more detailed than the subbasins shapefile, but can be the same file.</p><p><br/></p></body></html>"))
         self.selectWshedButton.setText(_translate("DelineationDialog", ". . ."))
-        self.selectStreamsLabel.setText(_translate("DelineationDialog", "Streams shapefile"))
+        self.selectStreamsLabel.setText(_translate("DelineationDialog", "Channels shapefile"))
         self.selectStreamsButton.setToolTip(_translate("DelineationDialog", "Select a line shapefile showing the stream network"))
         self.selectStreamsButton.setText(_translate("DelineationDialog", ". . ."))
         self.selectExistOutletsLabel.setText(_translate("DelineationDialog", "Inlets/outlets shapefile (optional)"))
