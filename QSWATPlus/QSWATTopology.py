@@ -607,7 +607,7 @@ class QSWATTopology:
             features = outletLayer.getFeatures()
         else:
             features = []
-        if dsNodeIndex >= 0:
+        if dsNodeIndex >= 0: 
             doneNodes: Set[int] = set()
             pointsToShift: List[int] = []
             lastTyp = ''

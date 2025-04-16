@@ -1678,10 +1678,8 @@ class CreateHRUs(QObject):
                     continue
             else:
                 chBasin = f[polyIndx]
-                area = f[areaIndx]
                 SWATChannel = f[chIndx]
-                # area can be zero if LSU within lake
-                if SWATChannel == 0 or area == 0:
+                if SWATChannel == 0:
                     toDelete.append(f.id())
                     continue
                 channel = self._gv.topo.SWATChannelToChannel[SWATChannel]
@@ -1696,15 +1694,15 @@ class CreateHRUs(QObject):
                 subbasinCells = basinData.subbasinCellCount()
                 # use original lsus
                 lsus = basinData.lsus
-                if channel not in lsus:
+                if self._gv.useGridModel:
+                    area = f.geometry().area() * areaFactor / 1E4
+                else:
+                    channelData = basinData.getLsus().get(channel, None)
+                    if channelData is not None:
+                        landscapeAreas = {landscape: channelData[landscape].area for landscape in channelData}
+                        area = self.mapSum(landscapeAreas)
+                if channel not in lsus or area == 0:
                     # too small?  Within lake?
-                    if self._gv.useGridModel:
-                        area = f.geometry().area() * areaFactor / 1E4
-                    else:
-                        channelData = basinData.getLsus().get(channel, None)
-                        if channelData is not None:
-                            landscapeAreas = {landscape: channelData[landscape].area for landscape in channelData}
-                            area = self.mapSum(landscapeAreas)
                     QSWATUtils.loginfo('Ignoring LSU for link {0} with area {1}'.format(channel, area))
                     toDelete.append(f.id())
                     continue
