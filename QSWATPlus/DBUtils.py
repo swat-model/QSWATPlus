@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+''# -*- coding: utf-8 -*-
 """
 /***************************************************************************
  QSWATPlus
@@ -2452,29 +2452,33 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 return
         
     def changeUpslopeHRUDrain(self, percent: float) -> None:
-        """Change upslope HRU drainage to percent into channel or reservoir, rest to downslope LSU."""
+        """Change upslope HRU drainage to percent into channel or water body, rest to downslope LSU."""
         with self.conn as conn:
             if conn is None:
                 return
             try:
                 # can't seem to access rowid with sqlite3.Row
-                conn.row_factory = lambda _, row: row
+                #conn.row_factory = lambda _, row: row
+                conn.row_factory = None
                 cursor = conn.cursor()
                 table1 = 'gis_hrus'
                 table2 = 'gis_routing'
                 sql1 = self.sqlSelect(table1, 'id, lsu', '', '')
-                sql2 = self.sqlSelect(table2, 'rowid, sinkcat', '', 'sourceid=? AND sourcecat=?')
+                sql2 = self.sqlSelect(table2, 'rowid, sinkcat, percent', '', 'sourceid=? AND sourcecat=?')
                 update = 'UPDATE {0} SET percent=? WHERE rowid=?'.format(table2)
                 # first find upslope HRUs
-                for hRow in cursor.execute(sql1):
+                for hRow in cursor.execute(sql1).fetchall():
                     lsuId = hRow[1]
                     if QSWATUtils.landscapeUnitIdIsUpslope(lsuId):
                         hru = hRow[0]
-                        for rRow in cursor.execute(sql2, (hru, 'HRU')):
+                        for rRow in cursor.execute(sql2, (hru, 'HRU')).fetchall():
                             sinkCat = rRow[1]
                             rowId = rRow[0]
-                            # set drain to channel or reservoir to percent
-                            if sinkCat == 'CH' or sinkCat == 'RES':
+                            current_percent = int(rRow[2])
+                            if current_percent == 100: # lower LSU is all water; nothing to change
+                                continue
+                            # set drain to channel or water body to percent
+                            if sinkCat in {'CH', 'RES', 'PND', 'WETL'}:
                                 cursor.execute(update, (percent, rowId))
                                 # set drain to LSU to 100 - percent
                             elif sinkCat == 'LSU':

@@ -2974,10 +2974,6 @@ class QSWATTopology:
         if not os.path.exists(channelFile):
             QSWATUtils.error('Cannot find {0} file {1}'.format(strng, channelFile), gv.isBatch)
             return None
-        channelLayer = QSWATUtils.getLayerByFilename(root.findLayers(), channelFile, FileTypes._CHANNELS, 
-                                                     None, None, None)[0]
-        if channelLayer is None: # perhaps removed by user
-            channelLayer = QgsVectorLayer(channelFile, 'Channels', 'ogr')
         QSWATUtils.copyShapefile(channelFile, Parameters._RIVS1, gv.shapesDir)
         rivs1File = QSWATUtils.join(gv.shapesDir, Parameters._RIVS1 + '.shp')
         QSWATUtils.removeLayer(rivs1File, root)
@@ -3090,7 +3086,7 @@ class QSWATTopology:
                 return None
         # Add fields from channels table to rivs1File if less than RIV1SUBS1MAX features; otherwise takes too long.
         addToRiv1 = rivs1Layer.featureCount() <= Parameters._RIVS1SUBS1MAX
-        # remove fields apart from Channel, ChannelR and Subbasin
+        # remove fields apart from LINKNO, Channel, ChannelR, ChannelR2 and Subbasin
         if addToRiv1:
             self.removeFields(rivs1Layer, [QSWATTopology._LINKNO, QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._CHANNELR2, QSWATTopology._SUBBASIN], rivs1File, self.isBatch)
         if addToRiv1:
@@ -3258,7 +3254,10 @@ class QSWATTopology:
             provider1.addAttributes([QgsField(QSWATTopology._PENWIDTH, Parameters.doubleFieldType)])
             self.setPenWidth(wid2Data, 0.2, 2.0, provider1)
         layers = root.findLayers()
-        subLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDLEGEND, layers) if gv.useGridModel else root.findLayer(channelLayer.id())
+        channelLayer = QSWATUtils.getLayerByFilename(layers, channelFile, FileTypes._CHANNELS, 
+                                                 None, None, None)[0]
+        subLayer = QSWATUtils.getLayerByLegend(QSWATUtils._GRIDLEGEND, layers) if gv.useGridModel \
+                    else None if channelLayer is None else root.findLayer(channelLayer.id())
         if gv.useGridModel:
             if gv.existingWshed:
                 ft = FileTypes._DRAINSTREAMS

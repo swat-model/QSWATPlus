@@ -3303,6 +3303,8 @@ class CreateHRUs(QObject):
                 else:
                     # use Katrin's formula
                     upslopePercent = int(100 * lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea + downLsuData.cropSoilSlopeArea) + 0.5)
+                    # do not allow upslopePercent to be zero, as breaks check on total percentages
+                    upslopePercent = 1 if upslopePercent == 0 else upslopePercent
                     if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown():
                         wid = downLsuData.waterBody.id
                         wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
