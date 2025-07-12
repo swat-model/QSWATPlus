@@ -86,9 +86,10 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         # containing template project and reference databases, plus soil database for STATSGO and SSURGO
         self.dbPath = QSWATUtils.join(self.SWATPlusDir, Parameters._DBDIR)
         ## Path of template project database
-        self.dbProjTemplate =  QSWATUtils.join(self.dbPath, Parameters._DBPROJHAWQS) if isHAWQS else QSWATUtils.join(self.dbPath, Parameters._DBPROJ)
+        self.dbProjTemplate =  QSWATUtils.join(self.dbPath, Parameters._DBPROJHAWQS) if (isHUC or isHAWQS) else QSWATUtils.join(self.dbPath, Parameters._DBPROJ)
         ## Path of template reference database
-        self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREFHAWQS) if isHAWQS else QSWATUtils.join(self.dbPath, Parameters._DBREF)
+        # self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREFHAWQS) if isHAWQS else QSWATUtils.join(self.dbPath, Parameters._DBREF)
+        self.dbRefTemplate = QSWATUtils.join(self.dbPath, Parameters._DBREF)
         ## Directory of TauDEM executables
         self.TauDEMDir = TauDEMUtils.findTauDEMDir(settings, not isBatch)[0]
         ## Path of mpiexec

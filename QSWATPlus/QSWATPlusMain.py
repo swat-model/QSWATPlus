@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.0.6' 
+    __version__ = '3.0.7' 
 
     def __init__(self, iface):
         """Constructor."""
@@ -515,8 +515,8 @@ class QSWATPlus(QObject):
         self._gv.demFile = demFile
         self._gv.elevationNoData = demLayer.dataProvider().sourceNoDataValue(1)
         units = demLayer.crs().mapUnits()
-        factor = 1 if units == QgsUnitTypes.DistanceMeters else Parameters._FEETTOMETRES if units == QgsUnitTypes.DistanceFeet else 0
-        if factor == 0:
+        factor, OK = QSWATUtils.getHorizontalFactor(units)
+        if not OK:
             QSWATUtils.loginfo('demProcessed failed: units are {0!s}'.format(units))
             return False
         self._gv.cellArea = demLayer.rasterUnitsPerPixelX() * demLayer.rasterUnitsPerPixelY() * factor * factor

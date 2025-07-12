@@ -528,6 +528,39 @@ cdef class LSUData:
         for hruData in self.hruMap.values():
             totalSlope += hruData.totalSlope
         return totalSlope
+                        
+    cpdef float totalHRUElevations(self):
+        """Total elevation values of HRUs in this LSU."""
+        
+        cdef:
+            float totalElevation = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalElevation += hruData.totalElevation
+        return totalElevation
+                        
+    cpdef float totalHRULatitudes(self):
+        """Total latitude values of HRUs in this LSU."""
+        
+        cdef:
+            float totalLatitude = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalLatitude += hruData.totalLatitude
+        return totalLatitude
+                        
+    cpdef float totalHRULongitudes(self):
+        """Total longitude values of HRUs in this LSU."""
+        
+        cdef:
+            float totalLongitude = 0
+            CellData hruData
+            
+        for hruData in self.hruMap.values():
+            totalLongitude += hruData.totalLongitude
+        return totalLongitude
                   
     cpdef void setCropAreas(self, bint isOriginal):
         '''Make map crop -> area from hruMap and cropSoilSlopeNumbers.'''
@@ -1003,6 +1036,9 @@ cdef class BasinData:
                         lsuData.area = lsuData.cropSoilSlopeArea + waterArea
                         lsuData.cellCount = lsuData.totalHRUCellCount()
                         lsuData.totalSlope = lsuData.totalHRUSlopes()
+                        lsuData.totalElevation = lsuData.totalHRUElevations()
+                        lsuData.totalLatitude = lsuData.totalHRULatitudes()
+                        lsuData.totalLongitude = lsuData.totalHRULongitudes()
                         
                 lsuData.setCropAreas(isOriginal)
                 lsuData.setSoilAreas(isOriginal)

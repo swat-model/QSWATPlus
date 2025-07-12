@@ -77,6 +77,7 @@ encoding//csharp/QSWATPlus/convertFromArc.py=utf-8
 encoding//csharp/QSWATPlus/dataInC.pyx=utf-8
 encoding//csharp/QSWATPlus/globals.py=utf-8
 encoding//csharp/QSWATPlus/gwflow.py=utf-8
+encoding/fixUpperFlow.py=utf-8
 encoding/runHUC.py=utf-8
 encoding/test_dbutils.py=utf-8
 encoding/test_polygonize.py=utf-8

@@ -89,7 +89,7 @@ class Parameters:
     _ANIMATION = 'Animation'
     _PNG = 'Png'
     _STILLPNG = 'still.png'
-    _SSURGODB_HUC = 'SSURGO_Soils_HUC.sqlite'
+    _SSURGODB_HUC = 'swatplus_soils.sqlite'  # 'SSURGO_Soils_HUC.sqlite'
     _SSURGOWater = 377988
     _WATERBODIES = 'WaterBodies.sqlite'
     

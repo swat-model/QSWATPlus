@@ -38,6 +38,7 @@ import processing  # type: ignore  # @UnresolvedImport
 from processing.core.Processing import Processing  # type: ignore # @UnresolvedImport @UnusedImport
 import traceback
 from typing import Optional, Tuple, Dict, Set, List, Any, TYPE_CHECKING, cast  # @UnusedImport
+from packaging.version import parse
 
 # Import the code for the dialog
 from .delineationdialog import DelineationDialog  # type: ignore
@@ -1384,6 +1385,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # list of ids of lakes already added to grid
         done: List[int] = []
         mmap: Dict[int, Dict[int, Any]] = dict()
+        hasPlaya = False
         for lake in lakesLayer.getFeatures():
             lakeId: int = lake[lakeIdIndex]
             if lakeResIndex < 0:
@@ -1391,6 +1393,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             else:
                 waterRole = lake[lakeResIndex]
                 if waterRole == QSWATTopology._PLAYATYPE:
+                    hasPlaya = True
                     continue
             lakeGeom = lake.geometry()
             lakeBox = lakeGeom.boundingBox()
@@ -1417,6 +1420,12 @@ assumed that its crossing the lake boundary is an inaccuracy.
         if not gridProvider.changeAttributeValues(mmap):
             QSWATUtils.error('Cannot edit attributes of grid {0}'.format(QSWATUtils.layerFilename(gridLayer)), self._gv.isBatch)
             return
+        root = QgsProject.instance().layerTreeRoot()
+        demLayer: Optional[QgsRasterLayer] = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.demFile, FileTypes._DEM, None, None, None)[0]
+        if hasPlaya:
+            self._gv.playaFile = self.createPlayaFile(self._gv.lakeFile, demLayer, root)
+        else:
+            self._gv.playaFile = ''
         self.gridLakesAdded = True
         return
             
@@ -1770,7 +1779,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             if not os.path.exists(burnFile):
                 QSWATUtils.error('Cannot find burn in file {0}'.format(burnFile), self._gv.isBatch)
                 return
-            burnedDemFile = os.path.splitext(self._gv.demFile)[0] + '_burned.tif'
+            burnedDemFile = os.path.splitext(self._gv.demFile)[0] + '_burned{0}.tif'.format(self._gv.burninDepth)
             if not QSWATUtils.isUpToDate(demFile, burnedDemFile) or not QSWATUtils.isUpToDate(burnFile, burnedDemFile):
                 # just in case
                 QSWATUtils.tryRemoveLayerAndFiles(burnedDemFile, root)
@@ -2315,7 +2324,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # can fail if demLayer is None or not projected
         try:
             self._gv.topo.setCrs(demLayer, self._gv)
-            units = demLayer.crs().mapUnits()
+            if self._gv.crsProject.isGeographic():
+                QSWATUtils.error('DEM does not seem to be projected', self._gv.isBatch)
+                return False
+            units = self._gv.crsProject.mapUnits()
         except Exception:
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(traceback.format_exc()))
             return False
@@ -2356,22 +2368,24 @@ assumed that its crossing the lake boundary is an inaccuracy.
             # fail gracefully
             epsg = ''
         self._gv.epsg = epsg
+        qv = Qgis.QGIS_VERSION.split('-', 1)[0]
+        recent = parse(qv) >= parse('3.40')
         if units == QgsUnitTypes.DistanceMeters:
             self._gv.horizontalFactor = 1.0
             self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._METRES))
             self._dlg.horizontalCombo.setEnabled(False)
-        elif units == QgsUnitTypes.DistanceFeet:
+        elif units == QgsUnitTypes.DistanceFeet or (recent and units == QgsUnitTypes.FeetUSSurvey):
             self._gv.horizontalFactor = Parameters._FEETTOMETRES
             self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._FEET))
             self._dlg.horizontalCombo.setEnabled(False)
         else:
-            if units == QgsUnitTypes.AngleDegrees:
+            if units == QgsUnitTypes.AngleDegrees or (recent and QgsUnitTypes.unitType(units) == QgsUnitTypes.DistanceUnitType.Geographic):
                 string = 'degrees'
                 self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._DEGREES))
                 self._dlg.horizontalCombo.setEnabled(False)
             else:
                 string = 'unknown'
-                self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._DEGREES))
+                self._dlg.horizontalCombo.setCurrentIndex(self._dlg.horizontalCombo.findText(Parameters._UNKNOWN))
                 self._dlg.horizontalCombo.setEnabled(True)
             QSWATUtils.information('WARNING: DEM does not seem to be projected: its units are ' + string, self._gv.isBatch)
             return False

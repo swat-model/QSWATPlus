@@ -741,6 +741,10 @@ class CreateHRUs(QObject):
                             # slopes will be nodata in pits
                             if slopeValue == slopeNoData:
                                 slopeValue = Parameters._DEFAULTSLOPE
+                            if crop != cropNoData:
+                                cropCode = self._gv.db.getLanduseCode(crop)
+                                if cropCode in Parameters._WATERLANDUSES:
+                                    slopeValue = min(slopeValue, Parameters._WATERMAXSLOPE)
                             slope = self._db.slopeIndex(slopeValue * 100)
                             distSt = diag
                             distCh = halfDiag
@@ -1157,7 +1161,7 @@ class CreateHRUs(QObject):
         return True
     
     def noCropOrSoilLSUs(self) -> bool:
-        """Give an error message and return false if any LSUs have no crop and soil data, nor a waterbody."""
+        """Give an error message and return false (unless batch/HUC/HAWQS) if any LSUs have no crop and soil data, nor a waterbody."""
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.lsus.items():
                 for lscape, lsuData in channelData.items():
@@ -1173,7 +1177,8 @@ class CreateHRUs(QObject):
                             msg2 = 'the upslape of '
                         msg3 = 'channel {0} (LINKNO {2}) in subbasin {1} (and perhaps others)'.format(SWATChannel, SWATBasin, channel)
                         QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch)
-                        return False
+                        # allow batch, HUC and HAWQS runs to continue
+                        return self._gv.isBatch or self._gv.isHUC or self._gv.isHAWQS
         return True
     
     def mergeChannels(self) -> None:
@@ -1701,6 +1706,8 @@ class CreateHRUs(QObject):
                     if channelData is not None:
                         landscapeAreas = {landscape: channelData[landscape].area for landscape in channelData}
                         area = self.mapSum(landscapeAreas)
+                    else:
+                        area = 0
                 if channel not in lsus or area == 0:
                     # too small?  Within lake?
                     QSWATUtils.loginfo('Ignoring LSU for link {0} with area {1}'.format(channel, area))
@@ -1884,14 +1891,17 @@ class CreateHRUs(QObject):
         
     def saveAreas(self, isOriginal: bool, redistributeNodata: bool=True) -> None:
         """Create area maps for each subbasin."""
-        if self._gv.useGridModel:
+        if self._gv.playaFile != '':
+            # if using playas do not want to absorb water into nearby lakes, as some playas will disappear
+            chLinksByLakes = []
+        elif self._gv.useGridModel:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys()) + list(self._gv.topo.chLinkFromLake.keys())
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
-        for data in self.basins.values():
+        for basin, data in self.basins.items():
             if isOriginal and redistributeNodata and (self._gv.isHUC or self._gv.isHAWQS): # don't redistribute water in wetlands for HUC or HAWQS
                 for chLink, channelData in data.getLsus().items():
-                    for lsuData in channelData.values():
+                    for lscape, lsuData in channelData.items():
                         areaToRedistribute = lsuData.area - lsuData.cropSoilSlopeArea
                         if lsuData.area > areaToRedistribute > 0:
                             redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
@@ -3227,7 +3237,7 @@ class CreateHRUs(QObject):
                         QSWATUtils.loginfo(msg)
                     else:
                         QSWATUtils.error(msg, self._gv.isBatch)
-                        noLanduseReported = True
+                        noLanduseReported = not self._gv.isBatch
             else:
                 hasCrop = True
             self.printCropAreas(basinData.cropAreas(False), originalCropAreas, basinHa, subHa, fw)
@@ -3242,7 +3252,7 @@ class CreateHRUs(QObject):
                     QSWATUtils.loginfo(msg)
                 else:
                     QSWATUtils.error(msg, self._gv.isBatch)
-                    noSoilReported = True
+                    noSoilReported = not self._gv.isBatch
             self.printSoilAreas(basinData.soilAreas(False), originalSoilAreas, basinHa, subHa, fw)
             fw.writeLine('')
             fw.writeLine('Slope')
@@ -3962,7 +3972,9 @@ class CreateHRUs(QObject):
                 areaHa = areaKm * 100
                 cellCount = basinData.subbasinCellCount()
                 waterId = basinData.waterId
-                assert waterId > 0 or cellCount > 0, 'Basin {0!s} has zero cell count'.format(SWATBasin)
+                if waterId > 0 or cellCount == 0:
+                    x = 0
+                #assert waterId > 0 or cellCount > 0, 'Subbasin {0!s} has zero cell count'.format(SWATBasin)
                 meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                 meanSlopePercent = meanSlope * 100
                 farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
@@ -6358,7 +6370,9 @@ class HRUs(QObject):
             self.landuseTable = landuseTable
         self._db.waterLanduse, _ = proj.readNumEntry(self._gv.attTitle, 'landuse/water', -1)
         plantTable, found = proj.readEntry(self._gv.attTitle, 'landuse/plant', '')
-        if found and plantTable != '':
+        if self._gv.isBatch and (self._gv.isHUC or self._gv.isHAWQS):
+            plantTable = 'plant_HAWQS'
+        elif found and plantTable != '':
             index = self._dlg.selectPlantTable.findText(plantTable)
             if index >= 0:
                 self._dlg.selectPlantTable.setCurrentIndex(index)
@@ -6366,7 +6380,9 @@ class HRUs(QObject):
             plantTable = 'plant'
         self._db.plantTable = plantTable
         urbanTable, found = proj.readEntry(self._gv.attTitle, 'landuse/urban', '')
-        if found and urbanTable != '':
+        if self._gv.isBatch and (self._gv.isHUC or self._gv.isHAWQS):
+            urbanTable = 'urban_HAWQS'
+        elif found and urbanTable != '':
             index = self._dlg.selectUrbanTable.findText(urbanTable)
             if index >= 0:
                 self._dlg.selectUrbanTable.setCurrentIndex(index)

@@ -330,11 +330,8 @@ class QSWATTopology:
         except Exception:
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(traceback.format_exc()))
             return False
-        if units == QgsUnitTypes.DistanceMeters:
-            gv.horizontalFactor = 1
-        elif units == QgsUnitTypes.DistanceFeet:
-            gv.horizontalFactor = Parameters._FEETTOMETRES
-        else:
+        gv.horizontalFactor, OK = QSWATUtils.getHorizontalFactor(units)
+        if not OK:
             # unknown or degrees - will be reported in delineation - just quietly fail here
             QSWATUtils.loginfo('Failure to read DEM units: {0}'.format(str(units)))
             return False
@@ -899,7 +896,7 @@ class QSWATTopology:
             attMap: Dict[int, Dict[int, float]] = dict()
             geomMap: Dict[int, QgsGeometry] = dict()
             polysToRemove: List[int] = []
-            minArea = self.dx * self.dy  # area of one pixel in sq metres
+            # minArea = self.dx * self.dy  # area of one pixel in sq metres
             for sub in subsProvider.getFeatures():
                 subGeom = sub.geometry()
                 if  QSWATTopology.intersectsPoly(subGeom, lakeGeom, lakeRect):
@@ -910,7 +907,7 @@ class QSWATTopology:
                     if area2 < area1:
                         subPoly = sub[subsPolyIndex]
                         QSWATUtils.loginfo('Lake {0} overlaps subbasin polygon {1}: area reduced from {2} to {3}'.format(lakeId, subPoly, area1, area2))
-                        if area2 < minArea:
+                        if area2 == 0:  # area2 < minArea:
                             polysToRemove.append(subId)
                             # remove subbasin from range of chBasinToSubbasin
                             chBasinsToRemove: Set[int] = set()
@@ -964,7 +961,7 @@ class QSWATTopology:
                         geomMap[chBasinId] = newGeom
                         attMap[chBasinId] = {chBasinsAreaIndex: area2 / 1E4}
                         channelAreaChange[polyId] = area1 - area2
-                        if area2 < minArea:
+                        if area2 == 0:  # area2 < minArea:
                             # channel basin disappears into lake: remove its mapping to subbasin
                             # may already have been removed because all subbasin in lake
                             subbasin = self.chBasinToSubbasin.get(polyId, -1)
@@ -3197,7 +3194,7 @@ class QSWATTopology:
                 midLat = midll.y()
                 midLong = midll.x()
                 if rid == 0 and pid == 0:
-                    # omit from gis_channels channels which have become reservoirs or ponds
+                    # otherwise omit from gis_channels channels which have become reservoirs or ponds
                     curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, order, length, slopePercent, 
                                        channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
                     self.db.addKey(table, SWATChannel)
@@ -4145,10 +4142,15 @@ class QSWATTopology:
     
     def pointToLatLong(self, point: QgsPointXY) -> QgsPointXY: 
         """Convert a QgsPointXY to latlong coordinates and return it."""
-        geom = QgsGeometry.fromPointXY(point)
-        assert self.transformToLatLong is not None
-        geom.transform(self.transformToLatLong)
-        return geom.asPoint()
+        try:
+            geom = QgsGeometry.fromPointXY(point)
+            assert self.transformToLatLong is not None
+            geom.transform(self.transformToLatLong)
+            return geom.asPoint()
+        except:
+            QSWATUtils.error('Cannot transform point ({0}, {1}) to latlong: {2}'.format(point.x(), point.y(), traceback.format_exc()), self.isBatch)
+            return QgsPointXY(0, 0)
+        
             
     def getIndex(self, layer: QgsVectorLayer, name: str, ignoreMissing: bool=False) -> int:
         """Get the index of a shapefile layer attribute name, 
