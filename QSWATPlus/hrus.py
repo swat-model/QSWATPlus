@@ -1090,7 +1090,7 @@ class CreateHRUs(QObject):
                     # start of message is key word for HUC12Models
                     QSWATUtils.information('WARNING: only {0} percent of the watershed in project huc{1} is inside the soil map.'
                                            .format(locale.format_string('%.1F', soilMapPercent), huc12), self._gv.isBatch, logFile=logFile)
-                if soilDefinedPercent < 80:
+                if soilDefinedPercent < 95:
                     # start of message is key word for HUC12Models
                     QSWATUtils.information('WARNING: only {0} percent of the watershed in project huc{1} has defined soils.'
                                            .format(locale.format_string('%.1F', soilDefinedPercent), huc12), self._gv.isBatch, logFile=logFile)
@@ -1899,16 +1899,17 @@ class CreateHRUs(QObject):
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
         for basin, data in self.basins.items():
-            if isOriginal and redistributeNodata and (self._gv.isHUC or self._gv.isHAWQS): # don't redistribute water in wetlands for HUC or HAWQS
+            if isOriginal and (self._gv.isHUC or self._gv.isHAWQS): # don't redistribute water in wetlands for HUC or HAWQS
                 for chLink, channelData in data.getLsus().items():
                     for lscape, lsuData in channelData.items():
-                        areaToRedistribute = lsuData.area - lsuData.cropSoilSlopeArea
-                        if lsuData.area > areaToRedistribute > 0:
-                            redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
-                            if redistributeFactor > 2:
-                                SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
-                                QSWATUtils.loginfo('Channel {0} has redistribute factor of {1:.2F}'.format(SWATChannel, redistributeFactor))
-                            lsuData.redistribute(redistributeFactor)
+                        if redistributeNodata:
+                            areaToRedistribute = lsuData.area - lsuData.cropSoilSlopeArea
+                            if lsuData.area > areaToRedistribute > 0:
+                                redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
+                                if redistributeFactor > 2:
+                                    SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
+                                    QSWATUtils.loginfo('Channel {0} has redistribute factor of {1:.2F}'.format(SWATChannel, redistributeFactor))
+                                lsuData.redistribute(redistributeFactor)
                         lsuData.setCropAreas(isOriginal)
                         lsuData.setSoilAreas(isOriginal)
                         lsuData.setSlopeAreas(isOriginal)
@@ -2933,11 +2934,11 @@ class CreateHRUs(QObject):
         minimum = 0
         if mapp is None or len(mapp) == 0:
             return(0, 0, 0, 0, 0)
-        while mapp[minimum] == 0:
+        while minimum < len(mapp) and mapp[minimum] == 0:
             minimum += 1
         # find index of last non-zero frequency
         maximum = len(mapp) - 1
-        while mapp[maximum] == 0:
+        while maximum >= 0 and mapp[maximum] == 0:
             maximum -= 1
         # calculate mean elevation and total of frequencies
         summ = 0.0
@@ -3937,7 +3938,7 @@ class CreateHRUs(QObject):
             else:
                 if not os.path.exists(self._gv.valleyDepthsFile):
                     if self._gv.useLandscapes:
-                        # should be valley depths file unless using a buffer for floodplain
+                        # should be a valley depths file unless using a buffer for floodplain
                         # or imported floodplain file, which will not contain 'flood'
                         floodFilename = os.path.split(self._gv.floodFile)[1]
                         if floodFilename.startswith('bufferflood'):
@@ -3972,9 +3973,8 @@ class CreateHRUs(QObject):
                 areaHa = areaKm * 100
                 cellCount = basinData.subbasinCellCount()
                 waterId = basinData.waterId
-                if waterId > 0 or cellCount == 0:
-                    x = 0
-                #assert waterId > 0 or cellCount > 0, 'Subbasin {0!s} has zero cell count'.format(SWATBasin)
+                # cell counts amy be zero in HUC and HAWQS models because of restricted landuse and soil maps
+                assert waterId > 0 or cellCount > 0 or self._gv.isHUC or self._gv.isHAWQS, 'Basin {0!s} has zero cell count'.format(SWATBasin)
                 meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                 meanSlopePercent = meanSlope * 100
                 farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
@@ -4976,6 +4976,9 @@ class CreateHRUs(QObject):
                 numWetland += 1
             else:
                 numPlaya += 1
+        if self._gv.isHUC or self._gv.isHAWQS:
+            # playas not included in lakesData as generated from unconnected lakes
+            numPlaya += self._gv.playaCount
         return (numRes, numPond, numWetland, numPlaya)
     
     def totalWaterBodiesArea(self) -> float:

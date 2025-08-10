@@ -20,7 +20,7 @@
  ***************************************************************************/
 """
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QSettings # @UnresolvedImport
+from qgis.PyQt.QtCore import QSettings, QVariant # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
 from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer  # @UnresolvedImport
 from osgeo import gdal  # type: ignore
@@ -69,7 +69,7 @@ class QSWATTopology:
     ## Value used to indicate no basin since channel is zero length and has no points.
     ## Must be negative (since TauDEM basin (WSNO) numbers go from 0 up
     ## and must not be -1 since this indicates a 'not found' in most gets, or a main outlet
-    ## smae number used by makePlus for HUC models, so need to be kept consistent
+    ## same number used by makePlus for HUC models, so need to be kept consistent
     _NOBASIN = -2
     
     # lake water roles
@@ -547,7 +547,7 @@ class QSWATTopology:
                 # inlets in HUC and HAWQS models are zero length channels, and these have positive DSNODEIDs
                 # elif dsNode < 0 or HUCorHAWQS: cwg 14/7/24 mark all zero length channels so eg reservoirs too close to junctions detected
                 elif HUCorHAWQS and dsNode == chLink:
-                    pass # inlet channel can be ignored
+                    pass # inlet channel: can be ignored
                 else:
                     self.zeroChannels.add(chLink)
             maxChLink = max(maxChLink, chLink)
@@ -677,7 +677,7 @@ class QSWATTopology:
                         else: typ = 'Outlet'
                         if typ != 'Outlet':
                             pointsToShift.append(dsNode)
-                            lastType = typ
+                            lastTyp = typ
                     if isInlet:
                         if isPtSource:
                             pt = point.geometry().asPoint()
@@ -696,7 +696,7 @@ class QSWATTopology:
                     
             if len(pointsToShift) > 0 and not gv.existingWshed: # separation is only for TauDEM to distinguish points: not needed for existing watershed
                 if len(pointsToShift) == 1:
-                    msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(lastType, pointsToShift[0])
+                    msg = '{0} with id {1} has a zero length channel leading to it: please remove or move downstream'.format(lastTyp, pointsToShift[0])
                 else:
                     msg = 'Points {0} have zero length channels leading to them: please remove or move downstream'.format(pointsToShift)
                 if reportErrors:
@@ -1602,7 +1602,7 @@ class QSWATTopology:
                 else:
                     if lakeMain == lakeOut:
                         # lake's main outlet
-                        # channel leaves lake at upper end, or lower end if isHUC
+                        # channel leaves lake at upper end, or lower end if isHUC or isHAWQS
                         reachData = self.getReachData(channel, demLayer)
                         assert reachData is not None
                         subbasin = channel[channelBasinIndex]
@@ -1650,7 +1650,7 @@ class QSWATTopology:
                     if not found:
                         continue
                 if len(mmap) == 0:
-                    QSWATUtils.error('Failed to find outlet channel for lake {0}'.format(lakeId), self._gv.isBatch)
+                    QSWATUtils.error('Failed to find outlet channel for lake {0}'.format(lakeId), self.isBatch)
                 else:
                     channelsLayer.dataProvider().changeAttributeValues(mmap)    
         return True
@@ -3239,7 +3239,7 @@ class QSWATTopology:
         if not OK:
             QSWATUtils.error('Cannot edit streams results template {0}.'.format(rivFile), self.isBatch)
             return None
-        # leave only the Channel, ChannelR and Subbasin attributes
+        # leave only the Channel, ChannelR, channelR2 and Subbasin attributes
         self.removeFields(rivLayer, [QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._CHANNELR2, QSWATTopology._SUBBASIN], rivFile, self.isBatch)
         # add PenWidth field to stream results template
         OK = provider.addAttributes([QgsField(QSWATTopology._PENWIDTH, Parameters.doubleFieldType)])
@@ -3438,7 +3438,7 @@ class QSWATTopology:
                     dsChannel2, dsNodeId2 = self.downChannels2.get(channel, (-1, -1))
                     dsSWATChannel2 = self.channelToSWATChannel.get(dsChannel2, 0)
                     haveBifurcation = dsChannel2 >= 0 or dsNodeId2 >= 0
-                    mainPercent = 60 if haveBifurcation else 100
+                    mainPercent = Parameters._MAJORPERCENT if haveBifurcation else 100
                     # if channel is lake outflow
                     # if main outflow, route lake to outlet and outlet to channel
                     # else route 0% of lake to channel
@@ -4313,16 +4313,16 @@ class QSWATTopology:
                         break
                     nxt = dschannel
                 if len(path) > maxx:
-                    QSWATUtils.error('Failed to find outlet for channel {0} on path {1}'.format(channel, path), self._gv.isBatch)
+                    QSWATUtils.error('Failed to find outlet for channel {0} on path {1}'.format(channel, path), self.isBatch)
                     l = len(path)
                     last = path[l - 1]
                     i = l - 2
                     while i >= 0:
                         if last == path[i]:
-                            QSWATUtils.error('Path has loop length {0}'.format(l - i - 1), self._gv.isBatch)
+                            QSWATUtils.error('Path has loop length {0}'.format(l - i - 1), self.isBatch)
                             return
                         i -= 1
-                    QSWATUtils.error('Path has no loop', self._gv.isBatch)
+                    QSWATUtils.error('Path has no loop', self.isBatch)
                     return
             #QSWATUtils.loginfo('Outchannels: {0}'.format(outChannels))
             #QSWATUtils.loginfo('Outchannelset: {0}'.format(outChannelSet))
@@ -4433,8 +4433,12 @@ class QSWATTopology:
                     pt = inletPoint.geometry().asPoint()
                     chInlets[chLink] = (inletPoint[ptIdIndex], pt)
             if self.isHUC or self.isHAWQS:
-                first: Optional[List[QgsPointXY]] = [QgsPointXY(reach[sourceXIndex], reach[sourceYIndex])]
-                last: Optional[List[QgsPointXY]] = [QgsPointXY(reach[outletXIndex], reach[outletYIndex])]
+                x1 = reach[sourceXIndex]
+                y1 = reach[sourceYIndex]
+                x2 = reach[outletXIndex]
+                y2 = reach[outletYIndex]
+                first: Optional[List[QgsPointXY]] = [QgsPointXY(x1, y1)]
+                last: Optional[List[QgsPointXY]] = [QgsPointXY(x2, y2)]
             else:
                 geom = reach.geometry()
                 first = QSWATTopology.reachFirstLine(geom, self.xThreshold, self.yThreshold)                

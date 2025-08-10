@@ -1094,18 +1094,73 @@ assumed that its crossing the lake boundary is an inaccuracy.
         root = QgsProject.instance().layerTreeRoot()
         subsNoLakes = os.path.split(self._gv.subbasinsFile)[0] + '/subsNoLakes.shp'
         QSWATUtils.tryRemoveLayerAndFiles(subsNoLakes, root)
-        params = {'INPUT': self._gv.subbasinsFile, 'OVERLAY': self._gv.lakeFile, 'OUTPUT': subsNoLakes, 'GRID_SIZE': None}
+        # need to make playas
+        # first extract lakes intersecting with wshed
+        localLakeFile = QSWATUtils.join(self._gv.shapesDir, 'locallakes.shp')
+        QSWATUtils.tryRemoveLayerAndFiles(localLakeFile, root)
+        intersect = 0
+        params = { 'INPUT' : self._gv.lakeFile, 'INTERSECT' : self._gv.subbasinsFile, 'OUTPUT' : localLakeFile, 'PREDICATE' : [intersect] }
+        processing.run('native:extractbylocation', params, context=self._gv.processingContext)
+        if not os.path.isfile(localLakeFile):
+            QSWATUtils.error('Failed to extract local lakes in {0} file'.format(localLakeFile), self._gv.isBatch)
+            return False
+        # now need to mark playas: local lakes without channel connections
+        connectedLakes = set()
+        channelsProvider = channelsLayer.dataProvider()
+        lakeWithinIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._LAKEWITHIN)
+        lakeInIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._LAKEIN)
+        lakeOutIndex = self._gv.topo.getIndex(channelsLayer, QSWATTopology._LAKEOUT)
+        for channel in channelsProvider.getFeatures():
+            lakeWithin = channel[lakeWithinIndex]
+            # this cam add NULL but it is immaterial
+            if not lakeWithin is None:
+                connectedLakes.add(lakeWithin)
+            lakeIn = channel[lakeInIndex]
+            if not lakeIn is None:
+                connectedLakes.add(lakeIn)
+            lakeOut = channel[lakeOutIndex]
+            if not lakeOut is None:
+                connectedLakes.add(lakeOut)
+        # playas are lakes in localLakes that are not connected
+        lakesLayer = QgsVectorLayer(localLakeFile, 'local lakes', 'ogr')
+        lakesProvider = lakesLayer.dataProvider()
+        lakeIdIndex = self._gv.topo.getIndex(lakesLayer, 'OBJECTID')
+        lakeFTypeIndex = self._gv.topo.getIndex(lakesLayer, 'FTYPE')
+        mmap = dict()
+        playaIds = []
+        for lake in lakesProvider.getFeatures():
+            fid = lake.id()
+            lakeId = lake[lakeIdIndex]
+            if lakeId not in connectedLakes:
+                # mark as playa
+                mmap[fid] = {lakeFTypeIndex: 'Playa'}
+                playaIds.append(fid)
+        if len(mmap) > 0:
+            if not lakesProvider.changeAttributeValues(mmap):
+                QSWATUtils.error('Cannot mark local lakes with playas', self._gv.isBatch)
+                return False
+        self._gv.playaFile = self.createPlayaFile(localLakeFile, demLayer, root)
+        # to make subsnolakes we first remove playas from local lakes 
+        # but first not how many
+        self._gv.playaCount = len(playaIds)
+        if self._gv.playaCount > 0:
+            lakesProvider.deleteFeatures(playaIds)
+        # now make subsnolakes
+        params = {'INPUT': self._gv.wshedFile, 'OVERLAY': localLakeFile, 'OUTPUT': subsNoLakes, 'GRID_SIZE': None}
         processing.run('native:difference', params, context=self._gv.processingContext)
         if not os.path.isfile(subsNoLakes):
             QSWATUtils.error('Failed to create {0} file'.format(subsNoLakes), self._gv.isBatch)
             return False
-        # QSWATUtils.removeLayer(self._gv.chBasinNoLakeFile, root)
-        # wChannelNoLakeFile = self.createBasinFile(subsNoLakes, demLayer, 'wChannelNoLake', root)
-        # if not os.path.isfile(wChannelNoLakeFile):
-        #     QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
-        #     return False
-        # channelbasinfile has lakes removed already for HUC14 models, not for HUC12/10/8 models
-        self._gv.chBasinNoLakeFile = self._gv.channelBasinFile
+        
+        QSWATUtils.removeLayer(self._gv.chBasinNoLakeFile, root)
+        wChannelNoLakeFile = self.createBasinFile(subsNoLakes, demLayer, 'wChannelNoLake', root)
+        if not os.path.isfile(wChannelNoLakeFile):
+            QSWATUtils.error('Failed to create no lakes raster {0}'.format(wChannelNoLakeFile), self._gv.isBatch)
+            return False
+        self._gv.chBasinNoLakeFile = wChannelNoLakeFile
+        # channelbasinfile has lakes removed already for HUC14 models, not for HUC12/10/8 models: TODO
+        # self._gv.chBasinNoLakeFile = self._gv.channelBasinFile
+        
         # # now populate LakeIn etc fields
         # self._gv.topo.addLakeFieldsToChannels(channelsLayer)
         # channelsProvider = channelsLayer.dataProvider()
@@ -3822,9 +3877,9 @@ If you want to start again from scratch, reload the lakes shapefile."""
         ySize = demLayer.rasterUnitsPerPixelY()
         extent = demLayer.extent()
         # need to use extent to align basin raster cells with DEM
-        where = 'RES = {0}'.format(QSWATTopology._PLAYATYPE)
-        command = 'gdal_rasterize -a {0} -tr {1!s} {2!s} -te {6} {7} {8} {9} -a_nodata -9999 -ot Int32 -where "{10}" -l "{3}" "{4}" "{5}"' \
-        .format(QSWATTopology._RES, xSize, ySize, baseName, lakeFile, playaFile,
+        where = "FTYPE = 'Playa'" if (self._gv.isHUC or self._gv.isHAWQS) else 'RES = {0}'.format(QSWATTopology._PLAYATYPE)
+        command = 'gdal_rasterize -burn {0} -tr {1!s} {2!s} -te {6} {7} {8} {9} -a_nodata -9999 -ot Int32 -where "{10}" -l "{3}" "{4}" "{5}"' \
+        .format(QSWATTopology._PLAYATYPE, xSize, ySize, baseName, lakeFile, playaFile,
                 extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum(), where)
         QSWATUtils.loginfo(command)
         os.system(command)
@@ -4753,12 +4808,10 @@ If you want to start again from scratch, reload the lakes shapefile."""
         inletIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._INLET)
         resIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._RES)
         ptsourceIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._PTSOURCE)
-        ptIdIndex = self._gv.topo.getIndex(outletLayer, QSWATTopology._POINTID, ignoreMissing=True)
+        ptIdIndex = QSWATTopology.makePositiveOutletIds(outletLayer)
         if ptIdIndex < 0:
-            ptIdIndex = QSWATTopology.makePositiveOutletIds(outletLayer)
-            if ptIdIndex < 0:
-                QSWATUtils.error('Failed to add PointId field to inlets/outlets file {0}'.format(QSWATUtils.layerFilename(outletLayer)), self._gv.isBatch)
-                return False
+            QSWATUtils.error('Failed to add PointId field to inlets/outlets file {0}'.format(QSWATUtils.layerFilename(outletLayer)), self._gv.isBatch)
+            return False
         idSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._ID)
         inletSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._INLET)
         resSnapIndex = self._gv.topo.getIndex(snapLayer, QSWATTopology._RES)

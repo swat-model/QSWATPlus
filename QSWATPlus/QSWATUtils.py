@@ -536,7 +536,7 @@ class QSWATUtils:
         
     @staticmethod
     def getHorizontalFactor(units) -> Tuple[float, bool]:
-        """Get horizontal factor (multiplier to metres from units, plus OK flag"""
+        """Get horizontal factor (multiplier to metres from units), plus OK flag"""
         
         qv = Qgis.QGIS_VERSION.split('-', 1)[0]
         recent = parse(qv) >= parse('3.40')
