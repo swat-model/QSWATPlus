@@ -4345,8 +4345,9 @@ class CreateHRUs(QObject):
                         basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
                         pointId, _, _ = self._gv.topo.outlets[basin]
                     self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
-                    # route point in case not done
-                    self._gv.db.addToRouting(cursor, pointId, 'PT', 0, 'X', QSWATTopology._TOTAL, 100)
+                    # route point if not done
+                    if pointId not in self._gv.topo.routedPoints:
+                        self._gv.db.addToRouting(cursor, pointId, 'PT', 0, 'X', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
         self.progress('Writing aquifers and deep aquifers tables ...')

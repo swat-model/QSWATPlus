@@ -1096,6 +1096,11 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSWATUtils.tryRemoveLayerAndFiles(subsNoLakes, root)
         # need to make playas
         # first extract lakes intersecting with wshed
+        # check lake file has a spatial index
+        spatialIndex = os.path.splitext(self._gv.lakeFile)[0] + '.qix'
+        if not os.path.isfile(spatialIndex):
+            params = {'INPUT': self._gv.lakeFile}
+            res = processing.run('native:createspatialindex', params, context=self._gv.processingContext)
         localLakeFile = QSWATUtils.join(self._gv.shapesDir, 'locallakes.shp')
         QSWATUtils.tryRemoveLayerAndFiles(localLakeFile, root)
         intersect = 0

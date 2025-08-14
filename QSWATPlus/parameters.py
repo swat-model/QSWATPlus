@@ -169,6 +169,8 @@ class Parameters:
     
     # minimum percentage of the drain area of a lake outlet channel to the lake area for it not to be absorbed into the lake
     _LAKEOUTLETCHANNELAREA = 1  #TODO: add to parameters form
+    # minimum length of lake outlet channel (in dem cells) for it not to be absorbed
+    _LAKEOUTLETCHANNELLENGTH = 5  #TODO: add to parameters form 
     
     # default multiplier: used if not specified in project file
     _MULTIPLIER = 1.0

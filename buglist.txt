@@ -180,3 +180,8 @@ QSWATTopology.py line 4245
 Added code to prevent reachableFrom looping indefinitely
 QSWATTopology.py line 4196 
 
+14/8/2025 # 48
+Moving outlet channel into lake inadequately coded
+QSWATTopology.py 1128 ff
+
+
