@@ -1128,13 +1128,14 @@ class QSWATTopology:
                             # check for within minimum distance (to guard against long narrow channel basin)
                             length = channel.geometry().length()
                             if length < Parameters._LAKEOUTLETCHANNELLENGTH * self.dx * gv.horizontalFactor:
-                            # move outlet channel inside lake
+                                # move outlet channel inside lake
                                 lakeData.lakeChLinks.add(outLink)
                                 lakeData.outChLink = dsOutLink
                                 del self.chLinkFromLake[outLink]
                                 self.chLinkInsideLake[outLink] = lakeId
-                                # mark it as within as well as being the outlet (already set)
+                                # mark it as within and not the outlet
                                 lakeAttMap[outLinkId][channelLakeWithinIndex] = lakeId
+                                lakeAttMap[outLinkId][channelLakeOutIndex] = 0
                                 # check if this point now inside the lake is a subbasin outlet
                                 subbasin = self.chBasinToSubbasin[outBasin]
                                 (_, _, outChannels) = self.outlets[subbasin]
@@ -1147,6 +1148,12 @@ class QSWATTopology:
                                 del self.chPointSources[outLink]
                                 if dsOutLink >= 0:
                                     self.chLinkFromLake[dsOutLink] = lakeId
+                                    # find dsOutLink's id
+                                    exp = QgsExpression('"{0}" = {1}'.format(QSWATTopology._LINKNO, dsOutLink))
+                                    request = QgsFeatureRequest(exp)
+                                    dsChannel = list(channelsProvider.getFeatures(request))[0]
+                                    dsOutLinkId = dsChannel.id()
+                                    lakeAttMap.setdefault(dsOutLinkId, dict())[channelLakeOutIndex] = lakeId
                                 break
             if lakeData.outPoint[2] is None:
                 QSWATUtils.error('Failed to find outlet for lake {0}'.format(lakeId), self.isBatch)
