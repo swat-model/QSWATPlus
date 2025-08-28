@@ -403,9 +403,9 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         
     def checkKeyInTable(self, table: str, key: int) -> None:
         """Generate error message if key not in gis_keys for this table."""
-        # ignore for HUC and HAWQS projects
-        if self.isHUC or self.isHAWQS:
-            return
+        # # ignore for HUC and HAWQS projects
+        # if self.isHUC or self.isHAWQS:
+        #     return
         keys = self.gis_keys.get(table, set())
         if key not in keys:
             QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
@@ -419,6 +419,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         elif sourceCategory == 'HRU': table = None  # 'gis_hrus' no need for this because of code structure
         elif sourceCategory == 'LSU': table = None  # gis_lsus defined after LSU routing
         elif sourceCategory == 'SUB': table = None  # gis_subbasins defined after routing
+        elif sourceCategory == 'SBR': table = None  # gis_subbasins defined after routing
         elif sourceCategory == 'AQU': table = None  # gis_aquifers no need for this because of code structure
         elif sourceCategory == 'DAQ': table = None  # gis_deep no need for this because of code structure
         elif sourceCategory in {'RES', 'PND', 'WETL'}: table = 'gis_water'
@@ -430,13 +431,13 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, hydTyp, sinkId, sinkCategory, percent))  #type: ignore
         
     def checkRoutedPointsSubbasinsAndLSUsDefined(self) -> None:
-        """Checks categories PT, LSU, SUB sources are defined in gis_table."""
+        """Checks categories PT, LSU, SUB, SBR sources are defined in gis_table."""
         for (sourceId, sourceCategory) in self.routingSources:
             if sourceCategory == 'PT':
                 self.checkKeyInTable('gis_points', sourceId)
             elif sourceCategory == 'LSU':
                 self.checkKeyInTable('gis_lsus', sourceId)
-            elif sourceCategory == 'SUB':
+            elif sourceCategory == 'SUB' or sourceCategory == 'SBR':
                 self.checkKeyInTable('gis_subbasins', sourceId)
         
     def checkRoutingTable(self) -> None:

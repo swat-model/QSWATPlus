@@ -134,6 +134,7 @@ class Parameters:
     _SQMILESTOSQMETRES = 2589988.1
     _ACRESTOSQMETRES = 4046.8564
     _SQMETRESTOSQFEET = 10.763910
+    _ACREFEETTOCUBICMETRES = 1233.4818375475
     
     _DEFAULTFONTSIZE = 12 if _ISMAC else 10
     _PLOTFONTSIZE = 5 if _ISMAC else 9
@@ -171,6 +172,8 @@ class Parameters:
     _LAKEOUTLETCHANNELAREA = 1  #TODO: add to parameters form
     # minimum length of lake outlet channel (in dem cells) for it not to be absorbed
     _LAKEOUTLETCHANNELLENGTH = 5  #TODO: add to parameters form 
+    # in HUC/HAWQS models, minimum volume for lake with FTYPE Pond to be classed as reservoir: cubic metre equivalence to 25000 acre-feet
+    _RESERVOIRVOLUME = 30837046
     
     # default multiplier: used if not specified in project file
     _MULTIPLIER = 1.0

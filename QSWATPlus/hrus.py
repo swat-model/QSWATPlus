@@ -1148,7 +1148,7 @@ class CreateHRUs(QObject):
             # clear memory
             if not self._gv.useGridModel:
                 basinDs = None
-            self.saveAreas(True, redistributeNodata=not (under95 and (self._gv.isHUC or self._gv.isHAWQS)))
+            self.saveAreas(True, redistributeNodata=True)
             self.progress('Writing HRU data to database ...')
             if not self._db.createBasinsDataTables(cursor):
                 return False
@@ -1176,7 +1176,10 @@ class CreateHRUs(QObject):
                         else:
                             msg2 = 'the upslape of '
                         msg3 = 'channel {0} (LINKNO {2}) in subbasin {1} (and perhaps others)'.format(SWATChannel, SWATBasin, channel)
-                        QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch)
+                        if self._gv.isHUC or self._gv.isHAWQS:
+                            QSWATUtils.loginfo(msg1 + msg2 + msg3)
+                        else:
+                            QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch)
                         # allow batch, HUC and HAWQS runs to continue
                         return self._gv.isBatch or self._gv.isHUC or self._gv.isHAWQS
         return True
@@ -1898,18 +1901,29 @@ class CreateHRUs(QObject):
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys()) + list(self._gv.topo.chLinkFromLake.keys())
         else:
             chLinksByLakes = list(self._gv.topo.chLinkIntoLake.keys()) + list(self._gv.topo.chLinkInsideLake.keys())
+        maxRedistributeFactor = 4 / 3.0  # for HUC and HAWQS. Corresponds to cropSoilSlopeArea is 75% of area
         for basin, data in self.basins.items():
             if isOriginal and (self._gv.isHUC or self._gv.isHAWQS): # don't redistribute water in wetlands for HUC or HAWQS
                 for chLink, channelData in data.getLsus().items():
                     for lscape, lsuData in channelData.items():
                         if redistributeNodata:
+                            SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
+                            lsuId = QSWATUtils.landscapeUnitId(SWATChannel, lscape)
+                            doRedistribute = True
                             areaToRedistribute = lsuData.area - lsuData.cropSoilSlopeArea
                             if lsuData.area > areaToRedistribute > 0:
                                 redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
-                                if redistributeFactor > 2:
+                                if self._gv.isHUC or self._gv.isHAWQS:
+                                    if redistributeFactor > maxRedistributeFactor:
+                                        SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
+                                        QSWATUtils.loginfo('LSU {0} has less than {1:.1F}% area with defined soil and landuse: not redistributing'.format(lsuId, 100 / redistributeFactor ))
+                                        lsuData.area = lsuData.cropSoilSlopeArea
+                                        doRedistribute = False
+                                elif redistributeFactor > 2:
                                     SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
-                                    QSWATUtils.loginfo('Channel {0} has redistribute factor of {1:.2F}'.format(SWATChannel, redistributeFactor))
-                                lsuData.redistribute(redistributeFactor)
+                                    QSWATUtils.loginfo('LSU {0} has redistribute factor of {1:.1F}'.format(lsuId, redistributeFactor))
+                                if doRedistribute:
+                                    lsuData.redistribute(redistributeFactor)
                         lsuData.setCropAreas(isOriginal)
                         lsuData.setSoilAreas(isOriginal)
                         lsuData.setSlopeAreas(isOriginal)
@@ -3225,7 +3239,7 @@ class CreateHRUs(QObject):
             fw.writeLine('Landuse')
             originalCropAreas = basinData.cropAreas(True)
             basinWaterBodiesArea = self.basinWaterBodiesArea(basinData)
-            if self._gv.isHUC:
+            if self._gv.isHUC or self._gv.isHAWQS:
                 # avoid empty subbasin errors
                 noLanduseReported = True
                 noSoilReported = True
@@ -4021,8 +4035,10 @@ class CreateHRUs(QObject):
                         floodLen = floodLsuData.farDistance
                     assert floodDrop is not None
                     for landscape, lsuData in channelData.items():
-                        if lsuData.cropSoilSlopeArea == 0 or \
-                            (lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and \
+                        if lsuData.cropSoilSlopeArea == 0:
+                            if not (self._gv.isHUC or self._gv.isHAWQS):  # outside soil/landuse: leave HUC and HAWQS LSUs to avoid complications with channel
+                                continue
+                        elif (lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and \
                              lsuData.cropSoilSlopeArea == lsuData.waterBody.originalArea):
                             # was all water
                             continue

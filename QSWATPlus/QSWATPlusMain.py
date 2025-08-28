@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.0.8' 
+    __version__ = '3.1.0' 
 
     def __init__(self, iface):
         """Constructor."""
@@ -330,6 +330,7 @@ class QSWATPlus(QObject):
         self._odlg.setCursor(Qt.WaitCursor)
         self._odlg.projPath.setText('Restarting project ...')
         title = QFileInfo(proj.fileName()).baseName()
+        QSWATUtils.loginfo('Project file is {0}'.format(proj.fileName()))
         proj.setTitle(title)
         # In project file, title without spaces is used as attribute
         attTitle = title.replace(' ', '')
@@ -345,7 +346,6 @@ class QSWATPlus(QObject):
             proj.writeEntryBool(attTitle, 'delin/isHAWQS', isHAWQS)
         else:
             isHAWQS = isHAWQSFromProjfile
-        #QSWATUtils.loginfo('isHAWQS is {0}'.format(isHAWQS))
         # now have project so initiate global vars
         # if we do this earlier we cannot for example find the project database
         self._gv = GlobalVars(self._iface, QSWATPlus.__version__, self.plugin_dir, isBatch, isHUC, isHAWQS, logFile)

@@ -84,6 +84,7 @@ class QSWATTopology:
     _SURFACE = 'sur'
     _LATERAL = 'lat'
     _TILE = 'til'
+    _NIL = 'nil'
     
     _LINKNO = 'LINKNO'
     _DSLINKNO = 'DSLINKNO'
@@ -834,6 +835,8 @@ class QSWATTopology:
         if lakeResIndex < 0:
             QSWATUtils.information('No RES field in lakes shapefile {0}: assuming lakes are reservoirs'.
                                    format(QSWATUtils.layerFilename(lakesLayer)), self.isBatch, reportErrors=reportErrors)
+        # for HUC/HAWQS
+        lakeVolumeIndex = lakesProvider.fieldNameIndex('LakeVolume') if self.isHUC or self.isHAWQS else -1
         subsProvider =  subbasinsLayer.dataProvider()
         subsPolyIndex = subsProvider.fieldNameIndex(QSWATTopology._POLYGONID)
         subsAreaIndex = subsProvider.fieldNameIndex(Parameters._AREA)
@@ -874,7 +877,7 @@ class QSWATTopology:
             if lakeResIndex < 0:
                 waterRole = QSWATTopology._RESTYPE
             elif self.isHUC or self.isHAWQS:
-                waterRole = 1 if lake[lakeResIndex] == 'Reservoir' else 2
+                waterRole = QSWATTopology._RESTYPE if lake[lakeResIndex] == 'Reservoir' or lake[lakeVolumeIndex] >= Parameters._LAKERESERVOIR else QSWATTopology._PONDTYPE
             else:
                 waterRole = int(lake[lakeResIndex])
             if lakeAreaIndex >= 0:
@@ -3376,6 +3379,7 @@ class QSWATTopology:
         
         chCat = 'CH'
         subbasinCat = 'SUB'
+        subRoutingCat = 'SBR'
         ptCat = 'PT'
         resCat = 'RES'
         pondCat = 'PND'
@@ -3766,7 +3770,43 @@ class QSWATTopology:
                         lakeData = self.lakesData[lakeId]
                         wCat = resCat if lakeData.waterRole == 1 else pondCat if lakeData.waterRole == 2 else wetlandCat
                         self.db.addToRouting(curs, SWATBasin, subbasinCat, lakeId, wCat, QSWATTopology._TOTAL, 100)
-                    
+                # route subbasin to downstream subbasin
+                for subbasin, downSubbasin in self.downSubbasins.items():
+                    SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
+                    if SWATBasin == 0:
+                        continue
+                    routed = False
+                    if gv.useGridModel:
+                        chLink = self.chBasinToChLink.get(subbasin, -1)
+                        if chLink < 0 or chLink in self.chLinkInsideLake or chLink in self.chLinkFromLake:
+                            continue
+                        lakeId = self.chLinkIntoLake.get(chLink, -1)
+                        if lakeId > 0:
+                            lakeData = self.lakesData[lakeId]
+                            wCat = resCat if lakeData.waterRole == 1 else pondCat if lakeData.waterRole == 2 else wetlandCat
+                            self.db.addToRouting(curs, SWATBasin, subRoutingCat, lakeId, wCat, QSWATTopology._NIL, 100)
+                            routed = True
+                    if not routed:
+                        downSWATBasin = self.subbasinToSWATBasin.get(downSubbasin, 0)
+                        if downSWATBasin == 0:
+                            self.db.addToRouting(curs, SWATBasin, subRoutingCat, 0, xCat, QSWATTopology._NIL, 100)
+                        else:
+                            self.db.addToRouting(curs, SWATBasin, subRoutingCat, downSWATBasin, subRoutingCat, QSWATTopology._NIL, 100)
+                if gv.useGridModel:
+                    for lakeId, lakeData in self.lakesData.items():
+                        wCat = resCat if lakeData.waterRole == 1 else pondCat if lakeData.waterRole == 2 else wetlandCat
+                        chLink = lakeData.outChLink
+                        if chLink < 0:
+                            self.db.addToRouting(curs, lakeId, wCat, 0, xCat, QSWATTopology._NIL, 100)
+                        else:
+                            # subbasin we want is downstream from chLink's subbasin
+                            subbasin = self.chLinkToChBasin.get(chLink, -1)
+                            downSubbasin = self.downSubbasins.get(subbasin, -1)
+                            downSWATBasin = self.subbasinToSWATBasin.get(downSubbasin, 0)
+                            if downSWATBasin == 0:
+                                self.db.addToRouting(curs, lakeId, wCat, 0, xCat, QSWATTopology._NIL, 100)
+                            else:
+                                self.db.addToRouting(curs, lakeId, wCat, downSWATBasin, subRoutingCat, QSWATTopology._NIL, 100)
             return True               
         except Exception:
             QSWATUtils.loginfo('Routing channels, outlets and subbasins failed: {0}'.format(traceback.format_exc()))
