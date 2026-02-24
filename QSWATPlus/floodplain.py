@@ -300,7 +300,7 @@ class Floodplain(QObject):
                 (startRow, startCol) = path[0]
                 startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.demTransform)
                 x, y = QSWATTopology.cellToProj(col, row, self.demTransform)
-                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3})'.format(x, y, startX, startY), self._gv.isBatch)
+                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3})'.format(x, y, startX, startY), self._gv.isBatch, logFile=self._gv.logFile)
                 return (0, None)
             path.append((row, col))
             pt, _ = self.alongDirPoint(row, col, d8Raster)
@@ -367,7 +367,7 @@ class Floodplain(QObject):
                                                           self._gv, demLayer, QSWATUtils._WATERSHED_GROUP_NAME)
                         if floodLayer is None:
                             QSWATUtils.error('Failed to load floodplain raster {0}' \
-                                             .format(self.floodplainRaster.fileName), self._gv.isBatch)
+                                             .format(self.floodplainRaster.fileName), self._gv.isBatch, logFile=self._gv.logFile)
                     self.valleyDepthsRaster.close()
                     self.ridgeHeightsRaster.close()
                     self._progress('Flood plain done')
@@ -385,7 +385,7 @@ class Floodplain(QObject):
                                                           demLayer, QSWATUtils._WATERSHED_GROUP_NAME)
             if floodLayer is None:
                 QSWATUtils.error('Failed to load floodplain raster {0}' \
-                                 .format(self.floodplainRaster.fileName), self._gv.isBatch)
+                                 .format(self.floodplainRaster.fileName), self._gv.isBatch, logFile=self._gv.logFile)
                 
                     
         
@@ -404,7 +404,7 @@ class Floodplain(QObject):
                         except Exception:
                             QSWATUtils.information('Problem in calculating slope position at {0}: numerator {1}; denominator {2}: {3}. Set to 0' \
                                                .format(QSWATTopology.cellToProj(col, row, valleyTransform), vd, rh+vd, traceback.format_exc()),
-                                             self._gv.isBatch)
+                                             self._gv.isBatch, logFile=self._gv.logFile)
                             sp = 0
                         self.floodplainRaster.write(row, col, 1 if sp <= self.floodThresh else self.noData) 
         numpy.seterr(divide=old_settings['divide'])
@@ -460,13 +460,13 @@ class Floodplain(QObject):
                 if os.path.exists(self._gv.delinStreamFile):
                     streamLayer = QgsVectorLayer(self._gv.delinStreamFile, 'Delineated streams', 'ogr')
                 else:
-                    QSWATUtils.error('Cannot use branch length algorithm without a delineated stream shapefile', self._gv.isBatch)
+                    QSWATUtils.error('Cannot use branch length algorithm without a delineated stream shapefile', self._gv.isBatch, logFile=self._gv.logFile)
                     return
             else:
                 streamLayer = QSWATUtils.getLayerByFilename(root.findLayers(), 
                                                             self._gv.streamFile, FileTypes._STREAMS, None, None, None)[0]
                 if streamLayer is None:
-                    QSWATUtils.error('Streams layer not found: have you run TauDEM?', self._gv.isBatch)
+                    QSWATUtils.error('Streams layer not found: have you run TauDEM?', self._gv.isBatch, logFile=self._gv.logFile)
                     return
             if not self._gv.topo.setUp1(streamLayer):
                 return
@@ -564,7 +564,7 @@ class Floodplain(QObject):
             if n > 1000:
                 if reportFailure:
                     x, y = QSWATTopology.cellToProj(row, col, self.demTransform)
-                    QSWATUtils.information('No ridge point found within 1000 pixels of ({0}, {1}).  Is the branch threshold too high?'.format(x, y), self._gv.isBatch)
+                    QSWATUtils.information('No ridge point found within 1000 pixels of ({0}, {1}).  Is the branch threshold too high?'.format(x, y), self._gv.isBatch, logFile=self._gv.logFile)
                 return 0, -1
 
             

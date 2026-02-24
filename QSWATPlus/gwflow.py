@@ -195,22 +195,22 @@ class GWFlow():
             
     def checkFiles(self):
         if not os.path.isfile(self._dlg.aquiferThickness.text()):
-            QSWATUtils.information('Please select an aquifer thickness raster', self._gv.isBatch)
+            QSWATUtils.information('Please select an aquifer thickness raster', self._gv.isBatch, logFile=self._gv.logFile)
             return 
         if not os.path.isfile(self._dlg.aquiferPermeability.text()):
-            QSWATUtils.information('Please select a permeability shapefile', self._gv.isBatch)
+            QSWATUtils.information('Please select a permeability shapefile', self._gv.isBatch, logFile=self._gv.logFile)
             return 
         if not os.path.isfile(self._dlg.initialization.text()):
-            QSWATUtils.information('Please select a gwflow initialization file', self._gv.isBatch)
+            QSWATUtils.information('Please select a gwflow initialization file', self._gv.isBatch, logFile=self._gv.logFile)
             return 
         if self._dlg.useObservationLocations.isChecked() and not os.path.isfile(self._dlg.observationLocations.text()):
-            QSWATUtils.information('Please select an observation locations shapefile', self._gv.isBatch)
+            QSWATUtils.information('Please select an observation locations shapefile', self._gv.isBatch, logFile=self._gv.logFile)
             return
         if self._dlg.useTileDrains.isChecked() and not os.path.isfile(self._dlg.tileDrains.text()):
-            QSWATUtils.information('Please select a tile drains shapefile', self._gv.isBatch)
+            QSWATUtils.information('Please select a tile drains shapefile', self._gv.isBatch, logFile=self._gv.logFile)
             return
         if self._dlg.setOutputTimes.isChecked() and not os.path.isfile(self._dlg.outputTimes.text()):
-            QSWATUtils.information('Please select an output times file', self._gv.isBatch)
+            QSWATUtils.information('Please select an output times file', self._gv.isBatch, logFile=self._gv.logFile)
             return
         self._dlg.close()
         
@@ -393,7 +393,7 @@ class GWFlow():
         river_filename = os.path.join(self._gv.resultsDir, river_filename) # look_file(river_filename)
         hrus_filename = os.path.join(self._gv.shapesDir, hrus_filename) # look_file(hrus_filename)
         if self.HRU_recharge and not os.path.isfile(hrus_filename):
-            QSWATUtils.error('There is no full HRUs shapefile.  HRU recharge will not be used.  LSU recharge will be used.', self._gv.isBatch)
+            QSWATUtils.error('There is no full HRUs shapefile.  HRU recharge will not be used.  LSU recharge will be used.', self._gv.isBatch, logFile=self._gv.logFile)
             self.HRU_recharge = False
             self.LSU_recharge = True
         lsus_filename = os.path.join(self._gv.resultsDir, lsus_filename) 
@@ -427,7 +427,7 @@ class GWFlow():
                                   universal_newlines=True,    # text=True) only in python 3.7 
                                   check=True)
             except subprocess.CalledProcessError as ex:
-                QSWATUtils.error('GridGen clean failed: ' + ex.output, self._gv.isBatch)
+                QSWATUtils.error('GridGen clean failed: ' + ex.output, self._gv.isBatch, logFile=self._gv.logFile)
             self.createBuildDfn()
             self.createBoundary()
             rows, cols = self.createDatFiles(EPSG)
@@ -440,7 +440,7 @@ class GWFlow():
                                   universal_newlines=True,    # text=True) only in python 3.7 
                                   check=True)
             except subprocess.CalledProcessError as ex:
-                QSWATUtils.error('GridGen failed: ' + ex.stderr, self._gv.isBatch)
+                QSWATUtils.error('GridGen failed: ' + ex.stderr, self._gv.isBatch, logFile=self._gv.logFile)
             # bat files creates two shapefiles in gwflow/output_shapefiles that need .prj files
             QSWATUtils.copyPrj(self._gv.demFile, os.path.join(self.gwflowDir, 'output_shapefiles/grid02qtg_pts.shp'))
             QSWATUtils.copyPrj(self._gv.demFile, os.path.join(self.gwflowDir, 'output_shapefiles/grid02qtg.shp'))
@@ -796,7 +796,7 @@ class GWFlow():
         #         gwflow_input.write('\n'+obs_txt.read())
         #         obs_txt.close()
         #     except:
-        #         QSWATUtils.error('No observation cells defined', self._gv.isBatch)
+        #         QSWATUtils.error('No observation cells defined', self._gv.isBatch, logFile=self._gv.logFile)
         #         gwflow_input.write('Groundwater Observation Locations'+'\n')
         #         gwflow_input.write('0'+'\n')
         # else:
@@ -1447,7 +1447,7 @@ class GWFlow():
         context.setInvalidGeometryCheck(QgsFeatureRequest.GeometryNoCheck)
         processing.run('native:dissolve', {'INPUT': self._gv.subbasinsFile, 'OUTPUT': boundaryFile}, context=context)
         if not os.path.exists(boundaryFile):
-            QSWATUtils.error('Failed to create boundary shapefile {0}'.format(boundaryFile), self._gv.isBatch)
+            QSWATUtils.error('Failed to create boundary shapefile {0}'.format(boundaryFile), self._gv.isBatch, logFile=self._gv.logFile)
             
     def createDatFiles(self, EPSG):
         """Create .dat files for top (equals dem) and bottom (dem - aquifer thickness) of layer."""
@@ -1488,7 +1488,7 @@ class GWFlow():
                         thickData = thickBand.ReadAsArray(0, thickRow, thickNumberCols, 1)
                     else:
                         QSWATUtils.error('DEM row {0} for latitude {1} gives thickness row {2} which exceeds maximum row {3}.  Using zero.'
-                                         .format(row, int(y), thickRow, thickNumberRows), self._gv.isBatch)
+                                         .format(row, int(y), thickRow, thickNumberRows), self._gv.isBatch, logFile=self._gv.logFile)
                         thickData = np.zeros([1, thickNumberCols], dtype=float)
                 for col in range(elevNumberCols):
                     # coerce to float else considered to be a numpy float
@@ -1498,7 +1498,7 @@ class GWFlow():
                     if 0 <= thickCol < thickNumberCols:
                         thick = float(thickData[0, thickCol]) / 100 # converted to metres
                     else:
-                        QSWATUtils.error('DEM column {0} for longitude {1} gives thickness column {2} which exceeds maximum column {3}.  Using zero.'.format(col, int(x), thickCol, thickNumberCols), self._gv.isBatch)
+                        QSWATUtils.error('DEM column {0} for longitude {1} gives thickness column {2} which exceeds maximum column {3}.  Using zero.'.format(col, int(x), thickCol, thickNumberCols), self._gv.isBatch, logFile=self._gv.logFile)
                         thick = 0
                     top.write('{0}\n'.format(elev))
                     bottom.write('{0}\n'.format(elev - thick))

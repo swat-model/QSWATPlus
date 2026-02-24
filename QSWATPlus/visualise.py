@@ -49,7 +49,7 @@ from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
 from .jenks import jenks    # type: ignore # @UnresolvedImport 
-from .globals import GlobalVars  # type: ignore
+from .globals import GlobalVars  # type: ignore  # @UnusedImport
 from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
  
 # from .images2gif import writeGif
@@ -277,7 +277,10 @@ class Visualise(QObject):
         self.setSummary()
         self.fillScenarios()
         self._dlg.scenariosCombo.activated.connect(self.setupDb)
-        self._dlg.scenariosCombo.setCurrentIndex(self._dlg.scenariosCombo.findText('Default'))
+        defaultIndex = self._dlg.scenariosCombo.findText('Default')
+        if defaultIndex < 0: # accept 'default', which occurs with HAWQS projects
+            defaultIndex = self._dlg.scenariosCombo.findText('default')
+        self._dlg.scenariosCombo.setCurrentIndex(defaultIndex)
         if self.db == '':
             self.setupDb()
         self.initQResults()
@@ -4095,7 +4098,7 @@ class Visualise(QObject):
             # last year incomplete: delete it
             del flowData[yearIndex]
         if len(flowData) == 0:
-            QSWATUtils.error('There is insufficient data.  There must be at least a yesr starting from 1 {0} {1}.'.
+            QSWATUtils.error('There is insufficient data.  There must be at least a year starting from 1 {0} {1}.'.
                              format(self._dlg.dQpStartMonth.currentText(), self.startYear), self._gv.isBatch)
             return
         d = self._dlg.dQpSpinD.value()

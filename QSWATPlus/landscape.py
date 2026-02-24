@@ -274,12 +274,12 @@ class Landscape(QObject):
         
         base, suffix = os.path.splitext(self._gv.demFile)
         if not os.path.exists(self._gv.felFile):
-            QSWATUtils.error('Cannot find pit filled DEM {0}'.format(self._gv.felFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find pit filled DEM {0}'.format(self._gv.felFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         if self._gv.useGridModel and self._gv.srcChannelFile == '':
             self.makeSrcChannelRaster(channelThresh, root)
         if not os.path.exists(self._gv.srcChannelFile):
-            QSWATUtils.error('Cannot find channels raster {0}'.format(self._gv.srcChannelFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find channels raster {0}'.format(self._gv.srcChannelFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         self._dlg.setCursor(Qt.WaitCursor)
         dem, isNew = self.clipRaster(self._gv.felFile, clipperFile, root)
@@ -330,12 +330,12 @@ class Landscape(QObject):
                     # else, for example, 1 step downstream in flow raster  could stay in same channel pixel, or skip a channel pixel.
                     # Could probably live with just same pixel size, but they should both come from TauDEM using same DEM anyway.
                     if not QSWATTopology.sameTransform(self.transform, self.flowRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
-                        QSWATUtils.error('Clipped flow directions raster  {0} and clipped DEM raster {1} must have same geometry'.format(d8Flow, dem), self._gv.isBatch)
+                        QSWATUtils.error('Clipped flow directions raster  {0} and clipped DEM raster {1} must have same geometry'.format(d8Flow, dem), self._gv.isBatch, logFile=self._gv.logFile)
                         self._gv.closeOpenRasters()
                         self._dlg.setCursor(Qt.ArrowCursor)
                         return False
                     if not QSWATTopology.sameTransform(self.transform, self.channelsRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
-                        QSWATUtils.error('Clipped channels raster  {0} and clipped DEM raster {1} must have same geometry'.format(channels, dem), self._gv.isBatch)
+                        QSWATUtils.error('Clipped channels raster  {0} and clipped DEM raster {1} must have same geometry'.format(channels, dem), self._gv.isBatch, logFile=self._gv.logFile)
                         self._gv.closeOpenRasters()
                         self._dlg.setCursor(Qt.ArrowCursor)
                         return False
@@ -385,14 +385,14 @@ class Landscape(QObject):
             # can happen with existing watershed; try to find it
             ad8File = base + 'ad8' + suffix
             if not QSWATUtils.isUpToDate(self._gv.demFile, ad8File):
-                QSWATUtils.error('Cannot find flow accumulation file: looking for {0}'.format(ad8File), self._gv.isBatch)
+                QSWATUtils.error('Cannot find flow accumulation file: looking for {0}'.format(ad8File), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             else:
                 self._gv.ad8File = ad8File
         QSWATUtils.removeLayer(srcChannelFile, root)
         if not TauDEMUtils.runThreshold(self._gv.ad8File, srcChannelFile, str(channelThresh),
                                       self.numProcesses, self.taudemOutput, mustRun=True):
-            QSWATUtils.error('Failed to run TauDEM Threshold on {0}'.format(self._gv.ad8File), self._gv.isBatch)
+            QSWATUtils.error('Failed to run TauDEM Threshold on {0}'.format(self._gv.ad8File), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         self._gv.srcChannelFile = srcChannelFile
         return True
@@ -416,7 +416,7 @@ class Landscape(QObject):
         if not TauDEMUtils.runStreamNet(self._gv.felFile, self._gv.pFile, self._gv.ad8File, self._gv.srcChannelFile, None, ordChannelFile, treeChannelFile, coordChannelFile,
                                           channelFile, wChannelFile, False, self.numProcesses, self.taudemOutput, mustRun=True):     
             QSWATUtils.error('Failed to run TauDEM Threshold on {0}, {1} and {2}'.format(self._gv.felFile, self._gv.pFile,
-                                                                                          self._gv.ad8File), self._gv.isBatch)
+                                                                                          self._gv.ad8File), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         QSWATUtils.copyPrj(self._gv.felFile, channelFile)
         QSWATUtils.copyPrj(self._gv.felFile, wChannelFile)
@@ -430,7 +430,7 @@ class Landscape(QObject):
                 if not self.makeChannelShapefile(self.channelThresh, root):
                     return
             if not os.path.exists(self._gv.channelFile):    
-                QSWATUtils.error('Cannot find channels shapefile {0}'.format(self._gv.channelFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot find channels shapefile {0}'.format(self._gv.channelFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return
         channels = self._gv.channelFile
         bufferShapefile = QSWATUtils.join(self._gv.shapesDir, 'bufferflood.shp')
@@ -442,7 +442,7 @@ class Landscape(QObject):
             if bufferShapefileLayer is None:
                 bufferShapefileLayer = QgsVectorLayer(bufferShapefile, '{0} ({1})'.format(legend, QFileInfo(bufferShapefile).baseName()), 'ogr')
             if not QSWATUtils.removeAllFeatures(bufferShapefileLayer):
-                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(bufferShapefile), self._gv.isBatch)
+                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(bufferShapefile), self._gv.isBatch, logFile=self._gv.logFile)
                 return
             fields = bufferShapefileLayer.fields()
         else:
@@ -451,7 +451,7 @@ class Landscape(QObject):
             writer = QgsVectorFileWriter.create(bufferShapefile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                          QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch)
+                QSWATUtils.error('Cannot create channels buffer shapefile {0}: {1}'.format(bufferShapefile, writer.errorMessage()), self._gv.isBatch, logFile=self._gv.logFile)
                 return
             # flush
             writer.flushBuffer()
@@ -485,7 +485,7 @@ class Landscape(QObject):
             feature.setGeometry(bufferGeometry)
             features.append(feature)
         if not provider.addFeatures(features):
-            QSWATUtils.error('Unable to add features to buffer shapefile {0}'.format(bufferShapefile), self._gv.isBatch)
+            QSWATUtils.error('Unable to add features to buffer shapefile {0}'.format(bufferShapefile), self._gv.isBatch, logFile=self._gv.logFile)
             return
         bufferRasterFile = QSWATUtils.join(self._gv.floodDir, 'bufferflood' + str(self._dlg.bufferMultiplier.value()) + '.tif')
         QSWATUtils.tryRemoveLayerAndFiles(bufferRasterFile, root)
@@ -509,7 +509,7 @@ class Landscape(QObject):
         floodLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), bufferRasterFile, FileTypes._BUFFERFLOOD,
                                           self._gv, demLayer, QSWATUtils._WATERSHED_GROUP_NAME)
         if floodLayer is None:
-            QSWATUtils.error('Failed to load buffer floodplain {0}'.format(bufferRasterFile), self._gv.isBatch)
+            QSWATUtils.error('Failed to load buffer floodplain {0}'.format(bufferRasterFile), self._gv.isBatch, logFile=self._gv.logFile)
         
     def calcFloodplain(self, useInversion, root):
         """Generate floodplain raster using DEM inversion or branch length method."""
@@ -676,10 +676,10 @@ class Landscape(QObject):
     #             assert os.path.exists(dirInv), u'QGIS calculator formula {0} failed to write output'.format(formula)
     #             QSWATUtils.copyPrj(self._gv.pFile, dirInv)
     #         else:
-    #             QSWATUtils.error(u'QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch)
+    #             QSWATUtils.error(u'QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch, logFile=self._gv.logFile)
     #             return None     
     #         if not TauDEMUtils.runAreaD8(dirInv, accInv, None, None, self.numProcesses, self.taudemOutput, contCheck=False, mustRun=False):
-    #             QSWATUtils.error(u'Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch)
+    #             QSWATUtils.error(u'Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch, logFile=self._gv.logFile)
     #             return None
     #     return dirInv, accInv
     #===========================================================================
@@ -709,22 +709,22 @@ class Landscape(QObject):
                 assert os.path.exists(demInv), 'QGIS calculator formula {0} failed to write output'.format(formula)
                 QSWATUtils.copyPrj(self._gv.demFile, demInv)
             else:
-                QSWATUtils.error('QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch)
+                QSWATUtils.error('QGIS calculator formula {0} failed: returned {1}'.format(formula, result), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             invFel = base + 'invFel' + ext
             if not TauDEMUtils.runPitFill(demInv, None, invFel, self.numProcesses, self.taudemOutput):
-                QSWATUtils.error('Failed to run TauDEM PitFill on {0}'.format(demInv), self._gv.isBatch)
+                QSWATUtils.error('Failed to run TauDEM PitFill on {0}'.format(demInv), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             QSWATUtils.copyPrj(self._gv.demFile, invFel)
             sd8Inv = base + 'invsd8' + ext 
             if not TauDEMUtils.runD8FlowDir(invFel, sd8Inv, dirInv, self.numProcesses, self.taudemOutput):
-                QSWATUtils.error('Failed to run TauDEM D8FlowDir on {0}'.format(invFel), self._gv.isBatch)
+                QSWATUtils.error('Failed to run TauDEM D8FlowDir on {0}'.format(invFel), self._gv.isBatch, logFile=self._gv.logFile)
                 return None 
             QSWATUtils.copyPrj(self._gv.demFile, sd8Inv)
             QSWATUtils.copyPrj(self._gv.demFile, dirInv)
             if not TauDEMUtils.runAreaD8(dirInv, accInv, None, None,
                                          self.numProcesses, self.taudemOutput, contCheck=False, mustRun=False):
-                QSWATUtils.error('Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch)
+                QSWATUtils.error('Failed to run TauDEM AreaD8 on {0}'.format(dirInv), self._gv.isBatch, logFile=self._gv.logFile)
                 return None 
             QSWATUtils.copyPrj(self._gv.demFile, accInv)
         return dirInv, accInv
@@ -881,7 +881,7 @@ class Landscape(QObject):
                     (startRow, startCol) = path[0]
                     startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                     x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                    QSWATUtils.error('Hit channel at ({0}, {1}) from ({2}, {3}). Landscape not created'.format(x, y, startX, startY), self._gv.isBatch)
+                    QSWATUtils.error('Hit channel at ({0}, {1}) from ({2}, {3}). Landscape not created'.format(x, y, startX, startY), self._gv.isBatch, logFile=self._gv.logFile)
                     return (-1, 0, [], False)
                 else:
                     return (0, self.demRaster.read(row, col), [(row, col)], True)  # set channel points (apart from head points) as zero
@@ -889,7 +889,7 @@ class Landscape(QObject):
                 (startRow, startCol) = path[0]
                 startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                 x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch)
+                QSWATUtils.error('Loop to ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch, logFile=self._gv.logFile)
                 return (-1, 0, [], False)
             path.append((row, col))
             pt = self.downSlopePoint(row, col)
@@ -897,7 +897,7 @@ class Landscape(QObject):
                 (startRow, startCol) = path[0]
                 startX, startY = QSWATTopology.cellToProj(startCol, startRow, self.transform)
                 x, y = QSWATTopology.cellToProj(col, row, self.transform)
-                QSWATUtils.error('Dead end at ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch)
+                QSWATUtils.error('Dead end at ({0}, {1}) from ({2}, {3}). Landscape not created.'.format(x, y, startX, startY), self._gv.isBatch, logFile=self._gv.logFile)
                 return (-1, 0, [], False)
             (row, col) = pt
         

@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '3.1.1' 
+    __version__ = '3.1.2' 
 
     def __init__(self, iface):
         """Constructor."""
@@ -409,7 +409,7 @@ class QSWATPlus(QObject):
             return
         report = QSWATUtils.join(self._gv.textDir, report)
         if not os.path.exists(report):
-            QSWATUtils.error('Cannot find report {0}'.format(report), self._gv.isBatch)
+            self._gv.error('Cannot find report {0}'.format(report), self._gv.isBatch)
             return
         if Parameters._ISWIN : # Windows
             os.startfile(report)  # @UndefinedVariable since not defined in Linux or Mac
@@ -593,6 +593,18 @@ class QSWATPlus(QObject):
                 QSWATUtils.loginfo('demProcessed failed: no wshed shapefile')
                 return False
             wshedFile = proj.readPath(wshedFile)
+            # good idea to delete any qix file before connecting to wshedFile as always says permission denied 
+            # if attempting later to delete it
+            qixFile = os.path.splitext(wshedFile)[0] + '.qix'
+            if os.path.isfile(qixFile):
+                try:
+                    os.remove(qixFile)
+                except:
+                    pass
+            # also good idea to try to delete locallakes in HUC and HAWQS projects
+            if (self._gv.isHUC or self._gv.isHAWQS):
+                localLakeFile = QSWATUtils.join(self._gv.shapesDir, 'locallakes.shp')
+                QSWATUtils.tryRemoveLayerAndFiles(localLakeFile, root)
             if self._gv.existingWshed:
                 wshedLayer, _ = \
                     QSWATUtils.getLayerByFilename(root.findLayers(), wshedFile, FileTypes._EXISTINGWATERSHED, 

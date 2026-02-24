@@ -256,7 +256,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         ## QSWAT+ version
         self.version = version
         ## Topology object
-        self.topo = QSWATTopology(isBatch, isHUC, isHAWQS, self.projName)
+        self.topo = QSWATTopology(isBatch, isHUC, isHAWQS, self.projName, logFile)
         ## DEM directory
         self.demDir = ''
         ## Landuse directory
@@ -302,7 +302,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.isHUC = isHUC
         ## flag for HAWQS projects
         self.isHAWQS = isHAWQS
-        ## log file for message output for HUC projects
+        ## log file for message output for HUC and HAWQS projects
         self.logFile = logFile
         ## Path of project database
         self.db = DBUtils(self.projDir, self.projName, self.dbProjTemplate, self.dbRefTemplate, self.isHUC, self.isHAWQS, self.logFile, self.isBatch)
@@ -644,3 +644,8 @@ Have you installed SWATPlus?'''
     def clearOpenRasters(self) -> None:
         """Clear list of open rasters."""
         self.openRasters.clear()
+        
+    def error(self, msg: str, isBatch: bool, reportErrors: Optional[bool]=True, logFile: Optional[str]=None) -> None:
+        if logFile is None:
+            logFile = self.logFile
+        QSWATUtils.error(msg, isBatch, reportErrors, logFile)

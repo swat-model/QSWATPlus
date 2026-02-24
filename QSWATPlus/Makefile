@@ -53,7 +53,7 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus)
 	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
-	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py startQGIS.bat)
 	EXTRAPACKAGES = imageio rtree
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf

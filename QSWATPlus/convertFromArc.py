@@ -2959,7 +2959,9 @@ class ConvertFromArc(QObject):
  
 if __name__ == '__main__':
     ## main program
-    main = ConvertFromArc(sys.argv[1])
+    # make sure there is no trailing slash or backslash
+    dir = os.path.normpath(sys.argv[1])
+    main = ConvertFromArc(dir)
     try:
         main.run()
     except Exception:

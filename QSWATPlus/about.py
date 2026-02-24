@@ -51,7 +51,7 @@ class AboutQSWAT:
 
 Minimum QGIS version: 3.16.14
 
-Python version: 3.9
+Python version: 3.9 or 3.12
 
 Current restrictions:
 - Windows Linux and MacOS only

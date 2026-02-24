@@ -135,9 +135,8 @@ class runHUC():
         #landIndex = landCombo.findText('nlcd2001_landuses')
         #landCombo.setCurrentIndex(landIndex)
         #self.hrus.landuseTable = 'nlcd2001_landuses'
-        huc2 = os.path.split(self.projDir)[1][3:5]
         isCDL = 'Fields_CDL' in self.projDir
-        self.hrus.landuseTable = 'landuse_fields_CDL_{0}'.format(huc2) if isCDL else 'landuse_fields_{0}'.format(huc2)
+        self.hrus.landuseTable = 'landuse_fields_CDL' if isCDL else 'landuse_fields'
         hrudlg.SSURGOButton.setChecked(True)
         gv.db.useSSURGO = True
         gv.db.slopeLimits = [2,8]
@@ -232,14 +231,14 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = False  
+    debugging = False     
     if debugging:
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
         #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0203010104/huc0203010104.qgs'
-        direc = r"K:\HUCModels\Models5\SWATExtended\Fields_CDL\HUC14\03040204\huc030402040101\huc030402040101.qgs" 
-        #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC14\0109000504\huc010900050404\huc010900050404.qgs" 
+        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/02/huc020402020102/huc020402020102.qgs'
+        #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\0305020711\huc0305020711\huc0305020711.qgs"
+        #direc = r"K:\HAWQSModels\SWATPlus\Fields_CDL\HUC14\Models030902010200\HAWQSProject030902010200_14\HAWQSProject030902010200_14.qgs" 
         subRegion = ''
         dataDir = "K:/Data" 
         scale = 14 
@@ -270,7 +269,10 @@ if __name__ == '__main__':
         d, _ = os.path.split(direc)
         print('Running project {0}'.format(d))
         try:
-            huc = runHUC(d, d + '/LogFile.txt')
+            logFile = d + '/LogFile.txt'
+            with open(logFile, 'w') as f:
+                f.write('Running project {0}\n'.format(d))
+            huc = runHUC(d, logFile)
             huc.runProject(dataDir, scale, minHRUha)
             print('Completed project {0}'.format(d))
         except Exception:
@@ -283,7 +285,7 @@ if __name__ == '__main__':
             pattern = direc + '/huc{0}{1}*'.format(region, subRegion)
         dirs = glob.glob(pattern)
         cpuCount = os.cpu_count()
-        numProcesses = 4  # min(cpuCount - 2, 24)
+        numProcesses = min(cpuCount - 4, 24)
         chunk = 1 
         args = [(d, dataDir, scale, minHRUha) for d in dirs]
         with Pool(processes=numProcesses) as pool:

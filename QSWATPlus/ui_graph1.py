@@ -100,4 +100,4 @@ class Ui_GraphDlg(object):
         self.chartLabel.setText(_translate("GraphDlg", "Chart Type"))
         self.updateButton.setText(_translate("GraphDlg", "Update"))
         self.label_2.setText(_translate("GraphDlg", "Plot type"))
-import resources_rc
+#import resources_rc
