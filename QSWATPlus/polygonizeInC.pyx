@@ -734,7 +734,7 @@ cdef class Polygonize:
             res += '\n'
         return res
     
-    cpdef addRow(self, np.ndarray[np.int] row, int rowNum):
+    cpdef addRow(self, np.ndarray[np.int64_t] row, int rowNum):
         """
         Add boxes from row.
         
