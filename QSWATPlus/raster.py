@@ -91,6 +91,9 @@ class Raster():
                 else:
                     typ = gdal.GDT_Int32 if self.isInt else gdal.GDT_Float32
                     self.ds = gdal.GetDriverByName('GTiff').Create(self.fileName, numCols, numRows, 1, typ)
+                    # 24/3/2026 produces "Cannot open TIFF image" message, but seems to do no harm
+                    # advice in gdal.Info is no help
+                    # print(gdal.Info(self.ds))
                 assert self.ds is not None
                 self.numRows = numRows
                 self.numCols = numCols
@@ -161,14 +164,15 @@ class Raster():
                 self.chunks[i] = chunk
             # we allocate space for the array early since we want to generate any memory exception early
             if self.canWrite:
-                dtype = np.int_ if self.isInt else np.float_
+                dtype = np.int64 if self.isInt else np.float64
                 # mumpy.core.full introduced in version 1.8
+                # name changed to numpy._core.full in version 2.0
                 if Version(np.__version__) < Version('1.8'):
                     self.array = np.empty((chunkSize, self.numCols), dtype)
                     assert self.array is not None
                     self.array.fill(noData)
                 else:
-                    self.array = np.core.full((chunkSize, self.numCols), noData, dtype)
+                    self.array = np._core.full((chunkSize, self.numCols), noData, dtype)
                     assert self.array is not None
                 for ch in self.chunks.values():
                     self.band.WriteArray(self.array[:ch.numRows], 0, ch.rowOffset)

@@ -315,6 +315,7 @@ class Landscape(QObject):
                     not QSWATUtils.isUpToDate(channels, hillslopeFile) or \
                     not QSWATUtils.isUpToDate(d8Flow, hillslopeFile):
                     self.channelsRaster = Raster(channels, self._gv, canWrite=False, isInt=True)
+                    
                     res = self.channelsRaster.open(self.chunkCount)
                     if not res:
                         self._gv.closeOpenRasters()
