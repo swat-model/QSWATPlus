@@ -231,12 +231,12 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = False     
+    debugging = False      
     if debugging:
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
         #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/02/huc020402020102/huc020402020102.qgs'
+        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/08/huc080801020901/huc080801020901.qgs'
         #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\0305020711\huc0305020711\huc0305020711.qgs"
         #direc = r"K:\HAWQSModels\SWATPlus\Fields_CDL\HUC14\Models030902010200\HAWQSProject030902010200_14\HAWQSProject030902010200_14.qgs" 
         subRegion = ''

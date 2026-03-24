@@ -343,6 +343,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
         TauDEMDir, _ = TauDEMUtils.findTauDEMDir(settings, False)
         if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
+            QSWATUtils.loginfo('TauDEM help file is {0}'.format(taudemHelpFile))
             os.startfile(taudemHelpFile)  # @UndefinedVariable since not defined in Linux
         else:
             webbrowser.open(Parameters._TAUDEMDOCS)

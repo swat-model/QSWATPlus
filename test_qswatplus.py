@@ -1407,7 +1407,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(hrudlg.elevBandsButton.isEnabled(), 'Elevation bands button not enabled')
         hrudlg.channelMergeVal.setText('5')
         self.hrus.readChannelThreshold()
-        self.assertTrue(hrudlg.channelMergeSlider.value() == 5, 'Failed to set channel mrege slider to 5: has value {0}'.format(hrudlg.channelMergeSlider.value()))
+        self.assertTrue(hrudlg.channelMergeSlider.value() == 5, 'Failed to set channel merge slider to 5: has value {0}'.format(hrudlg.channelMergeSlider.value()))
         QtTest.QTest.mouseClick(hrudlg.readButton, Qt.LeftButton)
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._TOPOREPORT)))
         self.assertTrue(self.dlg.reportsBox.isEnabled() and self.dlg.reportsBox.findText(Parameters._TOPOITEM) >= 0, \

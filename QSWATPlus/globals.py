@@ -99,6 +99,11 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.attTitle = proj.title().replace(' ', '')
         ## QGIS interface
         self.iface = iface
+        ## turn on map tips
+        mapTipsAction = self.iface.actionMapTips()
+        if mapTipsAction:
+            if not mapTipsAction.isChecked():
+                mapTipsAction.setChecked(True)
         ## QGIS sub version number
         self.QGISSubVersion = int(Qgis.QGIS_VERSION.split('.')[1])
         ## project projection (set from DEM)

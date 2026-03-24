@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# cython: language_level=3
+# cython: language_level=3 
 
 '''
 /***************************************************************************
@@ -484,7 +484,7 @@ cdef class Polygonize:
         self.offset = Offset(p, dX, dY)
         self.fw = fw
         
-    cpdef addRow(self, np.ndarray[np.int_t] row, int rowNum):
+    cpdef addRow(self, np.ndarray[np.int] row, int rowNum):
         """Add a row."""
         
         cdef:

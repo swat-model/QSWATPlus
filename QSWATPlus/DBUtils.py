@@ -2962,8 +2962,8 @@ See QSWAT+ log messages for full list of undefined soils.""".
                                 .format(table, sid, scat, hydTyp))
                     else:
                         errors.append('There is a loop in the {0} table involving id {1}, category {2}, flow type {3}'.format(table, sid, scat, hydTyp))
-                    if logFile:
-                        DBUtils.outputLoop(pending.get('CH', []), logFile)
+                        if logFile:
+                            DBUtils.outputLoop(pending.get('CH', []), logFile)
                     # move pending to done
                     for pcat, pids  in pending.items():
                         if pcat in done:
