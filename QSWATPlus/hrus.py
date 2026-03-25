@@ -483,19 +483,19 @@ class CreateHRUs(QObject):
                 # grid models are based on the DEM raster, and non-grid models on the basins grid
                 if self._gv.useGridModel:
                     transform = elevationTransform
-                    lsuRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=int)  # type: ignore  # @UndefinedVariable
+                    lsuRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=numpy.int32)  # type: ignore  # @UndefinedVariable
                 else:
                     transform = basinTransform
-                    lsuRow = numpy.empty((basinNumberCols,), dtype=int)
+                    lsuRow = numpy.empty((basinNumberCols,), dtype=numpy.int32)
                 lsuShapes = Polygonize(True, elevationNumberCols, -1, QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
             if self.fullHRUsWanted:
                 # grid models are based on the DEM raster, and non-grid models on the basins grid
                 if self._gv.useGridModel:
                     transform = elevationTransform
-                    hruRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=int)  # type: ignore  # @UndefinedVariable
+                    hruRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=numpy.int32)  # type: ignore  # @UndefinedVariable
                 else:
                     transform = basinTransform
-                    hruRow = numpy.empty((basinNumberCols,), dtype=int)
+                    hruRow = numpy.empty((basinNumberCols,), dtype=numpy.int32)
                 hruShapes = Polygonize(True, elevationNumberCols, -1, QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
         cropCurrentRow = -1
         cropData = numpy.empty([cropReadRows, cropNumberCols], dtype=int)  # type: ignore

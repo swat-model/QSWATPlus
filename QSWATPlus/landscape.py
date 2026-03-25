@@ -27,7 +27,7 @@
 """
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt, QObject, QFileInfo
-from qgis.PyQt.QtGui import QIntValidator, QDoubleValidator
+from qgis.PyQt.QtGui import QIntValidator, QDoubleValidator 
 #from qgis.PyQt.QtWidgets import *  # @UnusedWildImport
 from qgis.core import Qgis, QgsFeature, QgsFields, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes, QgsCoordinateTransformContext
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry

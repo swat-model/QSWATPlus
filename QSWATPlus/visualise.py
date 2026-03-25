@@ -20,12 +20,12 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer   # @UnresolvedImport
-from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator # @UnresolvedImport
-from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem # @UnresolvedImport
-from qgis.PyQt.QtXml import QDomDocument # @UnresolvedImport
-from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop  # @UnresolvedImport
-from qgis.gui import QgsMapCanvas, QgsMapCanvasItem # @UnresolvedImport
+from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer 
+from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator 
+from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem 
+from qgis.PyQt.QtXml import QDomDocument 
+from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop
+from qgis.gui import QgsMapCanvas, QgsMapCanvasItem 
 import os
 # import random
 import numpy
@@ -49,12 +49,12 @@ from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
 from .jenks import jenks    # type: ignore # @UnresolvedImport 
-from .globals import GlobalVars  # type: ignore  # @UnusedImport
+from .globals import GlobalVars  # type: ignore
 from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
  
 # from .images2gif import writeGif
-if TYPE_CHECKING:
-    from globals import GlobalVars  # @UnresolvedImport @Reimport
+# if TYPE_CHECKING:
+    # from globals import GlobalVars 
 if not TYPE_CHECKING:
     from . import imageio
 

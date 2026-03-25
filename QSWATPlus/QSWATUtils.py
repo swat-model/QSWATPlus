@@ -22,7 +22,7 @@
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QTextStream, QIODevice
 from qgis.PyQt.QtGui import QColor 
-from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox 
 from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
                         

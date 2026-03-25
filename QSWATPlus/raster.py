@@ -19,7 +19,7 @@
  *                                                                         *
  ***************************************************************************/
  """
-from qgis.core import QgsCoordinateReferenceSystem
+from qgis.core import QgsCoordinateReferenceSystem 
 from osgeo import gdal  # type: ignore
 from qgis.core import QgsRasterLayer
 import numpy as np
@@ -166,14 +166,14 @@ class Raster():
             if self.canWrite:
                 dtype = np.int64 if self.isInt else np.float64
                 # mumpy.core.full introduced in version 1.8
-                # name changed to numpy._core.full in version 2.0
                 if Version(np.__version__) < Version('1.8'):
                     self.array = np.empty((chunkSize, self.numCols), dtype)
                     assert self.array is not None
-                    self.array.fill(noData)
-                else:
+                elif Version(np.__version__) >= Version('2.0'):
                     self.array = np._core.full((chunkSize, self.numCols), noData, dtype)
-                    assert self.array is not None
+                else:
+                    self.array = np.core.full((chunkSize, self.numCols), noData, dtype)
+                assert self.array is not None
                 for ch in self.chunks.values():
                     self.band.WriteArray(self.array[:ch.numRows], 0, ch.rowOffset)
                 self.currentIndex = 0

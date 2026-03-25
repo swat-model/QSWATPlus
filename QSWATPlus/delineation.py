@@ -29,6 +29,7 @@ import os
 import glob
 import shutil
 import math
+import numpy as np
 #import subprocess
 import time
 from osgeo import gdal, ogr  # type: ignore
@@ -3765,7 +3766,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         shapes = Polygonize(isConnected4, numCols, noData, 
                             QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
         for row in range(numRows):
-            wBuffer = wBand.ReadAsArray(0, row, numCols, 1).astype(int)
+            wBuffer = wBand.ReadAsArray(0, row, numCols, 1).astype(np.int32)
             shapes.addRow(wBuffer.reshape([numCols]), row)
         shapes.finish()
         legend = FileTypes.legend(ft)
