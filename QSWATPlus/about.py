@@ -57,7 +57,7 @@ Current restrictions:
 - Windows Linux and MacOS only
         """.format(QSWATUtils._QSWATNAME, version)
         self._dlg.textBrowser.setText(text)
-        self._dlg.exec_()
+        self._dlg.exec()
         if self._gv:
             self._gv.aboutPos = self._dlg.pos()
         

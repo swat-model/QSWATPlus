@@ -34,7 +34,8 @@ from .QSWATUtils import QSWATUtils  # type: ignore #  @UnusedImport
 from .DBUtils import DBUtils  # type: ignore #  @UnusedImport 
 from .TauDEMUtils import TauDEMUtils  # type: ignore  # @UnusedImport 
 from .parameters import Parameters  # type: ignore # @UnusedImport 
-from .raster import Raster  # type: ignore # @UnusedImport 
+from .raster import Raster  # type: ignore # @UnusedImport
+from .qt_compat import MsgBoxYes
 
 if TYPE_CHECKING:
     from QSWATTopology import QSWATTopology  # @UnresolvedImport @Reimport
@@ -63,7 +64,7 @@ It looks like you recently upgraded QSWAT+.  The SWATPlus directory has moved to
 Change your settings to use the new directory?
 
 if {0} is used for some other purpose you might want to rename it to stop this question being repeated.""".
-                        format(newSWATPlusDir), isBatch, False) == QMessageBox.Yes:
+                        format(newSWATPlusDir), isBatch, False) == MsgBoxYes:
                         SWATPlusDir = newSWATPlusDir
                 else:
                     SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR

@@ -46,6 +46,7 @@ from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns  # type: ign
 from .QSWATTopology import QSWATTopology  # type: ignore
 from .DBUtils import DBUtils  # type: ignore
 from .parameters import Parameters  # type: ignore
+from .qt_compat import WaitCursor, ArrowCursor, MatchExactly, MsgBoxYes, TextCursorEnd, fv
 #from .polygonize import Polygonize
 from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport 
 from .dataInC import CellData, BasinData, WaterBody, LSUData, LakeData  # type: ignore #  @UnresolvedImport 
@@ -3773,7 +3774,7 @@ class CreateHRUs(QObject):
                 for feature in provider.getFeatures(request):
                     fid = feature.id()
                     target = self._gv.topo.finalTarget(channel, self.mergedChannels)
-                    lscape = feature[catIndx]
+                    lscape = fv(feature[catIndx])
                     if target in mergeMap:
                         if lscape in mergeMap[target]:
                             newFeature = mergeMap[target][lscape]
@@ -5442,7 +5443,7 @@ class HRUs(QObject):
         self.init()
         self._dlg.show()
         self.progress('')
-        result = self._dlg.exec_()  # @UnusedVariable
+        result = self._dlg.exec()  # @UnusedVariable
         # TODO: result is always zero. Need to reset to discover if CreateHRUs was run successfully
         self._gv.hrusPos = self._dlg.pos()
         if self.completed:
@@ -5579,12 +5580,12 @@ class HRUs(QObject):
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and \
             self._dlg.floodplainCombo.currentIndex() == 0 and self.hasVisibleFloodplainLayer(root):
             res = QSWATUtils.question('You have at least one floodplain map available.  Would you like to select one?', False, False)
-            if res == QMessageBox.Yes:
+            if res == MsgBoxYes:
                 return False
         # check if there is a slope limit not yet inserted
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and self._dlg.slopeBand.text() != '':
             res = QSWATUtils.question('You seem to be about to insert a slope limit.  Would you like to complete that?', False, False)
-            if res == QMessageBox.Yes:
+            if res == MsgBoxYes:
                 return False
         self._gv.writeProjectConfig(-1, 0)
         self._dlg.HRUsTab.setTabEnabled(1, False)
@@ -5610,15 +5611,15 @@ class HRUs(QObject):
             luse = ''
             soil = ''
         self.progress('Checking landuses ...')
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         if not self.initLanduses(luse):
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(ArrowCursor)
             self.progress('')
             return False
         #QSWATUtils.information('Using {0} as landuse table'.format(self.landuseTable), self._gv.isBatch, logFile=self._gv.logFile)
         self.progress('Checking soils ...')
         if not self.initSoils(soil):
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(ArrowCursor)
             self.progress('')
             return False
         # write landuse, soil, landscape choices in case of failure later
@@ -5711,7 +5712,7 @@ class HRUs(QObject):
                     QSWATUtils.information('Writing landuse and soil report ...', True)
                 self.CreateHRUs.printBasins(False, None)
             self._dlg.progressBar.setVisible(False)
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         if OK:
             self._dlg.readFromPrevious.setEnabled(True)
             self._dlg.subbasinsLabel.setText('Subbasins count: {0}'.format(len(self.CreateHRUs.basins)))
@@ -5776,7 +5777,7 @@ class HRUs(QObject):
         self._gv.writeProjectConfig(-1, 0)
         time1 = time.process_time()
         try:
-            self._dlg.setCursor(Qt.WaitCursor)
+            self._dlg.setCursor(WaitCursor)
             self._dlg.slopeSlider.setEnabled(False)
             self._dlg.slopeVal.setEnabled(False)
             self._dlg.areaGroup.setEnabled(False)
@@ -5848,7 +5849,7 @@ class HRUs(QObject):
             self.saveProj()
             time2 = time.process_time()
             QSWATUtils.loginfo('Calculating HRUs took {0} seconds'.format(int(time2 - time1)))
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(ArrowCursor)
             if self._dlg.gwflowButton.isChecked():
                 gwf = GWFlow(self._gv, self.progress)
                 gwf.run()
@@ -5865,13 +5866,13 @@ class HRUs(QObject):
             self._db.plantSoilDatabase = self._db.dbFile
         self._db.plantTableNames = self._db.collectPlantSoilTableNames('plant', self._dlg.selectPlantTable)
         plantSearch = self._db.plantTable if 'plant' in self._db.plantTable else 'plant'
-        plantIndex = self._dlg.selectPlantTable.findText(plantSearch, Qt.MatchExactly)
+        plantIndex = self._dlg.selectPlantTable.findText(plantSearch, MatchExactly)
         if plantIndex >= 0:
             self._dlg.selectPlantTable.setCurrentIndex(plantIndex)
         self._db.plantTable = self._dlg.selectPlantTable.currentText()
         self._db.urbanTableNames = self._db.collectPlantSoilTableNames('urban', self._dlg.selectUrbanTable)
         urbanSearch = self._db.urbanTable if 'urban' in self._db.urbanTable else 'urban'
-        urbanIndex = self._dlg.selectUrbanTable.findText(urbanSearch, Qt.MatchExactly)
+        urbanIndex = self._dlg.selectUrbanTable.findText(urbanSearch, MatchExactly)
         if urbanIndex >= 0:
             self._dlg.selectUrbanTable.setCurrentIndex(urbanIndex)
         self._db.urbanTable = self._dlg.selectUrbanTable.currentText()
@@ -5891,7 +5892,7 @@ class HRUs(QObject):
                 self._db.plantSoilDatabase = self._db.dbFile
             self._db.usersoilTableNames = self._db.collectPlantSoilTableNames('usersoil', self._dlg.selectUsersoilTable)
             searchTable = self._db.usersoilTable if 'usersoil' in self._db.usersoilTable else 'usersoil'
-            usersoilIndex = self._dlg.selectUsersoilTable.findText(searchTable, Qt.MatchExactly)
+            usersoilIndex = self._dlg.selectUsersoilTable.findText(searchTable, MatchExactly)
             if usersoilIndex >= 0:
                 self._dlg.selectUsersoilTable.setCurrentIndex(usersoilIndex)
             self._db.usersoilTable = self._dlg.selectUsersoilTable.currentText()
@@ -6167,7 +6168,7 @@ class HRUs(QObject):
             if self._dlg.channelAreaButton.isChecked() and val > self._dlg.channelMergeSlider.maximum():
                 self._dlg.channelMergeSlider.setMaximum(2 * val)
             self._dlg.channelMergeSlider.setValue(val)
-            self._dlg.channelMergeVal.moveCursor(QTextCursor.End)
+            self._dlg.channelMergeVal.moveCursor(TextCursorEnd)
             self.setChannelMergeChoice()
         except Exception:
             return
@@ -6197,7 +6198,7 @@ class HRUs(QObject):
             if self._dlg.areaSlider.minimum() <= val <= self._dlg.areaSlider.maximum():
                 self._dlg.areaSlider.setValue(val)
             self.CreateHRUs.areaVal = val
-            self._dlg.areaVal.moveCursor(QTextCursor.End)
+            self._dlg.areaVal.moveCursor(TextCursorEnd)
         except Exception:
             return
         self._dlg.createButton.setEnabled(True)
@@ -6220,7 +6221,7 @@ class HRUs(QObject):
             if self._dlg.landuseSlider.minimum() <= val <= self._dlg.landuseSlider.maximum():
                 self._dlg.landuseSlider.setValue(val)
             self.CreateHRUs.landuseVal = val
-            self._dlg.landuseVal.moveCursor(QTextCursor.End)
+            self._dlg.landuseVal.moveCursor(TextCursorEnd)
         except Exception:
             return
         
@@ -6241,7 +6242,7 @@ class HRUs(QObject):
             if self._dlg.soilSlider.minimum() <= val <= self._dlg.soilSlider.maximum():
                 self._dlg.soilSlider.setValue(val)
             self.CreateHRUs.soilVal = val
-            self._dlg.soilVal.moveCursor(QTextCursor.End)
+            self._dlg.soilVal.moveCursor(TextCursorEnd)
         except Exception:
             return
         
@@ -6262,7 +6263,7 @@ class HRUs(QObject):
             if self._dlg.slopeSlider.minimum() <= val <= self._dlg.slopeSlider.maximum():
                 self._dlg.slopeSlider.setValue(val)
             self.CreateHRUs.slopeVal = val
-            self._dlg.slopeVal.moveCursor(QTextCursor.End)
+            self._dlg.slopeVal.moveCursor(TextCursorEnd)
         except Exception:
             return
         
@@ -6281,7 +6282,7 @@ class HRUs(QObject):
             val = int(string)
             self._dlg.targetSlider.setValue(val)
             self.CreateHRUs.targetVal = val
-            self._dlg.targetVal.moveCursor(QTextCursor.End)
+            self._dlg.targetVal.moveCursor(TextCursorEnd)
         except Exception:
             return
         
@@ -6388,7 +6389,7 @@ class HRUs(QObject):
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._LANDUSES)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._LANDUSES)), self._gv.isBatch, True) == MsgBoxYes:
                     landuseLayer = layer
                     landuseFile = possFile
         if landuseLayer is not None: 
@@ -6407,7 +6408,7 @@ class HRUs(QObject):
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SOILS)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SOILS)), self._gv.isBatch, True) == MsgBoxYes:
                     soilLayer = layer
                     soilFile = possFile
         if soilLayer is not None:
@@ -6521,7 +6522,7 @@ class HRUs(QObject):
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
                 if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SLOPEBANDS)), 
-                                       self._gv.isBatch, True) == QMessageBox.Yes:
+                                       self._gv.isBatch, True) == MsgBoxYes:
                     slopeBandsLayer = layer
                     slopeBandsFile = possFile
         if slopeBandsLayer is not None:

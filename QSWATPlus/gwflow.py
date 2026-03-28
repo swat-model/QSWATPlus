@@ -24,9 +24,9 @@ Acknowledgements: based on SWAT+GW_INPUT_CREATION.py written by Ryan Bailey and 
 """
 
 # Import the PyQt and QGIS libraries
-from PyQt5 import QtCore, QtWidgets # @UnusedImport
-from PyQt5.QtCore import Qt, QSettings # @UnresolvedImport
-from PyQt5.QtWidgets import QFileDialog, QDialog # @UnresolvedImport
+from qgis.PyQt import QtCore, QtWidgets  # @UnusedImport
+from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtWidgets import QFileDialog, QDialog
 
 from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsProcessingContext,  QgsFeatureRequest 
 
@@ -64,6 +64,10 @@ from .parameters import Parameters
 from numpy.ma.core import _get_dtype_of
 from osgeo.gdalconst import GA_Update
 from . import rtree
+try:
+    from .qt_compat import fv
+except:
+    from qt_compat import fv  # @UnresolvedImport
 
 class GWFlow():
 
@@ -237,7 +241,7 @@ class GWFlow():
         self._dlg.outputTimesButton.setEnabled(self._dlg.setOutputTimes.isChecked())
               
     def run(self):
-        res = self._dlg.exec_()
+        res = self._dlg.exec()
         if res ==  QDialog.Rejected:
             return False
         self.saveProj()
@@ -643,7 +647,7 @@ class GWFlow():
             # grid cells (active cells only)  
             sql = 'INSERT INTO gwflow_grid VALUES(?,?,?,?,?,?,?,?)'
             for _,row in grid6_gdf.iterrows():
-                status = row['Avg_active']+row['boundary']
+                status = fv(row['Avg_active'])+fv(row['boundary'])
                 if status > 0:
                     conn.execute(sql, (row['Id'], status, row['zone'], row['Avg_elevat'], row['Avg_Thick'],
                                        self.EXDP, row['Avg_elevat'] - self.WT_depth, row['tile_cell']))

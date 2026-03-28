@@ -51,6 +51,8 @@ from .parameters import Parameters  # type: ignore
 from .jenks import jenks    # type: ignore # @UnresolvedImport 
 from .globals import GlobalVars  # type: ignore
 from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
+from .qt_compat import (WaitCursor, ArrowCursor, AlignCenter, AlignHCenter,
+                         MatchExactly, MsgBoxYes, IOReadOnly, SelectRows, SingleSelection, fv)
  
 # from .images2gif import writeGif
 # if TYPE_CHECKING:
@@ -379,7 +381,7 @@ class Visualise(QObject):
         """Do visualisation."""
         self.init()
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.visualisePos = self._dlg.pos()
         
     def fillScenarios(self) -> None:
@@ -539,7 +541,7 @@ class Visualise(QObject):
             txt = self._dlg.outputCombo.itemText(row)
             if txt.startswith('aquifer_'):
                 deeptxt = 'deep_' + txt
-                deepIndx = self._dlg.outputCombo.findText(deeptxt, Qt.MatchExactly)
+                deepIndx = self._dlg.outputCombo.findText(deeptxt, MatchExactly)
                 if deepIndx < 0:
                     sql1 = "CREATE TABLE {0} AS SELECT * FROM {1} WHERE name LIKE 'aqu_deep%'".format(deeptxt, txt)
                     self.conn.execute(sql1)
@@ -613,8 +615,8 @@ class Visualise(QObject):
         # designer makes this false
         self._dlg.tableWidget.horizontalHeader().setVisible(True)
         self._dlg.tableWidget.setHorizontalHeaderLabels(['Scenario', 'Table', 'Unit', 'Variable'])
-        self._dlg.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._dlg.tableWidget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self._dlg.tableWidget.setSelectionBehavior(SelectRows)
+        self._dlg.tableWidget.setSelectionMode(SingleSelection)
         self._dlg.tableWidget.setColumnWidth(0, 100)
         self._dlg.tableWidget.setColumnWidth(1, 100)
         self._dlg.tableWidget.setColumnWidth(2, 45)
@@ -869,7 +871,7 @@ class Visualise(QObject):
         """Append item to variableList."""
         self.resultsFileUpToDate = False
         var = self._dlg.variableCombo.currentText()
-        items = self._dlg.variableList.findItems(var, Qt.MatchExactly)
+        items = self._dlg.variableList.findItems(var, MatchExactly)
         if not items or items == []:
             item = QListWidgetItem()
             item.setText(var)
@@ -1608,7 +1610,7 @@ class Visualise(QObject):
         root = proj.layerTreeRoot()
         if os.path.exists(nextResultsFile):
             reply = QSWATUtils.question('Results file {0} already exists.  Do you wish to overwrite it?'.format(nextResultsFile), self._gv.isBatch, True)
-            if reply != QMessageBox.Yes:
+            if reply != MsgBoxYes:
                 return False
             if nextResultsFile == self.resultsFile:
                 # remove existing layer so new one replaces it
@@ -1937,7 +1939,7 @@ class Visualise(QObject):
             if fields.fieldOrigin(i) == QgsFields.OriginEdit:  # added by editing
                 newVars.append(fields.at(i).name())
         for var in newVars:
-            items = self._dlg.variableList.findItems(var, Qt.MatchExactly)
+            items = self._dlg.variableList.findItems(var, MatchExactly)
             if not items or items == []:
                 # add var to variableList
                 item = QListWidgetItem()
@@ -2168,7 +2170,7 @@ class Visualise(QObject):
         QSWATUtils.loginfo('Print layout template {0} written'.format(self.animationTemplate))
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(IOReadOnly):
             OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
@@ -2213,7 +2215,7 @@ class Visualise(QObject):
         self.animationTemplateDirty = False
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(IOReadOnly):
             OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
@@ -2534,7 +2536,7 @@ class Visualise(QObject):
         if self.scenario1 != '':
             _ = self.makeCompareResults()
             return
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
             if not self.readData('', True, self.table, '', ''):
@@ -2551,7 +2553,7 @@ class Visualise(QObject):
             else:
                 return
         self.colourResultsFile()
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         
     def makeCompareResults(self) -> bool:
         """Create and add to results 4 shapefiles:
@@ -3004,7 +3006,7 @@ class Visualise(QObject):
         QSWATUtils.loginfo('Print composer template {0} written'.format(templateOut))
         templateDoc = QDomDocument()
         f = QFile(templateOut)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(IOReadOnly):
             OK = templateDoc.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(templateOut), self._gv.isBatch)
@@ -3073,7 +3075,7 @@ class Visualise(QObject):
             return
         self._dlg.animationVariableCombo.setToolTip(self.getVarTip(var))
         # can take a while so set a wait cursor
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         self.doRewind()
         self._dlg.calculateLabel.setText('Calculating breaks ...')
         self._dlg.repaint()
@@ -3106,7 +3108,7 @@ class Visualise(QObject):
             self.changeAnimate()
         finally:
             self._dlg.calculateLabel.setText('')
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(ArrowCursor)
             
     def saveVideo(self) -> None:
         """Save animated GIF if still files found."""
@@ -3230,7 +3232,7 @@ class Visualise(QObject):
         
     def startCompareScenarios(self):
         """Run the compare scenarios form."""
-        self._comparedlg.exec_()
+        self._comparedlg.exec()
         
     def setupCompareScenarios(self):
         """Save chosen scenarios and exit form."""
@@ -3368,12 +3370,12 @@ class Visualise(QObject):
             self._dlg.recordLabel.setText('Stop recording')
             self._dlg.playButton.setEnabled(False)
         else:
-            self._dlg.setCursor(Qt.WaitCursor)
+            self._dlg.setCursor(WaitCursor)
             self._dlg.recordButton.setStyleSheet('background-color: green; border: none;')
             self._dlg.recordLabel.setText('Start recording')
             self.saveVideo()
             self._dlg.playButton.setEnabled(True)
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(ArrowCursor)
     
     def playRecording(self) -> None:
         """Use default application to play video file (an animated gif)."""
@@ -3503,7 +3505,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setItem(size, 2, QTableWidgetItem(unit))
         self._dlg.tableWidget.setItem(size, 3, QTableWidgetItem(var))
         for col in range(4):
-            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignCenter)
+            self._dlg.tableWidget.item(size, col).setTextAlignment(AlignCenter)
         self._dlg.tableWidget.selectRow(size)
         if self.countPlots() == 1:
             # just added first row - reduce tables to those with same frequency
@@ -3591,7 +3593,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setItem(size, 2, QTableWidgetItem('-'))
         self._dlg.tableWidget.setItem(size, 3, QTableWidgetItem(self._dlg.variablePlot.currentText()))
         for col in range(4):
-            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignHCenter)
+            self._dlg.tableWidget.item(size, col).setTextAlignment(AlignHCenter)
         self._dlg.tableWidget.selectRow(size)
         
     def setObservedVars(self) -> None:
@@ -3923,9 +3925,9 @@ class Visualise(QObject):
         downChannel = dict()
         channelToSubbasin = dict()
         for channel in rivLayer.getFeatures(request):
-            chNum = channel[chIdx]
-            downChannel[chNum] = channel[chRIdx]
-            channelToSubbasin[chNum] = channel[subIdx]
+            chNum = fv(channel[chIdx])
+            downChannel[chNum] = fv(channel[chRIdx])
+            channelToSubbasin[chNum] = fv(channel[subIdx])
         mainOutlet = 0
         for ch, chR in downChannel.items():
             sub = channelToSubbasin[ch]

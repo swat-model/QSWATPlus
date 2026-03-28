@@ -23,5 +23,5 @@
 
 def classFactory(iface):
     # load QSWATPlus class from file QSWATPlus
-    from .QSWATPlus.QSWATPlusMain import QSWATPlus
+    from .QSWATPlusMain import QSWATPlus
     return QSWATPlus(iface)

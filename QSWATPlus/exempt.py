@@ -57,7 +57,7 @@ class Exempt:
         self._dlg.chooseBox.activated.connect(self.addExempt)
         self._dlg.cancelExemptionButton.clicked.connect(self.delExempt)
         self._dlg.show()
-        result = self._dlg.exec_()
+        result = self._dlg.exec()
         self._gv.exemptPos = self._dlg.pos()
         if result == 1:
             self._gv.exemptLanduses = self.exemptLanduses

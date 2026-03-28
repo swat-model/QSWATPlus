@@ -48,6 +48,7 @@ from .landscapedialog import LandscapeDialog
 from .floodplain import Floodplain
 from .parameters import Parameters
 from .raster import Raster
+from .qt_compat import WaitCursor, ArrowCursor, fv
 
 
 class Landscape(QObject):
@@ -162,7 +163,7 @@ class Landscape(QObject):
         self.mustRun = mustRun
         if not self._gv.isBatch:
             self._dlg.show()
-            self._dlg.exec_()
+            self._dlg.exec()
             self._gv.landscapePos = self._dlg.pos()
         return 0
     
@@ -281,7 +282,7 @@ class Landscape(QObject):
         if not os.path.exists(self._gv.srcChannelFile):
             QSWATUtils.error('Cannot find channels raster {0}'.format(self._gv.srcChannelFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         dem, isNew = self.clipRaster(self._gv.felFile, clipperFile, root)
         self.mustRun = self.mustRun or isNew
         channels, isNew = self.clipRaster(self._gv.srcChannelFile, clipperFile, root)
@@ -300,7 +301,7 @@ class Landscape(QObject):
                 self.demRaster = Raster(dem, self._gv, canWrite=False, isInt=False)
                 res = self.demRaster.open(self.chunkCount)
                 if not res:
-                    self._dlg.setCursor(Qt.ArrowCursor)
+                    self._dlg.setCursor(ArrowCursor)
                     return False
                 self.numRows = self.demRaster.numRows
                 self.numCols = self.demRaster.numCols
@@ -319,13 +320,13 @@ class Landscape(QObject):
                     res = self.channelsRaster.open(self.chunkCount)
                     if not res:
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     self.flowRaster = Raster(d8Flow, self._gv, canWrite=False, isInt=True)
                     res = self.flowRaster.open(self.chunkCount)
                     if not res:
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     # Require D8 flow raster  and channels raster  to have same geometry as dem,
                     # else, for example, 1 step downstream in flow raster  could stay in same channel pixel, or skip a channel pixel.
@@ -333,29 +334,29 @@ class Landscape(QObject):
                     if not QSWATTopology.sameTransform(self.transform, self.flowRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
                         QSWATUtils.error('Clipped flow directions raster  {0} and clipped DEM raster {1} must have same geometry'.format(d8Flow, dem), self._gv.isBatch, logFile=self._gv.logFile)
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     if not QSWATTopology.sameTransform(self.transform, self.channelsRaster.ds.GetGeoTransform(), self.numRows, self.numCols):
                         QSWATUtils.error('Clipped channels raster  {0} and clipped DEM raster {1} must have same geometry'.format(channels, dem), self._gv.isBatch, logFile=self._gv.logFile)
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     self._progress('Hillslopes ...')
                     self.valleyDepthsRaster = self.openResult(self._gv.valleyDepthsFile, root, isInt=False)
                     if self.valleyDepthsRaster is None:
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     self.findHeads()
                     self.findSides()
                     self.hillslopeRaster = self.openResult(hillslopeFile, root, isInt=True)
                     if self.hillslopeRaster is None:
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     if not self.fillResult():
                         self._gv.closeOpenRasters()
-                        self._dlg.setCursor(Qt.ArrowCursor)
+                        self._dlg.setCursor(ArrowCursor)
                         return False
                     self.channelsRaster.close()
                     self.flowRaster.close()
@@ -370,7 +371,7 @@ class Landscape(QObject):
 #                         QSWATUtils.error(err, self._gv.isBatch)
                     # close depths raster  to flush it, then reopen readonly later
                     self.valleyDepthsRaster.close()
-                    self._dlg.setCursor(Qt.ArrowCursor)
+                    self._dlg.setCursor(ArrowCursor)
             except MemoryError:
                 QSWATUtils.loginfo('Out of memory with chunk count {0}'.format(self.chunkCount))
                 self._gv.closeOpenRasters()
@@ -478,7 +479,7 @@ class Landscape(QObject):
             if drainAreaIndex < 0:
                 drainAreaKm = 100 # TODO; roughly a 10 x 10 km watershed at its outlet
             else:
-                drainAreaKm = reach[drainAreaIndex] / areaToSqKm
+                drainAreaKm = fv(reach[drainAreaIndex]) / areaToSqKm
             bufferWidth = (self._gv.channelWidthMultiplier * drainAreaKm ** self._gv.channelWidthExponent) * self._dlg.bufferMultiplier.value()
             bufferGeometry = reach.geometry().buffer(bufferWidth, 4)
             feature = QgsFeature()
@@ -514,7 +515,7 @@ class Landscape(QObject):
         
     def calcFloodplain(self, useInversion, root):
         """Generate floodplain raster using DEM inversion or branch length method."""
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         if useInversion:
             # generate inverted flow accumulation to get ridge flow directions and slopes
             time1 = time.process_time()
@@ -547,7 +548,7 @@ class Landscape(QObject):
             ridges = None
         self.FP = Floodplain(self._gv, self._progress, self.chunkCount)
         self.FP.run(self.demRaster, self._gv.valleyDepthsFile, self.ridgeThresh, self.floodThresh, self.branchThresh, subbasins, distances, slopeDir, flowAcc, ridgep, ridges, self.noData, self.mustRun)
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         
     @staticmethod
     def mustClip(clipFile, inFile, outFile):
@@ -645,7 +646,7 @@ class Landscape(QObject):
                 self.FP.ridgeDistancesRaster.close()
             if not self.FP.floodplainRaster is None:
                 self.FP.floodplainRaster.close()
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         self._dlg.close()
         
     #======No longer used - results poor=====================================================================

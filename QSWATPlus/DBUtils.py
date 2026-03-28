@@ -38,13 +38,17 @@ from typing import Set, Any, List, Dict, Iterable, Optional, Tuple  # @UnusedImp
 
 try:
     from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore # @UnusedImport
-    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore # @UnresolvedImport @UnusedImport
     from .parameters import Parameters  # type: ignore # @UnusedImport
+    from .qt_compat import AscendingOrder, fv
 except:
     # used by convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
-    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport @Reimport
     from parameters import Parameters  # @UnresolvedImport @Reimport
+    from qt_compat import AscendingOrder, fv  # @UnresolvedImport
+try:
+    from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore # @UnresolvedImport @UnusedImport
+except:
+    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport @Reimport
     
 class DBUtils:
     
@@ -1327,7 +1331,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         except Exception:
             QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.urbanTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return
-        listBox.sortItems(Qt.AscendingOrder)
+        listBox.sortItems(AscendingOrder)
         
     def getLanduseDescriptions(self, crops: Iterable[int]) -> Dict[int, Tuple[str, str]]:
         """Return map of crop -> (code, description) for list or iterable of crop values.
@@ -2144,7 +2148,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([slo2Idx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {slo2Idx: float(feature[slo2Idx]) * factor}
+                    mmap[feature.id()] = {slo2Idx: float(fv(feature[slo2Idx])) * factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(rivs1File))
         except Exception:
@@ -2183,7 +2187,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([cslIdx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {cslIdx: float(feature[cslIdx]) * factor}
+                    mmap[feature.id()] = {cslIdx: float(fv(feature[cslIdx])) * factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(lsus2File))
         except Exception:
@@ -2234,7 +2238,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([slopeIdx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {slopeIdx: float(feature[slopeIdx]) * factor}
+                    mmap[feature.id()] = {slopeIdx: float(fv(feature[slopeIdx])) * factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(lsus2File))
                 # update Sll and Slo1 in in subs1 file
@@ -2255,7 +2259,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([sllIdx, slo1Idx])
                 for feature in provider.getFeatures(request):
-                    meanSlopePercent = float(feature[slo1Idx]) * factor
+                    meanSlopePercent = float(fv(feature[slo1Idx])) * factor
                     sll = QSWATUtils.getSlsubbsn(meanSlopePercent / 100)
                     mmap[feature.id()] = {sllIdx: sll, slo1Idx: meanSlopePercent}
                 if not provider.changeAttributeValues(mmap):
@@ -2299,7 +2303,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([len2Idx, slo2Idx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {len2Idx: float(feature[len2Idx]) * factor, slo2Idx: float(feature[slo2Idx]) / factor}
+                    mmap[feature.id()] = {len2Idx: float(fv(feature[len2Idx])) * factor, slo2Idx: float(fv(feature[slo2Idx])) / factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(rivs1File))
         except Exception:
@@ -2342,7 +2346,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([len1Idx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {len1Idx: float(feature[len1Idx]) * factor}
+                    mmap[feature.id()] = {len1Idx: float(fv(feature[len1Idx])) * factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(subs1File))
                 # update lsus2 file
@@ -2363,7 +2367,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([len1Idx, cslIdx])
                 for feature in provider.getFeatures(request):
-                    mmap[feature.id()] = {len1Idx: float(feature[len1Idx]) * factor, cslIdx: float(feature[cslIdx]) / factor}
+                    mmap[feature.id()] = {len1Idx: float(fv(feature[len1Idx])) * factor, cslIdx: float(fv(feature[cslIdx])) / factor}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(lsus2File))
         except Exception:
@@ -2410,7 +2414,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap: Dict[int, Dict[int, float]] = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([areaIdx, wid2Idx, dep2Idx])
                 for feature in provider.getFeatures(request):
-                    drainAreaKm = float(feature[areaIdx]) / 100 # areac in ha
+                    drainAreaKm = float(fv(feature[areaIdx])) / 100 # areac in ha
                     mmap[feature.id()] = {wid2Idx: widthMult * (drainAreaKm ** widthExp), dep2Idx: depthMult * (drainAreaKm ** depthExp)}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(rivs1File))
@@ -2450,7 +2454,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 mmap = dict()
                 request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([areaIdx, wid1Idx, dep1Idx])
                 for feature in provider.getFeatures(request):
-                    drainAreaKm = float(feature[areaIdx]) / 100 # area in ha
+                    drainAreaKm = float(fv(feature[areaIdx])) / 100 # area in ha
                     mmap[feature.id()] = {wid1Idx: widthMult * (drainAreaKm ** widthExp), dep1Idx: depthMult * (drainAreaKm ** depthExp)}
                 if not provider.changeAttributeValues(mmap):
                     QSWATUtils.loginfo('Failed to update {0}'.format(lsus2File))

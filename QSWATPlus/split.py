@@ -27,7 +27,8 @@ from qgis.PyQt.QtWidgets import QMessageBox, QTableWidgetItem
 # Import the code for the dialog
 from .splitdialog import SplitDialog
 from .selectlu import Selectlu
-from .QSWATUtils import QSWATUtils # type: ignore 
+from .QSWATUtils import QSWATUtils # type: ignore
+from .qt_compat import MsgBoxYes
 
 class Split:
     
@@ -60,7 +61,7 @@ class Split:
         self._dlg.newCombo.activated.connect(self.addNew)
         self._dlg.splitCombo.activated.connect(self.selectSplit)
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.splitPos = self._dlg.pos()
         
     def add(self):
@@ -171,7 +172,7 @@ class Split:
         """Save the split landuses data and close the table."""
         if self._dlg.table.rowCount() > 0:
             result = QSWATUtils.question('Save split currently in table?', self._gv.isBatch, True)
-            if result == QMessageBox.Yes:
+            if result == MsgBoxYes:
                 if not self.saveEdit():
                     return
             else:
@@ -189,7 +190,7 @@ class Split:
         """Start a new landuse split."""
         if self._dlg.table.rowCount() > 0:
             result = QSWATUtils.question('Save split currently in table?', self._gv.isBatch, True)
-            if result == QMessageBox.Yes:
+            if result == MsgBoxYes:
                 self.saveEdit()
             else:
                 self.clearTable()
@@ -201,7 +202,7 @@ class Split:
         luse = self._dlg.splitCombo.currentText()
         if self._dlg.table.rowCount() > 0 and self._dlg.table.item(0, 0).text() != luse:
             result = QSWATUtils.question('Save split currently in table?', self._gv.isBatch, True)
-            if result == QMessageBox.Yes:
+            if result == MsgBoxYes:
                 self.saveEdit()
             else:
                 self.clearTable()

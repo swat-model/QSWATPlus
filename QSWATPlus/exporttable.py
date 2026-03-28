@@ -58,7 +58,7 @@ class ExportTable():
         self._dlg.databaseBox.activated.connect(self.setTables)
         self._dlg.exportButton.clicked.connect(self.exportTable)
         self._dlg.closeButton.clicked.connect(self.close)
-        self._dlg.exec_()
+        self._dlg.exec()
         
     def setTables(self):
         """Set tables for currently selected database."""

@@ -52,6 +52,8 @@ from .outletsdialog import OutletsDialog  # type: ignore
 from .selectsubs import SelectSubbasins  # type: ignore
 from .parameters import Parameters  # type: ignore
 from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport
+from .qt_compat import (WaitCursor, ArrowCursor, MsgBoxYes, MsgBoxNo, MsgBoxCancel,
+                         MsgBoxOk, MsgBoxSave, fv)
 
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport
@@ -262,7 +264,7 @@ class Delineation(QObject):
         """Do delineation; check done and save topology data.  Return 1 if delineation done and no errors, 2 if not delineated and nothing done, else 0."""
         self.init()
         self._dlg.show()
-        _ = self._dlg.exec_()
+        _ = self._dlg.exec()
         self._gv.delineatePos = self._dlg.pos()
         if self.delineationFinishedOK:
             if self.finishHasRun:
@@ -486,7 +488,7 @@ class Delineation(QObject):
         self._dlg.lakesTab.setEnabled(False)
         self._dlg.mergeTab.setEnabled(False)
         self.progress('Adding lakes ...')
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         self._gv.topo.lakesData.clear()
         if self._gv.useGridModel:
             self._gv.topo.addGridReservoirsPondsAndWetlands(subbasinsLayer, streamsLayer, demLayer, self._gv)
@@ -506,7 +508,7 @@ class Delineation(QObject):
                 self._gv.chBasinNoLakeFile = self.createBasinFile(self._gv.wshedFile, demLayer, 'wChannelNoLake', root)
         self._gv.topo.saveLakesData(self._gv.db)
         self.progress('')
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         self._gv.iface.mapCanvas().refresh()
         QSWATUtils.loginfo('{0} outlets after adding lakes'.format(len(self._gv.topo.outlets)))
         
@@ -724,8 +726,8 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             chMap: Dict[int, Dict[int, int]] = dict()
             outlets: List[QgsFeature] = []
             for channel in channelsLayer.getFeatures():
-                subbasin = channel[basinIndex]
-                if subbasin < 0 or channel[dsLinkIndex] >= 0:  # outside watershed or zero length channel or not an outlet
+                subbasin = fv(channel[basinIndex])
+                if subbasin < 0 or fv(channel[dsLinkIndex]) >= 0:  # outside watershed or zero length channel or not an outlet
                     if dsNodeIdAdded:
                         # need to set new field
                         chMap[channel.id()] = {dsNodeIndex: -1}
@@ -860,7 +862,7 @@ either smaller to lengthen the stream or larger to remove it.  Or if the lake is
             elif self._gv.isHUC or self._gv.isHAWQS:
                 res = 1 if lake[lakeResIndex] == 'Reservoir' else 2
             else:
-                res = lake[lakeResIndex]
+                res = fv(lake[lakeResIndex])
             geom = geoMap[lake.id()]
             self._gv.topo.lakeInlets[lakeId] = set()
             self._gv.topo.lakeOutlets[lakeId] = set()
@@ -1005,13 +1007,13 @@ assumed that its crossing the lake boundary is an inaccuracy.
     or you could change it to a playa lake by setting its RES field to 4.
     """.format(lakeId)
                 msgBox.setText(QSWATUtils.trans(text))
-                msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+                msgBox.setStandardButtons(MsgBoxYes | MsgBoxNo)  # type: ignore
                 msgBox.setWindowModality(Qt.NonModal)
                 self._dlg.showMinimized()
                 msgBox.show()
-                result = msgBox.exec_()
+                result = msgBox.exec()
                 self._dlg.showNormal()
-                if result == QMessageBox.Yes:
+                if result == MsgBoxYes:
                     lakesToRemove.append(lake.id())
                 lakesLayer.deselect(lake.id())
                 continue
@@ -1480,10 +1482,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
             for cell in gridLayer.getFeatures():
                 cellGeom = cell.geometry()
                 cellBox = cellGeom.boundingBox()
-                cellAreaThreshold = 0.5 * float(cell[areaIndex]) * 1E4  # convert to square metres
+                cellAreaThreshold = 0.5 * float(fv(cell[areaIndex])) * 1E4  # convert to square metres
                 # ensure we remove old lake ids, but not lake ids already added
                 try:
-                    currentLakeId = int(cell[gridLakeIdIndex])
+                    currentLakeId = int(fv(cell[gridLakeIdIndex]))
                     if currentLakeId not in done:
                         mmap[cell.id()] = {gridLakeIdIndex: NULL}
                 except:
@@ -1884,7 +1886,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSettings().setValue('/QSWATPlus/NumProcesses', str(numProcesses))
         if self._dlg.showTaudem.isChecked():
             self._dlg.tabWidget.setCurrentIndex(3)
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         self._dlg.taudemOutput.clear()
         # delet old flood files if any
         self.deleteFloodFiles(root)
@@ -2245,7 +2247,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
                 return
         else:
             outletLayer = None
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(WaitCursor)
         if self._gv.useGridModel:
             if self.gridDrainage or not self.streamDrainage:
                 streamFile = self.writeDrainageStreamsShapefile(subbasinsFile, subbasinsLayer, outletLayer, root)
@@ -2710,10 +2712,10 @@ assumed that its crossing the lake boundary is an inaccuracy.
             msgBox.setText(QSWATUtils.trans(text))
             currentButton = msgBox.addButton(QSWATUtils.trans('Current'), QMessageBox.ActionRole)
             _ = msgBox.addButton(QSWATUtils.trans('New'), QMessageBox.ActionRole)
-            msgBox.setStandardButtons(QMessageBox.Cancel)
-            result = msgBox.exec_()
+            msgBox.setStandardButtons(MsgBoxCancel)
+            result = msgBox.exec()
             self._gv.selectOutletFilePos = msgBox.pos()
-            if result == QMessageBox.Cancel:
+            if result == MsgBoxCancel:
                 return
             drawCurrent = msgBox.clickedButton() == currentButton
         else:
@@ -2744,7 +2746,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
             self.drawOutletLayer.startEditing()
         self._dlg.lower()
         self._odlg.show()
-        result = self._odlg.exec_()
+        result = self._odlg.exec()
         self._gv.outletsPos = self._odlg.pos()
         self._dlg.raise_()
         canvas.setMapTool(None)  # type: ignore
@@ -2866,14 +2868,14 @@ assumed that its crossing the lake boundary is an inaccuracy.
         or "Cancel" to abandon the selection.
         """
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Save | QMessageBox.Cancel)  # type: ignore
+        msgBox.setStandardButtons(MsgBoxSave | MsgBoxCancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.lower()
         msgBox.show()
-        result = msgBox.exec_()
+        result = msgBox.exec()
         self._gv.selectOutletPos = msgBox.pos()
         self._dlg.raise_()
-        if result != QMessageBox.Save:
+        if result != MsgBoxSave:
             selFromLayer.removeSelection()
             return
         selectedIds = selFromLayer.selectedFeatureIds()
@@ -2982,14 +2984,14 @@ the selection and do nothing.
 You can repeat the selection and change as many times as you like.  
 If you want to start again from scratch, reload the lakes shapefile."""
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)  # type: ignore
+        msgBox.setStandardButtons(MsgBoxOk | MsgBoxCancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.showMinimized()
         msgBox.show()
-        result = msgBox.exec_()
+        result = msgBox.exec()
         self._gv.selectOutletPos = msgBox.pos()
         self._dlg.showNormal()
-        if result == QMessageBox.Ok:
+        if result == MsgBoxOk:
             lakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
             mmap = dict()
             for cell in gridLayer.selectedFeatures():
@@ -3044,14 +3046,14 @@ the selection and do nothing.
 You can repeat the selection and change as many times as you like.  
 If you want to start again from scratch, reload the lakes shapefile."""
         msgBox.setText(QSWATUtils.trans(text))
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)  # type: ignore
+        msgBox.setStandardButtons(MsgBoxOk | MsgBoxCancel)  # type: ignore
         msgBox.setWindowModality(Qt.NonModal)
         self._dlg.showMinimized()
         msgBox.show()
-        result = msgBox.exec_()
+        result = msgBox.exec()
         self._gv.selectOutletPos = msgBox.pos()
         self._dlg.showNormal()
-        if result == QMessageBox.Ok:
+        if result == MsgBoxOk:
             lakeIdIndex = self._gv.topo.getIndex(gridLayer, QSWATTopology._LAKEID)
             mmap = dict()
             for cell in gridLayer.selectedFeatures():
@@ -3736,7 +3738,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         """
         if tabIndex >= 0:
             self._dlg.tabWidget.setCurrentIndex(tabIndex)
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         self.progress('')
         return
      
@@ -4537,7 +4539,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                                       outletLayer: Optional[QgsVectorLayer], root: QgsLayerTree) -> Optional[str]:
         """Write streams shapefile with drainage from subbasinsLayer if grid drainage, else
         from drainage defined in csv file."""
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(ArrowCursor)
         outlets = []
         self.inletOutletPoints = dict()
         if outletLayer is not None:
@@ -5024,7 +5026,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._DEM)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._DEM)), self._gv.isBatch, True) == MsgBoxYes:
                     demLayer = layer
                     demFile = possFile
         if demLayer is not None:
@@ -5063,7 +5065,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == MsgBoxYes:
                     subbasinsLayer = layer
                     subbasinsFile = possFile
         if subbasinsLayer is not None:
@@ -5082,7 +5084,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == MsgBoxYes:
                     wshedFile = possFile
         if os.path.exists(wshedFile):
             self._dlg.selectWshed.setText(wshedFile)
@@ -5103,7 +5105,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), self._gv.isBatch, True) == MsgBoxYes:
                     lakeFile = possFile
         if os.path.exists(lakeFile):
             self._dlg.selectLakes.setText(lakeFile)
@@ -5130,7 +5132,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._BURN)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._BURN)), self._gv.isBatch, True) == MsgBoxYes:
                     burnLayer = layer
                     burnFile = possFile
         if burnLayer is not None:
@@ -5155,8 +5157,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 if treeLayer is not None:
                     layer = treeLayer.layer()
                     possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), 
-                                           self._gv.isBatch, True) == QMessageBox.Yes:
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)),
+                                           self._gv.isBatch, True) == MsgBoxYes:
                         streamLayer = layer
                         streamFile = possFile
             if streamLayer is not None:
@@ -5179,8 +5181,8 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 if treeLayer is not None:
                     layer = treeLayer.layer()
                     possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)), 
-                                           self._gv.isBatch, True) == QMessageBox.Yes:
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(ft)),
+                                           self._gv.isBatch, True) == MsgBoxYes:
                         channelLayer = layer
                         channelFile = possFile
             if channelLayer is not None:
@@ -5207,7 +5209,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
                 if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._OUTLETS)),
-                                       self._gv.isBatch, True) == QMessageBox.Yes:
+                                       self._gv.isBatch, True) == MsgBoxYes:
                     outletLayer = layer
                     outletFile = possFile
         if outletLayer is not None:

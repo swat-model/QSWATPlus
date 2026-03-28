@@ -21,7 +21,6 @@
 """
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt, QSettings
-from qgis.PyQt.QtGui import QTextCursor
 from qgis.PyQt.QtWidgets import QTextEdit
 from qgis.core import QgsProject
 import os.path
@@ -31,6 +30,7 @@ from typing import Optional, List, Tuple
 
 from .QSWATUtils import QSWATUtils  # type: ignore
 from .parameters import Parameters  # type: ignore
+from .qt_compat import TextCursorEnd
 
 class TauDEMUtils:
     
@@ -221,7 +221,7 @@ class TauDEMUtils:
         if hasQGIS:
             assert output is not None
             output.append(command + '\n\n')
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(TextCursorEnd)
         # Windows will accept commands as first argument of run
         # and this has the advantage of dealing with spaces within inidividual components of the list
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
@@ -245,7 +245,7 @@ class TauDEMUtils:
             assert output is not None
             output.append(proc.stdout)
             output.append(proc.stderr)
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(TextCursorEnd)
         else:
             print(proc.stdout)
         # proc.returncode always seems to be None

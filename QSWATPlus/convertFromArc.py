@@ -51,6 +51,10 @@ from QSWATTopology import QSWATTopology  # @UnresolvedImport
 if not TYPE_CHECKING:
     from QSWATPlusMain import QSWATPlus  # @UnresolvedImport
 from parameters import Parameters  # @UnresolvedImport
+try:
+    from .qt_compat import MsgBoxYes, MsgBoxNo, MsgBoxCritical, MsgBoxQuestion, MsgBoxInformation
+except:
+    from qt_compat import MsgBoxYes, MsgBoxNo, MsgBoxCritical, MsgBoxQuestion, MsgBoxInformation  # @UnresolvedImport
 
 
 ## QApplication object needed 
@@ -229,7 +233,7 @@ class ConvertFromArc(QObject):
                 continue
             # convert to string from QString
             projParent = str(projParent)
-            if ConvertFromArc.question('Use {0} as new project name?'.format(self.arcProjName)) == QMessageBox.Yes:
+            if ConvertFromArc.question('Use {0} as new project name?'.format(self.arcProjName)) == MsgBoxYes:
                 self.qProjName = self.arcProjName
             else:
                 self.qProjName, ok = QInputDialog.getText(None, 'QSWATPlus project name',    # type: ignore
@@ -243,7 +247,7 @@ class ConvertFromArc(QObject):
             self.qProjDir = os.path.join(projParent, self.qProjName)
             if os.path.exists(self.qProjDir):
                 response = ConvertFromArc.question('Project directory {0} already exists.  Do you wish to delete it?  If so, make sure QGIS is not running on it or files will not be availble for rewriting.'.format(self.qProjDir))
-                if response != QMessageBox.Yes:
+                if response != MsgBoxYes:
                     continue
                 try:
                     shutil.rmtree(self.qProjDir, ignore_errors=True)
@@ -318,7 +322,7 @@ class ConvertFromArc(QObject):
             ConvertFromArc.information('ArcSWAT project {0} converted to SWAT+ project {1} in {2}'.
                                        format(self.arcProjName, self.qProjName, self.qProjDir))
             response = ConvertFromArc.question('Run SWAT+ Editor on the SWAT+ project?')
-            if response == QMessageBox.Yes:
+            if response == MsgBoxYes:
                 editorDir = QSWATUtils.join(self.SWATPlusDir, Parameters._SWATEDITORDIR)
                 editor = QSWATUtils.join(editorDir, Parameters._SWATEDITOR)
                 if not os.path.isfile(editor):
@@ -332,7 +336,7 @@ class ConvertFromArc(QObject):
             ConvertFromArc.information('ArcSWAT project {0} converted to QSWAT+ project {1} in {2}'.
                                        format(self.arcProjName, self.qProjName, self.qProjDir))
             response = ConvertFromArc.question('Run QGIS on the QSWAT+ project?')
-            if response == QMessageBox.Yes:
+            if response == MsgBoxYes:
                 osgeo4wroot = os.environ['OSGEO4W_ROOT']
                 # print('OSGEO4W_ROOT: {0}'.format(osgeo4wroot))
                 gisname = os.environ['GISNAME']
@@ -1014,9 +1018,9 @@ class ConvertFromArc(QObject):
         """.format(landuseOrSoil)
         msgBox.setText(QSWATUtils.trans(text))
         msgBox.setInformativeText(QSWATUtils.trans(infoText))
-        msgBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
-        result = msgBox.exec_()
-        if result == QMessageBox.Yes:
+        msgBox.setStandardButtons(MsgBoxYes | MsgBoxNo)  # type: ignore
+        result = msgBox.exec()
+        if result == MsgBoxYes:
             print('Creating {0} lookup table ...'.format(landuseOrSoil))
             self.generateCsv(landuseOrSoil)
             
@@ -2558,10 +2562,10 @@ class ConvertFromArc(QObject):
         """Ask msg as a question, returning Yes or No."""
         questionBox = QMessageBox()
         questionBox.setWindowTitle('QSWATPlus')
-        questionBox.setIcon(QMessageBox.Question)
-        questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+        questionBox.setIcon(MsgBoxQuestion)
+        questionBox.setStandardButtons(MsgBoxYes | MsgBoxNo)  # type: ignore
         questionBox.setText(QSWATUtils.trans(msg))
-        result = questionBox.exec_()
+        result = questionBox.exec()
         return result  # type: ignore
     
     @staticmethod
@@ -2569,9 +2573,9 @@ class ConvertFromArc(QObject):
         """Report msg as an error."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('QSWATPlus')
-        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setIcon(MsgBoxCritical)
         msgbox.setText(QSWATUtils.trans(msg))
-        msgbox.exec_()
+        msgbox.exec()
         return
     
     @staticmethod
@@ -2579,9 +2583,9 @@ class ConvertFromArc(QObject):
         """Report msg."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('QSWATPlus')
-        msgbox.setIcon(QMessageBox.Information)
+        msgbox.setIcon(MsgBoxInformation)
         msgbox.setText(QSWATUtils.trans(msg))
-        msgbox.exec_()
+        msgbox.exec()
         return
     
     @staticmethod

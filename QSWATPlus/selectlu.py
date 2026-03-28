@@ -44,7 +44,7 @@ class Selectlu:
         self._gv.db.populateAllLanduses(self._dlg.listBox, includeWATR=False)
         self._dlg.listBox.currentTextChanged.connect(self.select)
         self._dlg.show()
-        result = self._dlg.exec_()
+        result = self._dlg.exec()
         self._gv.selectLuPos = self._dlg.pos()
         if result == 1:
             return self._luse

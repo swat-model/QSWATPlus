@@ -49,7 +49,7 @@ class ElevationBands:
     def run(self):
         """Run the form."""
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.elevationBandsPos = self._dlg.pos()
         
     def setBands(self):

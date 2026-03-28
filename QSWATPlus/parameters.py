@@ -34,6 +34,7 @@ from packaging.version import parse
 try:
     from .parametersdialog import ParametersDialog  # type: ignore
     from .QSWATUtils import QSWATUtils  # type: ignore
+    from .qt_compat import MsgBoxYes
 except:
     pass  # not needed by convertFromArc
 
@@ -188,11 +189,11 @@ class Parameters:
     # QgsField using QVariant deprecated since 3.38
     qv = Qgis.QGIS_VERSION.split('-', 1)[0]
     if parse(qv) >= parse('3.38'):
-        from qgis.PyQt.QtCore import QMetaType
-        intFieldType = QMetaType.Int
-        doubleFieldType = QMetaType.Double
-        stringFieldType = QMetaType.QString
-        longFieldType = QMetaType.LongLong
+        from .qt_compat import MetaTypeInt, MetaTypeDouble, MetaTypeQString, MetaTypeLongLong
+        intFieldType = MetaTypeInt
+        doubleFieldType = MetaTypeDouble
+        stringFieldType = MetaTypeQString
+        longFieldType = MetaTypeLongLong
     else:
         from qgis.PyQt.QtCore import QVariant
         intFieldType = QVariant.Int
@@ -256,7 +257,7 @@ class Parameters:
         self.readProj()
         self._dlg.pointSizeBox.valueChanged.connect(self.changeFontSize)
         if not self.isBatch:
-            self._dlg.exec_()
+            self._dlg.exec()
         if self._gv:
             self._gv.parametersPos = self._dlg.pos()
         
@@ -322,10 +323,10 @@ class Parameters:
         # careful about changing font size too much
         pointSize = self._dlg.pointSizeBox.value()
         if 8 <= pointSize <= 12:
-            result = QMessageBox.Yes
+            result = MsgBoxYes
         else:
             result = QSWATUtils.question('Are you sure you want to set the QSWATPlus point size to {0}?'.format(pointSize), self.isBatch, False)
-        if result == QMessageBox.Yes:
+        if result == MsgBoxYes:
             settings.setValue('/QSWATPlus/FontSize', str(pointSize))    
         self._dlg.close()
             
@@ -342,7 +343,7 @@ class Parameters:
         if startDir is not None:
             dlg.setDirectory(startDir)
         dlg.setFileMode(QFileDialog.Directory)
-        if dlg.exec_():
+        if dlg.exec():
             dirs = dlg.selectedFiles()
             SWATPlusDir = dirs[0]
             self._dlg.SWATPlusBox.setText(SWATPlusDir)
@@ -361,7 +362,7 @@ class Parameters:
         if startDir is not None:
             dlg.setDirectory(startDir)
         dlg.setFileMode(QFileDialog.Directory)
-        if dlg.exec_():
+        if dlg.exec():
             dirs = dlg.selectedFiles()
             mpiexecDir = dirs[0]
             self._dlg.MPIBox.setText(mpiexecDir)

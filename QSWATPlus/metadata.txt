@@ -1,0 +1,37 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=QSWATPlus
+qgisMinimumVersion=3.16
+qgisMaximumVersion=4.99
+description=Create SWAT+ inputs
+version=3.2.0
+author=Chris George
+email=cgeorge@mcmaster.ca
+
+about=QSWAT+ for creating SWAT+ inputs. Delineate a watershed, create HRUs, and prepare input files for SWAT+ Editor.
+
+tracker=https://github.com/swat-model/QSWATPlus
+repository=https://github.com/swat-model/QSWATPlus
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=no
+
+# Tags are comma separated with spaces allowed
+tags=python, SWAT+, hydrology, watershed, modelling
+
+homepage=https://swat.tamu.edu/
+category=Plugins
+icon=QSWAT.png
+# experimental flag
+experimental=False
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# If the plugin can run on QGIS Server.
+server=False

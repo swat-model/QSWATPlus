@@ -44,6 +44,7 @@ from builtins import int
 import traceback
 import processing   # type: ignore # @UnresolvedImport
 from packaging.version import parse
+from .qt_compat import MsgBoxYes, MsgBoxNo, MsgBoxCritical, MsgBoxQuestion, MsgBoxInformation, IOReadWrite
 
 class QSWATUtils:
     """Various utilities."""
@@ -135,9 +136,9 @@ class QSWATUtils:
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
-            msgbox.setIcon(QMessageBox.Critical)
+            msgbox.setIcon(MsgBoxCritical)
             msgbox.setText(QSWATUtils.trans(msg))
-            msgbox.exec_()
+            msgbox.exec()
         return
     
     @staticmethod
@@ -152,16 +153,16 @@ class QSWATUtils:
         if not isBatch:
             questionBox: QMessageBox = QMessageBox()
             questionBox.setWindowTitle(QSWATUtils._QSWATNAME)
-            questionBox.setIcon(QMessageBox.Question)
-            questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+            questionBox.setIcon(MsgBoxQuestion)
+            questionBox.setStandardButtons(MsgBoxYes | MsgBoxNo)  # type: ignore
             questionBox.setText(QSWATUtils.trans(msg))
-            result: QMessageBox.StandardButton = questionBox.exec_()  # type: ignore
+            result: QMessageBox.StandardButton = questionBox.exec()  # type: ignore
         else: # batch: use affirm parameter
             if affirm:
-                result = QMessageBox.Yes
+                result = MsgBoxYes
             else:
-                result = QMessageBox.No
-        if result == QMessageBox.Yes:
+                result = MsgBoxNo
+        if result == MsgBoxYes:
             res = ' Yes'
         else:
             res = ' No'
@@ -189,9 +190,9 @@ class QSWATUtils:
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
-            msgbox.setIcon(QMessageBox.Information)
+            msgbox.setIcon(MsgBoxInformation)
             msgbox.setText(QSWATUtils.trans(msg))
-            msgbox.exec_()
+            msgbox.exec()
         return
     
     @staticmethod
@@ -512,8 +513,8 @@ class QSWATUtils:
         return nextFile, n
                 
     @staticmethod
-    def getLayerByFilenameOrLegend(treeLayers: List[QgsLayerTreeLayer], 
-                                   fileName: str, ft: int, legend: str, isBatch: bool) -> Optional[QgsMapLayer]:
+    def getLayerByFilenameOrLegend(treeLayers: List[QgsLayerTreeLayer],
+                                   fileName: str, ft: int, legend: str, isBatch: bool, logFile: Optional[str] = None) -> Optional[QgsMapLayer]:
         """
         Look for file that should have a map layer and return it. 
         If not found by filename, try legend, either as given or by file type ft.
@@ -530,7 +531,7 @@ class QSWATUtils:
                 info = QSWATUtils.layerFileInfo(layer)
                 if info is not None:
                     possFile: str = info.absoluteFilePath()
-                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == QMessageBox.Yes:
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == MsgBoxYes:
                         return layer
         return None
         
@@ -1106,7 +1107,7 @@ class QSWATUtils:
         doc: QDomDocument = QDomDocument()
         f: QFile = QFile(xmlFile)
         done = False
-        if f.open(QIODevice.ReadWrite):
+        if f.open(IOReadWrite):
             if doc.setContent(f):
                 tagNodes: QDomNodeList = doc.elementsByTagName(tag)
                 for i in range(tagNodes.length()):

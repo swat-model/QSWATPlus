@@ -65,7 +65,7 @@ class SelectSubbasins:
         """Run the dialog."""
         self.init()
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.selectSubsPos = self._dlg.pos()
         
     def switchSelectSmall(self):

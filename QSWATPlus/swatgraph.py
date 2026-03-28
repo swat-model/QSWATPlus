@@ -34,6 +34,8 @@ from matplotlib.backends.backend_qt5agg import (
     NavigationToolbar2QT as NavigationToolbar)
 import traceback
 
+from .qt_compat import MsgBoxCritical
+
 try:
     from .graphdialog import GraphDialog  # @UnusedImport
     from .parameters import Parameters  # @UnusedImport
@@ -95,7 +97,7 @@ class SWATGraph(QObject):
         if not Parameters._ISMAC:
             self.setUbuntuFont()
         self.readCsv()
-        self._dlg.exec_()
+        self._dlg.exec()
         
     def addmpl(self):
         """Add graph defined in self.fig."""
@@ -131,9 +133,9 @@ class SWATGraph(QObject):
         """Report msg as an error."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('SWATGraph')
-        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setIcon(MsgBoxCritical)
         msgbox.setText(SWATGraph.trans(msg))
-        msgbox.exec_()
+        msgbox.exec()
         return
     
     def getCsv(self):
