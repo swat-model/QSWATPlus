@@ -51,9 +51,13 @@ from .landscape import Landscape  # type: ignore
 from .outletsdialog import OutletsDialog  # type: ignore
 from .selectsubs import SelectSubbasins  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport
 from .qt_compat import (WaitCursor, ArrowCursor, MsgBoxYes, MsgBoxNo, MsgBoxCancel,
-                         MsgBoxOk, MsgBoxSave, fv)
+                         MsgBoxOk, MsgBoxSave, fv, compile_pyx)
+try:
+    from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport
+except ImportError:
+    compile_pyx('polygonizeInC2')
+    from .polygonizeInC2 import Polygonize  # type: ignore
 
 if TYPE_CHECKING:
     from globals import GlobalVars  # @UnresolvedImport @Reimport

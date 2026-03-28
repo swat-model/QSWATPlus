@@ -47,8 +47,13 @@ except:
     from qt_compat import AscendingOrder, fv  # @UnresolvedImport
 try:
     from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore # @UnresolvedImport @UnusedImport
-except:
-    from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport @Reimport
+except ImportError:
+    try:
+        from .qt_compat import compile_pyx
+        compile_pyx('dataInC')
+        from .dataInC import BasinData, CellData, LSUData, WaterBody  # type: ignore
+    except:
+        from dataInC import BasinData, CellData, LSUData, WaterBody    # @UnresolvedImport @Reimport
     
 class DBUtils:
     

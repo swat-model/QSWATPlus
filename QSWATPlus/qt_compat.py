@@ -57,6 +57,33 @@ def fv(val, default=0):
     return default if val is None else val
 
 
+def compile_pyx(pyx_name):
+    """Compile a .pyx Cython extension for the running Python version.
+
+    Call this when an ``ImportError`` indicates that a compiled ``.so``
+    (or ``.pyd``) is missing or was built for a different Python.  The
+    ``.pyx`` source must sit in the same directory as this file.
+
+    Requires ``Cython``, ``setuptools``, ``numpy``, and a C compiler.
+    """
+    import os, sys, subprocess
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    pyx_file = pyx_name + '.pyx'
+    if not os.path.exists(os.path.join(pkg_dir, pyx_file)):
+        raise ImportError('{0} not found in {1}'.format(pyx_file, pkg_dir))
+    subprocess.check_call([
+        sys.executable, '-c',
+        'import numpy; '
+        'from setuptools import setup, Extension; '
+        'from Cython.Build import cythonize; '
+        'ext = Extension("{name}", ["{src}"], '
+        'include_dirs=[numpy.get_include()]); '
+        'setup(ext_modules=cythonize([ext]), '
+        'script_args=["build_ext", "--inplace"])'
+        .format(name=pyx_name, src=pyx_file)
+    ], cwd=pkg_dir)
+
+
 # Qt.CursorShape
 WaitCursor = _e(Qt, 'WaitCursor', 'CursorShape.WaitCursor')
 ArrowCursor = _e(Qt, 'ArrowCursor', 'CursorShape.ArrowCursor')

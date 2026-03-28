@@ -48,8 +48,13 @@ except:
     from raster import Raster  # @UnresolvedImport @Reimport
 try:
     from .dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # type: ignore #  @UnusedImport @UnresolvedImport
-except:
-    from dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # @UnresolvedImport @Reimport
+except ImportError:
+    try:
+        from .qt_compat import compile_pyx
+        compile_pyx('dataInC')
+        from .dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # type: ignore
+    except:
+        from dataInC import ReachData, MergedChannelData, LakeData, LSUData, BasinData  # @UnresolvedImport @Reimport
 try:
     from .qt_compat import fv  # type: ignore
 except:

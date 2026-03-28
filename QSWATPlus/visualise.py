@@ -48,11 +48,16 @@ from .QSWATUtils import QSWATUtils, FileTypes  # type: ignore
 from .QSWATTopology import QSWATTopology  # type: ignore
 from .swatgraph import SWATGraph  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .jenks import jenks    # type: ignore # @UnresolvedImport 
+from .qt_compat import (WaitCursor, ArrowCursor, AlignCenter, AlignHCenter,
+                         MatchExactly, MsgBoxYes, IOReadOnly, SelectRows, SingleSelection,
+                         fv, compile_pyx)
+try:
+    from .jenks import jenks    # type: ignore # @UnresolvedImport
+except ImportError:
+    compile_pyx('jenks')
+    from .jenks import jenks    # type: ignore
 from .globals import GlobalVars  # type: ignore
 from .comparedialog import compareDialog  # type: ignore  # @UnresolvedImport
-from .qt_compat import (WaitCursor, ArrowCursor, AlignCenter, AlignHCenter,
-                         MatchExactly, MsgBoxYes, IOReadOnly, SelectRows, SingleSelection, fv)
  
 # from .images2gif import writeGif
 # if TYPE_CHECKING:

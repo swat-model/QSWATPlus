@@ -46,10 +46,18 @@ from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns  # type: ign
 from .QSWATTopology import QSWATTopology  # type: ignore
 from .DBUtils import DBUtils  # type: ignore
 from .parameters import Parameters  # type: ignore
-from .qt_compat import WaitCursor, ArrowCursor, MatchExactly, MsgBoxYes, TextCursorEnd, fv
+from .qt_compat import WaitCursor, ArrowCursor, MatchExactly, MsgBoxYes, TextCursorEnd, fv, compile_pyx
 #from .polygonize import Polygonize
-from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport 
-from .dataInC import CellData, BasinData, WaterBody, LSUData, LakeData  # type: ignore #  @UnresolvedImport 
+try:
+    from .polygonizeInC2 import Polygonize  # type: ignore # @UnresolvedImport
+except ImportError:
+    compile_pyx('polygonizeInC2')
+    from .polygonizeInC2 import Polygonize  # type: ignore
+try:
+    from .dataInC import CellData, BasinData, WaterBody, LSUData, LakeData  # type: ignore #  @UnresolvedImport
+except ImportError:
+    compile_pyx('dataInC')
+    from .dataInC import CellData, BasinData, WaterBody, LSUData, LakeData  # type: ignore
 from .exempt import Exempt  # type: ignore
 from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
