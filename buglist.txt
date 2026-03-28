@@ -192,3 +192,7 @@ hrus.py 4424 ff
 Previous fix for gis_deep_aquifers could cause duplicated subbasin numbers in gis_aquifers
 hrus.py line 4260
 
+27/3/2026 # 51
+Extra parameter added to getLayerByFilenameOrLegend (poorly executed attempt to add parameter to Utils.error)
+delineation.py line 4268
+
