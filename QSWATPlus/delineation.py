@@ -2701,7 +2701,7 @@ assumed that its crossing the lake boundary is an inaccuracy.
         # detect maptool change
         canvas.mapToolSet.connect(self.mapToolChanged)
         root = QgsProject.instance().layerTreeRoot()
-        outletLayer = QSWATUtils.getLayerByFilenameOrLegend(root.findLayers(), self._gv.outletFile, FileTypes._OUTLETS, '', self._gv.isBatch, logFile=self._gv.logFile)
+        outletLayer = QSWATUtils.getLayerByFilenameOrLegend(root.findLayers(), self._gv.outletFile, FileTypes._OUTLETS, '', self._gv.isBatch)
         if outletLayer is not None:  # we have a current outlet layer - give user a choice 
             msgBox = QMessageBox()
             msgBox.move(self._gv.selectOutletFilePos)
@@ -3772,7 +3772,7 @@ If you want to start again from scratch, reload the lakes shapefile."""
         shapes = Polygonize(isConnected4, numCols, noData, 
                             QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
         for row in range(numRows):
-            wBuffer = wBand.ReadAsArray(0, row, numCols, 1).astype(np.int32)
+            wBuffer = wBand.ReadAsArray(0, row, numCols, 1, buf_type=gdal.GDT_Int32)
             shapes.addRow(wBuffer.reshape([numCols]), row)
         shapes.finish()
         legend = FileTypes.legend(ft)
