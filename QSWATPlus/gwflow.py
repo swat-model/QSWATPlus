@@ -63,7 +63,6 @@ from .QSWATTopology import QSWATTopology
 from .parameters import Parameters
 from numpy.ma.core import _get_dtype_of
 from osgeo.gdalconst import GA_Update
-from . import rtree
 try:
     from .qt_compat import fv
 except:
