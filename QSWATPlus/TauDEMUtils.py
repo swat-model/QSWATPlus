@@ -221,7 +221,7 @@ class TauDEMUtils:
         if hasQGIS:
             assert output is not None
             output.append(command + '\n\n')
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(QTextCursor.MoveOperation.End)
         # Windows will accept commands as first argument of run
         # and this has the advantage of dealing with spaces within inidividual components of the list
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
@@ -245,7 +245,7 @@ class TauDEMUtils:
             assert output is not None
             output.append(proc.stdout)
             output.append(proc.stderr)
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(QTextCursor.MoveOperation.End)
         else:
             print(proc.stdout)
         # proc.returncode always seems to be None
@@ -266,7 +266,7 @@ class TauDEMUtils:
             if hasQGIS:
                 assert output is not None    
                 origColour = output.textColor()
-                output.setTextColor(Qt.red)
+                output.setTextColor(Qt.GlobalColor.red)
                 output.append(QSWATUtils.trans('*** Problem with TauDEM {0}: please examine output above. ***'.format(command)))
                 output.setTextColor(origColour)
             msg += 'and failed'

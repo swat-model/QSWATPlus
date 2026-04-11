@@ -24,7 +24,7 @@ from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer
 from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator 
 from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem 
 from qgis.PyQt.QtXml import QDomDocument 
-from qgis.core import QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop
+from qgis.core import NULL, QgsApplication, QgsLineSymbol, QgsFillSymbol, QgsColorRamp, QgsFields, QgsPrintLayout, QgsProviderRegistry, QgsRendererRange, QgsRendererRangeLabelFormat, QgsStyle, QgsGraduatedSymbolRenderer, QgsField, QgsMapLayer, QgsVectorLayer, QgsProject, QgsLayerTree, QgsReadWriteContext, QgsLayoutExporter, QgsSymbol, QgsExpression, QgsFeatureRequest, QgsGradientColorRamp, QgsGradientStop
 from qgis.gui import QgsMapCanvas, QgsMapCanvasItem 
 import os
 # import random
@@ -82,7 +82,10 @@ class Visualise(QObject):
         QObject.__init__(self)
         self._gv = gv
         self._dlg = VisualiseDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        except AttributeError:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() | Qt.WindowType.WindowMinimizeButtonHint)
         self._dlg.move(self._gv.visualisePos)
         self._comparedlg = compareDialog()
         ## variables found in various tables that do not contain values used in results
@@ -351,8 +354,8 @@ class Visualise(QObject):
         proj = QgsProject.instance()
         root = proj.layerTreeRoot()
         self.setBackgroundLayers(root)
-        leftShortCut = QShortcut(QKeySequence(Qt.Key_Left), self._dlg)
-        rightShortCut = QShortcut(QKeySequence(Qt.Key_Right), self._dlg)
+        leftShortCut = QShortcut(QKeySequence(Qt.Key.Key_Left), self._dlg)
+        rightShortCut = QShortcut(QKeySequence(Qt.Key.Key_Right), self._dlg)
         leftShortCut.activated.connect(self.animateStepLeft)  # type: ignore
         rightShortCut.activated.connect(self.animateStepRight)  # type: ignore
         self.title = proj.title()
@@ -379,7 +382,7 @@ class Visualise(QObject):
         """Do visualisation."""
         self.init()
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.visualisePos = self._dlg.pos()
         
     def fillScenarios(self) -> None:
@@ -539,7 +542,7 @@ class Visualise(QObject):
             txt = self._dlg.outputCombo.itemText(row)
             if txt.startswith('aquifer_'):
                 deeptxt = 'deep_' + txt
-                deepIndx = self._dlg.outputCombo.findText(deeptxt, Qt.MatchExactly)
+                deepIndx = self._dlg.outputCombo.findText(deeptxt, Qt.MatchFlag.MatchExactly)
                 if deepIndx < 0:
                     sql1 = "CREATE TABLE {0} AS SELECT * FROM {1} WHERE name LIKE 'aqu_deep%'".format(deeptxt, txt)
                     self.conn.execute(sql1)
@@ -613,8 +616,8 @@ class Visualise(QObject):
         # designer makes this false
         self._dlg.tableWidget.horizontalHeader().setVisible(True)
         self._dlg.tableWidget.setHorizontalHeaderLabels(['Scenario', 'Table', 'Unit', 'Variable'])
-        self._dlg.tableWidget.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._dlg.tableWidget.setSelectionMode(QAbstractItemView.SingleSelection)
+        self._dlg.tableWidget.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._dlg.tableWidget.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self._dlg.tableWidget.setColumnWidth(0, 100)
         self._dlg.tableWidget.setColumnWidth(1, 100)
         self._dlg.tableWidget.setColumnWidth(2, 45)
@@ -869,7 +872,7 @@ class Visualise(QObject):
         """Append item to variableList."""
         self.resultsFileUpToDate = False
         var = self._dlg.variableCombo.currentText()
-        items = self._dlg.variableList.findItems(var, Qt.MatchExactly)
+        items = self._dlg.variableList.findItems(var, Qt.MatchFlag.MatchExactly)
         if not items or items == []:
             item = QListWidgetItem()
             item.setText(var)
@@ -909,8 +912,8 @@ class Visualise(QObject):
         sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
         try:
             row = self.conn.execute(sql, (self.table, var)).fetchone()
-            str1 = '' if row[0] is None else 'Units: {0}'.format(row[0])
-            str2 = '' if row[1] is None else 'Description: {0}'.format(row[1])
+            str1 = '' if row[0] == NULL else 'Units: {0}'.format(row[0])
+            str2 = '' if row[1] == NULL else 'Description: {0}'.format(row[1])
             return str2 if str1 == '' else str1 if str2 == '' else '{0} {1}'.format(str1, str2)
         except Exception:
             return ''
@@ -920,7 +923,7 @@ class Visualise(QObject):
         sql = 'SELECT [description] FROM table_description WHERE table_name=?'
         try:
             row = self.conn.execute(sql, (table,)).fetchone()
-            return '' if row[0] is None else '{0}'.format(row[0])
+            return '' if row[0] == NULL else '{0}'.format(row[0])
         except Exception:
             return ''
         
@@ -1213,7 +1216,7 @@ class Visualise(QObject):
                     # remove square brackets from each var
                     var = varz[i][1:-1]
                     rawVal = row[i+preLen]
-                    if rawVal is None:
+                    if rawVal == NULL:
                         val = 0.0
                     else:
                         val = float(rawVal)
@@ -1608,7 +1611,7 @@ class Visualise(QObject):
         root = proj.layerTreeRoot()
         if os.path.exists(nextResultsFile):
             reply = QSWATUtils.question('Results file {0} already exists.  Do you wish to overwrite it?'.format(nextResultsFile), self._gv.isBatch, True)
-            if reply != QMessageBox.Yes:
+            if reply != QMessageBox.StandardButton.Yes:
                 return False
             if nextResultsFile == self.resultsFile:
                 # remove existing layer so new one replaces it
@@ -1937,7 +1940,7 @@ class Visualise(QObject):
             if fields.fieldOrigin(i) == QgsFields.OriginEdit:  # added by editing
                 newVars.append(fields.at(i).name())
         for var in newVars:
-            items = self._dlg.variableList.findItems(var, Qt.MatchExactly)
+            items = self._dlg.variableList.findItems(var, Qt.MatchFlag.MatchExactly)
             if not items or items == []:
                 # add var to variableList
                 item = QListWidgetItem()
@@ -2168,7 +2171,7 @@ class Visualise(QObject):
         QSWATUtils.loginfo('Print layout template {0} written'.format(self.animationTemplate))
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(QIODevice.OpenModeFlag.ReadOnly):
             OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
@@ -2213,7 +2216,7 @@ class Visualise(QObject):
         self.animationTemplateDirty = False
         self.animationDOM = QDomDocument()
         f = QFile(self.animationTemplate)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(QIODevice.OpenModeFlag.ReadOnly):
             OK = self.animationDOM.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(self.animationTemplate), self._gv.isBatch)
@@ -2534,7 +2537,7 @@ class Visualise(QObject):
         if self.scenario1 != '':
             _ = self.makeCompareResults()
             return
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(Qt.CursorShape.WaitCursor)
         self.resultsFileUpToDate = self.resultsFileUpToDate and self.resultsFile == self._dlg.resultsFileEdit.text()
         if not self.resultsFileUpToDate or not self.periodsUpToDate:
             if not self.readData('', True, self.table, '', ''):
@@ -2551,7 +2554,7 @@ class Visualise(QObject):
             else:
                 return
         self.colourResultsFile()
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
         
     def makeCompareResults(self) -> bool:
         """Create and add to results 4 shapefiles:
@@ -3004,7 +3007,7 @@ class Visualise(QObject):
         QSWATUtils.loginfo('Print composer template {0} written'.format(templateOut))
         templateDoc = QDomDocument()
         f = QFile(templateOut)
-        if f.open(QIODevice.ReadOnly):
+        if f.open(QIODevice.OpenModeFlag.ReadOnly):
             OK = templateDoc.setContent(f)[0]
             if not OK:
                 QSWATUtils.error('Cannot parse template file {0}'.format(templateOut), self._gv.isBatch)
@@ -3073,7 +3076,7 @@ class Visualise(QObject):
             return
         self._dlg.animationVariableCombo.setToolTip(self.getVarTip(var))
         # can take a while so set a wait cursor
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(Qt.CursorShape.WaitCursor)
         self.doRewind()
         self._dlg.calculateLabel.setText('Calculating breaks ...')
         self._dlg.repaint()
@@ -3106,7 +3109,7 @@ class Visualise(QObject):
             self.changeAnimate()
         finally:
             self._dlg.calculateLabel.setText('')
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
             
     def saveVideo(self) -> None:
         """Save animated GIF if still files found."""
@@ -3230,7 +3233,7 @@ class Visualise(QObject):
         
     def startCompareScenarios(self):
         """Run the compare scenarios form."""
-        self._comparedlg.exec_()
+        self._comparedlg.exec()
         
     def setupCompareScenarios(self):
         """Save chosen scenarios and exit form."""
@@ -3368,12 +3371,12 @@ class Visualise(QObject):
             self._dlg.recordLabel.setText('Stop recording')
             self._dlg.playButton.setEnabled(False)
         else:
-            self._dlg.setCursor(Qt.WaitCursor)
+            self._dlg.setCursor(Qt.CursorShape.WaitCursor)
             self._dlg.recordButton.setStyleSheet('background-color: green; border: none;')
             self._dlg.recordLabel.setText('Start recording')
             self.saveVideo()
             self._dlg.playButton.setEnabled(True)
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
     
     def playRecording(self) -> None:
         """Use default application to play video file (an animated gif)."""
@@ -3503,7 +3506,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setItem(size, 2, QTableWidgetItem(unit))
         self._dlg.tableWidget.setItem(size, 3, QTableWidgetItem(var))
         for col in range(4):
-            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignCenter)
+            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         self._dlg.tableWidget.selectRow(size)
         if self.countPlots() == 1:
             # just added first row - reduce tables to those with same frequency
@@ -3591,7 +3594,7 @@ class Visualise(QObject):
         self._dlg.tableWidget.setItem(size, 2, QTableWidgetItem('-'))
         self._dlg.tableWidget.setItem(size, 3, QTableWidgetItem(self._dlg.variablePlot.currentText()))
         for col in range(4):
-            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignHCenter)
+            self._dlg.tableWidget.item(size, col).setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
         self._dlg.tableWidget.selectRow(size)
         
     def setObservedVars(self) -> None:
@@ -4343,8 +4346,8 @@ class Visualise(QObject):
             sql = 'SELECT [units], [description] FROM column_description WHERE table_name=? AND column_name=?'
             row = conn.execute(sql, (table, var)).fetchone()
         # units can be '---'; also protect against NULL
-        units = '' if row is None or row[0] is None or row[0] == '---' else row[0]
-        description = var if row is None or row[1] is None else row[1]
+        units = '' if row is None or row[0] == NULL or row[0] == '---' else row[0]
+        description = var if row is None or row[1] == NULL else row[1]
         #QSWATUtils.loginfo('Table: {0}, column_name: {1}'.format(table, var))
         #QSWATUtils.loginfo('Units: {0}, Description: {1}'.format(units, description))
         return units, description
@@ -4412,9 +4415,9 @@ class MapTitle(QgsMapCanvasItem):
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: Optional[QWidget] = None) -> None:  # type: ignore # @UnusedVariable
         """Paint the text."""
 #         if self.line2 is None:
-#             painter.drawText(self.rect, Qt.AlignLeft, '{0}\n{1}'.format(self.line0, self.line1))
+#             painter.drawText(self.rect, Qt.AlignmentFlag.AlignLeft, '{0}\n{1}'.format(self.line0, self.line1))
 #         else:
-#             painter.drawText(self.boundingRectangle, Qt.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
+#             painter.drawText(self.boundingRectangle, Qt.AlignmentFlag.AlignLeft, '{0}\n{1}\n{2}'.format(self.line0, self.line1, self.line2))
         text = QTextDocument()
         text.setDefaultFont(self.normFont)
         if self.line2 is None:

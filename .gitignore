@@ -20,3 +20,5 @@
 *.tgz
 *.o
 
+# Generated files (rebuild with: python QSWATPlus/make_uis.py)
+QSWATPlus/ui_*.py

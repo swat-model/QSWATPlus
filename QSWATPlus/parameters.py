@@ -189,10 +189,10 @@ class Parameters:
     qv = Qgis.QGIS_VERSION.split('-', 1)[0]
     if parse(qv) >= parse('3.38'):
         from qgis.PyQt.QtCore import QMetaType
-        intFieldType = QMetaType.Int
-        doubleFieldType = QMetaType.Double
-        stringFieldType = QMetaType.QString
-        longFieldType = QMetaType.LongLong
+        intFieldType = QMetaType.Type.Int
+        doubleFieldType = QMetaType.Type.Double
+        stringFieldType = QMetaType.Type.QString
+        longFieldType = QMetaType.Type.LongLong
     else:
         from qgis.PyQt.QtCore import QVariant
         intFieldType = QVariant.Int
@@ -223,7 +223,10 @@ class Parameters:
         self.numProcesses = settings.value('/QSWATPlus/NumProcesses', '')
         self._gv = gv
         self._dlg = ParametersDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         if self._gv:
             try:   # globals may have exited prematurely if SWATPlus directory not found and needs setting
                 self._dlg.move(self._gv.parametersPos)
@@ -256,7 +259,7 @@ class Parameters:
         self.readProj()
         self._dlg.pointSizeBox.valueChanged.connect(self.changeFontSize)
         if not self.isBatch:
-            self._dlg.exec_()
+            self._dlg.exec()
         if self._gv:
             self._gv.parametersPos = self._dlg.pos()
         
@@ -322,10 +325,10 @@ class Parameters:
         # careful about changing font size too much
         pointSize = self._dlg.pointSizeBox.value()
         if 8 <= pointSize <= 12:
-            result = QMessageBox.Yes
+            result = QMessageBox.StandardButton.Yes
         else:
             result = QSWATUtils.question('Are you sure you want to set the QSWATPlus point size to {0}?'.format(pointSize), self.isBatch, False)
-        if result == QMessageBox.Yes:
+        if result == QMessageBox.StandardButton.Yes:
             settings.setValue('/QSWATPlus/FontSize', str(pointSize))    
         self._dlg.close()
             
@@ -341,8 +344,8 @@ class Parameters:
         dlg = QFileDialog(None, title)
         if startDir is not None:
             dlg.setDirectory(startDir)
-        dlg.setFileMode(QFileDialog.Directory)
-        if dlg.exec_():
+        dlg.setFileMode(QFileDialog.FileMode.Directory)
+        if dlg.exec():
             dirs = dlg.selectedFiles()
             SWATPlusDir = dirs[0]
             self._dlg.SWATPlusBox.setText(SWATPlusDir)
@@ -360,8 +363,8 @@ class Parameters:
         dlg = QFileDialog(None, title)
         if startDir is not None:
             dlg.setDirectory(startDir)
-        dlg.setFileMode(QFileDialog.Directory)
-        if dlg.exec_():
+        dlg.setFileMode(QFileDialog.FileMode.Directory)
+        if dlg.exec():
             dirs = dlg.selectedFiles()
             mpiexecDir = dirs[0]
             self._dlg.MPIBox.setText(mpiexecDir)
