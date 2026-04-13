@@ -29,6 +29,8 @@ def postprocess_file(filepath):
     original = content
     # Replace direct PyQt5 or PyQt6 imports with qgis.PyQt
     content = re.sub(r'from PyQt[56]', 'from qgis.PyQt', content)
+    # Make resource imports relative so they work inside a sub-package
+    content = re.sub(r'^import resources_rc$', 'from . import resources_rc', content, flags=re.MULTILINE)
 
     if content != original:
         with open(filepath, 'w', encoding='utf-8') as f:
