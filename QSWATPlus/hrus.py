@@ -4590,7 +4590,7 @@ class CreateHRUs(QObject):
                     continue
                 outlets.add(outBasin)
                 # check if outlet in lake
-                lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                lakeId = self._gv.topo.outletsInLake.get(outBasin, -1)
                 if lakeId > 0:
                     # deepAquiferId chosen so that basins draining to same lake will share it
                     deepAquiferId = baseDeepAquiferId + lakeId

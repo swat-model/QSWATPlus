@@ -60,7 +60,7 @@ np.import_array() # recommended https://groups.google.com/g/cython-users/c/6qGmz
 ## directions
 # note that the definition of reverse uses the integer encoding: beware of changing it
 # but currently reverse is not used
-cdef enum:
+cdef enum Direction:
     _UP = 0
     _RIGHT = 1
     _DOWN = 2
@@ -120,11 +120,11 @@ cdef class Ring:
 @staticmethod
 cdef str dc(int d):
     """Return a character indicating the direction."""
-    if d == _UP:
+    if d == Direction._UP:
         return 'u'
-    elif d == _DOWN:
+    elif d == Direction._DOWN:
         return 'd'
-    elif d == _LEFT:
+    elif d == Direction._LEFT:
         return 'l'
     else:
         return 'r'
@@ -132,11 +132,11 @@ cdef str dc(int d):
 @staticmethod
 cdef Position lend(Link l):
     """Return the finish point of a link."""
-    if l.d == _UP:
+    if l.d == Direction._UP:
         return Position(l.x, l.y-1)
-    elif l.d == _DOWN:
+    elif l.d == Direction._DOWN:
         return Position(l.x, l.y+1)
-    elif l.d == _LEFT:
+    elif l.d == Direction._LEFT:
         return Position(l.x-1, l.y)
     else:
         return Position(l.x+1, l.y)
@@ -147,9 +147,9 @@ cdef Position lend(Link l):
 # we only need to be concerned with left-right links  because initial boxes 
 # consumed any up-down complementary links
 cdef bint complements(Link l1, Link l2):
-    if l1.d == _LEFT and l2.d == _RIGHT and l1.x == l2.x + 1 and l1.y == l2.y:
+    if l1.d == Direction._LEFT and l2.d == Direction._RIGHT and l1.x == l2.x + 1 and l1.y == l2.y:
         return True
-    if l1.d == _RIGHT and l2.d == _LEFT and l1.x == l2.x - 1 and l1.y == l2.y:
+    if l1.d == Direction._RIGHT and l2.d == Direction._LEFT and l1.x == l2.x - 1 and l1.y == l2.y:
         return True
     return False
 #         return d1 == reverse(d2) and (x1, y1) == lend((x2, y2, d2))
@@ -272,11 +272,11 @@ cdef Ring boxToRing(Box b):
     perimeter = []
     i = 0
     for i in range(b.width):
-        perimeter.append(Link(b.x+i, b.y, _RIGHT))
-    perimeter.append(Link(b.x + b.width, b.y, _DOWN))
+        perimeter.append(Link(b.x+i, b.y, Direction._RIGHT))
+    perimeter.append(Link(b.x + b.width, b.y, Direction._DOWN))
     for i in range(b.width, 0, -1):
-        perimeter.append(Link(b.x + i, b.y + 1, _LEFT))
-    perimeter.append(Link(b.x, b.y+1, _UP))
+        perimeter.append(Link(b.x + i, b.y + 1, Direction._LEFT))
+    perimeter.append(Link(b.x, b.y+1, Direction._UP))
     return Ring(perimeter, Bounds(b.x, b.x + b.width, b.y, b.y + 1))
                     
 @staticmethod
@@ -453,10 +453,10 @@ cdef Indexes hasHole(object l):
     
     for first in range(length - 2):
         link = l[first]
-        if link.d == _LEFT:
-            findLink = Link(link.x - 1, link.y, _RIGHT)
-        elif link.d == _RIGHT:
-            findLink = Link(link.x + 1, link.y, _LEFT)
+        if link.d == Direction._LEFT:
+            findLink = Link(link.x - 1, link.y, Direction._RIGHT)
+        elif link.d == Direction._RIGHT:
+            findLink = Link(link.x + 1, link.y, Direction._LEFT)
         else: 
             continue
         last = findIndexByLink(l, first+2, length, findLink)
@@ -484,7 +484,7 @@ cpdef isClockwise(Ring ring, int first, int last):
         object l = ring.perimeter
         int size = len(l)
         int minX = bounds.xmax
-        int minDir = _DOWN
+        int minDir = Direction._DOWN
         Link link
         
     if first > last:
@@ -493,17 +493,17 @@ cpdef isClockwise(Ring ring, int first, int last):
         indx = i - size if i >= size else i
         link = l[indx]
         direction = link.d
-        if direction == _RIGHT or direction == _LEFT:
+        if direction == Direction._RIGHT or direction == Direction._LEFT:
             continue
         x = link.x
         if x == bounds.xmin:
-            return direction == _UP
+            return direction == Direction._UP
         elif x == bounds.xmax:
-            return direction == _DOWN
+            return direction == Direction._DOWN
         elif x < minX:
             minX = x
             minDir = direction
-    return minDir == _UP
+    return minDir == Direction._UP
 
 # no longer used - replaced by isClockwise, which should be faster 
 #===============================================================================

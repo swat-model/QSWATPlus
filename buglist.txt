@@ -196,3 +196,7 @@ hrus.py line 4260
 Extra parameter added to getLayerByFilenameOrLegend (poorly executed attempt to add parameter to Utils.error)
 delineation.py line 4268
 
+12/4/2026 # 52
+Wrong basin parameter in check outlet in lake
+hrus.py line 4593
+

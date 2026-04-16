@@ -231,12 +231,12 @@ if __name__ == '__main__':
     #for arg in sys.argv:
     #    print('Argument: {0}'.format(arg))
     # set True for debugging, normally false
-    debugging = False      
+    debugging = len(sys.argv) == 1   
     if debugging:
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
         #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/08/huc080801020901/huc080801020901.qgs'
+        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/10/huc100600070002/huc100600070002.qgs'
         #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\0305020711\huc0305020711\huc0305020711.qgs"
         #direc = r"K:\HAWQSModels\SWATPlus\Fields_CDL\HUC14\Models030902010200\HAWQSProject030902010200_14\HAWQSProject030902010200_14.qgs" 
         subRegion = ''
@@ -275,6 +275,8 @@ if __name__ == '__main__':
             huc = runHUC(d, logFile)
             huc.runProject(dataDir, scale, minHRUha)
             print('Completed project {0}'.format(d))
+            with open(logFile, 'a') as f:
+                f.write('Completed project {0}\n'.format(d))
         except Exception:
             print('ERROR: exception: {0}'.format(traceback.format_exc()))
     else:

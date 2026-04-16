@@ -3167,8 +3167,8 @@ class QSWATTopology:
             if not OK:
                 QSWATUtils.error('Cannot remove merged, zero length, or above inlet channels from channels shapefile {0}'.format(rivs1File), self.isBatch, logFile=self.logFile)
                 return None
-        # Add fields from channels table to rivs1File if less than RIV1SUBS1MAX features; otherwise takes too long.
-        addToRiv1 = rivs1Layer.featureCount() <= Parameters._RIVS1SUBS1MAX
+        # for non HUC or HAWQS models add fields from channels table to rivs1File if less than RIV1SUBS1MAX features; otherwise takes too long.
+        addToRiv1 = self.isHUC or self.isHAWQS or rivs1Layer.featureCount() <= Parameters._RIVS1SUBS1MAX
         # remove fields apart from LINKNO, Channel, ChannelR, ChannelR2 and Subbasin
         if addToRiv1:
             self.removeFields(rivs1Layer, [QSWATTopology._LINKNO, QSWATTopology._CHANNEL, QSWATTopology._CHANNELR, QSWATTopology._CHANNELR2, QSWATTopology._SUBBASIN], rivs1File, self.isBatch)
@@ -3547,6 +3547,7 @@ class QSWATTopology:
                                 if gv.useGridModel and self.downChannels.get(channel, -1) < 0:
                                     # we have an internal lake exit: route outlet id to watershed exit
                                     self.db.addToRouting(curs, outletId, ptCat, 0, xCat, QSWATTopology._TOTAL, 100)
+                                    self.routedPoints.append(outletId)
                                 else:
                                     if noChannel: # save source for now: cannot route to channel
                                         source, sourceCat, flowPercent = (outletId, ptCat, 100)
@@ -3582,18 +3583,27 @@ class QSWATTopology:
                         wCat = resCat if lakeData.waterRole == 1 else pondCat if lakeData.waterRole == 2 else wetlandCat
                         if SWATChannel not in routedChannels:
                             if noChannel:
-                                self.db.addToRouting(curs, source, sourceCat, outletId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                if sourceCat != ptCat or source not in self.routedPoints:
+                                    self.db.addToRouting(curs, source, sourceCat, outletId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                    if sourceCat == ptCat:
+                                        self.routedPoints.append(source)
                             else:
                                 self.db.addToRouting(curs, SWATChannel, chCat, outletId, ptCat, QSWATTopology._TOTAL, mainPercent)
                                 routedChannels.append(SWATChannel)
                             if dsSWATChannel2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
                             elif dsNodeId2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
                                 if dsNodeId2 not in self.routedPoints:
@@ -3628,12 +3638,13 @@ class QSWATTopology:
                     wid, role = channelToWater.get(channel, (-1, -1))
                     wCat = resCat if role == 1 else pondCat if role == 2 else wetlandCat
                     inletId, inletPt = channelToInlet.get(channel, (-1, None))
-                    if inletPt is not None:
+                    if inletPt is not None and inletId not in self.routedPoints:
                         # route inlet to channel or water
                         if wid >= 0:
                             self.db.addToRouting(curs, inletId, ptCat, wid, wCat, QSWATTopology._TOTAL, 100)
                         else:
                             self.db.addToRouting(curs, inletId, ptCat, SWATChannel, chCat, QSWATTopology._TOTAL, 100)
+                        self.routedPoints.append(inletId)
                     pointId = -1
                     (ptId, _, outletChannels) = self.outlets.get(subbasin, (-1, None, []))
                     if channel in outletChannels:
@@ -3657,7 +3668,10 @@ class QSWATTopology:
                         # route channel to its outlet(s)
                         if SWATChannel not in routedChannels:
                             if noChannel:
-                                self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                if sourceCat != ptCat or source not in self.routedPoints:
+                                    self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                    if sourceCat == ptCat:
+                                        self.routedPoints.append(source)
                             else:
                                 self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
                                 routedChannels.append(SWATChannel)
@@ -3670,17 +3684,26 @@ class QSWATTopology:
                                 lakeData = self.lakesData[inLakeId2]
                                 wCat = resCat if lakeData.waterRole == 1 else pondCat if lakeData.waterRole == 2 else wetlandCat
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, inLakeId2, wCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, inLakeId2, wCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, inLakeId2, wCat, QSWATTopology._TOTAL, 100 - mainPercent)
                             elif dsSWATChannel2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
                             elif dsNodeId2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
                                 if dsNodeId2 not in self.routedPoints:
@@ -3742,7 +3765,10 @@ class QSWATTopology:
                                 #if the downstream subbasins are the same, route 100% to the subbasin outlet and then split between the channels
                                 if dsSubbasin1 == dsSubbasin2:
                                     if noChannel:
-                                        self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100)
+                                        if sourceCat != ptCat or source not in self.routedPoints:
+                                            self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100)
+                                            if sourceCat == ptCat:
+                                                self.routedPoints.append(source)
                                     else:
                                         self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, 100)
                                         routedChannels.append(SWATChannel)
@@ -3751,21 +3777,30 @@ class QSWATTopology:
                                     self.routedPoints.append(pointId)
                                 else:
                                     if noChannel:
-                                        self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                        self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat != ptCat or source not in self.routedPoints:
+                                            self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                            self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                            if sourceCat == ptCat:
+                                                self.routedPoints.append(source)
                                     else:
                                         self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
                                         routedChannels.append(SWATChannel)
                                         self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
                             else:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
                                     routedChannels.append(SWATChannel)
                                 if dsNodeId2 > 0:
                                     if noChannel:
-                                        self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat != ptCat or source not in self.routedPoints:
+                                            self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                            if sourceCat == ptCat:
+                                                self.routedPoints.append(source)
                                     else:
                                         self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
                                     if dsNodeId2 not in self.routedPoints:
@@ -3838,7 +3873,10 @@ class QSWATTopology:
                                 self.pointId += 1
                                 extraPoints.append((channel, self.pointId))
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, self.pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, self.pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, self.pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
                                     routedChannels.append(SWATChannel)
@@ -3847,18 +3885,27 @@ class QSWATTopology:
                                 self.routedPoints.append(self.pointId)
                             else:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, mainPercent)
                                     routedChannels.append(SWATChannel)
                             if dsSWATChannel2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
                             elif dsNodeId2 > 0:
                                 if noChannel:
-                                    self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                    if sourceCat != ptCat or source not in self.routedPoints:
+                                        self.db.addToRouting(curs, source, sourceCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else 100 - mainPercent)
+                                        if sourceCat == ptCat:
+                                            self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsNodeId2, ptCat, QSWATTopology._TOTAL, 100 - mainPercent)
                                 if dsNodeId2 not in self.routedPoints:
@@ -4365,7 +4412,7 @@ class QSWATTopology:
         index: int = layer.fields().lookupField(name[:10])
         if not ignoreMissing and index < 0:
             QSWATUtils.error('Cannot find field {0} in {1}'.format(name, QSWATUtils.layerFileInfo(layer).filePath()), self.isBatch, logFile=self.logFile)
-            raise Exception
+            # raise Exception
         return index
             
     def getProviderIndex(self, provider: QgsVectorDataProvider, name: str, ignoreMissing: bool=False) -> int:
