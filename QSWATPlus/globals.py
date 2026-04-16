@@ -63,7 +63,7 @@ It looks like you recently upgraded QSWAT+.  The SWATPlus directory has moved to
 Change your settings to use the new directory?
 
 if {0} is used for some other purpose you might want to rename it to stop this question being repeated.""".
-                        format(newSWATPlusDir), isBatch, False) == QMessageBox.Yes:
+                        format(newSWATPlusDir), isBatch, False) == QMessageBox.StandardButton.Yes:
                         SWATPlusDir = newSWATPlusDir
                 else:
                     SWATPlusDir = Parameters._SWATPLUSDEFAULTDIR

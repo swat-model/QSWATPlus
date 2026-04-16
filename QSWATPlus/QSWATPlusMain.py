@@ -44,7 +44,7 @@ except:
 # allow this to fail so no exception when loaded in wrong architecture (32 or 64 bit)
 # QSWATUtils should have no further dependencies, especially in Cython modules
 try:
-    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport type: ignore 
+    from .QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @UnusedImport type: ignore
 except:
     # for convertFromArc
     from QSWATUtils import QSWATUtils, FileTypes  # @UnresolvedImport @Reimport
@@ -129,7 +129,10 @@ class QSWATPlus(QObject):
         # self.setStyles()
         # Create the dialog (after translation) and keep reference
         self._odlg = QSwatDialog()
-        self._odlg.setWindowFlags(self._odlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        try:
+            self._odlg.setWindowFlags(self._odlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        except AttributeError:
+            self._odlg.setWindowFlags(self._odlg.windowFlags() | Qt.WindowType.WindowMinimizeButtonHint)
         self._odlg.move(0, 0)
         #=======================================================================
         # font = self._odlg.font()
@@ -208,11 +211,11 @@ class QSWATPlus(QObject):
             self._odlg.mainBox.setVisible(False)
             self._odlg.exportButton.setVisible(False)
         else:
-            self._iface.mainWindow().setCursor(Qt.WaitCursor)
+            self._iface.mainWindow().setCursor(Qt.CursorShape.WaitCursor)
             self.setupProject(proj, False)
-            self._iface.mainWindow().setCursor(Qt.ArrowCursor)
+            self._iface.mainWindow().setCursor(Qt.CursorShape.ArrowCursor)
         # Run the dialog event loop
-        result = self._odlg.exec_()
+        result = self._odlg.exec()
         # See if OK was pressed
         if result == 1:
             proj.write()
@@ -289,7 +292,7 @@ class QSWATPlus(QObject):
             projDir = QSWATUtils.join(parentDir, projName)
             if os.path.exists(projDir):
                 response = QSWATUtils.question('Project directory {0} already exists.  Do you wish to delete it?'.format(projDir), False, False)
-                if response != QMessageBox.Yes:
+                if response != QMessageBox.StandardButton.Yes:
                     return
                 shutil.rmtree(projDir, True)
             try: 
@@ -327,7 +330,7 @@ class QSWATPlus(QObject):
         """Set up the project."""
         self._odlg.mainBox.setVisible(True)
         self._odlg.mainBox.setEnabled(False)
-        self._odlg.setCursor(Qt.WaitCursor)
+        self._odlg.setCursor(Qt.CursorShape.WaitCursor)
         self._odlg.projPath.setText('Restarting project ...')
         title = QFileInfo(proj.fileName()).baseName()
         QSWATUtils.loginfo('Project file is {0}'.format(proj.fileName()))
@@ -387,7 +390,7 @@ class QSWATPlus(QObject):
         self._odlg.projPath.setText(self._gv.projDir)
         self._odlg.mainBox.setEnabled(True)
         self._odlg.exportButton.setVisible(True)
-        self._odlg.setCursor(Qt.ArrowCursor)
+        self._odlg.setCursor(Qt.CursorShape.ArrowCursor)
             
     def runParams(self):
         """Run parameters form."""

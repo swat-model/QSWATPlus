@@ -34,7 +34,10 @@ class Selectlu:
         """Initialise class variables."""
         self._gv = gv
         self._dlg = SelectluDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         self._dlg.move(self._gv.selectLuPos)
         ## selected landuse
         self._luse = ''
@@ -44,7 +47,7 @@ class Selectlu:
         self._gv.db.populateAllLanduses(self._dlg.listBox, includeWATR=False)
         self._dlg.listBox.currentTextChanged.connect(self.select)
         self._dlg.show()
-        result = self._dlg.exec_()
+        result = self._dlg.exec()
         self._gv.selectLuPos = self._dlg.pos()
         if result == 1:
             return self._luse

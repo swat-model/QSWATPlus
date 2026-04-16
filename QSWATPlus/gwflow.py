@@ -24,9 +24,9 @@ Acknowledgements: based on SWAT+GW_INPUT_CREATION.py written by Ryan Bailey and 
 """
 
 # Import the PyQt and QGIS libraries
-from PyQt5 import QtCore, QtWidgets # @UnusedImport
-from PyQt5.QtCore import Qt, QSettings # @UnresolvedImport
-from PyQt5.QtWidgets import QFileDialog, QDialog # @UnresolvedImport
+from qgis.PyQt import QtCore, QtWidgets # @UnusedImport
+from qgis.PyQt.QtCore import Qt, QSettings # @UnresolvedImport
+from qgis.PyQt.QtWidgets import QFileDialog, QDialog # @UnresolvedImport
 
 from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer, QgsProcessingContext,  QgsFeatureRequest 
 
@@ -63,7 +63,6 @@ from .QSWATTopology import QSWATTopology
 from .parameters import Parameters
 from numpy.ma.core import _get_dtype_of
 from osgeo.gdalconst import GA_Update
-from . import rtree
 
 class GWFlow():
 
@@ -81,7 +80,10 @@ class GWFlow():
         self.TxtInOut_gwflow = os.path.join(self.gwflowDir, 'TxtInOut_gwflow')
         os.makedirs(self.TxtInOut_gwflow, exist_ok = True)
         self._dlg = gwflowDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         self._dlg.aquiferPermeabilityButton.clicked.connect(self.getPermeabilityFile)
         self._dlg.aquiferThicknessButton.clicked.connect(self.getThicknessFile)
         self._dlg.initializationButton.clicked.connect(self.getInitializationFile)
@@ -237,8 +239,8 @@ class GWFlow():
         self._dlg.outputTimesButton.setEnabled(self._dlg.setOutputTimes.isChecked())
               
     def run(self):
-        res = self._dlg.exec_()
-        if res ==  QDialog.Rejected:
+        res = self._dlg.exec()
+        if res ==  QDialog.DialogCode.Rejected:
             return False
         self.saveProj()
         if self._dlg.useUnstructured.isChecked():

@@ -27,7 +27,7 @@ from qgis.PyQt.QtGui import QDoubleValidator
 import locale
 # Import the code for the dialog
 from .selectsubsdialog import SelectSubbasinsDialog
-from .QSWATUtils import QSWATUtils # type: ignore 
+from .QSWATUtils import QSWATUtils # type: ignore
 from .parameters import Parameters
 
 class SelectSubbasins:
@@ -38,7 +38,10 @@ class SelectSubbasins:
         """Initialise class variables."""
         self._gv = gv
         self._dlg = SelectSubbasinsDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         self._dlg.move(self._gv.selectSubsPos)
         ## Subbasins layer
         self.subbasinsLayer = subbasinsLayer
@@ -65,7 +68,7 @@ class SelectSubbasins:
         """Run the dialog."""
         self.init()
         self._dlg.show()
-        self._dlg.exec_()
+        self._dlg.exec()
         self._gv.selectSubsPos = self._dlg.pos()
         
     def switchSelectSmall(self):
