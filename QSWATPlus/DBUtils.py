@@ -23,7 +23,7 @@
 from qgis.PyQt.QtCore import Qt, QSettings # @UnresolvedImport
 #from PyQt5.QtGui import *  # @UnusedWildImport 
 from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget # @UnresolvedImport
-from qgis.core import QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
+from qgis.core import NULL, QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
 import os.path
 import shutil
 import hashlib
@@ -1307,7 +1307,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 include = includeWATR if code == 'WATR' else True
                 if include:
                     descr = row['description']
-                    if descr is None:
+                    if descr == NULL:
                         strng = code
                     else:
                         strng = code + ' (' + descr + ')'
@@ -1319,7 +1319,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
             for row in cursor.execute(urbanSql):
                 code = row['name'].upper()
                 descr = row['description']
-                if descr is None:
+                if descr == NULL:
                     strng = code
                 else:
                     strng = code + ' (' + descr + ')'
@@ -1327,7 +1327,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         except Exception:
             QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.urbanTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return
-        listBox.sortItems(Qt.AscendingOrder)
+        listBox.sortItems(Qt.SortOrder.AscendingOrder)
         
     def getLanduseDescriptions(self, crops: Iterable[int]) -> Dict[int, Tuple[str, str]]:
         """Return map of crop -> (code, description) for list or iterable of crop values.

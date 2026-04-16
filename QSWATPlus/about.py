@@ -27,7 +27,7 @@ import webbrowser
 
 # Import the code for the dialog
 from .aboutdialog import aboutDialog
-from .QSWATUtils import QSWATUtils # type: ignore 
+from .QSWATUtils import QSWATUtils # type: ignore
 from .globals import GlobalVars
 
 class AboutQSWAT:
@@ -38,7 +38,10 @@ class AboutQSWAT:
         """Initialise."""
         self._gv = gv
         self._dlg = aboutDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         if self._gv:
             self._dlg.move(self._gv.aboutPos)
         
@@ -57,7 +60,7 @@ Current restrictions:
 - Windows Linux and MacOS only
         """.format(QSWATUtils._QSWATNAME, version)
         self._dlg.textBrowser.setText(text)
-        self._dlg.exec_()
+        self._dlg.exec()
         if self._gv:
             self._gv.aboutPos = self._dlg.pos()
         

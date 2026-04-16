@@ -22,7 +22,7 @@
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QSettings  # @UnresolvedImport
 #from qgis.PyQt.QtGui import *  # @UnusedWildImport type: ignore 
-from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer  # @UnresolvedImport
+from qgis.core import QgsCoordinateReferenceSystem, QgsUnitTypes, QgsCoordinateTransform, QgsProject, QgsFeatureRequest, QgsField, QgsFeature, QgsVectorLayer, QgsPointXY, QgsRasterLayer, QgsExpression, QgsGeometry, QgsVectorDataProvider, QgsRectangle, QgsLayerTreeGroup,  QgsLayerTreeLayer, NULL  # @UnresolvedImport
 from osgeo import gdal  # type: ignore
 import math
 from numpy import array, ndarray, zeros
@@ -2439,7 +2439,7 @@ class QSWATTopology:
             if subbasin in self.upstreamFromInlets:
                 continue
             SWATBasin = polygon[subbasinIndex]
-            if SWATBasin <= 0:
+            if SWATBasin == NULL or SWATBasin <= 0:
                 return False
             if SWATBasin in SWATBasins:
                 return False
