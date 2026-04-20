@@ -21,7 +21,7 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt
-#from PyQt5.QtGui import * # @UnusedWildImport
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.core import *
 import webbrowser
 
@@ -52,7 +52,7 @@ class AboutQSWAT:
         text = """
 {0} version: {1}
 
-Minimum QGIS version: 3.16.14
+QSWAT+ runs with QGIS 3 (from version 3.16.14) and QGIS 4
 
 Python version: 3.9 or 3.12
 

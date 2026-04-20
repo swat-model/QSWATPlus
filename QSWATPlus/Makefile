@@ -43,9 +43,9 @@ PACKAGE = QSWATPlus
 
 TESTOUTPUT = testdata/test
 
-ifeq ($(QSWAT_PROJECT), QSWATPlus)
+ifeq ($(QSWAT_PROJECT), QSWATPlus4)
 	COMPILER = msvc
-	METADATA = metadataPlus.txt
+	METADATA = metadata.txt
 	PLUGINNAME = QSWATPlus
 	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
 	OBJ_FILES12 = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
@@ -54,7 +54,24 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus)
 	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
 	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py startQGIS.bat)
-	EXTRAPACKAGES = imageio rtree
+	EXTRAPACKAGES = imageio
+	QGISDIR = AppData/Roaming/QGIS/QGIS4/profiles/default
+	CPFILE = cp -vuf
+	CPDIR = cp -vufr
+	PYTHON = $(OSGEO4W_ROOT)\apps\Python312\python
+	PYTHON39 = $(OSGEO4W_39_ROOT)\apps\Python39\python
+else ifeq ($(QSWAT_PROJECT), QSWATPlus3)
+	COMPILER = msvc
+	METADATA = metadata.txt
+	PLUGINNAME = QSWATPlus
+	DOXYGEN = 'C:\Program Files\doxygen\bin\doxygen.exe'
+	OBJ_FILES12 = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
+	OBJ_FILES9 = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
+	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9)
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py startQGIS.bat)
+	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
 	CPDIR = cp -vufr
@@ -181,8 +198,10 @@ PYX_FILES =  jenks.pyx dataInC.pyx polygonizeInC.pyx polygonizeInC2.pyx
 C_FILES = $(PYX_FILES:.pyx=.c)
 
 UI_FILES = ui_qswat.py ui_delineation.py ui_hrus.py ui_outlets.py ui_exempt.py ui_split.py ui_selectlu.py ui_parameters.py ui_elevationbands.py \
-			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_graph1.py ui_convert.py ui_exporttable.py ui_comparescenarios.py \
+			ui_selectsubs.py ui_landscape.py ui_about.py ui_visualise.py ui_graph.py ui_convert.py ui_exporttable.py ui_comparescenarios.py \
 			ui_gwflow.py
+			
+UI_SOURCE = $(UI_FILES:.py=.ui)
 
 QML_FILES = dem.qml fullhrus.qml outlets.qml stream.qml subresults.qml wshed.qml existingwshed.qml floodwhite.qml grid.qml gridpoly.qml \
 			drainchannels.qml drainarrows.qml channelandreservoir.qml channel.qml lsus.qml rivresults.qml \
@@ -224,7 +243,7 @@ HTML = html
 
 default: deploy
 
-compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
+compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES) make_ui
 
 %.cp312-win_amd64.pyd : %.pyx
 	@echo
@@ -287,9 +306,9 @@ compile: $(COMPILED_RESOURCE_FILES) $(OBJ_FILES)
 
 #%.py : %.ui
 #	pyuic5 -o $@ $<
-# instead of the above, run 
-# the script make_uis.py in QGIS 
-# to compile .ui files to .py
+# instead of the above
+make_ui: $(UI_SOURCE)
+	$(PYTHON) make_uis.py $(CURDIR)
 
 
 %.qm : %.ts

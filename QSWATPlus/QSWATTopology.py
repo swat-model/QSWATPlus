@@ -3585,7 +3585,7 @@ class QSWATTopology:
                             if noChannel:
                                 if sourceCat != ptCat or source not in self.routedPoints:
                                     self.db.addToRouting(curs, source, sourceCat, outletId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                    if sourceCat == ptCat:
+                                    if not haveBifurcation and sourceCat == ptCat:
                                         self.routedPoints.append(source)
                             else:
                                 self.db.addToRouting(curs, SWATChannel, chCat, outletId, ptCat, QSWATTopology._TOTAL, mainPercent)
@@ -3670,7 +3670,7 @@ class QSWATTopology:
                             if noChannel:
                                 if sourceCat != ptCat or source not in self.routedPoints:
                                     self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                    if sourceCat == ptCat:
+                                    if not haveBifurcation and sourceCat == ptCat:
                                         self.routedPoints.append(source)
                             else:
                                 self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
@@ -3790,7 +3790,7 @@ class QSWATTopology:
                                 if noChannel:
                                     if sourceCat != ptCat or source not in self.routedPoints:
                                         self.db.addToRouting(curs, source, sourceCat, pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                        if sourceCat == ptCat:
+                                        if not haveBifurcation and sourceCat == ptCat:
                                             self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
@@ -3875,7 +3875,7 @@ class QSWATTopology:
                                 if noChannel:
                                     if sourceCat != ptCat or source not in self.routedPoints:
                                         self.db.addToRouting(curs, source, sourceCat, self.pointId, ptCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                        if sourceCat == ptCat:
+                                        if not haveBifurcation and sourceCat == ptCat:
                                             self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, self.pointId, ptCat, QSWATTopology._TOTAL, mainPercent)
@@ -3887,7 +3887,7 @@ class QSWATTopology:
                                 if noChannel:
                                     if sourceCat != ptCat or source not in self.routedPoints:
                                         self.db.addToRouting(curs, source, sourceCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, 0 if flowPercent == 0 else mainPercent)
-                                        if sourceCat == ptCat:
+                                        if not haveBifurcation and sourceCat == ptCat:
                                             self.routedPoints.append(source)
                                 else:
                                     self.db.addToRouting(curs, SWATChannel, chCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, mainPercent)

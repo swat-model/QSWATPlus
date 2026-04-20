@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus"
 #define MyAppVersion "3.2"
-#define MyAppSubVersion "1"
+#define MyAppSubVersion "2"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -19,13 +19,13 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={userappdata}\QGIS\QGIS3\profiles\default\python\plugins
+DefaultDirName={userappdata}\QGIS\QGIS{code:QGIS3or4}\profiles\default\python\plugins
 UsePreviousAppDir=no
 DisableDirPage=yes
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=no
 OutputDir=K:\QSWATPlusPub
-OutputBaseFilename={#MyAppName}install{#MyAppVersion}.{#MyAppSubVersion}
+OutputBaseFilename={#MyAppName}install3or4.{#MyAppVersion}.{#MyAppSubVersion}
 Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest
@@ -43,6 +43,8 @@ Type: files; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\QSWATPlus.py";
 Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\testdata";
 ; clean up  TauDEM539Bin
 Type: files; Name: "{code:SWATPlusDir}\TauDEM539Bin\*";
+; no longer used
+Type: filesandordirs; Name: "{code:QGISPLuginDir}\{#MyAppName}\QSWATPlus\rtree";
 
 [Files]
 Source: "C:\Users\Chris\AppData\Roaming\QGIS\QGIS3\profiles\default\python\plugins\{#MyAppName}\*"; DestDir: "{code:QGISPLuginDir}\{#MyAppName}";  Excludes: "testdata,__pycache__"; Flags: ignoreversion recursesubdirs createallsubdirs   
@@ -55,23 +57,42 @@ Source: "{#SourcePath}Databases\plant.csv"; DestDir: "{code:SWATPlusDir}\Databas
 Source: "{#SourcePath}\GridGen\*"; DestDir: "{code:SWATPlusDir}\gwflow";  Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Code]
-var    
+var
+   QGIS3or4HasRun: Boolean;
    SWATPlusDirHasRun : Boolean;
    SWATPlusDirResult: String;
    QGISPluginDirHasRun : Boolean;
    QGISPluginDirResult: String;
+   QGISMainVersion: String;
 
+function QGIS3or4(Param: String): String; forward;
 function MainQGISPluginDir(Param: String): String; forward;
 function QGISDir(Dir: String; PartName: String): String; forward;
 function SubSubVersion(Name: String): Integer; forward;
 
+function QGIS3or4(Param: String): String;
+begin
+  if not QGIS3or4HasRun then begin
+   case TaskDialogMsgBox('QGIS 3 or QGIS 4',
+                        'Installing for QGIS 3 or QGIS 4?',
+                        mbConfirmation,
+                        MB_YESNO, ['QGIS 3', 'QGIS 4'],
+                        0) of
+      IDYES: QGISMainVersion := '3';
+      IDNO:  QGISMainVersion := '4';
+    end;
+    //MsgBox('QGIS main version is ' + QGISMainVersion, mbInformation, MB_OK);
+  end;
+  QGIS3or4HasRun := True;
+  Result := QGISMainVersion;
+end;
+
 function SWATPlusDir(Param: String): String;
 begin
-  if not SWATPlusDirHasRun then begin
-    if IsAdminInstallMode then begin
+  if not SWATPlusDirHasRun then begin 
+    SWATPlusDirResult := ExpandConstant('{%USERPROFILE}') + '\SWATPlus'
+    if not DirExists(SWATPlusDirResult) then begin
       SWATPlusDirResult := 'C:\SWAT\SWATPlus'
-    end else begin
-      SWATPlusDirResult := ExpandConstant('{%USERPROFILE}') + '\SWATPlus'
       //MsgBox('SWATPlus directory is ' + SWATPlusDirResult, mbInformation, MB_OK);
     end
   end;
@@ -99,21 +120,22 @@ var
   pfDir: String;
 begin
   pfDir := ExpandConstant('{pf64}');
-  QGISDirectory := QGISDir(pfDir, 'QGIS 3.40');
-  if QGISDirectory = '' then begin
-    QGISDirectory := QGISDir(pfDir, 'QGIS 3.34');
+  if QGISMainVersion = '4' then begin
+    QGISDirectory := QGISDir(pfDir, 'QGIS 4.0');
+  end else begin
+    QGISDirectory := QGISDir(pfDir, 'QGIS 3.44');
     if QGISDirectory = '' then begin
-      QGISDirectory := QGISDir(pfDir, 'QGIS 3.42');
+      QGISDirectory := QGISDir(pfDir, 'QGIS 3.40');
       if QGISDirectory = '' then begin
-        QGISDirectory := QGISDir(pfDir, 'QGIS 3.44');
-        if QGISDirectory = '' then begin 
-          QGISDirectory := pfDir;
-          if not BrowseForFolder('Please locate QGIS directory', QGISDirectory, False) then
-            QGISDirectory := '';
-        end;
+        QGISDirectory := QGISDir(pfDir, 'QGIS 3.36');
       end;
     end;
-  end;     
+  end;
+  if QGISDirectory = '' then begin 
+    QGISDirectory := pfDir;
+    if not BrowseForFolder('Please locate QGIS directory', QGISDirectory, False) then
+      QGISDirectory := '';
+  end;
   if QGISDirectory = ''  then begin
     MainQGISPluginDirResult := '';
   end else
@@ -166,7 +188,7 @@ end;
 // if name is QGIS A.B.nn or QGIS A.B.n then return nn or n as an integer, else -1
 function SubSubVersion(Name: String): Integer;
 var
-  I: Integer;
+  //I: Integer;
   NumString: String;
 begin
   Result := -1

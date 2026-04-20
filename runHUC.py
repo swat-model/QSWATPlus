@@ -22,7 +22,7 @@
 
 
 from qgis.core import QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLayer, QgsExpression,  QgsFeatureRequest, QgsCoordinateTransform, QgsCoordinateReferenceSystem # @UnresolvedImport
-#from PyQt5.QtCore import * # @UnusedWildImport
+#from qgis.PyQt.QtCore import * # @UnusedWildImport
 import atexit
 import sys
 import os
@@ -236,8 +236,8 @@ if __name__ == '__main__':
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
         #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/10/huc100600070002/huc100600070002.qgs'
-        #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\0305020711\huc0305020711\huc0305020711.qgs"
+        #direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/10/huc100500041401/huc100500041401.qgs'
+        direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\10\huc1016000318\huc1016000318.qgs"
         #direc = r"K:\HAWQSModels\SWATPlus\Fields_CDL\HUC14\Models030902010200\HAWQSProject030902010200_14\HAWQSProject030902010200_14.qgs" 
         subRegion = ''
         dataDir = "K:/Data" 

@@ -1,18 +1,5 @@
-<<<<<<< HEAD
-import qgis.PyQt
 
-#
-# PyQt5.uic.compileUiDir("K:/Users/Public/QSWATPlus3/QSWATPlus", from_imports=True)  # @UndefinedVariable
-# # need relative import of resources_rc for next 2
-# convFile = open("K:/Users/Public/QSWATPlus3/QSWATPlus/ui_convert.py", 'w')
-# PyQt5.uic.compileUi("K:/Users/Public/QSWATPlus3/QSWATPlus/ui_convert.ui", convFile)  # @UndefinedVariable
-# convFile.close()
-graphFile = open("K:/Users/Public/QSWATPlus3/QSWATPlus/ui_graph1.py", 'w')
-qgis.PyQt.uic.compileUi("K:/Users/Public/QSWATPlus3/QSWATPlus/ui_graph.ui", graphFile)  # @UndefinedVariable
-graphFile.close()
-=======
 """Build script for QSWATPlus generated/compiled artefacts.
->>>>>>> 7dff8f65a17b20ae141015b3f397556006666de5
 
 Handles:
   1. .ui -> ui_*.py  (pyuic6, falls back to pyuic5, then qgis.PyQt post-processing)
@@ -29,19 +16,23 @@ If no directory is given, uses the script's own directory.
 import os
 import subprocess
 import sys
-
+import traceback
 
 # ---------------------------------------------------------------------------
 # UI compilation
 # ---------------------------------------------------------------------------
 
-def find_ui_compiler():
+def find_ui_compiler(scripts):
     """Return the pyuic command available on this system."""
-    for cmd in ('pyuic6', 'pyuic5'):
+    for cmd in ('pyuic6.exe', 'pyuic5.exe'):
         try:
-            subprocess.run([cmd, '--version'], capture_output=True, check=True)
-            return cmd
+            fullCmd = os.path.join(scripts, cmd)
+            print(fullCmd)
+            #subprocess.run([fullCmd, '--version'], capture_output=True, check=True)
+            if os.path.isfile(fullCmd):
+                return fullCmd
         except (FileNotFoundError, subprocess.CalledProcessError):
+            print(traceback.format_exc())
             continue
     raise RuntimeError('Neither pyuic6 nor pyuic5 found on PATH')
 
@@ -52,9 +43,9 @@ def compile_ui(compiler, ui_file, py_file):
     subprocess.run([compiler, '-o', py_file, ui_file], check=True)
 
 
-def compile_all_ui(directory):
+def compile_all_ui(directory, scripts):
     """Compile all .ui files in directory and post-process the results."""
-    compiler = find_ui_compiler()
+    compiler = find_ui_compiler(scripts)
     print(f'Using {compiler}')
 
     for filename in sorted(os.listdir(directory)):
@@ -69,7 +60,7 @@ def compile_all_ui(directory):
     if os.path.exists(graph_ui):
         compile_ui(compiler, graph_ui, graph1_py)
 
-    # Post-process imports: PyQt5/PyQt6 -> qgis.PyQt
+    # Post-process imports: qgis.PyQt/PyQt6 -> qgis.PyQt
     from postprocess_ui import postprocess_directory
     postprocess_directory(directory)
 
@@ -129,11 +120,12 @@ if __name__ == '__main__':
     args = [a for a in args if not a.startswith('--')]
 
     target = args[0] if args else os.path.dirname(os.path.abspath(__file__))
+    scripts = args[1] if args and len(args) > 1 else ""
 
     if not ui_only and not cython_only:
         ui_only = cython_only = True
 
     if ui_only:
-        compile_all_ui(target)
+        compile_all_ui(target, scripts)
     if cython_only:
         compile_cython(target)

@@ -21,7 +21,7 @@
 """
  
 from qgis.PyQt.QtCore import QObject, Qt
-# from PyQt5.QtGui import *  # @UnusedWildImport
+# from qgis.PyQt.QtGui import *  # @UnusedWildImport
 from qgis.PyQt.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 from qgis.core import QgsApplication, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsCoordinateTransformContext, QgsFeature, QgsField, QgsFields, QgsGeometry, QgsPointXY, QgsProject, QgsRasterLayer, QgsVectorFileWriter, QgsVectorLayer, QgsWkbTypes
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry

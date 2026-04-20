@@ -21,7 +21,7 @@
 """
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt, QSettings # @UnresolvedImport
-#from PyQt5.QtGui import *  # @UnusedWildImport 
+#from qgis.PyQt.QtGui import *  # @UnusedWildImport 
 from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget # @UnresolvedImport
 from qgis.core import NULL, QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
 import os.path

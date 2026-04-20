@@ -21,7 +21,7 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt
-#from PyQt5.QtGui import * # @UnusedWildImport
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 from .exemptdialog import ExemptDialog
