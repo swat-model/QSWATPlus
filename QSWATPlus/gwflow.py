@@ -479,18 +479,29 @@ class GWFlow():
         QSWATUtils.loginfo('..Detecting boundary cells...')
         self.progress('Detecting boundary cells')
         borders_gdf = gpd.read_file(os.path.join(self.supplementary, 'only_basin_boundary.shp'))
+        # first, create an internal boundary by contracting inwards 1e-5 unit (hopefully using a projected coordinate system)
+        inner_basin = borders_gdf.copy()
+        inner_basin['geometry'] = inner_basin.buffer(-1e-5)
+        # second, get grids inside the contracted basin boundary
+        cells_inside = gpd.sjoin(grid5_gdf, inner_basin, how='inner', predicate="intersects")
+        del cells_inside['index_right']
         borders_gdf['geometry'] = borders_gdf.boundary #Getting the geometry of only the boundaries of the catchment
         borders_gdf['boundary'] = 1 
-        grid6_gdf = gpd.sjoin(grid5_gdf, borders_gdf, how = 'left') #Spatial join between grid5 and the boundaries shapefile to assign 1 as boundary attribute value to the cells that intersect it
+        true_boundary_cells = gpd.sjoin(cells_inside, borders_gdf, how='inner', predicate='intersects')
+        valid_indices = true_boundary_cells.index.unique()
+        grid6_gdf = grid5_gdf.copy()
+        grid6_gdf['boundary'] = 0
+        grid6_gdf.loc[valid_indices, 'boundary'] = 1
+        # grid6_gdf = gpd.sjoin(grid5_gdf, borders_gdf, how = 'left') #Spatial join between grid5 and the boundaries shapefile to assign 1 as boundary attribute value to the cells that intersect it
         end = datetime.now()
         QSWATUtils.loginfo('That took '+str(end-start))
         
         # GRID 6 CLEAN UP
         #Necessary clean up to replace nan values to 0, and deleting index_right to avoid warnings of attribute name truncation
-        grid6_gdf['boundary'] = grid6_gdf['boundary'].fillna(0)
+        # grid6_gdf['boundary'] = grid6_gdf['boundary'].fillna(0)
         grid6_gdf['Avg_Thick'] = grid6_gdf['Avg_Thick'].fillna(0)
         grid6_gdf['Avg_elevat'] = grid6_gdf['Avg_elevat'].fillna(0)
-        del grid6_gdf['index_right']
+        # del grid6_gdf['index_right']
         
         
         # Tile Drain Cell Information and tile groups
@@ -1135,9 +1146,13 @@ class GWFlow():
         # Create the atributte Avg_active in grid 2 and the basin (At the moment, at the grid everything is 0)
         grid2['Avg_active'] = 0
         basin['Avg_active'] = 1
+        # first, create an internal boundary by contracting inwards 1e-5 unit (hopefully using a projected coordinate system)
+        inner_basin = basin.copy()
+        inner_basin['geometry'] = inner_basin.buffer(-1e-5)
         # Spatial join attributes from grid1 and the basin creating a new geodataframe from its combination (grid_join will repeat grid1 geometry, but get the basins attributes)
         # With this, all the cells that intersect the basin will now have a new attribute that is equal to 1, while for the rest the attribute value will be nan
-        grid_join = gpd.sjoin(grid2, basin, how = "left", predicate = 'intersects')
+        # grid_join = gpd.sjoin(grid2, basin, how = "left", predicate = 'intersects')
+        grid_join = gpd.sjoin(grid2, inner_basin, how='left', predicate="intersects")
         # Get the avg active values from the joined geodataframe and save into array
         active_array = grid_join['Avg_active_right'].to_numpy() #This will take an array of the avg_active attribute for the positions where cells intersect the basin as 1, and the rest as nan
         active_array = np.nan_to_num(active_array, nan = 0) #This will change al nan in the array, to 0
