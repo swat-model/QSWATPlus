@@ -21,11 +21,11 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt
-#from PyQt5.QtGui import * # @UnusedWildImport
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.core import * # @UnusedWildImport
 # Import the code for the dialog
 from .exemptdialog import ExemptDialog
-from .QSWATUtils import ListFuns # type: ignore 
+from .QSWATUtils import ListFuns # type: ignore
 
 class Exempt:
     """Allow user to define landuses to be exempt from removal as under threshold."""
@@ -33,7 +33,10 @@ class Exempt:
         """Initialise class variables."""
         self._gv = gv
         self._dlg = ExemptDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         self._dlg.move(self._gv.exemptPos)
         ## landuse codes occurring in landuse map, or used for a split, and not exempt
         self.landuses = []
@@ -57,7 +60,7 @@ class Exempt:
         self._dlg.chooseBox.activated.connect(self.addExempt)
         self._dlg.cancelExemptionButton.clicked.connect(self.delExempt)
         self._dlg.show()
-        result = self._dlg.exec_()
+        result = self._dlg.exec()
         self._gv.exemptPos = self._dlg.pos()
         if result == 1:
             self._gv.exemptLanduses = self.exemptLanduses

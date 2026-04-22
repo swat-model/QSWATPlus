@@ -21,9 +21,9 @@
 """
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt, QSettings # @UnresolvedImport
-#from PyQt5.QtGui import *  # @UnusedWildImport 
+#from qgis.PyQt.QtGui import *  # @UnusedWildImport 
 from qgis.PyQt.QtWidgets import QFileDialog, QComboBox, QListWidget # @UnresolvedImport
-from qgis.core import QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
+from qgis.core import NULL, QgsFeatureRequest, QgsVectorLayer # @UnresolvedImport
 import os.path
 import shutil
 import hashlib
@@ -86,10 +86,10 @@ class DBUtils:
                 if Parameters._ISWIN:
                     QSWATUtils.error(r'''Cannot find project database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate), self.isBatch)
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbProjTemplate), self.isBatch, logFile=self.logFile)
                 else:
                     QSWATUtils.error('''Cannot find project database template {0}.
-Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch)
+Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch, logFile=self.logFile)
             else:
                 shutil.copyfile(dbProjTemplate, self.dbFile)
                 QSWATUtils.loginfo('Made project database from {0}'.format(dbProjTemplate))
@@ -99,10 +99,10 @@ Have you installed SWATPlus?'''.format(dbProjTemplate), self.isBatch)
                 if Parameters._ISWIN:
                     QSWATUtils.error(r'''Cannot find reference database template {0}.
 Have you installed SWAT+ as a different directory from C:\SWAT\SWATPlus?
-If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate), self.isBatch)
+If so use the QSWAT+ Parameters form to set the correct location.'''.format(dbRefTemplate), self.isBatch, logFile=self.logFile)
                 else:
                     QSWATUtils.error('''Cannot find refence database template {0}.
-Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
+Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=self.logFile)
             else:
                 shutil.copyfile(dbRefTemplate, self.dbRefFile)
                 QSWATUtils.loginfo('Made reference database from {0}'.format(dbRefTemplate))
@@ -110,7 +110,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         ## sqlite3 connection to reference database
         self.connRef: Any = sqlite3.connect(self.dbRefFile)
         if self.connRef is None:
-            QSWATUtils.error('Failed to connect to reference database {0}'.format(self.dbRefFile), self.isBatch)
+            QSWATUtils.error('Failed to connect to reference database {0}'.format(self.dbRefFile), self.isBatch, logFile=self.logFile)
         else:
             #self.connRef.isolation_level = None # means autocommit
             self.connRef.row_factory = sqlite3.Row
@@ -244,7 +244,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """ sqlite3 connection to project database"""
         self.conn: Any = sqlite3.connect(self.dbFile)
         if self.conn is None:
-            QSWATUtils.error('Failed to connect to project database {0}'.format(self.dbFile), self.isBatch)
+            QSWATUtils.error('Failed to connect to project database {0}'.format(self.dbFile), self.isBatch, logFile=self.logFile)
         else:
             #self.conn.isolation_level = None # means autocommit
             self.conn.row_factory = sqlite3.Row
@@ -408,7 +408,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         #     return
         keys = self.gis_keys.get(table, set())
         if key not in keys:
-            QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch)
+            QSWATUtils.error('Internal error: Id {0} has not been added to table {1}'.format(key, table), self.isBatch, logFile=self.logFile)
             
     def addToRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, hydTyp: str, percent: float) -> None:
         """Check that source is defined in the relevant table, and add to routing table.
@@ -429,6 +429,11 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         self.routingSources.add((sourceId, sourceCategory))
         self.routingSinks.add((sinkId, sinkCategory))
         cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, hydTyp, sinkId, sinkCategory, percent))  #type: ignore
+            
+    def updateRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, hydTyp: str, percent: float) -> None:
+        """Change routing of existing (not checked) entry."""
+        self.routingSinks.add((sinkId, sinkCategory))
+        cursor.execute(DBUtils._ROUTINGUPDATESQL, (sinkId, sinkCategory, percent, sourceId, sourceCategory, hydTyp))  #type: ignore
         
     def checkRoutedPointsSubbasinsAndLSUsDefined(self) -> None:
         """Checks categories PT, LSU, SUB, SBR sources are defined in gis_table."""
@@ -450,23 +455,23 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         for sink in self.routingSinks:
             if sink[1] != 'X' and sink not in self.routingSources:
                 QSWATUtils.error('Internal error{2}: routing sink category {1} id {0} not found as a source'.format(sink[0], sink[1], projRef),
-                                 self.isBatch)
+                                 self.isBatch, logFile=self.logFile)
         self.checkRoutedPointsSubbasinsAndLSUsDefined()
         # check routing table for circularities
-        errors, warnings = self.checkRouting(self.conn)
+        errors, warnings = self.checkRouting(self.conn, self.logFile)
         for error in errors:
-            QSWATUtils.error(error + projRef, self.isBatch)
-        if self.isHAWQS: # don't interrupt run for warnings
+            QSWATUtils.error(error + projRef, self.isBatch, logFile=self.logFile)
+        if self.isHAWQS and not self.isBatch: # don't interrupt run for warnings
             for warning in warnings:
                 QSWATUtils.loginfo(warning)
         elif len(warnings) > 5:
             QSWATUtils.information('See QSWAT+ log for {0} warnings about circularities in routing'.
-                                   format(len(warnings)), self.isBatch)
+                                   format(len(warnings)), self.isBatch, logFile=self.logFile)
             for warning in warnings:
                 QSWATUtils.loginfo(warning)
         else:
             for warning in warnings:
-                QSWATUtils.information(warning, self.isBatch)
+                QSWATUtils.information(warning, self.isBatch, logFile=self.logFile)
                  
     def getUsersoilTable(self) -> str:
         """Return usersoil table."""
@@ -504,7 +509,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         self.soilTableNames.append(table)
                     self._allTableNames.append(table)
             except Exception:
-                QSWATUtils.exceptionError('Could not read tables in project database {0}'.format(self.dbFile), self.isBatch)
+                QSWATUtils.exceptionError('Could not read tables in project database {0}'.format(self.dbFile), self.isBatch, logFile=self.logFile)
                 return
             
     def collectPlantSoilTableNames(self, tableName: str, comboBox: QComboBox) -> List[str]:
@@ -513,7 +518,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         """
         # avoid opening proj or ref db again (and closing it!)
         if not os.path.exists(self.plantSoilDatabase):
-            QSWATUtils.error('Cannot find landuse and soil database {0}'.format(self.plantSoilDatabase), self.isBatch)
+            QSWATUtils.error('Cannot find landuse and soil database {0}'.format(self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return []
         isProjDb = filecmp.cmp(self.plantSoilDatabase, self.dbFile)
         isRefDb = filecmp.cmp(self.plantSoilDatabase, self.dbRefFile)
@@ -541,7 +546,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             comboBox.addItem(Parameters._USECSV)
             return tableNames
         except Exception:
-            QSWATUtils.exceptionError('Could not read tables in landuse and soil database {0}'.format(self.plantSoilDatabase), self.isBatch)
+            QSWATUtils.exceptionError('Could not read tables in landuse and soil database {0}'.format(self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return []
         finally:
             if not (isProjDb or isRefDb):
@@ -612,7 +617,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     if not self.storeLanduseCode(maxId, 'WETW'):
                         OK = False
             except Exception:
-                QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(landuseTable, self.dbFile), self.isBatch)
+                QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(landuseTable, self.dbFile), self.isBatch, logFile=self.logFile)
                 return False
         return OK    
                 
@@ -661,7 +666,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             conn = sqlite3.connect(database)
             conn.row_factory = sqlite3.Row
         if conn is None:
-            QSWATUtils.error('Failed to connect to database {0} to read landuse tables'.format(database), self.isBatch)
+            QSWATUtils.error('Failed to connect to database {0} to read landuse tables'.format(database), self.isBatch, logFile=self.logFile)
             return False
         try:
             # look in plant database first
@@ -670,7 +675,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             try:
                 row = conn.execute(sqlp, (landuseCode,)).fetchone()
             except Exception:
-                QSWATUtils.exceptionError('Could not read table {0} in database {1}'.format(table, database), self.isBatch)
+                QSWATUtils.exceptionError('Could not read table {0} in database {1}'.format(table, database), self.isBatch, logFile=self.logFile)
                 return False
             if row is None:
                 table = self.urbanTable
@@ -678,7 +683,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                 try:
                     row = conn.execute(sqlu, (landuseCode,)).fetchone()
                 except Exception:
-                    QSWATUtils.exceptionError('Could not read table {0} in database {1}'.format(table, database), self.isBatch)
+                    QSWATUtils.exceptionError('Could not read table {0} in database {1}'.format(table, database), self.isBatch, logFile=self.logFile)
                     return False
                 if row is None:
                     if self.isHUC or self.isHAWQS:
@@ -689,7 +694,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                         # self.landuseIds[landuseCat] = 2
                         self.landuseCodes[landuseCat] = landuseCode
                         return True
-                    QSWATUtils.error('No data for landuse {0}'.format(landuseCode), self.isBatch)
+                    QSWATUtils.error('No data for landuse {0}'.format(landuseCode), self.isBatch, logFile=self.logFile)
                     OK = False
                 else:
                     urbanId = row['id']
@@ -714,7 +719,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         else:
             self._undefinedLanduseIds.append(lid)
             string = str(lid)
-            QSWATUtils.error('Unknown landuse value {0}'.format(string), self.isBatch)
+            QSWATUtils.error('Unknown landuse value {0}'.format(string), self.isBatch, logFile=self.logFile)
             return string
         
     def getLanduseCat(self, landuseCode: str) -> int:
@@ -788,7 +793,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             self.useS5id = True
                         else:
                             QSWATUtils.error('Cannot recognise {0} as an muid, muid+seqn, or s5id'.
-                                             format(soilName), self.isBatch)
+                                             format(soilName), self.isBatch, logFile=self.logFile)
                             return False
                     # check if code already defined
                     equiv = nxt
@@ -802,7 +807,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                     else:
                         self.storeSoilTranslate(nxt, equiv)
             except Exception:
-                QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(soilTable, self.dbFile), self.isBatch)
+                QSWATUtils.exceptionError('Could not read table {0} in project database {1}'.format(soilTable, self.dbFile), self.isBatch, logFile=self.logFile)
                 return False
         return True
         
@@ -834,7 +839,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
         else:
             string = str(sid)
             self._undefinedSoilIds.append(sid)
-            QSWATUtils.error('Unknown soil value {0}'.format(string), self.isBatch)
+            QSWATUtils.error('Unknown soil value {0}'.format(string), self.isBatch, logFile=self.logFile)
             return string, False
         
     _SOILS_SOL_TABLE = \
@@ -995,14 +1000,14 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
             # we leave room for expansion by using 20 as limit
             columnCount = DBUtils.countCols(usersoilTable, conn)
             if columnCount < 0:
-                QSWATUtils.error('Could not find table {0} in soil database {1}'.format(usersoilTable, database), self.isBatch)
+                QSWATUtils.error('Could not find table {0} in soil database {1}'.format(usersoilTable, database), self.isBatch, logFile=self.logFile)
                 return False
             hasSeparateLayerTable = columnCount < 20
             if hasSeparateLayerTable:
                 layerTable = usersoilTable + '_layer'
                 if not self.hasTableConn(conn, layerTable):
                     QSWATUtils.error('Table {0} has {1} columns but cannot find layer table {2} in soil database {3}'.
-                                    format(usersoilTable, columnCount, layerTable, database), self.isBatch)
+                                    format(usersoilTable, columnCount, layerTable, database), self.isBatch, logFile=self.logFile)
                     return False
                 sqlLayer = self.sqlSelect(layerTable, '*', 'layer_num', 'soil_id=?')
             readCursor = conn.cursor()
@@ -1044,7 +1049,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch)
                             QSWATUtils.error("""
 SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table incomplete.
 See QSWAT+ log messages for full list of undefined soils.""".
-                                             format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
+                                             format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch, logFile=self.logFile)
                             errorReported = not self.isBatch
                         QSWATUtils.logerror('SSURGO soil {0} not defined'.format(ssurgoId))
                     else:
@@ -1070,9 +1075,9 @@ See QSWAT+ log messages for full list of undefined soils.""".
                             QSWATUtils.error(
 """Soil name {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table incomplete.
 See QSWAT+ log messages for full list of undefined soils.""".
-                                         format(name, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch)
-                            errorReported = not self._gv.isBatch
-                        QSWATUtils.logerror('Soil name {0} not defined'.format(ssurgoId))
+                                         format(name, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch, logFile=self.logFile)
+                            errorReported = not self.isBatch
+                        QSWATUtils.logerror('Soil name {0} not defined'.format(name))
                     else:
                         sid += 1
                         if hasSeparateLayerTable:
@@ -1083,7 +1088,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         except Exception:
             QSWATUtils.exceptionError('Could not create {2} and {3} tables from {0} table in soil database {1}'.
                             format(usersoilTable, database, DBUtils._SOILS_SOL_NAME, DBUtils._SOILS_SOL_LAYER_NAME), 
-                            self.isBatch)
+                            self.isBatch, logFile=self.logFile)
             return False
         finally:
             self.conn.commit()
@@ -1120,7 +1125,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         layerRows = readCursor.execute(sqlLayer, (row[0],))
         if layerRows is None:
             QSWATUtils.error('Failed to find soil layers in table {0} with soil_id {1}'.
-                             format(self.getUsersoilTable() + '_layer', row[0]), self.isBatch)
+                             format(self.getUsersoilTable() + '_layer', row[0]), self.isBatch, logFile=self.logFile)
             return lid
         for ro in layerRows:
             lid += 1
@@ -1244,10 +1249,10 @@ See QSWAT+ log messages for full list of undefined soils.""".
                     row = readCursor.execute(urbanSelect, args).fetchone()
                     if row is None:
                         # QSWATUtils.error('Landuse name {0} (and perhaps others) not defined in {1} or {2} tables in database {3}.'.
-                        #                  format(name, self.plantTable, self.urbanTable, self.plantSoilDatabase), self.isBatch)
+                        #                  format(name, self.plantTable, self.urbanTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
                         # return False
                         QSWATUtils.error('Landuse name {0} not defined in {1} or {2} tables in database {3}.'.
-                                         format(name, self.plantTable, self.urbanTable, self.plantSoilDatabase), self.isBatch)
+                                         format(name, self.plantTable, self.urbanTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
                     # changed to copy all of plant and urban tables
                     # elif copyUrban:
                     #    uid += 1
@@ -1270,7 +1275,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         except Exception:
             QSWATUtils.exceptionError('Could not create {3} and {4} tables from {0} and {1} tables in landuse and soil database {2}'.
                             format(self.plantTable, self.urbanTable, self.plantSoilDatabase, DBUtils._PLANTS_PLT_NAME, DBUtils._URBAN_URB_NAME), 
-                            self.isBatch)
+                            self.isBatch, logFile=self.logFile)
             return False
         finally:
             self.conn.commit()
@@ -1302,27 +1307,27 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 include = includeWATR if code == 'WATR' else True
                 if include:
                     descr = row['description']
-                    if descr is None:
+                    if descr == NULL:
                         strng = code
                     else:
                         strng = code + ' (' + descr + ')'
                     listBox.addItem(strng)
         except Exception:
-            QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.plantTable, self.plantSoilDatabase), self.isBatch)
+            QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.plantTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return
         try:
             for row in cursor.execute(urbanSql):
                 code = row['name'].upper()
                 descr = row['description']
-                if descr is None:
+                if descr == NULL:
                     strng = code
                 else:
                     strng = code + ' (' + descr + ')'
                 listBox.addItem(strng)
         except Exception:
-            QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.urbanTable, self.plantSoilDatabase), self.isBatch)
+            QSWATUtils.exceptionError('Could not read table {0} in landuse and soil database {1}'.format(self.urbanTable, self.plantSoilDatabase), self.isBatch, logFile=self.logFile)
             return
-        listBox.sortItems(Qt.AscendingOrder)
+        listBox.sortItems(Qt.SortOrder.AscendingOrder)
         
     def getLanduseDescriptions(self, crops: Iterable[int]) -> Dict[int, Tuple[str, str]]:
         """Return map of crop -> (code, description) for list or iterable of crop values.
@@ -1785,72 +1790,72 @@ See QSWAT+ log messages for full list of undefined soils.""".
         try:
             cursor.execute(dropSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(tableBasins, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(tableBasins, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         createSQL = 'CREATE TABLE ' + tableBasins + self._BASINSDATATABLE
         try:
             cursor.execute(createSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableBasins, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableBasins, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         tableLus = self._LSUSDATA
         dropSQL = 'DROP TABLE IF EXISTS ' + tableLus
         try:
             cursor.execute(dropSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(tableLus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(tableLus, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         createSQL = 'CREATE TABLE ' + tableLus + ' ' + self._LSUSDATATABLE
         try:
             cursor.execute(createSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableLus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableLus, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         # table searched by basin
         indexSQL = 'CREATE INDEX IF NOT EXISTS basin_index on {0} (basin)'.format(tableLus)
         try:
             cursor.execute(indexSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create index for basin in table {0} in project database {1}'.format(tableLus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create index for basin in table {0} in project database {1}'.format(tableLus, self.dbFile), self.isBatch, logFile=self.logFile)
         tableWater = self._WATERDATA
         dropSQL = 'DROP TABLE IF EXISTS ' + tableWater
         try:
             cursor.execute(dropSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not drop table1 {0} from project database {1}'.format(tableWater, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not drop table1 {0} from project database {1}'.format(tableWater, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         createSQL = 'CREATE TABLE ' + tableWater + ' ' + self._WATERDATATABLE
         try:
             cursor.execute(createSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableWater, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableWater, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         # table searched by lsu
         indexSQL = 'CREATE INDEX IF NOT EXISTS lsu_index on {0} (lsu)'.format(tableWater)
         try:
             cursor.execute(indexSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create index for lsu in table {0} in project database {1}'.format(tableWater, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create index for lsu in table {0} in project database {1}'.format(tableWater, self.dbFile), self.isBatch, logFile=self.logFile)
             return False 
         tableHrus = self._HRUSDATA
         dropSQL = 'DROP TABLE IF EXISTS ' + tableHrus
         try:
             cursor.execute(dropSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not drop table1 {0} from project database {1}'.format(tableHrus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not drop table1 {0} from project database {1}'.format(tableHrus, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         createSQL = 'CREATE TABLE ' + tableHrus + ' ' + self._HRUSDATATABLE
         try:
             cursor.execute(createSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableHrus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(tableHrus, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         # table searched by lsu
         indexSQL = 'CREATE INDEX IF NOT EXISTS lsu_index on {0} (lsu)'.format(tableHrus)
         try:
             cursor.execute(indexSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not create index for lsu in table {0} in project database {1}'.format(tableHrus, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not create index for lsu in table {0} in project database {1}'.format(tableHrus, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         return True
                         
@@ -1875,7 +1880,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
             curs.execute(DBUtils._BASINSDATAINSERTSQL, (basin, float(data.farDistance), 
                                                         float(data.minElevation), float(data.maxElevation), int(data.waterId)))
         except Exception:
-            QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._BASINSDATA, self.dbFile), self.isBatch)
+            QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._BASINSDATA, self.dbFile), self.isBatch, logFile=self.logFile)
             return False
         for channel, channeldata in data.lsus.items():
             for (landscape, lsuData) in channeldata.items():
@@ -1891,7 +1896,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                                           float(lsuData.totalSlope), float(lsuData.totalLatitude),
                                           float(lsuData.totalLongitude), float(lsuData.cropSoilSlopeArea), lsuData.lastHru))
                 except Exception:
-                    QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._LSUSDATA, self.dbFile), self.isBatch)
+                    QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._LSUSDATA, self.dbFile), self.isBatch, logFile=self.logFile)
                     return False
                 waterBody = lsuData.waterBody
                 # note that empty reservoirs created by addReservoirs will not be included in the WATERDATA table
@@ -1904,7 +1909,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                                                                     float(waterBody.totalLatitude), float(waterBody.totalLongitude),
                                                                     waterBody.id, waterBody.channelRole, waterBody.waterRole))
                     except Exception:
-                        QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._WATERDATA, self.dbFile), self.isBatch)
+                        QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._WATERDATA, self.dbFile), self.isBatch, logFile=self.logFile)
                         return False
                 for crop, soilSlopeNumbers in lsuData.cropSoilSlopeNumbers.items():
                     for soil, slopeNumbers in soilSlopeNumbers.items():
@@ -1915,7 +1920,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                                                        float(cd.area), float(cd.totalElevation), float(cd.totalSlope),
                                                        float(cd.totalLatitude), float(cd.totalLongitude)))
                             except Exception:
-                                QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._HRUSDATA, self.dbFile), self.isBatch)
+                                QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(self._HRUSDATA, self.dbFile), self.isBatch, logFile=self.logFile)
                                 return False
         return True
                    
@@ -1988,12 +1993,12 @@ See QSWAT+ log messages for full list of undefined soils.""".
     #                     basins[basin] = bd
     #             except Exception as e:
     #                 if not ignoreerrors:
-    #                     QSWATUtils.error('Could not read basins data from project database {0}: {1}'.format(self.dbFile, repr(e)), self.isBatch)
+    #                     QSWATUtils.error('Could not read basins data from project database {0}: {1}'.format(self.dbFile, repr(e)), self.isBatch, logFile=self.logFile)
     #                 return (None, False)
     #         return (basins, True)
     #     except Exception as e:
     #         if not ignoreerrors:
-    #             QSWATUtils.error('Failed to reconstruct basin data from database: ' + repr(e), self.isBatch)
+    #             QSWATUtils.error('Failed to reconstruct basin data from database: ' + repr(e), self.isBatch, logFile=self.logFile)
     #         return (None, False) 
     #===========================================================================
         
@@ -2102,12 +2107,12 @@ See QSWAT+ log messages for full list of undefined soils.""".
                         lsuData.hruMap[hru] = cellData
                 except Exception:
                     if not ignoreerrors:
-                        QSWATUtils.exceptionError('Could not read basins data from project database {0}'.format(self.dbFile), self.isBatch)
+                        QSWATUtils.exceptionError('Could not read basins data from project database {0}'.format(self.dbFile), self.isBatch, logFile=self.logFile)
                     return (None, False)
             return (basins, True)
         except Exception:
             if not ignoreerrors:
-                QSWATUtils.exceptionError('Failed to reconstruct basin data from database', self.isBatch)
+                QSWATUtils.exceptionError('Failed to reconstruct basin data from database', self.isBatch, logFile=self.logFile)
             return (None, False) 
         
     def changeReachSlopes(self, multiplier: float, oldMultiplier: float, shapesDir: str) -> None:
@@ -2504,13 +2509,13 @@ See QSWAT+ log messages for full list of undefined soils.""".
             try:
                 cursor.execute(dropSQL)
             except Exception:
-                QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(table, self.dbFile), self.isBatch)
+                QSWATUtils.exceptionError('Could not drop table {0} from project database {1}'.format(table, self.dbFile), self.isBatch, logFile=self.logFile)
                 return
             createSQL = 'CREATE TABLE ' + table + self._ELEVATIONBANDSTABLE
             try:
                 cursor.execute(createSQL)
             except Exception:
-                QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(table, self.dbFile), self.isBatch)
+                QSWATUtils.exceptionError('Could not create table {0} in project database {1}'.format(table, self.dbFile), self.isBatch, logFile=self.logFile)
                 return
             #indexSQL = 'CREATE UNIQUE INDEX idx' + self._ELEVATIONBANDSTABLEINDEX + ' ON ' + table + '([' + self._ELEVATIONBANDSTABLEINDEX + '])'
             #cursor.execute(indexSQL)
@@ -2550,7 +2555,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 try:
                     cursor.execute(sql)
                 except Exception:
-                    QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(table, self.dbFile), self.isBatch)
+                    QSWATUtils.exceptionError('Could not write to table {0} in project database {1}'.format(table, self.dbFile), self.isBatch, logFile=self.logFile)
                     return
             conn.commit()
             self.hashDbTable(conn, table)
@@ -2684,7 +2689,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         try:
             cursor.execute(dropSQL)
         except Exception:
-            QSWATUtils.exceptionError('Could not drop table {0} from database {1}'.format(table, db), self.isBatch)
+            QSWATUtils.exceptionError('Could not drop table {0} from database {1}'.format(table, db), self.isBatch, logFile=self.logFile)
             return ''
         if typ == 'usersoil':
             if needsSeparateLayerTable:
@@ -2705,7 +2710,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
         try:
             cursor.execute(createSQL)
         except Exception:
-            QSWATUtils.error('Could not create table {0} in database {1}'.format(table, db), self.isBatch)
+            QSWATUtils.error('Could not create table {0} in database {1}'.format(table, db), self.isBatch, logFile=self.logFile)
             return ''
         with open(fil, 'r', newline='') as csvFile:
             dialect = csv.Sniffer().sniff(csvFile.read())  
@@ -2732,7 +2737,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
                 try:
                     cursor.execute(sql, tuple(line))
                 except Exception:
-                    QSWATUtils.exceptionError('Could not write to table {0} in database {1} from file {2}'.format(table, db, fil), self.isBatch)
+                    QSWATUtils.exceptionError('Could not write to table {0} in database {1} from file {2}'.format(table, db, fil), self.isBatch, logFile=self.logFile)
                     return ''
         conn.commit()
         if typ == 'usersoil' or typ == 'plant' or typ == 'urban':
@@ -2863,7 +2868,23 @@ See QSWAT+ log messages for full list of undefined soils.""".
         return ''
     
     @staticmethod
-    def checkRouting(conn: Any) -> Tuple[List[str], List[str]]:
+    def outputLoop(channels: List[int], logFile: str):
+        """List channels involved in loop, in reverse order."""
+        done = set()
+        maxCount = len(channels)
+        with open(logFile, 'a') as f:
+            f.write('ERROR: Reverse list of channels in loop\n')
+            index = -1 
+            while maxCount + index >= 0:
+                channel = channels[index]
+                if channel in done:
+                    break
+                f.write(str(channel) + '\n')
+                done.add(channel)
+                index -= 1
+    
+    @staticmethod
+    def checkRouting(conn: Any, logFile: Optional[str]) -> Tuple[List[str], List[str]]:
         """Check every source in gis_routing table drains ultimately to an outlet, i.e. there are no loops
         and everything not a final outlet has a sink appearing as a source in gis_routing.  Also check routing for each
         source totals 100%.  Return lists of error messages (loops; percents not totalling 100) and 
@@ -2875,9 +2896,9 @@ See QSWAT+ log messages for full list of undefined soils.""".
         # mapping category -> id-set showing sources that are known to drain to an outlet
         # to save tracking every source all the way
         done: Dict[str, Set[int]] = dict()
-        # mapping category -> id-set showing sources currently under investigation
+        # mapping category -> id-list showing sources currently under investigation
         # (so all can be marked as done if the chain terminates)
-        pending: Dict[str, Set[int]] = dict()
+        pending: Dict[str, List[int]] = dict()
         # mapping category -> id -> hyd_typ -> percent used to check sources with multiple sinks have 100% accounted for
         percentages: Dict[str, Dict[int, Dict[str, float]]] = dict()
         nextSql = DBUtils.sqlSelect(table, '*', '', '')
@@ -2911,9 +2932,9 @@ See QSWAT+ log messages for full list of undefined soils.""".
                     # move pending to done
                     for pcat, pids  in pending.items():
                         if pcat in done:
-                            done[pcat].update(pids)
+                            done[pcat].update(set(pids))
                         else:
-                            done[pcat] = pids
+                            done[pcat] = set(pids)
                     pending = dict()
                     break  # from while loop
                 if percent == 100:
@@ -2922,16 +2943,16 @@ See QSWAT+ log messages for full list of undefined soils.""".
                     # Pending is only used for efficiency, to avoid tracking every source to a final outlet,
                     # so little harm in omitting some sources from it.
                     if scat in pending:
-                        pending[scat].add(sid)
+                        pending[scat].append(sid)
                     else:
-                        pending[scat] = {sid}
+                        pending[scat] = [sid]
                 if tcat == 'X':
                     # move pending to done
                     for pcat, pids  in pending.items():
                         if pcat in done:
-                            done[pcat].update(pids)
+                            done[pcat].update(set(pids))
                         else:
-                            done[pcat] = pids
+                            done[pcat] = set(pids)
                     pending = dict()
                     break  # from while loop
                 count -= 1
@@ -2941,12 +2962,14 @@ See QSWAT+ log messages for full list of undefined soils.""".
                                 .format(table, sid, scat, hydTyp))
                     else:
                         errors.append('There is a loop in the {0} table involving id {1}, category {2}, flow type {3}'.format(table, sid, scat, hydTyp))
+                        if logFile:
+                            DBUtils.outputLoop(pending.get('CH', []), logFile)
                     # move pending to done
                     for pcat, pids  in pending.items():
                         if pcat in done:
-                            done[pcat].update(pids)
+                            done[pcat].update(set(pids))
                         else:
-                            done[pcat] = pids
+                            done[pcat] = set(pids)
                     pending = dict()
                     break  # from while loop
                 findRow = conn.execute(findSql, (tid, tcat)).fetchone()
@@ -3126,6 +3149,8 @@ See QSWAT+ log messages for full list of undefined soils.""".
     """
         
     _ROUTINGINSERTSQL = 'INSERT INTO gis_routing VALUES(?,?,?,?,?,?)' 
+    
+    _ROUTINGUPDATESQL = 'UPDATE gis_routing SET sinkid=?, sinkcat=?, percent=? WHERE sourceid=? AND sourcecat=? AND hyd_typ=?'
     
     _LANDEXEMPTCREATESQL = \
     """

@@ -1264,7 +1264,7 @@ cdef class MergedChannelData:
         self.minEl = min(self.minEl, minEl)
         self.maxEl = max(self.maxEl, maxEl)
         
-cdef class LakeData:
+cdef class LakeData:   
     """Data about lake defined by shapefile."""
     
     cdef:

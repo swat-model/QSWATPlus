@@ -221,12 +221,12 @@ class TauDEMUtils:
         if hasQGIS:
             assert output is not None
             output.append(command + '\n\n')
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(QTextCursor.MoveOperation.End)
         # Windows will accept commands as first argument of run
         # and this has the advantage of dealing with spaces within inidividual components of the list
         # Linux and MacOS need a single string (and there will be no spaces to worry about)
         # MacPrefix is needed to load gdal library from QGIS installation in case gdal not installed (or installed with different version)
-        # In windows PROJ seems to need PROJ_LIB instead of the more recent PROJ_DATA
+        # In windows PROJ seems to need ` instead of the more recent PROJ_DATA
         # In windows gdalplugins now stored under TauDEMDir so they are compatible with gdal304 dlls stored there
         MacPrefixNeeded = Parameters._ISMAC
         MacPrefix = 'export DYLD_FALLBACK_LIBRARY_PATH={0}/Contents/MacOS/lib; export PROJ_LIB={0}/Contents/Resources/proj; '.format(Parameters._MACQGISDIR)
@@ -245,7 +245,7 @@ class TauDEMUtils:
             assert output is not None
             output.append(proc.stdout)
             output.append(proc.stderr)
-            output.moveCursor(QTextCursor.End)
+            output.moveCursor(QTextCursor.MoveOperation.End)
         else:
             print(proc.stdout)
         # proc.returncode always seems to be None
@@ -266,7 +266,7 @@ class TauDEMUtils:
             if hasQGIS:
                 assert output is not None    
                 origColour = output.textColor()
-                output.setTextColor(Qt.red)
+                output.setTextColor(Qt.GlobalColor.red)
                 output.append(QSWATUtils.trans('*** Problem with TauDEM {0}: please examine output above. ***'.format(command)))
                 output.setTextColor(origColour)
             msg += 'and failed'
@@ -343,6 +343,7 @@ Have you installed SWATPlus?'''.format(TauDEMDir, TauDEMDir2), hasQGIS)
         TauDEMDir, _ = TauDEMUtils.findTauDEMDir(settings, False)
         if Parameters._ISWIN and TauDEMDir != '':
             taudemHelpFile = QSWATUtils.join(TauDEMDir, Parameters._TAUDEMHELP)
+            QSWATUtils.loginfo('TauDEM help file is {0}'.format(taudemHelpFile))
             os.startfile(taudemHelpFile)  # @UndefinedVariable since not defined in Linux
         else:
             webbrowser.open(Parameters._TAUDEMDOCS)

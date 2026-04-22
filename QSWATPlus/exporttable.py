@@ -30,7 +30,7 @@ import csv
 
 # Import the code for the dialog
 from .exporttabledialog import ExportTableDialog
-from .QSWATUtils import QSWATUtils, FileTypes # type: ignore 
+from .QSWATUtils import QSWATUtils, FileTypes # type: ignore
 
 class ExportTable():
     """Choose an sqlite database and a table and export table as csv file."""
@@ -47,7 +47,10 @@ class ExportTable():
         ## current connection
         self.conn = None
         self._dlg = ExportTableDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        except AttributeError:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() | Qt.WindowType.WindowMinimizeButtonHint)
         self._dlg.databaseBox.addItem(ExportTable._PROJECTDB)
         self._dlg.databaseBox.addItem(ExportTable._REFDB)
         self._dlg.databaseBox.addItem(ExportTable._OTHERDB)
@@ -58,7 +61,7 @@ class ExportTable():
         self._dlg.databaseBox.activated.connect(self.setTables)
         self._dlg.exportButton.clicked.connect(self.exportTable)
         self._dlg.closeButton.clicked.connect(self.close)
-        self._dlg.exec_()
+        self._dlg.exec()
         
     def setTables(self):
         """Set tables for currently selected database."""

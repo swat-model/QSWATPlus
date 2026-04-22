@@ -190,13 +190,13 @@ class CreateHRUs(QObject):
         self.basins.clear()
         elevationDs = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
         if not elevationDs:
-            QSWATUtils.error('Cannot open DEM {0}'.format(self._gv.demFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot open DEM {0}'.format(self._gv.demFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         if not self._gv.useGridModel:
             basinFile = self._gv.chBasinNoLakeFile if os.path.exists(self._gv.chBasinNoLakeFile) else self._gv.channelBasinFile
             basinDs = gdal.Open(basinFile, gdal.GA_ReadOnly)
             if not basinDs:
-                QSWATUtils.error('Cannot open watershed raster {0}'.format(basinFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot open watershed raster {0}'.format(basinFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             basinNumberRows: int = basinDs.RasterYSize
             basinNumberCols: int = basinDs.RasterXSize
@@ -207,34 +207,34 @@ class CreateHRUs(QObject):
         if not self._gv.existingWshed:
             distStDs = gdal.Open(self._gv.distStFile, gdal.GA_ReadOnly)
             if not distStDs:
-                QSWATUtils.error('Cannot open distance to outlets file {0}'.format(self._gv.distStFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot open distance to outlets file {0}'.format(self._gv.distStFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             if not self._gv.useGridModel:
                 distChDs = gdal.Open(self._gv.distChFile, gdal.GA_ReadOnly)
                 if not distChDs:
-                    QSWATUtils.error('Cannot open distance to channel file {0}'.format(self._gv.distChFile), self._gv.isBatch)
+                    QSWATUtils.error('Cannot open distance to channel file {0}'.format(self._gv.distChFile), self._gv.isBatch, logFile=self._gv.logFile)
                     return False
         cropDs = gdal.Open(self._gv.landuseFile, gdal.GA_ReadOnly)
         if not cropDs:
-            QSWATUtils.error('Cannot open landuse file {0}'.format(self._gv.landuseFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot open landuse file {0}'.format(self._gv.landuseFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         soilDs = gdal.Open(self._gv.soilFile, gdal.GA_ReadOnly)
         if not soilDs:
-            QSWATUtils.error('Cannot open soil file {0}'.format(self._gv.soilFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot open soil file {0}'.format(self._gv.soilFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         slopeDs = gdal.Open(self._gv.slopeFile, gdal.GA_ReadOnly)
         if not slopeDs:
-            QSWATUtils.error('Cannot open slope file {0}'.format(self._gv.slopeFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot open slope file {0}'.format(self._gv.slopeFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         if self._gv.useLandscapes:
             floodDs = gdal.Open(self._gv.floodFile, gdal.GA_ReadOnly)
             if not floodDs:
-                QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot open floodplain file {0}'.format(self._gv.floodFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
         if self._gv.playaFile != '':
             wpDs = gdal.Open(self._gv.playaFile, gdal.GA_ReadOnly)
             if not wpDs:
-                QSWATUtils.error('Cannot open wetlandPlaya file {0}'.format(self._gv.playaFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot open wetlandPlaya file {0}'.format(self._gv.playaFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             usePlaya = True
         else:
@@ -483,19 +483,19 @@ class CreateHRUs(QObject):
                 # grid models are based on the DEM raster, and non-grid models on the basins grid
                 if self._gv.useGridModel:
                     transform = elevationTransform
-                    lsuRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=int)  # type: ignore  # @UndefinedVariable
+                    lsuRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=numpy.int32)  # type: ignore  # @UndefinedVariable
                 else:
                     transform = basinTransform
-                    lsuRow = numpy.empty((basinNumberCols,), dtype=int)
+                    lsuRow = numpy.empty((basinNumberCols,), dtype=numpy.int32)
                 lsuShapes = Polygonize(True, elevationNumberCols, -1, QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
             if self.fullHRUsWanted:
                 # grid models are based on the DEM raster, and non-grid models on the basins grid
                 if self._gv.useGridModel:
                     transform = elevationTransform
-                    hruRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=int)  # type: ignore  # @UndefinedVariable
+                    hruRows = numpy.full([elevationReadRows, elevationNumberCols], -1, dtype=numpy.int32)  # type: ignore  # @UndefinedVariable
                 else:
                     transform = basinTransform
-                    hruRow = numpy.empty((basinNumberCols,), dtype=int)
+                    hruRow = numpy.empty((basinNumberCols,), dtype=numpy.int32)
                 hruShapes = Polygonize(True, elevationNumberCols, -1, QgsPointXY(transform[0], transform[3]), transform[1], abs(transform[5]))
         cropCurrentRow = -1
         cropData = numpy.empty([cropReadRows, cropNumberCols], dtype=int)  # type: ignore
@@ -543,7 +543,7 @@ class CreateHRUs(QObject):
                     if progressCount == fivePercent:
                         progressBar.setValue(progressBar.value() + 5)
                         progressBar.update()
-                        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+                        QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
                         progressCount = 1
                     else:
                         progressCount += 1
@@ -796,7 +796,7 @@ class CreateHRUs(QObject):
                     if progressCount == fivePercent:
                         progressBar.setValue(progressBar.value() + 5)
                         progressBar.update()
-                        QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+                        QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
                         progressCount = 1
                     else:
                         progressCount += 1
@@ -1003,7 +1003,7 @@ class CreateHRUs(QObject):
                             try:
                                 data.addCell(chLink, landscape, crop, soil, slope, self._gv.cellArea, elev, slopeValue, distSt, distCh, x, y, self._gv)
                             except:
-                                QSWATUtils.error('Cannot add cell for link {0} landscape {1} crop {2} soil {3} slope {4}'.format(chLink, landscape, crop, soil, slope), self._gv.isBatch)
+                                QSWATUtils.error('Cannot add cell for link {0} landscape {1} crop {2} soil {3} slope {4}'.format(chLink, landscape, crop, soil, slope), self._gv.isBatch, logFile=self._gv.logFile)
                             self.basins[subbasin] = data
                             if not math.isclose(elevation, elevationNoData, rel_tol=1e-06):
                                 index = int(elevation) - self.minElev
@@ -1061,7 +1061,7 @@ class CreateHRUs(QObject):
                 landusePercent = (landuseCount / (landuseCount + landuseNoDataCount)) * 100
             QSWATUtils.loginfo('Landuse cover percent: {0}'.format(locale.format_string('%.1F', landusePercent)))
             if landusePercent < 95:
-                QSWATUtils.information('WARNING: only {0} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(locale.format_string('%.1F', landusePercent)), self._gv.isBatch)
+                QSWATUtils.information('WARNING: only {0} percent of the watershed has defined landuse values.\n If this percentage is zero check your landuse map has the same projection as your DEM.'.format(locale.format_string('%.1F', landusePercent)), self._gv.isBatch, logFile=self._gv.logFile)
             if soilDefinedCount + soilUndefinedCount + soilNoDataCount == 0:
                 soilMapPercent = 0
             else:
@@ -1096,7 +1096,7 @@ class CreateHRUs(QObject):
                                            .format(locale.format_string('%.1F', soilDefinedPercent), huc12), self._gv.isBatch, logFile=logFile)
             else:
                 if soilMapPercent < 95:
-                    QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilMapPercent)), self._gv.isBatch)
+                    QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilMapPercent)), self._gv.isBatch, logFile=self._gv.logFile)
                     under95 = True
                     # only run this for non-HUC models: previous warnings sufficient
                 if not self.noCropOrSoilLSUs():
@@ -1141,7 +1141,7 @@ class CreateHRUs(QObject):
                 #QSWATUtils.loginfo(hruShapes.makeString())
                 self.progress('Writing FullHRUs shapes ...')
                 if not self.createFullHRUsShapefile(hruShapes, subbasinChannelLandscapeCropSoilSlopeNumbers, progressBar, lastHru):
-                    QSWATUtils.error('Unable to create FullHRUs shapefile', self._gv.isBatch)
+                    QSWATUtils.error('Unable to create FullHRUs shapefile', self._gv.isBatch, logFile=self._gv.logFile)
                     self.progress('')
                 else:
                     self.progress('FullHRUs shapefile finished')
@@ -1179,7 +1179,7 @@ class CreateHRUs(QObject):
                         if self._gv.isHUC or self._gv.isHAWQS:
                             QSWATUtils.loginfo(msg1 + msg2 + msg3)
                         else:
-                            QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch)
+                            QSWATUtils.error(msg1 + msg2 + msg3, self._gv.isBatch, logFile=self._gv.logFile)
                         # allow batch, HUC and HAWQS runs to continue
                         return self._gv.isBatch or self._gv.isHUC or self._gv.isHAWQS
         return True
@@ -1450,27 +1450,27 @@ class CreateHRUs(QObject):
         """ Create and add features to lsus shapefile layer.  Return True if OK."""
         lsuIndx = fields.indexFromName(QSWATTopology._LSUID)
         if lsuIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LSUID, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LSUID, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         subIndx = fields.indexFromName(QSWATTopology._SUBBASIN)
         if subIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         chIndx = fields.indexFromName(QSWATTopology._CHANNEL)
         if chIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         catIndx = fields.indexFromName(QSWATTopology._LANDSCAPE)
         if catIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LANDSCAPE, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LANDSCAPE, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         areaIndx = fields.indexFromName(Parameters._AREA)
         if areaIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._AREA, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._AREA, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         percentSubIndx = fields.indexFromName(Parameters._PERCENTSUB)
         if percentSubIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._PERCENTSUB, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._PERCENTSUB, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         provider = layer.dataProvider()
         for subbasin, channelLandscapeCropSoilSlopeNumbers in subbasinChannelLandscapeCropSoilSlopeNumbers.items():
@@ -1485,7 +1485,7 @@ class CreateHRUs(QObject):
                             lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
                             geometry = shapes.getGeometry(lsuId)  # type: ignore
                             if geometry is None:
-                                QSWATUtils.error('No geometry for lsuid {0} in {1}'.format(lsuId, self._gv.fullLSUsFile), self._gv.isBatch)
+                                QSWATUtils.error('No geometry for lsuid {0} in {1}'.format(lsuId, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                                 return False
                             feature = QgsFeature()
                             feature.setFields(fields)
@@ -1496,14 +1496,14 @@ class CreateHRUs(QObject):
                             shapeArea = shapes.area(lsuId) * self._gv.horizontalFactor * self._gv.horizontalFactor  # type: ignore
                             feature.setAttribute(areaIndx, shapeArea / 1E4)
                             if subbasinArea == 0:
-                                QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch)
+                                QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                                 percentSub = 0
                             else:
                                 percentSub = (shapeArea / subbasinArea) * 100
                             feature.setAttribute(percentSubIndx, percentSub)
                             feature.setGeometry(geometry)
                             if not provider.addFeatures([feature]):
-                                QSWATUtils.error('Unable to add feature to LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch)
+                                QSWATUtils.error('Unable to add feature to LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                                 return False
         return True
     
@@ -1568,13 +1568,13 @@ class CreateHRUs(QObject):
                                     shapeArea = shapes.area(hru) * self._gv.horizontalFactor * self._gv.horizontalFactor  # type: ignore
                                     feature.setAttribute(areaIndx, shapeArea / 1E4)
                                     if subbasinArea == 0:
-                                        QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch)
+                                        QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                                         percentSub = 0
                                     else:
                                         percentSub = (shapeArea / subbasinArea) * 100
                                     feature.setAttribute(percentSubIndx, percentSub)
                                     if lsuArea == 0:
-                                        QSWATUtils.error('LSU {0} seems to be empty'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                                        QSWATUtils.error('LSU {0} seems to be empty'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                                         percentLsu = 0
                                     else:
                                         percentLsu = (shapeArea / lsuArea) * 100
@@ -1583,7 +1583,7 @@ class CreateHRUs(QObject):
                                     feature.setAttribute(linkIndx, channel)
                                     feature.setGeometry(geometry)
                                     if not provider.addFeatures([feature]):
-                                        QSWATUtils.error('Unable to add feature to FullHRUs shapefile {0}'.format(self._gv.fullHRUsFile), self._gv.isBatch)
+                                        QSWATUtils.error('Unable to add feature to FullHRUs shapefile {0}'.format(self._gv.fullHRUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                                         progressBar.setVisible(False)
                                         return False
                                     if progressCount == fivePercent:
@@ -1613,13 +1613,13 @@ class CreateHRUs(QObject):
         subIndx = lsusFields.indexOf(QSWATTopology._SUBBASIN)
         if subIndx < 0:
             if self._gv.useGridModel:
-                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, sourceShapefile), self._gv.isBatch)
+                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, sourceShapefile), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             fields.append(QgsField(QSWATTopology._SUBBASIN, Parameters.intFieldType))
         chIndx = lsusFields.indexOf(QSWATTopology._CHANNEL)
         if chIndx < 0:
             if not self._gv.useGridModel:
-                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, sourceShapefile), self._gv.isBatch)
+                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, sourceShapefile), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             fields.append(QgsField(QSWATTopology._CHANNEL, Parameters.intFieldType))
         fields.append(QgsField(QSWATTopology._LANDSCAPE, Parameters.stringFieldType, len=20))
@@ -1629,41 +1629,41 @@ class CreateHRUs(QObject):
         fields.append(QgsField(Parameters._PERCENTSUB, Parameters.doubleFieldType, len=20, prec=1))
         provider = lsusLayer.dataProvider()
         if not provider.addAttributes(fields):
-            QSWATUtils.error('Cannot add fields to lsus shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot add fields to lsus shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         lsusLayer.updateFields()
         lsuIndx = provider.fieldNameIndex(QSWATTopology._LSUID)
         if lsuIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LSUID, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LSUID, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         subIndx = provider.fieldNameIndex(QSWATTopology._SUBBASIN)
         if subIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._SUBBASIN, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         chIndx = provider.fieldNameIndex(QSWATTopology._CHANNEL)
         if chIndx < 0:  
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._CHANNEL, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         lscapeIndx = provider.fieldNameIndex(QSWATTopology._LANDSCAPE)
         if lscapeIndx < 0:  
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LANDSCAPE, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._LANDSCAPE, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         areaIndx = provider.fieldNameIndex(Parameters._AREA)
         if areaIndx < 0:
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._AREA, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._AREA, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         percentIndx = provider.fieldNameIndex(Parameters._PERCENTSUB)
         if percentIndx < 0:  
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._PERCENTSUB, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(Parameters._PERCENTSUB, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         polyIndx = provider.fieldNameIndex(QSWATTopology._POLYGONID)
         if polyIndx < 0: 
-            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._POLYGONID, self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._POLYGONID, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         if self._gv.useGridModel:
             downIndx = provider.fieldNameIndex(QSWATTopology._DOWNID)
             if downIndx < 0: 
-                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._DOWNID, self._gv.fullLSUsFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot find field {0} in {1}'.format(QSWATTopology._DOWNID, self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
         request = QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([polyIndx, subIndx, chIndx, areaIndx])
         mmap: Dict[int, Dict[int, Any]] = dict()
@@ -1720,7 +1720,7 @@ class CreateHRUs(QObject):
                 lsuCells = lsuData.cellCount
                 lsuAreaHa = lsuData.area / 1E4
                 if subbasinCells == 0:
-                    QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch)
+                    QSWATUtils.error('SWAT basin {0} seems to be empty'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                     percentSub = 0.0
                 else:
                     percentSub = (lsuCells / subbasinCells) * 100
@@ -1734,11 +1734,11 @@ class CreateHRUs(QObject):
                 mmap2[percentIndx] = percentSub
                 mmap[f.id()] = mmap2
         if not provider.changeAttributeValues(mmap):
-            QSWATUtils.error('Cannot change attributes of LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch)
+            QSWATUtils.error('Cannot change attributes of LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             return None
         if len(toDelete) > 0:
             if not provider.deleteFeatures(toDelete):
-                QSWATUtils.error('Failed to delete redundant features from LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch)
+                QSWATUtils.error('Failed to delete redundant features from LSUs shapefile {0}'.format(self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
         # delete PolygonId field, plus DownId if using grid model
         if self._gv.useGridModel:
@@ -1761,7 +1761,7 @@ class CreateHRUs(QObject):
             if layer is None:
                 layer = QgsVectorLayer(self._gv.fullLSUsFile, '{0} ({1})'.format(legend, Parameters._LSUS1), 'ogr')
             if not QSWATUtils.removeAllFeatures(layer):
-                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(self._gv.fullLSUsFile), self._gv.isBatch)
+                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(self._gv.fullLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             fields = layer.fields()
         else:
@@ -1778,7 +1778,7 @@ class CreateHRUs(QObject):
             writer = QgsVectorFileWriter.create(self._gv.fullLSUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch)
+                QSWATUtils.error('Cannot create LSUs shapefile {0}: {1}'.format(self._gv.fullLSUsFile, writer.errorMessage()), self._gv.isBatch, logFile=self._gv.logFile)
                 return None
             # flush
             writer.flushBuffer()
@@ -1804,7 +1804,7 @@ class CreateHRUs(QObject):
             if layer is None:
                 layer = QgsVectorLayer(self._gv.fullHRUsFile, '{0} ({1})'.format(legend, QFileInfo(self._gv.fullHRUsFile).baseName()), 'ogr')
             if not QSWATUtils.removeAllFeatures(layer):
-                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(self._gv.fullHRUsFile), self._gv.isBatch)
+                QSWATUtils.error('Failed to delete features from {0}.  Please delete the file manually and try again'.format(self._gv.fullHRUsFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             fields = layer.fields()
         else:
@@ -1825,7 +1825,7 @@ class CreateHRUs(QObject):
             writer = QgsVectorFileWriter.create(self._gv.fullHRUsFile, fields, QgsWkbTypes.MultiPolygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch)
+                QSWATUtils.error('Cannot create FullHRUs shapefile {0}: {1}'.format(self._gv.fullHRUsFile, writer.errorMessage()), self._gv.isBatch, logFile=self._gv.logFile)
                 return False
             # delete the writer to flush
             writer.flushBuffer()
@@ -1915,12 +1915,12 @@ class CreateHRUs(QObject):
                                 redistributeFactor = lsuData.area / (lsuData.area - areaToRedistribute)
                                 if self._gv.isHUC or self._gv.isHAWQS:
                                     if redistributeFactor > maxRedistributeFactor:
-                                        SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
-                                        QSWATUtils.loginfo('LSU {0} has less than {1:.1F}% area with defined soil and landuse: not redistributing'.format(lsuId, 100 / redistributeFactor ))
+                                        # report limit also requires at least 50% defined soil and 1 sq km total LSU area
+                                        if redistributeFactor <= 2 and lsuData.area >= 1E6:
+                                            QSWATUtils.loginfo('LSU {0} with area {1:.1F} ha has less than {2:.1F}% area with defined soil and landuse: not redistributing'.format(lsuId, lsuData.area / 1E4, 100 / redistributeFactor ))
                                         lsuData.area = lsuData.cropSoilSlopeArea
                                         doRedistribute = False
                                 elif redistributeFactor > 2:
-                                    SWATChannel = self._gv.topo.channelToSWATChannel[chLink]
                                     QSWATUtils.loginfo('LSU {0} has redistribute factor of {1:.1F}'.format(lsuId, redistributeFactor))
                                 if doRedistribute:
                                     lsuData.redistribute(redistributeFactor)
@@ -2020,7 +2020,7 @@ class CreateHRUs(QObject):
                         val = maxArea / 1E4
                     elif lsuData.cropSoilSlopeArea == 0:
                         SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                        QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                        QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                         val = 0
                     else:
                         val = (maxArea / lsuData.cropSoilSlopeArea) * 100
@@ -2101,7 +2101,7 @@ class CreateHRUs(QObject):
                     for (crop, cropArea) in cropAreas.items():
                         if lsuData.cropSoilSlopeArea == 0:
                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                            QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                            QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                             cropVal = 0.0
                         else:
                             cropVal = (cropArea / lsuData.cropSoilSlopeArea) * 100
@@ -2117,7 +2117,7 @@ class CreateHRUs(QObject):
                                 if cropArea == 0:
                                     SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                                     cropName = self._db.getLanduseCode(crop)
-                                    QSWATUtils.error('crop {0} in LSU {1} seems to have no area'.format(cropName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                                    QSWATUtils.error('crop {0} in LSU {1} seems to have no area'.format(cropName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                                     soilVal = 0.0
                                 else:
                                     soilVal = (area / cropArea) * 100
@@ -2148,7 +2148,7 @@ class CreateHRUs(QObject):
                     for (crop, cropArea) in cropAreas.items():
                         if lsuData.cropSoilSlopeArea == 0:
                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                            QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                            QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                             cropVal = 0.0
                         else:
                             cropVal = (cropArea / lsuData.cropSoilSlopeArea) * 100
@@ -2164,7 +2164,7 @@ class CreateHRUs(QObject):
                                 if cropArea == 0:
                                     SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                                     cropName = self._db.getLanduseCode(crop)
-                                    QSWATUtils.error('crop {0} in LSU {1} seems to have no area'.format(cropName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                                    QSWATUtils.error('crop {0} in LSU {1} seems to have no area'.format(cropName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                                     soilVal = 0.0
                                 else:
                                     soilVal = (soilArea / cropArea) * 100
@@ -2177,7 +2177,7 @@ class CreateHRUs(QObject):
                                         if soilArea == 0:
                                             SWATChannel = self._gv.topo.channelToSWATChannel[channel]
                                             soilName, _ = self._db.getSoilName(soil)
-                                            QSWATUtils.error('soil {0} in LSU {1} seems to have no area'.format(soilName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                                            QSWATUtils.error('soil {0} in LSU {1} seems to have no area'.format(soilName, QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                                             slopeVal = 0
                                         else:
                                             slopeVal = (cellData.area / soilArea) * 100
@@ -2671,7 +2671,7 @@ class CreateHRUs(QObject):
                                         size = hruArea
                                     elif lsuData.cropSoilSlopeArea == 0:
                                         SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                                        QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch)
+                                        QSWATUtils.error('LSU {0} seems to have no land area'.format(QSWATUtils.landscapeUnitId(SWATChannel, landscape)), self._gv.isBatch, logFile=self._gv.logFile)
                                         size = 0.0
                                     else:
                                         size =  hruArea / lsuData.cropSoilSlopeArea
@@ -2873,7 +2873,7 @@ class CreateHRUs(QObject):
                         try:
                             bands = self.writeTopoReportSection(mapp, fw, 'subbasin')
                         except Exception:
-                            QSWATUtils.exceptionError('Internal error: cannot write topo report for SWAT basin {0} (basin {1})'.format(SWATBasin, basin), self._gv.isBatch)
+                            QSWATUtils.exceptionError('Internal error: cannot write topo report for SWAT basin {0} (basin {1})'.format(SWATBasin, basin), self._gv.isBatch, logFile=self._gv.logFile)
                             bands = None
                     else:
                         bands = None
@@ -3133,14 +3133,14 @@ class CreateHRUs(QObject):
                     self.progress('Writing points, routing and hrus tables ...')
                     self._gv.topo.writePointsTable(demLayer, self.mergees, self._gv.useGridModel, self._gv.existingWshed)
                     if not self._db.createRoutingTable():
-                        QSWATUtils.error('Failed to create table gis_routing in project database', self._gv.isBatch)
+                        QSWATUtils.error('Failed to create table gis_routing in project database', self._gv.isBatch, logFile=self._gv.logFile)
                         return
                     time1 = time.process_time()
                     # list of channel, pointId pairs for extra points at outlet of channel between channel
                     # and reservoir it flows into
                     extraPoints: List[Tuple[int, int]] = []
                     if not self._gv.topo.routeChannelsOutletsAndBasins(self.basins, self.mergedChannels, self.mergees, extraPoints, self._gv):
-                        QSWATUtils.error('Failed to route channels and subbasins in table gis_routing in project database', self._gv.isBatch)
+                        QSWATUtils.error('Failed to route channels and subbasins in table gis_routing in project database', self._gv.isBatch, logFile=self._gv.logFile)
                         return
                     self._gv.topo.addExtraPointsToPointsTable(extraPoints, self._gv.useGridModel)
                     table = 'gis_hrus'
@@ -3193,7 +3193,7 @@ class CreateHRUs(QObject):
             assert fullHRUsLayer is not None
             OK = fullHRUsLayer.startEditing()
             if not OK:
-                QSWATUtils.error('Cannot edit FullHRUs shapefile', self._gv.isBatch)
+                QSWATUtils.error('Cannot edit FullHRUs shapefile', self._gv.isBatch, logFile=self._gv.logFile)
                 setHRUS = False
         # set HRUS field for all shapes for this basin to NA
         # and reset channels to originals
@@ -3212,9 +3212,9 @@ class CreateHRUs(QObject):
             basinData = self.basins.get(basin, None)
             if basinData is None:
                 if self._gv.isHUC or self._gv.isHAWQS:
-                    QSWATUtils.information('WARNING: Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch)
+                    QSWATUtils.information('WARNING: Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                 else:
-                    QSWATUtils.error('Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch)
+                    QSWATUtils.error('Subbasin {0} has no data'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                 break
             subHa = basinData.subbasinArea() / 1E4
             #assert subHa > 0, 'SWAT basin {0} seems to be empty'.format(SWATBasin)
@@ -3251,7 +3251,7 @@ class CreateHRUs(QObject):
                     if noLanduseReported:
                         QSWATUtils.loginfo(msg)
                     else:
-                        QSWATUtils.error(msg, self._gv.isBatch)
+                        QSWATUtils.error(msg, self._gv.isBatch, logFile=self._gv.logFile)
                         noLanduseReported = not self._gv.isBatch
             else:
                 hasCrop = True
@@ -3266,7 +3266,7 @@ class CreateHRUs(QObject):
                 if noSoilReported:
                     QSWATUtils.loginfo(msg)
                 else:
-                    QSWATUtils.error(msg, self._gv.isBatch)
+                    QSWATUtils.error(msg, self._gv.isBatch, logFile=self._gv.logFile)
                     noSoilReported = not self._gv.isBatch
             self.printSoilAreas(basinData.soilAreas(False), originalSoilAreas, basinHa, subHa, fw)
             fw.writeLine('')
@@ -3285,7 +3285,7 @@ class CreateHRUs(QObject):
             self.addHRUSNums(fullHRUsLayer, subIndx, chIndx, catIndx, luseIndx, soilIndx, slopeIndx, hrusIndx, linkIndx)
             OK = fullHRUsLayer.commitChanges()
             if not OK:
-                QSWATUtils.error('Cannot commit changes to FullHRUs shapefile', self._gv.isBatch)
+                QSWATUtils.error('Cannot commit changes to FullHRUs shapefile', self._gv.isBatch, logFile=self._gv.logFile)
             self.writeActHRUs(fullHRUsLayer, subIndx, chIndx, catIndx, areaIndx, hrusIndx)
             
     def printChannelHRUs(self, SWATBasin: int, basinData: BasinData, withHRUs: bool, basinHa: float, subHa: float, fw: fileWriter, curs: Any) -> None:
@@ -3400,7 +3400,7 @@ class CreateHRUs(QObject):
                         # use cellArea rather than cellCount to calculate means
                         # cellCounts are integer and inaccurate (even zero) for small HRUs
                         if cellData.area == 0:
-                            QSWATUtils.error('HRU {0} in LSU {1} has zero area'.format(self.HRUNum, lsuId), self._gv.isBatch)
+                            QSWATUtils.error('HRU {0} in LSU {1} has zero area'.format(self.HRUNum, lsuId), self._gv.isBatch, logFile=self._gv.logFile)
                             meanMultiplier = 1
                         else:
                             meanMultiplier = self._gv.cellArea / cellData.area
@@ -3425,11 +3425,11 @@ class CreateHRUs(QObject):
                         centroidll = self._gv.topo.pointToLatLong(centroid)
                         lat = centroidll.y()
                         if math.isnan(lat):
-                            QSWATUtils.error('Cannot compue latitude for {0} on channel {1}'.format(cellData.totalLatitude * meanMultiplier, SWATChannel), self._gv.isBatch)
+                            QSWATUtils.error('Cannot compute latitude for {0} on channel {1}'.format(cellData.totalLatitude * meanMultiplier, SWATChannel), self._gv.isBatch, logFile=self._gv.logFile)
                             lat = 0
                         lon = centroidll.x()
                         if math.isnan(lon):
-                            QSWATUtils.error('Cannot compue longitude for {0} on channel {1}'.format(cellData.totalLongitude * meanMultiplier, SWATChannel), self._gv.isBatch)
+                            QSWATUtils.error('Cannot compute longitude for {0} on channel {1}'.format(cellData.totalLongitude * meanMultiplier, SWATChannel), self._gv.isBatch, logFile=self._gv.logFile)
                             lon = 0
                         curs.execute(DBUtils._HRUSINSERTSQL, 
                                      (self.HRUNum, lsuId, subHa, arlsuHa, luse, arluse, snam, arso, slp,
@@ -3488,11 +3488,11 @@ class CreateHRUs(QObject):
             fullHRUsLayer.changeAttributeValue(fid, hrusIndx, 'NA')
         OK = fullHRUsLayer.commitChanges()
         if not OK:
-            QSWATUtils.error('Cannot commit changes to FullHRUs shapefile', self._gv.isBatch)
+            QSWATUtils.error('Cannot commit changes to FullHRUs shapefile', self._gv.isBatch, logFile=self._gv.logFile)
         # start editing again for assignment of new HRUS values
         OK = fullHRUsLayer.startEditing()
         if not OK:
-            QSWATUtils.error('Cannot edit FullHRUs attribute table', self._gv.isBatch)
+            QSWATUtils.error('Cannot edit FullHRUs attribute table', self._gv.isBatch, logFile=self._gv.logFile)
            
     def addHRUSNums(self, fullHRUsLayer: QgsVectorLayer, subIndx: int, chIndx: int, 
                     catIndx: int, luseIndx: int, soilIndx: int, slopeIndx: int, hrusIndx: int, linkIndx: int) -> None:
@@ -3535,7 +3535,7 @@ class CreateHRUs(QObject):
                 targetSWATChannel = self._gv.topo.channelToSWATChannel[targetChannel]
                 OK = fullHRUsLayer.changeAttributeValue(fid, chIndx, targetSWATChannel)
             if not OK:
-                QSWATUtils.error('Cannot write to FullHRUs attribute table', self._gv.isBatch)
+                QSWATUtils.error('Cannot write to FullHRUs attribute table', self._gv.isBatch, logFile=self._gv.logFile)
                 return
                     
     def writeActHRUs(self, fullHRUsLayer: QgsVectorLayer, subIndx: int, chIndx: int, catIndx: int, areaIndx: int, hrusIndx: int) -> None:
@@ -3552,7 +3552,7 @@ class CreateHRUs(QObject):
         self.findMerges(provider, hrusIndx, fidsToMerge, fidsToBeMerged)
         # now merge any merged channels, plus ponds and reservoirs
         if not self.mergeActHRUs(provider, subIndx, chIndx, catIndx, areaIndx, hrusIndx, fidsToMerge, fidsToBeMerged):
-            QSWATUtils.error('Failed to complete acxtual HRUs shapefile', self._gv.isBatch)
+            QSWATUtils.error('Failed to complete actual HRUs shapefile', self._gv.isBatch, logFile=self._gv.logFile)
             return
         # insert above FullHRUs in legend
         proj = QgsProject.instance()
@@ -3627,12 +3627,12 @@ class CreateHRUs(QObject):
             area = self.hrusArea(hrus, lsuData)
             areaHa = area / 1E4
             if subArea == 0:
-                QSWATUtils.error('SWAT basin {0} seems to be empty'.format(feature[subIndx]), self._gv.isBatch)
+                QSWATUtils.error('SWAT basin {0} seems to be empty'.format(feature[subIndx]), self._gv.isBatch, logFile=self._gv.logFile)
                 percentSub = 0.0
             else:
                 percentSub = (area / subArea) * 100
             if lsuArea == 0:
-                QSWATUtils.error('LSU {0} seems to be empty'.format(QSWATUtils.landscapeUnitId(SWATChannel, lscape)), self._gv.isBatch)
+                QSWATUtils.error('LSU {0} seems to be empty'.format(QSWATUtils.landscapeUnitId(SWATChannel, lscape)), self._gv.isBatch, logFile=self._gv.logFile)
                 percentLSU = 0.0
             else:
                 percentLSU = (area / lsuArea) * 100
@@ -3703,10 +3703,10 @@ class CreateHRUs(QObject):
                 for cellData in lsuData.hruMap.values():
                     if cellData.actHRUNum == hruNum:
                         return cast(float, cellData.area)
-                QSWATUtils.error('Cannot find hru {0}'.format(hru), self._gv.isBatch)
+                QSWATUtils.error('Cannot find hru {0}'.format(hru), self._gv.isBatch, logFile=self._gv.logFile)
                 return 0
         except Exception:
-            QSWATUtils.error('Cannot parse {0} as an hru reference'.format(hru), self._gv.isBatch)
+            QSWATUtils.error('Cannot parse {0} as an hru reference'.format(hru), self._gv.isBatch, logFile=self._gv.logFile)
             return 0
         
     def createHrusResultsFile(self, actHRUsFile: str, root: QgsLayerTree) -> None:
@@ -3836,7 +3836,7 @@ class CreateHRUs(QObject):
         subsProvider1 = subs1Layer.dataProvider()
         lsus2File = QSWATUtils.join(self._gv.shapesDir, Parameters._LSUS2 + '.shp')
         if not os.path.isfile(lsus2File):
-            QSWATUtils.error('No actual LSUs file, so gis_subbasins and gis_lsus tables not written', self._gv.isBatch)
+            QSWATUtils.error('No actual LSUs file, so gis_subbasins and gis_lsus tables not written', self._gv.isBatch, logFile=self._gv.logFile)
             return False
         self.progress('Writing subbasins and lsus tables ...')
         # remove features with 0 subbasin value
@@ -3849,7 +3849,7 @@ class CreateHRUs(QObject):
             idsToDelete.append(feature.id())
         OK = subsProvider1.deleteFeatures(idsToDelete)
         if not OK:
-            QSWATUtils.error('Cannot edit subbasins shapefile {0}'.format(subs1File), self._gv.isBatch)
+            QSWATUtils.error('Cannot edit subbasins shapefile {0}'.format(subs1File), self._gv.isBatch, logFile=self._gv.logFile)
             return False
         # Add fields from Watershed table to subs1File if less than RIVS1SUBS1MAX features; otherwise takes too long.
         addToSubs1 = subs1Layer.featureCount() <= Parameters._RIVS1SUBS1MAX
@@ -3960,7 +3960,7 @@ class CreateHRUs(QObject):
                         elif 'flood' not in floodFilename:
                             valleyDepthsLayer = None
                         else:
-                            QSWATUtils.error('Cannot find valley depths raster {0}'.format(self._gv.valleyDepthsFile), self._gv.isBatch)
+                            QSWATUtils.error('Cannot find valley depths raster {0}'.format(self._gv.valleyDepthsFile), self._gv.isBatch, logFile=self._gv.logFile)
                             return False
                     else:
                         valleyDepthsLayer = None
@@ -3980,26 +3980,52 @@ class CreateHRUs(QObject):
             else:
                 generator = self.generateBasinsFromTable()
             for fid, basin, SWATBasin, basinData in generator:
-                if basinData is None or SWATBasin == 0:
+                if SWATBasin == 0:
                     continue
-                # some values will be float64 and will not write unless coerced to float
-                areaKm = basinData.subbasinArea() / 1E6  # area in square km.
-                areaHa = areaKm * 100
-                cellCount = basinData.subbasinCellCount()
-                waterId = basinData.waterId
-                # cell counts amy be zero in HUC and HAWQS models because of restricted landuse and soil maps
-                assert waterId > 0 or cellCount > 0 or self._gv.isHUC or self._gv.isHAWQS, 'Basin {0!s} has zero cell count'.format(SWATBasin)
-                meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
-                meanSlopePercent = meanSlope * 100
-                farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
-                slsubbsn = QSWATUtils.getSlsubbsn(meanSlope)
+                if basinData is None:
+                    # subbasin may be inside lake
+                    # include anyways as SBR and SUB entries in gis_routing will otherwise cause errors
+                    areaHa = 0
+                    meanSlopePercent = 0
+                    farDistance = 0
+                    slsubbsn = 120
+                    meanElevation = 0
+                    elevMin = 0
+                    elevMax = 0
+                    # look for lakeId to use as waterId
+                    lakeId = 0
+                    for subbasin, (_, _, chLinks) in self._gv.topo.outlets.items():
+                        if basin == subbasin:
+                            # with grid models chLinks is always a singleton list
+                            if self._gv.useGridModel:
+                                if chLinks[0] in self._gv.topo.chLinkInsideLake or chLinks[0] in self._gv.topo.chLinkFromLake:
+                                    continue
+                            lakeId = self._gv.topo.outletsInLake.get(subbasin, -1)
+                            # if one chLink is inside lake, all will be, since they share their outlet point
+                            # does not seem to be true for HUC models, where right link (coincident with stream exit) must be first
+                            if lakeId < 0:
+                                lakeId = self._gv.topo.chLinkInsideLake.get(chLinks[0], 0)
+                            break
+                    waterId = lakeId
+                else:
+                    # some values will be float64 and will not write unless coerced to float
+                    areaKm = basinData.subbasinArea() / 1E6  # area in square km.
+                    areaHa = areaKm * 100
+                    cellCount = basinData.subbasinCellCount()
+                    waterId = basinData.waterId
+                    # cell counts amy be zero in HUC and HAWQS models because of restricted landuse and soil maps
+                    assert waterId > 0 or cellCount > 0 or self._gv.isHUC or self._gv.isHAWQS, 'Basin {0!s} has zero cell count'.format(SWATBasin)
+                    meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
+                    meanSlopePercent = meanSlope * 100
+                    farDistance = basinData.farDistance * self._gv.tributaryLengthMultiplier
+                    slsubbsn = QSWATUtils.getSlsubbsn(meanSlope)
+                    meanElevation = 0.0 if waterId > 0 or cellCount == 0 else basinData.totalElevation() / cellCount
+                    elevMin = 0.0 if waterId > 0 else basinData.minElevation
+                    elevMax = 0.0 if waterId > 0 else basinData.maxElevation
                 centreX, centreY = self._gv.topo.basinCentroids[basin]
                 centroidll = self._gv.topo.pointToLatLong(QgsPointXY(centreX, centreY))
                 lat = centroidll.y()
                 lon = centroidll.x()
-                meanElevation = 0.0 if waterId > 0 or cellCount == 0 else basinData.totalElevation() / cellCount
-                elevMin = 0.0 if waterId > 0 else basinData.minElevation
-                elevMax = 0.0 if waterId > 0 else basinData.maxElevation
                 if addToSubs1:
                     subMap[fid] = dict()
                     amap = subMap[fid]
@@ -4018,91 +4044,92 @@ class CreateHRUs(QObject):
                               farDistance, slsubbsn,
                               lat, lon, meanElevation, elevMin, elevMax, waterId))
                 self._gv.db.addKey(subtable, SWATBasin)
-                for channel, channelData in basinData.getLsus().items():
-                    SWATChannel = self._gv.topo.channelToSWATChannel[channel]
-                    floodDrop: Optional[float] = 0.0
-                    floodLen = 0.0
-                    floodLsuData = channelData.get(QSWATUtils._FLOODPLAIN, None) if self._gv.useLandscapes else channelData.get(QSWATUtils._NOLANDSCAPE, None)
-                    if floodLsuData is not None:
-                        dropToSource = floodLsuData.farElevation - floodLsuData.sourceElevation
-                        if valleyDepthsLayer is None:
-                            floodDrop = None
-                        else:
-                            floodDrop = QSWATTopology.valueAtPoint(QgsPointXY(floodLsuData.farPointX, floodLsuData.farPointY), valleyDepthsLayer)
-                        if floodDrop is None:
-                            # estimate it
-                            floodDrop = abs(dropToSource * 0.25 if self._gv.useLandscapes else dropToSource)
-                        floodLen = floodLsuData.farDistance
-                    assert floodDrop is not None
-                    for landscape, lsuData in channelData.items():
-                        if lsuData.cropSoilSlopeArea == 0:
-                            if not (self._gv.isHUC or self._gv.isHAWQS):  # outside soil/landuse: leave HUC and HAWQS LSUs to avoid complications with channel
-                                continue
-                        elif (lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and \
-                             lsuData.cropSoilSlopeArea == lsuData.waterBody.originalArea):
-                            # was all water
-                            continue
-                        lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
-                        if landscape  == QSWATUtils._UPSLOPE:
-                            tribDistance = (lsuData.farDistance - floodLen) * self._gv.tributaryLengthMultiplier
+                if basinData is not None:
+                    for channel, channelData in basinData.getLsus().items():
+                        SWATChannel = self._gv.topo.channelToSWATChannel[channel]
+                        floodDrop: Optional[float] = 0.0
+                        floodLen = 0.0
+                        floodLsuData = channelData.get(QSWATUtils._FLOODPLAIN, None) if self._gv.useLandscapes else channelData.get(QSWATUtils._NOLANDSCAPE, None)
+                        if floodLsuData is not None:
+                            dropToSource = floodLsuData.farElevation - floodLsuData.sourceElevation
                             if valleyDepthsLayer is None:
-                                slopeDrop = None
+                                floodDrop = None
                             else:
-                                slopeDrop = QSWATTopology.valueAtPoint(QgsPointXY(lsuData.farPointX, lsuData.farPointY), valleyDepthsLayer)
-                            if slopeDrop is None:
+                                floodDrop = QSWATTopology.valueAtPoint(QgsPointXY(floodLsuData.farPointX, floodLsuData.farPointY), valleyDepthsLayer)
+                            if floodDrop is None:
                                 # estimate it
-                                slopeDrop = abs(lsuData.farElevation - lsuData.sourceElevation)
-                            assert slopeDrop is not None
-                            tribDrop = abs(slopeDrop - floodDrop)
-                        else:
-                            tribDistance = floodLen * self._gv.tributaryLengthMultiplier
-                            tribDrop = abs(floodDrop)
-                        areaHa = lsuData.area / 1E4
-                        if areaHa == 0:
-                            QSWATUtils.error('LSU {0} in subbasin {1} has zero area'.format(lsuId, SWATBasin), self._gv.isBatch)
-                        areaKm = areaHa / 100
-                        if not self._gv.isHUC:
-                            assert lsuData.cellCount > 0, 'LSU {0!s} has zero cell count'.format(lsuId)
-                        meanSlopePercent = 0 if lsuData.cellCount == 0 else \
-                                            (lsuData.totalSlope / lsuData.cellCount) \
-                                            * 100 * self._gv.meanSlopeMultiplier
-                        tribSlopePercent = 0 if tribDistance < 1 else (tribDrop / tribDistance) \
-                                                                    * 100 * self._gv.tributarySlopeMultiplier
-                        tribWidth = self._gv.channelWidthMultiplier * (areaKm ** self._gv.channelWidthExponent)
-                        tribDepth = self._gv.channelDepthMultiplier * (areaKm ** self._gv.channelDepthExponent)
-                        if lsuData.cellCount == 0:
-                            lat = 0
-                            lon = 0
-                            meanElev = 0
-                        else:
-                            centroid = self._gv.topo.pointToLatLong(QgsPointXY(lsuData.totalLongitude / lsuData.cellCount, 
-                                                                             lsuData.totalLatitude / lsuData.cellCount))
-                            lat = centroid.y()
-                            lon = centroid.x()
-                            meanElev = lsuData.totalElevation / lsuData.cellCount
-                        curs.execute(DBUtils._LSUSINSERTSQL, (lsuId, landscape, SWATChannel, SWATBasin, areaHa, meanSlopePercent, 
-                                           tribDistance, tribSlopePercent, tribWidth, tribDepth, lat, lon, meanElev))
-                        self._gv.db.addKey(lsutable, lsuId)
-                        if addToSubs1:
-                            # save LSU data for adding to lsus2 shapefile (saves searching it for each item)
-                            saveLSUMap[lsuId] = dict()
-                            amap = saveLSUMap[lsuId]
-                            amap[catlsuIdx] = landscape
-                            amap[slopelsuIdx] = meanSlopePercent
-                            amap[len1lsuIdx] = tribDistance
-                            amap[csllsuIdx] = tribSlopePercent
-                            amap[wid1lsuIdx] = tribWidth
-                            amap[dep1lsuIdx] = tribDepth
-                            amap[latlsuIdx] = lat
-                            amap[lonlsuIdx] = lon
-                            amap[elevlsuIdx] = meanElev
+                                floodDrop = abs(dropToSource * 0.25 if self._gv.useLandscapes else dropToSource)
+                            floodLen = floodLsuData.farDistance
+                        assert floodDrop is not None
+                        for landscape, lsuData in channelData.items():
+                            if lsuData.cropSoilSlopeArea == 0:
+                                if not (self._gv.isHUC or self._gv.isHAWQS):  # outside soil/landuse: leave HUC and HAWQS LSUs to avoid complications with channel
+                                    continue
+                            elif (lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and \
+                                 lsuData.cropSoilSlopeArea == lsuData.waterBody.originalArea):
+                                # was all water
+                                continue
+                            lsuId = QSWATUtils.landscapeUnitId(SWATChannel, landscape)
+                            if landscape  == QSWATUtils._UPSLOPE:
+                                tribDistance = (lsuData.farDistance - floodLen) * self._gv.tributaryLengthMultiplier
+                                if valleyDepthsLayer is None:
+                                    slopeDrop = None
+                                else:
+                                    slopeDrop = QSWATTopology.valueAtPoint(QgsPointXY(lsuData.farPointX, lsuData.farPointY), valleyDepthsLayer)
+                                if slopeDrop is None:
+                                    # estimate it
+                                    slopeDrop = abs(lsuData.farElevation - lsuData.sourceElevation)
+                                assert slopeDrop is not None
+                                tribDrop = abs(slopeDrop - floodDrop)
+                            else:
+                                tribDistance = floodLen * self._gv.tributaryLengthMultiplier
+                                tribDrop = abs(floodDrop)
+                            areaHa = lsuData.area / 1E4
+                            if areaHa == 0:
+                                QSWATUtils.error('LSU {0} in subbasin {1} has zero area'.format(lsuId, SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
+                            areaKm = areaHa / 100
+                            if not self._gv.isHUC:
+                                assert lsuData.cellCount > 0, 'LSU {0!s} has zero cell count'.format(lsuId)
+                            meanSlopePercent = 0 if lsuData.cellCount == 0 else \
+                                                (lsuData.totalSlope / lsuData.cellCount) \
+                                                * 100 * self._gv.meanSlopeMultiplier
+                            tribSlopePercent = 0 if tribDistance < 1 else (tribDrop / tribDistance) \
+                                                                        * 100 * self._gv.tributarySlopeMultiplier
+                            tribWidth = self._gv.channelWidthMultiplier * (areaKm ** self._gv.channelWidthExponent)
+                            tribDepth = self._gv.channelDepthMultiplier * (areaKm ** self._gv.channelDepthExponent)
+                            if lsuData.cellCount == 0:
+                                lat = 0
+                                lon = 0
+                                meanElev = 0
+                            else:
+                                centroid = self._gv.topo.pointToLatLong(QgsPointXY(lsuData.totalLongitude / lsuData.cellCount, 
+                                                                                 lsuData.totalLatitude / lsuData.cellCount))
+                                lat = centroid.y()
+                                lon = centroid.x()
+                                meanElev = lsuData.totalElevation / lsuData.cellCount
+                            curs.execute(DBUtils._LSUSINSERTSQL, (lsuId, landscape, SWATChannel, SWATBasin, areaHa, meanSlopePercent, 
+                                               tribDistance, tribSlopePercent, tribWidth, tribDepth, lat, lon, meanElev))
+                            self._gv.db.addKey(lsutable, lsuId)
+                            if addToSubs1:
+                                # save LSU data for adding to lsus2 shapefile (saves searching it for each item)
+                                saveLSUMap[lsuId] = dict()
+                                amap = saveLSUMap[lsuId]
+                                amap[catlsuIdx] = landscape
+                                amap[slopelsuIdx] = meanSlopePercent
+                                amap[len1lsuIdx] = tribDistance
+                                amap[csllsuIdx] = tribSlopePercent
+                                amap[wid1lsuIdx] = tribWidth
+                                amap[dep1lsuIdx] = tribDepth
+                                amap[latlsuIdx] = lat
+                                amap[lonlsuIdx] = lon
+                                amap[elevlsuIdx] = meanElev
             conn.commit()
             self._db.hashDbTable(conn, lsutable) 
             self._db.hashDbTable(conn, subtable) 
         if addToSubs1:
             OK = subsProvider1.changeAttributeValues(subMap)
             if not OK:
-                QSWATUtils.error('Cannot write data to {0}'.format(subs1File), self._gv.isBatch)
+                QSWATUtils.error('Cannot write data to {0}'.format(subs1File), self._gv.isBatch, logFile=self._gv.logFile)
             lsuMap = dict()
             toDelete = []
             request =  QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry).setSubsetOfAttributes([lsuIdx])
@@ -4116,7 +4143,7 @@ class CreateHRUs(QObject):
                     toDelete.append(fid)
             OK = lsusProvider2.changeAttributeValues(lsuMap)
             if not OK:
-                QSWATUtils.error('Cannot write data to {0}'.format(lsus2File), self._gv.isBatch)
+                QSWATUtils.error('Cannot write data to {0}'.format(lsus2File), self._gv.isBatch, logFile=self._gv.logFile)
             else:
                 lsusProvider2.deleteFeatures(toDelete)
         root = QgsProject.instance().layerTreeRoot()
@@ -4162,7 +4189,7 @@ class CreateHRUs(QObject):
                 oldVal = int(f[oldIndex])
                 mmap[f.id()] = {newIndex: fun(oldVal)}
             if not provider.changeAttributeValues(mmap):
-                QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch)
+                QSWATUtils.error('Cannot write data to {0}'.format(fileName), self._gv.isBatch, logFile=self._gv.logFile)
             return newIndex
                 
         def findOutlet(basin: int, downBasins: Dict[int, int]) -> Tuple[int, int]:
@@ -4199,16 +4226,16 @@ class CreateHRUs(QObject):
                         break
                     nxt = dsBasin
                 if len(path) > maxx:
-                    QSWATUtils.error('Failed to find outlet for basin {0} on path {1}'.format(basin, path), self._gv.isBatch)
+                    QSWATUtils.error('Failed to find outlet for basin {0} on path {1}'.format(basin, path), self._gv.isBatch, logFile=self._gv.logFile)
                     l = len(path)
                     last = path[l - 1]
                     i = l - 2
                     while i >= 0:
                         if last == path[i]:
-                            QSWATUtils.error('Path has loop length {0}'.format(l - i), self._gv.isBatch)
+                            QSWATUtils.error('Path has loop length {0}'.format(l - i), self._gv.isBatch, logFile=self._gv.logFile)
                             return
                         i -= 1
-                    QSWATUtils.error('Path has no loop', self._gv.isBatch)
+                    QSWATUtils.error('Path has no loop', self._gv.isBatch, logFile=self._gv.logFile)
                     return
             
         def writeAquifersTables(outletSubbasins: Dict[int, int], outletLakes: Dict[int, int]) -> None:
@@ -4221,7 +4248,7 @@ class CreateHRUs(QObject):
                 cursor.execute(sql)
                 cursor.execute(self._gv.db._CREATEAQUIFERS)
                 demLayer = QgsRasterLayer(self._gv.demFile, 'DEM')
-                # map of outlet deep aquifer id to SWTBasin, area, elevation * area, x * area, y * area, lakeId or zero
+                # map of outlet deep aquifer id to SWATBasin, area, elevation * area, x * area, y * area, lakeId or zero
                 deepData: Dict[int, Tuple[int, float, float, float, float, int]] = dict()
                 for basin, basinData in self.basins.items():
                     SWATBasin = self._gv.topo.subbasinToSWATBasin[basin]
@@ -4361,9 +4388,11 @@ class CreateHRUs(QObject):
                         basin = self._gv.topo.SWATBasinToSubbasin[deepAqId]
                         pointId, _, _ = self._gv.topo.outlets[basin]
                     self._gv.db.addToRouting(cursor, deepAqId, 'DAQ', pointId, 'PT', QSWATTopology._TOTAL, 100)
-                    # route point if not done
+                    # route point even if if not done since could be routed wrongly
                     if pointId not in self._gv.topo.routedPoints:
                         self._gv.db.addToRouting(cursor, pointId, 'PT', 0, 'X', QSWATTopology._TOTAL, 100)
+                    else:
+                        self._gv.db.updateRouting(cursor, pointId, 'PT', 0, 'X', QSWATTopology._TOTAL, 100)
         
         # start of createAquifers
         self.progress('Writing aquifers and deep aquifers tables ...')
@@ -4378,7 +4407,7 @@ class CreateHRUs(QObject):
                 idsToDelete.append(feature.id())
             OK = subsProvider.deleteFeatures(idsToDelete)
             if not OK:
-                QSWATUtils.error('Cannot edit aquifers shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch)
+                QSWATUtils.error('Cannot edit aquifers shapefile {0}, so cannot create aquifer and deep aquifer shapefiles for visualisation.'.format(subsFile), self._gv.isBatch, logFile=self._gv.logFile)
                 return
         else:
             # use subs1 as already has basins upstream from inlets removed
@@ -4538,7 +4567,7 @@ class CreateHRUs(QObject):
 #                 QSWATTopology.removeFields(aqLayer, [QSWATTopology._AQUIFER, Parameters._AREA, QSWATTopology._SUBBASIN], aqFile, self._gv.isBatch)
             except Exception as ex:
                 QSWATUtils.information('Failed to generate aquifers shapefile: aquifer result visualisation will not be possible: {0}'
-                                       .format(repr(ex)), self._gv.isBatch)
+                                       .format(repr(ex)), self._gv.isBatch, logFile=self._gv.logFile)
         # make map of subbasin to outlet subbasin in each watershed:
         outletSubbasins: Dict[int, int] = dict()
         # lakes with watershed outlets within them
@@ -4554,24 +4583,33 @@ class CreateHRUs(QObject):
             if SWATBasin > 0:
                 # outBasin, steps = findOutlet(basin, self._gv.topo.downSubbasins)
                 # if steps > 1000:
-                #     QSWATUtils.loginfo('Finding outlet from {0} took {1} steps'.format(SWATBasin, steps), self._gv.isBatch)
+                #     QSWATUtils.loginfo('Finding outlet from {0} took {1} steps'.format(SWATBasin, steps))
                 outBasin = outbasins.get(basin, -1)
                 if outBasin < 0:
-                    QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch)
+                    QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                     continue
                 outlets.add(outBasin)
                 # check if outlet in lake
-                lakeId = self._gv.topo.outletsInLake.get(basin, -1)
+                lakeId = self._gv.topo.outletsInLake.get(outBasin, -1)
                 if lakeId > 0:
                     # deepAquiferId chosen so that basins draining to same lake will share it
                     deepAquiferId = baseDeepAquiferId + lakeId
                     outletSubbasins[SWATBasin] = deepAquiferId
                     outletLakes[SWATBasin] = lakeId
+                    # store mapping of deepAquiferId to its basin in SWATBasinToSubbasin so it can be recovered later
+                    # when routing DAQ to its outlet point
+                    self._gv.topo.SWATBasinToSubbasin[deepAquiferId] = outBasin
                 else:
                     outletSubbasins[SWATBasin] = self._gv.topo.subbasinToSWATBasin.get(outBasin, 0)
                     if outletSubbasins[SWATBasin] == 0:
-                        QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch)
+                        QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                         continue
+        # make all subbasins with outletsubbasin in lake have outletsubbasin deepAquiferId
+        for outSWATBasin, lakeId in outletLakes.items():
+            deepAquiferId =  baseDeepAquiferId + lakeId
+            for SWATBasin in outletSubbasins.keys():
+                if outletSubbasins[SWATBasin] == outSWATBasin:
+                    outletSubbasins[SWATBasin] = deepAquiferId
         #QSWATUtils.loginfo('Outlet subbasins: {0!s}'.format(outletSubbasins))
         #QSWATUtils.loginfo('Down subbasins: {0!s}'.format(self._gv.topo.downSubbasins))
         try:
@@ -4600,7 +4638,7 @@ class CreateHRUs(QObject):
             QSWATUtils.tryRemoveFiles(tempDeepAqFile)
         except Exception as ex:
             QSWATUtils.information('Failed to generate deep aquifers shapefile: deep aquifer result visualisation will not be possible: {0}'
-                                   .format(repr(ex)), self._gv.isBatch)
+                                   .format(repr(ex)), self._gv.isBatch, logFile=self._gv.logFile)
         writeAquifersTables(outletSubbasins, outletLakes)
         # if we have a multiple catchment grid model with over _GRIDCELLSMAX cells, create partition into catchments
         # only do this if not an existing watershed, when user presumed to know what they want.
@@ -4653,7 +4691,7 @@ class CreateHRUs(QObject):
             writer = QgsVectorFileWriter.create(nextPartFile, gridFields,  QgsWkbTypes.Polygon, self._gv.crsProject, 
                                                 QgsCoordinateTransformContext(), self._gv.vectorFileWriterOptions)
             if writer.hasError() != QgsVectorFileWriter.NoError:
-                QSWATUtils.error('Cannot create partition shapefile {0}: {1}'.format(nextPartFile, writer.errorMessage()), self._gv.isBatch)
+                QSWATUtils.error('Cannot create partition shapefile {0}: {1}'.format(nextPartFile, writer.errorMessage()), self._gv.isBatch, logFile=self._gv.logFile)
                 return
             # delete the writer to flush
             writer.flushBuffer()
@@ -4724,7 +4762,7 @@ class CreateHRUs(QObject):
                             if waterBody.cellCount == 0: 
                                 if waterBody.isInlet(): # user-defined water body
                                     cat = 'reservoir' if waterBody.isReservoir() else 'pond'
-                                    QSWATUtils.information('WARNING: {0} on channel {1} has zero area'.format(cat, SWATChannel), self._gv.isBatch)
+                                    QSWATUtils.information('WARNING: {0} on channel {1} has zero area'.format(cat, SWATChannel), self._gv.isBatch, logFile=self._gv.logFile)
                                 else:
                                     continue # upper part of reservoir
                             # set id if necessary:
@@ -4824,7 +4862,7 @@ class CreateHRUs(QObject):
         addReservoirLayer, _ = QSWATUtils.getLayerByFilename(root.findLayers(), outletFile, FileTypes._EXTRAPTSRCANDRES,
                                                              self._gv, None, QSWATUtils._WATERSHED_GROUP_NAME)
         if not addReservoirLayer:
-            QSWATUtils.error('Could not load reservoir file {0}'.format(outletFile), self._gv.isBatch)
+            QSWATUtils.error('Could not load reservoir file {0}'.format(outletFile), self._gv.isBatch, logFile=self._gv.logFile)
             return
         
     def propagateReservoirId(self, start: int, rid: int, floodscape: int) -> None:
@@ -5266,7 +5304,10 @@ class HRUs(QObject):
         self._db = gv.db
         self._iface = gv.iface
         self._dlg = HrusDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint & Qt.WindowMinimizeButtonHint)
+        except AttributeError:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() | Qt.WindowType.WindowMinimizeButtonHint)
         self._dlg.move(self._gv.hrusPos)
         self._reportsCombo = reportsCombo
         ## start in landuse and soil tabsese
@@ -5404,7 +5445,7 @@ class HRUs(QObject):
         self.init()
         self._dlg.show()
         self.progress('')
-        result = self._dlg.exec_()  # @UnusedVariable
+        result = self._dlg.exec()  # @UnusedVariable
         # TODO: result is always zero. Need to reset to discover if CreateHRUs was run successfully
         self._gv.hrusPos = self._dlg.pos()
         if self.completed:
@@ -5486,7 +5527,7 @@ class HRUs(QObject):
 #                         if len(self._db.slopeLimits) == 0: self.CreateHRUs.slopeVal = 0
 #                         # allow too tight thresholds, since we guard against removing all HRUs from a subbasin
 #                         # if not self.CreateHRUs.cropSoilAndSlopeThresholdsAreOK():
-#                         #     QSWATUtils.error('Internal error: problem with tight thresholds', self._gv.isBatch)
+#                         #     QSWATUtils.error('Internal error: problem with tight thresholds', self._gv.isBatch, logFile=self._gv.logFile)
 #                         #     return
 #                         if self.CreateHRUs.useArea:
 #                             self.CreateHRUs.removeSmallHRUsByThresholdArea()
@@ -5541,12 +5582,12 @@ class HRUs(QObject):
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and \
             self._dlg.floodplainCombo.currentIndex() == 0 and self.hasVisibleFloodplainLayer(root):
             res = QSWATUtils.question('You have at least one floodplain map available.  Would you like to select one?', False, False)
-            if res == QMessageBox.Yes:
+            if res == QMessageBox.StandardButton.Yes:
                 return False
         # check if there is a slope limit not yet inserted
         if not self._gv.isBatch and self._dlg.readFromMaps.isChecked() and self._dlg.slopeBand.text() != '':
             res = QSWATUtils.question('You seem to be about to insert a slope limit.  Would you like to complete that?', False, False)
-            if res == QMessageBox.Yes:
+            if res == QMessageBox.StandardButton.Yes:
                 return False
         self._gv.writeProjectConfig(-1, 0)
         self._dlg.HRUsTab.setTabEnabled(1, False)
@@ -5557,10 +5598,10 @@ class HRUs(QObject):
         self._dlg.generateFullHRUs.setEnabled(False)
         self._dlg.elevBandsButton.setEnabled(False)
         if not os.path.exists(self.landuseFile):
-            QSWATUtils.error('Please select a landuse file', self._gv.isBatch)
+            QSWATUtils.error('Please select a landuse file', self._gv.isBatch, logFile=self._gv.logFile)
             return False
         if not os.path.exists(self.soilFile):
-            QSWATUtils.error('Please select a soil file', self._gv.isBatch)
+            QSWATUtils.error('Please select a soil file', self._gv.isBatch, logFile=self._gv.logFile)
             return False
         self._gv.landuseFile = self.landuseFile
         self._gv.soilFile = self.soilFile
@@ -5572,20 +5613,20 @@ class HRUs(QObject):
             luse = ''
             soil = ''
         self.progress('Checking landuses ...')
-        self._dlg.setCursor(Qt.WaitCursor)
+        self._dlg.setCursor(Qt.CursorShape.WaitCursor)
         if not self.initLanduses(luse):
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
             self.progress('')
             return False
-        #QSWATUtils.information('Using {0} as landuse table'.format(self.landuseTable), self._gv.isBatch)
+        #QSWATUtils.information('Using {0} as landuse table'.format(self.landuseTable), self._gv.isBatch, logFile=self._gv.logFile)
         self.progress('Checking soils ...')
         if not self.initSoils(soil):
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
             self.progress('')
             return False
         # write landuse, soil, landscape choices in case of failure later
         self.saveProjPart1()
-        #QSWATUtils.information('Using {0} as soil table'.format(self.soilTable), self._gv.isBatch)
+        #QSWATUtils.information('Using {0} as soil table'.format(self.soilTable), self._gv.isBatch, logFile=self._gv.logFile)
         if self._gv.isBatch:
             QSWATUtils.information('Landuse file: {0}'.format(os.path.split(self.landuseFile)[1]), True)
             QSWATUtils.information('Landuse lookup table: {0}'.format(self.landuseTable), True)
@@ -5673,7 +5714,7 @@ class HRUs(QObject):
                     QSWATUtils.information('Writing landuse and soil report ...', True)
                 self.CreateHRUs.printBasins(False, None)
             self._dlg.progressBar.setVisible(False)
-        self._dlg.setCursor(Qt.ArrowCursor)
+        self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
         if OK:
             self._dlg.readFromPrevious.setEnabled(True)
             self._dlg.subbasinsLabel.setText('Subbasins count: {0}'.format(len(self.CreateHRUs.basins)))
@@ -5704,7 +5745,7 @@ class HRUs(QObject):
         if table == '':
             self.landuseTable = self._dlg.selectLanduseTable.currentText()
             if self.landuseTable not in self._db.landuseTableNames:
-                QSWATUtils.error('Please select a landuse table', self._gv.isBatch)
+                QSWATUtils.error('Please select a landuse table', self._gv.isBatch, logFile=self._gv.logFile)
                 return False
         else: # doing tryRun and table already read from project file
             self.landuseTable = table
@@ -5714,11 +5755,11 @@ class HRUs(QObject):
         """Set up soil lookup tables."""
         if not os.path.exists(self._db.plantSoilDatabase):
             QSWATUtils.information('Warning: landuse and soil database {0} does not seeme to exist'
-                                   .format(self._db.plantSoilDatabase), self._gv.isBatch)
+                                   .format(self._db.plantSoilDatabase), self._gv.isBatch, logFile=self._gv.logFile)
         elif not self._db.useSTATSGO and not self._db.useSSURGO:
             if not self._db.hasTable(self._db.plantSoilDatabase, self._db.usersoilTable):
                 QSWATUtils.information('Warning: table {0} not found in landuse and soil database {1}'
-                                       .format(self._db.usersoilTable, self._db.plantSoilDatabase), self._gv.isBatch)
+                                       .format(self._db.usersoilTable, self._db.plantSoilDatabase), self._gv.isBatch, logFile=self._gv.logFile)
         if self._db.useSSURGO: # no lookup table needed
             self._db.ssurgoSoils = set()
             return True
@@ -5727,7 +5768,7 @@ class HRUs(QObject):
         if table == '':
             self.soilTable = self._dlg.selectSoilTable.currentText()
             if self.soilTable not in self._db.soilTableNames:
-                QSWATUtils.error('Please select a soil table', self._gv.isBatch)
+                QSWATUtils.error('Please select a soil table', self._gv.isBatch, logFile=self._gv.logFile)
                 return False
         else: # doing tryRun and table already read from project file
             self.soilTable = table
@@ -5738,7 +5779,7 @@ class HRUs(QObject):
         self._gv.writeProjectConfig(-1, 0)
         time1 = time.process_time()
         try:
-            self._dlg.setCursor(Qt.WaitCursor)
+            self._dlg.setCursor(Qt.CursorShape.WaitCursor)
             self._dlg.slopeSlider.setEnabled(False)
             self._dlg.slopeVal.setEnabled(False)
             self._dlg.areaGroup.setEnabled(False)
@@ -5762,7 +5803,7 @@ class HRUs(QObject):
                     if len(self._db.slopeLimits) == 0: self.CreateHRUs.slopeVal = 0
                     # allow too tight thresholds, since we guard against removing all HRUs from a subbasin
                     # if not self.CreateHRUs.cropSoilAndSlopeThresholdsAreOK():
-                    #     QSWATUtils.error('Internal error: problem with tight thresholds', self._gv.isBatch)
+                    #     QSWATUtils.error('Internal error: problem with tight thresholds', self._gv.isBatch, logFile=self._gv.logFile)
                     #     return
                     if self.CreateHRUs.useArea:
                         self.CreateHRUs.removeSmallHRUsByThresholdArea()
@@ -5783,7 +5824,7 @@ class HRUs(QObject):
             self.CreateHRUs.writeWaterBodiesTable()
             self.CreateHRUs.printBasins(True, fullHRUsLayer)
             if not self.CreateHRUs.mergeLSUs(root):
-                QSWATUtils.error('Failed to create actual LSUs shapefile {0}'.format(self._gv.actLSUsFile), self._gv.isBatch)
+                QSWATUtils.error('Failed to create actual LSUs shapefile {0}'.format(self._gv.actLSUsFile), self._gv.isBatch, logFile=self._gv.logFile)
             if self.CreateHRUs.writeSubbasinsAndLandscapeTables(root):
                 # can now provide soil layer legend
                 soilLayer = QSWATUtils.getLayerByFilename(root.findLayers(), self._gv.soilFile, None, None, None, None)[0]
@@ -5800,17 +5841,17 @@ class HRUs(QObject):
                     msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.countHRUs(), 
                                                                                                 self.CreateHRUs.countChannels(), 
                                                                                                 len(self.CreateHRUs.basins))
-                    self._iface.messageBar().pushMessage(msg, level=Qgis.Info, duration=10)  # type: ignore
+                    self._iface.messageBar().pushMessage(msg, level=Qgis.MessageLevel.Info, duration=10)  # type: ignore
                     if self._gv.isBatch:
                         print(msg)
             self._gv.db.checkRoutingTable()
         except Exception:
-            QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch)
+            QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch, logFile=self._gv.logFile)
         finally:
             self.saveProj()
             time2 = time.process_time()
             QSWATUtils.loginfo('Calculating HRUs took {0} seconds'.format(int(time2 - time1)))
-            self._dlg.setCursor(Qt.ArrowCursor)
+            self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
             if self._dlg.gwflowButton.isChecked():
                 gwf = GWFlow(self._gv, self.progress)
                 gwf.run()
@@ -5827,13 +5868,13 @@ class HRUs(QObject):
             self._db.plantSoilDatabase = self._db.dbFile
         self._db.plantTableNames = self._db.collectPlantSoilTableNames('plant', self._dlg.selectPlantTable)
         plantSearch = self._db.plantTable if 'plant' in self._db.plantTable else 'plant'
-        plantIndex = self._dlg.selectPlantTable.findText(plantSearch, Qt.MatchExactly)
+        plantIndex = self._dlg.selectPlantTable.findText(plantSearch, Qt.MatchFlag.MatchExactly)
         if plantIndex >= 0:
             self._dlg.selectPlantTable.setCurrentIndex(plantIndex)
         self._db.plantTable = self._dlg.selectPlantTable.currentText()
         self._db.urbanTableNames = self._db.collectPlantSoilTableNames('urban', self._dlg.selectUrbanTable)
         urbanSearch = self._db.urbanTable if 'urban' in self._db.urbanTable else 'urban'
-        urbanIndex = self._dlg.selectUrbanTable.findText(urbanSearch, Qt.MatchExactly)
+        urbanIndex = self._dlg.selectUrbanTable.findText(urbanSearch, Qt.MatchFlag.MatchExactly)
         if urbanIndex >= 0:
             self._dlg.selectUrbanTable.setCurrentIndex(urbanIndex)
         self._db.urbanTable = self._dlg.selectUrbanTable.currentText()
@@ -5853,7 +5894,7 @@ class HRUs(QObject):
                 self._db.plantSoilDatabase = self._db.dbFile
             self._db.usersoilTableNames = self._db.collectPlantSoilTableNames('usersoil', self._dlg.selectUsersoilTable)
             searchTable = self._db.usersoilTable if 'usersoil' in self._db.usersoilTable else 'usersoil'
-            usersoilIndex = self._dlg.selectUsersoilTable.findText(searchTable, Qt.MatchExactly)
+            usersoilIndex = self._dlg.selectUsersoilTable.findText(searchTable, Qt.MatchFlag.MatchExactly)
             if usersoilIndex >= 0:
                 self._dlg.selectUsersoilTable.setCurrentIndex(usersoilIndex)
             self._db.usersoilTable = self._dlg.selectUsersoilTable.currentText()
@@ -5868,7 +5909,7 @@ class HRUs(QObject):
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use STATSGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
-                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch)
+                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
         elif self._dlg.SSURGOButton.isChecked():
             self._dlg.dbLabel.setText('Select landuse database')
             self._db.useSTATSGO = False
@@ -5880,7 +5921,7 @@ class HRUs(QObject):
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
-                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch)
+                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
             
     def selectPlantSoilDatabase(self) -> None:
         """Allow user to select plant and soil database."""
@@ -5907,8 +5948,8 @@ class HRUs(QObject):
         
     def setRead(self) -> None:
         """Set dialog to read from maps or from previous run."""
-        # for safety always rerun reading files for HUC projects
-        if self._db.hasData('BASINSDATA') and not self._gv.isHUC:
+        # for safety always rerun reading files for HUC projects.  No longer necessary
+        if self._db.hasData('BASINSDATA'): # and not self._gv.isHUC:
             self._dlg.readFromPrevious.setEnabled(True)
             self._dlg.readFromPrevious.setChecked(True)
         else:
@@ -6129,7 +6170,7 @@ class HRUs(QObject):
             if self._dlg.channelAreaButton.isChecked() and val > self._dlg.channelMergeSlider.maximum():
                 self._dlg.channelMergeSlider.setMaximum(2 * val)
             self._dlg.channelMergeSlider.setValue(val)
-            self._dlg.channelMergeVal.moveCursor(QTextCursor.End)
+            self._dlg.channelMergeVal.moveCursor(QTextCursor.MoveOperation.End)
             self.setChannelMergeChoice()
         except Exception:
             return
@@ -6159,7 +6200,7 @@ class HRUs(QObject):
             if self._dlg.areaSlider.minimum() <= val <= self._dlg.areaSlider.maximum():
                 self._dlg.areaSlider.setValue(val)
             self.CreateHRUs.areaVal = val
-            self._dlg.areaVal.moveCursor(QTextCursor.End)
+            self._dlg.areaVal.moveCursor(QTextCursor.MoveOperation.End)
         except Exception:
             return
         self._dlg.createButton.setEnabled(True)
@@ -6182,7 +6223,7 @@ class HRUs(QObject):
             if self._dlg.landuseSlider.minimum() <= val <= self._dlg.landuseSlider.maximum():
                 self._dlg.landuseSlider.setValue(val)
             self.CreateHRUs.landuseVal = val
-            self._dlg.landuseVal.moveCursor(QTextCursor.End)
+            self._dlg.landuseVal.moveCursor(QTextCursor.MoveOperation.End)
         except Exception:
             return
         
@@ -6203,7 +6244,7 @@ class HRUs(QObject):
             if self._dlg.soilSlider.minimum() <= val <= self._dlg.soilSlider.maximum():
                 self._dlg.soilSlider.setValue(val)
             self.CreateHRUs.soilVal = val
-            self._dlg.soilVal.moveCursor(QTextCursor.End)
+            self._dlg.soilVal.moveCursor(QTextCursor.MoveOperation.End)
         except Exception:
             return
         
@@ -6224,7 +6265,7 @@ class HRUs(QObject):
             if self._dlg.slopeSlider.minimum() <= val <= self._dlg.slopeSlider.maximum():
                 self._dlg.slopeSlider.setValue(val)
             self.CreateHRUs.slopeVal = val
-            self._dlg.slopeVal.moveCursor(QTextCursor.End)
+            self._dlg.slopeVal.moveCursor(QTextCursor.MoveOperation.End)
         except Exception:
             return
         
@@ -6243,7 +6284,7 @@ class HRUs(QObject):
             val = int(string)
             self._dlg.targetSlider.setValue(val)
             self.CreateHRUs.targetVal = val
-            self._dlg.targetVal.moveCursor(QTextCursor.End)
+            self._dlg.targetVal.moveCursor(QTextCursor.MoveOperation.End)
         except Exception:
             return
         
@@ -6296,7 +6337,7 @@ class HRUs(QObject):
         try:
             num = locale.atof(txt)
         except Exception:
-            QSWATUtils.information('Cannot parse {0} as a number'.format(txt), self._gv.isBatch)
+            QSWATUtils.information('Cannot parse {0} as a number'.format(txt), self._gv.isBatch, logFile=self._gv.logFile)
             return
         ListFuns.insertIntoSortedList(num, self._db.slopeLimits, True)
         self._dlg.slopeBrowser.setText(QSWATUtils.slopesToString(self._db.slopeLimits))
@@ -6350,7 +6391,7 @@ class HRUs(QObject):
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._LANDUSES)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._LANDUSES)), self._gv.isBatch, True) == QMessageBox.StandardButton.Yes:
                     landuseLayer = layer
                     landuseFile = possFile
         if landuseLayer is not None: 
@@ -6369,7 +6410,7 @@ class HRUs(QObject):
             if treeLayer is not None:
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
-                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SOILS)), self._gv.isBatch, True) == QMessageBox.Yes:
+                if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SOILS)), self._gv.isBatch, True) == QMessageBox.StandardButton.Yes:
                     soilLayer = layer
                     soilFile = possFile
         if soilLayer is not None:
@@ -6483,7 +6524,7 @@ class HRUs(QObject):
                 layer = treeLayer.layer()
                 possFile = QSWATUtils.layerFileInfo(layer).absoluteFilePath()
                 if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, FileTypes.legend(FileTypes._SLOPEBANDS)), 
-                                       self._gv.isBatch, True) == QMessageBox.Yes:
+                                       self._gv.isBatch, True) == QMessageBox.StandardButton.Yes:
                     slopeBandsLayer = layer
                     slopeBandsFile = possFile
         if slopeBandsLayer is not None:

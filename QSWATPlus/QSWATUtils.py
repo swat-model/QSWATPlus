@@ -22,7 +22,7 @@
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInfo, QSettings, QTextStream, QIODevice
 from qgis.PyQt.QtGui import QColor 
-from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox
+from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox 
 from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
 from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
                         
@@ -45,9 +45,10 @@ import traceback
 import processing   # type: ignore # @UnresolvedImport
 from packaging.version import parse
 
+
 class QSWATUtils:
     """Various utilities."""
-        
+
     _DATEFORMAT = '%d %B %Y'
     _QSWATNAME: str = 'QSWAT+'
     
@@ -135,9 +136,9 @@ class QSWATUtils:
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
-            msgbox.setIcon(QMessageBox.Critical)
+            msgbox.setIcon(QMessageBox.Icon.Critical)
             msgbox.setText(QSWATUtils.trans(msg))
-            msgbox.exec_()
+            msgbox.exec()
         return
     
     @staticmethod
@@ -152,16 +153,16 @@ class QSWATUtils:
         if not isBatch:
             questionBox: QMessageBox = QMessageBox()
             questionBox.setWindowTitle(QSWATUtils._QSWATNAME)
-            questionBox.setIcon(QMessageBox.Question)
-            questionBox.setStandardButtons(QMessageBox.Yes | QMessageBox.No)  # type: ignore
+            questionBox.setIcon(QMessageBox.Icon.Question)
+            questionBox.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)  # type: ignore
             questionBox.setText(QSWATUtils.trans(msg))
-            result: QMessageBox.StandardButton = questionBox.exec_()  # type: ignore
+            result: QMessageBox.StandardButton = questionBox.exec()  # type: ignore
         else: # batch: use affirm parameter
             if affirm:
-                result = QMessageBox.Yes
+                result = QMessageBox.StandardButton.Yes
             else:
-                result = QMessageBox.No
-        if result == QMessageBox.Yes:
+                result = QMessageBox.StandardButton.No
+        if result == QMessageBox.StandardButton.Yes:
             res = ' Yes'
         else:
             res = ' No'
@@ -189,9 +190,9 @@ class QSWATUtils:
         else:
             msgbox: QMessageBox = QMessageBox()
             msgbox.setWindowTitle(QSWATUtils._QSWATNAME)
-            msgbox.setIcon(QMessageBox.Information)
+            msgbox.setIcon(QMessageBox.Icon.Information)
             msgbox.setText(QSWATUtils.trans(msg))
-            msgbox.exec_()
+            msgbox.exec()
         return
     
     @staticmethod
@@ -201,7 +202,7 @@ class QSWATUtils:
         # allow to fail if no application
         if app is not None:
             log: QgsMessageLog = QgsApplication.instance().messageLog()
-            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Info)
+            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.MessageLevel.Info)
         
     @staticmethod
     def logerror(msg: str) -> None:
@@ -210,7 +211,7 @@ class QSWATUtils:
         # allow to fail if no application
         if app is not None:
             log: QgsMessageLog = QgsApplication.instance().messageLog()
-            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.Critical)
+            log.logMessage(msg, QSWATUtils._QSWATNAME, Qgis.MessageLevel.Critical)
         
     @staticmethod
     def trans(msg: str) -> str:
@@ -269,7 +270,7 @@ class QSWATUtils:
             print(text)
             # calling processEvents after label.clear can cause QGIS to hang
             label.update()
-            QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+            QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
         
     @staticmethod
     def layerFileInfo(mapLayer: QgsMapLayer) -> Optional[QFileInfo]:
@@ -530,7 +531,7 @@ class QSWATUtils:
                 info = QSWATUtils.layerFileInfo(layer)
                 if info is not None:
                     possFile: str = info.absoluteFilePath()
-                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == QMessageBox.Yes:
+                    if QSWATUtils.question('Use {0} as {1} file?'.format(possFile, lgnd), isBatch, True) == QMessageBox.StandardButton.Yes:
                         return layer
         return None
         
@@ -1106,7 +1107,7 @@ class QSWATUtils:
         doc: QDomDocument = QDomDocument()
         f: QFile = QFile(xmlFile)
         done = False
-        if f.open(QIODevice.ReadWrite):
+        if f.open(QIODevice.OpenModeFlag.ReadWrite):
             if doc.setContent(f):
                 tagNodes: QDomNodeList = doc.elementsByTagName(tag)
                 for i in range(tagNodes.length()):

@@ -52,7 +52,10 @@ class SWATGraph(QObject):
         """Initialise class variables."""
         QObject.__init__(self)
         self._dlg = GraphDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         ## csv file of results
         self.csvFile = csvFile
         ## Plot type: 1 for line graph or bar chart, 2 flor flow duration curve, 3 for scatter plot, 4 for box plot
@@ -95,7 +98,7 @@ class SWATGraph(QObject):
         if not Parameters._ISMAC:
             self.setUbuntuFont()
         self.readCsv()
-        self._dlg.exec_()
+        self._dlg.exec()
         
     def addmpl(self):
         """Add graph defined in self.fig."""
@@ -131,9 +134,9 @@ class SWATGraph(QObject):
         """Report msg as an error."""
         msgbox = QMessageBox()
         msgbox.setWindowTitle('SWATGraph')
-        msgbox.setIcon(QMessageBox.Critical)
+        msgbox.setIcon(QMessageBox.Icon.Critical)
         msgbox.setText(SWATGraph.trans(msg))
-        msgbox.exec_()
+        msgbox.exec()
         return
     
     def getCsv(self):

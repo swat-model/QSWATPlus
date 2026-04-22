@@ -21,13 +21,13 @@
 '''
 # Import the PyQt and QGIS libraries
 from qgis.PyQt.QtCore import Qt
-#from PyQt5.QtGui import * # @UnusedWildImport
+#from qgis.PyQt.QtGui import * # @UnusedWildImport
 #from qgis.core import *
 import webbrowser
 
 # Import the code for the dialog
 from .aboutdialog import aboutDialog
-from .QSWATUtils import QSWATUtils # type: ignore 
+from .QSWATUtils import QSWATUtils # type: ignore
 from .globals import GlobalVars
 
 class AboutQSWAT:
@@ -38,7 +38,10 @@ class AboutQSWAT:
         """Initialise."""
         self._gv = gv
         self._dlg = aboutDialog()
-        self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        try:
+            self._dlg.setWindowFlags(self._dlg.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        except AttributeError:
+            pass
         if self._gv:
             self._dlg.move(self._gv.aboutPos)
         
@@ -49,15 +52,15 @@ class AboutQSWAT:
         text = """
 {0} version: {1}
 
-Minimum QGIS version: 3.16.14
+QSWAT+ runs with QGIS 3 (from version 3.16.14) and QGIS 4
 
-Python version: 3.9
+Python version: 3.9 or 3.12
 
 Current restrictions:
 - Windows Linux and MacOS only
         """.format(QSWATUtils._QSWATNAME, version)
         self._dlg.textBrowser.setText(text)
-        self._dlg.exec_()
+        self._dlg.exec()
         if self._gv:
             self._gv.aboutPos = self._dlg.pos()
         
