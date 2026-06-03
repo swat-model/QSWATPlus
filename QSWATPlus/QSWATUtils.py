@@ -24,7 +24,7 @@ from qgis.PyQt.QtCore import QCoreApplication, QDir, QEventLoop, QFile, QFileInf
 from qgis.PyQt.QtGui import QColor 
 from qgis.PyQt.QtWidgets import QApplication, QFileDialog, QLabel, QLineEdit, QMessageBox, QComboBox 
 from qgis.PyQt.QtXml import QDomAttr, QDomDocument, QDomNode, QDomNodeList, QDomText, QDomNamedNodeMap
-from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
+from qgis.core import Qgis, QgsApplication, QgsCoordinateReferenceSystem, QgsContrastEnhancement, QgsError, QgsFeature, QgsFeatureRequest, QgsGeometry, QgsLayerTree, QgsLayerTreeGroup, QgsLayerTreeLayer, QgsLayerTreeNode, QgsLimitedRandomColorRamp, QgsMapLayer, QgsMessageLog, QgsPalettedRasterRenderer, QgsPointXY, QgsProject, QgsProviderRegistry, QgsRasterBandStats, QgsRasterLayer, QgsRasterShader, QgsRectangle, QgsRuleBasedRenderer, QgsMarkerSymbol, QgsSingleBandGrayRenderer, QgsSingleBandPseudoColorRenderer, QgsUnitTypes, QgsVectorLayer, QgsWkbTypes, QgsLineSymbol, QgsColorRampShader, QgsGradientColorRamp, QgsGraduatedSymbolRenderer, QgsRendererRangeLabelFormat, QgsRendererRange, QgsClassificationJenks  # @UnusedImport
                         
                         
                         
@@ -662,6 +662,8 @@ class QSWATUtils:
                     mapTip = FileTypes.mapTip(ft, useOBJECTID)
                     if mapTip != '':
                         mLayer.setMapTipTemplate(mapTip)
+                if ft == FileTypes._OUTLETS and isinstance(mLayer, QgsVectorLayer):
+                    FileTypes.ensureWellRendererRule(mLayer)
                 return (mLayer, False)
         # not found: load layer if requested
         if groupName is not None:
@@ -732,6 +734,8 @@ class QSWATUtils:
                     msg, OK = mapLayer.saveNamedStyle(qmlFile)
                     if not OK:
                         QSWATUtils.error('Failed to create dem.qml: {0}'.format(msg), gv.isBatch)
+                if ft == FileTypes._OUTLETS and isinstance(mapLayer, QgsVectorLayer):
+                    FileTypes.ensureWellRendererRule(mapLayer)
                 # now can set map tip if there is one
                 if mapTip != '':
                     assert isinstance(mapLayer, QgsVectorLayer)
@@ -1513,6 +1517,31 @@ class FileTypes:
             return 'outletsHUC.qml'
         else:
             return None
+
+    @staticmethod
+    def ensureWellRendererRule(layer: QgsVectorLayer) -> None:
+        """Ensure the outlets layer renderer has a rule for observation wells (RES=3)."""
+        renderer = layer.renderer()
+        if not isinstance(renderer, QgsRuleBasedRenderer):
+            return
+        root = renderer.rootRule()
+        for child in root.children():
+            if '"RES" = 3' in (child.filterExpression() or ''):
+                return
+        symbol = QgsMarkerSymbol.createSimple({
+            'name': 'diamond',
+            'color': '0,170,0,255',
+            'outline_color': '0,0,0,255',
+            'outline_width': '0',
+            'size': '3.5',
+            'size_unit': 'MM',
+        })
+        rule = QgsRuleBasedRenderer.Rule(symbol)
+        rule.setLabel('Well')
+        rule.setDescription('Observation well')
+        rule.setFilterExpression(' "INLET"  = 0  AND  "RES" = 3')
+        root.appendChild(rule)
+        layer.triggerRepaint()
 
     @staticmethod
     def title(ft: int) -> str:

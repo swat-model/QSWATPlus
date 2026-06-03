@@ -54,8 +54,9 @@ from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
 from .delineation import Delineation  # type: ignore
 from .globals import GlobalVars   # type: ignore #  @Reimport
-if Parameters._ISWIN:
-    from .gwflow import GWFlow   # type: ignore
+from .gwflow_hru import GwflowHru  # type: ignore
+from .gwflowdb import GwflowDB  # type: ignore
+from .gwflowgrid import GridGenerator  # type: ignore
 
 class CreateHRUs(QObject):
     
@@ -115,8 +116,40 @@ class CreateHRUs(QObject):
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
         self._dlg = dialog
-        # gwflow only available in Windows
-        dialog.gwGroupBox.setVisible(Parameters._ISWIN)
+        from qgis.PyQt.QtWidgets import QHBoxLayout
+        # Embedded gwflow panel in HRUs tab, shown when gwflow is selected
+        self.gwflowPanel = GwflowHru(dialog.tab_2)
+        self.gwflowPanel.setVisible(False)
+        self.gwflowPanel.move(10, 265)
+        self.gwflowPanel.setMinimumWidth(420)
+        self.gwflowPanel.adjustSize()
+        # Track tab_2 resize so the panel grows with the dialog
+        _origTabResize = dialog.tab_2.resizeEvent
+        def _onTabResize(ev):
+            _origTabResize(ev)
+            w = max(self.gwflowPanel.minimumWidth(), dialog.tab_2.width() - 20)
+            self.gwflowPanel.resize(w, self.gwflowPanel.height())
+        dialog.tab_2.resizeEvent = _onTabResize
+        self.gwflowPanel.initGridGenerator(gv)
+        dialog.gwflowButton.toggled.connect(self._onGwflowToggled)
+        self.gwflowPanel.validityChanged.connect(
+            lambda valid: dialog.createButton.setEnabled(valid or not dialog.gwflowButton.isChecked()))
+        # Bottom bar: progress display plus Cancel/Create, kept out of the tab
+        # body so the gwflow panel can never overlap or reflow them
+        dialog.createButton.setParent(dialog)
+        dialog.gridLayout_7.removeWidget(dialog.cancelButton)
+        dialog.progressLabel2.setParent(dialog)
+        self.gwflowPanel.progressBar.setParent(dialog)
+        self.gwflowPanel.progressBar.setVisible(False)
+        btnRow = QHBoxLayout()
+        btnRow.addWidget(dialog.progressLabel2)
+        btnRow.addWidget(self.gwflowPanel.progressBar)
+        btnRow.addStretch()
+        btnRow.addWidget(dialog.cancelButton)
+        btnRow.addWidget(dialog.createButton)
+        dialog.gridLayout_7.addLayout(btnRow, 3, 0, 1, 1)
+        # progress bar left the panel, so recompute its content height
+        self.gwflowPanel.adjustSize()
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -181,7 +214,34 @@ class CreateHRUs(QObject):
         QSWATUtils.progress(msg, progressLabel)
         if msg != '':
             self.progress_signal.emit(msg)
-        
+
+    def _onGwflowToggled(self, on: bool) -> None:
+        """Show/hide gwflow panel and swap Subbasins/GWFlow Cells layer visibility."""
+        self.gwflowPanel.setVisible(on)
+        self._dlg.createButton.setEnabled(not on or self.gwflowPanel.isValid())
+        if on:
+            self._loadExistingGwflowGrid()
+            GridGenerator.setGwflowMode(True)
+        else:
+            GridGenerator.removeGwflowLayer()
+
+    def _loadExistingGwflowGrid(self) -> None:
+        """Load gwflowcells.shp into the project if it exists and isn't already loaded."""
+        from .gwflowgrid import _LAYER_NAME
+        project = QgsProject.instance()
+        if project.mapLayersByName(_LAYER_NAME):
+            return
+        shapePath = os.path.join(self._gv.shapesDir, 'gwflowcells.shp')
+        if not os.path.isfile(shapePath):
+            return
+        layer = QgsVectorLayer(shapePath, _LAYER_NAME, 'ogr')
+        if layer.isValid():
+            qmlPath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'gwflowcells.qml')
+            if os.path.isfile(qmlPath):
+                layer.loadNamedStyle(qmlPath)
+            layer.setCustomProperty('layerId', 'gwflowcells')
+            project.addMapLayer(layer)
+
     def generateBasins(self, progressBar: QProgressBar, root: QgsLayerTree) -> bool:
         """Generate basin data from watershed, landuse, soil and slope grids.
         
@@ -5836,7 +5896,6 @@ class HRUs(QObject):
                     treeModel.refreshLayerLegend(soilTreeLayer)
                 if self._db.writeSoilsTable() and self._db.writeLanduseTables():
                     self.completed = True
-                    self._gv.writeProjectConfig(-1, 1)
                     self._dlg.readFromPrevious.setEnabled(True)
                     msg = 'HRUs done: {0!s} HRUs formed with {1!s} channels in {2!s} subbasins.'.format(self.CreateHRUs.countHRUs(), 
                                                                                                 self.CreateHRUs.countChannels(), 
@@ -5853,11 +5912,18 @@ class HRUs(QObject):
             QSWATUtils.loginfo('Calculating HRUs took {0} seconds'.format(int(time2 - time1)))
             self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
             if self._dlg.gwflowButton.isChecked():
-                gwf = GWFlow(self._gv, self.progress)
-                gwf.run()
-                self._gv.writeProjectConfig(-1, -1, use_gwflow=1)
-            else:
-                self._gv.writeProjectConfig(-1, -1, use_gwflow=0)
+                # gwflow must finish before HRUs count as done; otherwise step 3
+                # (edit and run) unlocks while the gwflow tables are still being
+                # written, which would corrupt the project database
+                gwflowOK = False
+                if self.completed:
+                    gwdb = GwflowDB(self._gv, self.CreateHRUs.gwflowPanel, self.progress)
+                    gwflowOK = gwdb.run() is not False
+                self.completed = self.completed and gwflowOK
+                if self.completed:
+                    self._gv.writeProjectConfig(-1, 1, use_gwflow=1)
+            elif self.completed:
+                self._gv.writeProjectConfig(-1, 1, use_gwflow=0)
             if self.completed:
                 self._dlg.close()
                 
@@ -6570,7 +6636,8 @@ class HRUs(QObject):
         if found and useGWFlow:
             self._dlg.gwGroupBox.setVisible(True)
             self._dlg.gwflowButton.setChecked(True)
-            
+        self.CreateHRUs.gwflowPanel.loadFromProject(proj, self._gv.attTitle)
+
     def saveProjPart1(self) -> None:
         """Write landuse, soil, and landscape choices to project file."""
         proj = QgsProject.instance()
@@ -6624,4 +6691,4 @@ class HRUs(QObject):
         proj.writeEntry(self._gv.attTitle, 'hru/slopeVal', self.CreateHRUs.slopeVal)
         proj.writeEntry(self._gv.attTitle, 'hru/targetVal', self.CreateHRUs.targetVal)
         proj.writeEntry(self._gv.attTitle, 'hru/useGWFlow', self._dlg.gwflowButton.isChecked())
-            
+        self.CreateHRUs.gwflowPanel.saveToProject(proj, self._gv.attTitle)

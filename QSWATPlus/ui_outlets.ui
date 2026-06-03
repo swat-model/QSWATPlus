@@ -72,6 +72,13 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QRadioButton" name="wellButton">
+        <property name="text">
+         <string>Observation well</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
