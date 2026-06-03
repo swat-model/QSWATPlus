@@ -51,9 +51,9 @@ ifeq ($(QSWAT_PROJECT), QSWATPlus4)
 	OBJ_FILES12 = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
 	OBJ_FILES9 = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
 	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9)
-	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat startQGIS.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
-	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py startQGIS.bat)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS4/profiles/default
 	CPFILE = cp -vuf
@@ -68,9 +68,9 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlus3)
 	OBJ_FILES12 = $(PYX_FILES:.pyx=.cp312-win_amd64.pyd)
 	OBJ_FILES9 = $(PYX_FILES:.pyx=.cp39-win_amd64.pyd)
 	OBJ_FILES = $(OBJ_FILES12) $(OBJ_FILES9)
-	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat)
+	BAT_FILES = $(addprefix ../, runnose.bat runtestpoly.bat runcovernose.bat runtestn.bat startQGIS.bat)
 	TEST_FILES = $(addprefix ../, test_qswatplus.py test_dbutils.py test_polygonize.py test_polygonizeInC.py test_polygonizeInC2.py)
-	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py startQGIS.bat)
+	HUC_FILES = $(addprefix ../, runHUC64.bat runHUC.bat runHUC.py runHAWQS.bat runHAWQS.py)
 	EXTRAPACKAGES = imageio
 	QGISDIR = AppData/Roaming/QGIS/QGIS3/profiles/default
 	CPFILE = cp -vuf
@@ -143,6 +143,7 @@ else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_64)
 	TESTOUTPUT = $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(PACKAGE)/testdata/test
 	CPFILE = cp -vuf
 	CPDIR = cp -vufR
+	PYTHON = python3
 else ifeq ($(QSWAT_PROJECT), QSWATPlusLinux3_32)
 	COMPILER = unix
 	METADATA = metadatalinux3_32.txt

@@ -30,6 +30,7 @@ import os.path
 import time
 import csv
 import traceback
+import sys
 from typing import Set, List, Dict, Tuple, Iterable, Iterator, cast, Any, Optional, Union, Callable, TYPE_CHECKING  # @UnusedImport @Reimport
 
 # if TYPE_CHECKING:
@@ -2495,7 +2496,7 @@ class QSWATTopology:
         # check p is sufficiently near point
         if QSWATTopology.distanceMeasure(p, point) <= threshold * threshold:
             # before returning p, move it along the stream a little if it is on or close to a '4 corners' position
-            # since TauDEM can  to make a boundary or use its id as a DSNODEID if is so positioned
+            # since TauDEM can fail to make a boundary or use its id as a DSNODEID if is so positioned
             if p1 == p2:
                 # a point on the line was chosen, which is safe (points on the line are centres of DEM cells)
                 return p
@@ -3212,6 +3213,7 @@ class QSWATTopology:
             clearSQL = 'DROP TABLE IF EXISTS ' + table
             curs.execute(clearSQL)
             curs.execute(self.db._CHANNELSCREATESQL)
+            self.db.clearKeys(table)
             time1 = time.process_time()
             wid2Data = dict()
             floodscape = QSWATUtils._FLOODPLAIN if gv.useLandscapes else QSWATUtils._NOLANDSCAPE 
@@ -3281,9 +3283,12 @@ class QSWATTopology:
                 midLong = midll.x()
                 if rid == 0 and pid == 0:
                     # otherwise omit from gis_channels channels which have become reservoirs or ponds
-                    curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, order, length, slopePercent, 
-                                       channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
-                    self.db.addKey(table, SWATChannel)
+                    if self.db.hasKey(table, SWATChannel):
+                        QSWATUtils.error('Trying to add duplicate channel {0}({2}) to {1}'.format(SWATChannel, table, channel), self.isBatch)
+                    else:
+                        curs.execute(sql, (SWATChannel, SWATBasin, drainAreaHa, order, length, slopePercent, 
+                                           channelWidth, channelDepth, minEl, maxEl, midLat, midLong))
+                        self.db.addKey(table, SWATChannel)
                 if addToRiv1:
                     mmap[fid] = dict()
                     mmap[fid][areaCIdx] = drainAreaHa
@@ -3772,9 +3777,10 @@ class QSWATTopology:
                                     else:
                                         self.db.addToRouting(curs, SWATChannel, chCat, pointId, ptCat, QSWATTopology._TOTAL, 100)
                                         routedChannels.append(SWATChannel)
-                                    self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, mainPercent)
-                                    self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
-                                    self.routedPoints.append(pointId)
+                                    if pointId not in self.routedPoints:
+                                        self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel, chCat, QSWATTopology._TOTAL, mainPercent)
+                                        self.db.addToRouting(curs, pointId, ptCat, dsSWATChannel2, chCat, QSWATTopology._TOTAL, 100 - mainPercent)
+                                        self.routedPoints.append(pointId)
                                 else:
                                     if noChannel:
                                         if sourceCat != ptCat or source not in self.routedPoints:
@@ -3941,6 +3947,8 @@ class QSWATTopology:
                 # route subbasin to outlet points
                 # or to lake if outlet in lake
                 for subbasin, (pointId, _, chLinks) in self.outlets.items():
+                    if pointId == 354245:
+                        x = 0
                     SWATBasin = self.subbasinToSWATBasin.get(subbasin, 0)
                     if SWATBasin == 0:
                         # check for subbasin in lake
@@ -4525,18 +4533,23 @@ class QSWATTopology:
          inlets, upstreamFromInlets, and outletChannels  tables.
          streamFile is used with HUC models."""
          
-        def reachableFrom(a: int, b: int, mapp: Dict[int, int], maxSteps: int):
+        def reachableFrom(a: int, b: int, mapp: Dict[int, int]):
             """Test if a is reachable from b by stepping through mapp."""
             if a == b:
                 return True
-            c = mapp.get(b, None)
-            if c is not None:
-                if maxSteps <= 0:
+            visited = set()
+            nxt = b
+            while True:
+                visited.add(nxt)
+                c = mapp.get(nxt, None)
+                if c is None:
+                    return False
+                if c == a:
+                    return True
+                if c in visited:
                     QSWATUtils.error('{0} has a circular downstream relation involving subbasin {1}'.format(streamFile, c), True)
                     return False
-                return reachableFrom(a, c, mapp, maxSteps - 1)
-            else:
-                return False
+                nxt = c
                       
         def checkDownChannels(downChannels):
             """Test if the downChannels map has any circularity"""
@@ -4767,9 +4780,8 @@ class QSWATTopology:
                         pass # this confirms outlet found
                     else:
                         # also possible for intermediate(s) to cause confusion as long as path does not go backwards
-                        maxSteps = len(self.downSubbasins)
-                        if not reachableFrom(subbasin, dsSubbasin, self.downSubbasins, maxSteps) and \
-                                reachableFrom(dsSubbasin, subbasin, self.downSubbasins, maxSteps):
+                        if not reachableFrom(subbasin, dsSubbasin, self.downSubbasins) and \
+                                reachableFrom(dsSubbasin, subbasin, self.downSubbasins):
                             pass  # can take it as outlet found
                         else:
                             continue  # a false outlet caused by a minor channel

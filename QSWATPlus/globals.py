@@ -215,7 +215,7 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.floodFile = ''
         ## path of raster generated from playa lakes
         self.playaFile = ''
-        ## count of plays in HUC and HAWQS models
+        ## count of playas in HUC and HAWQS models
         self.playaCount = 0
         ## Nodata value for DEM
         self.elevationNoData = 0.0
