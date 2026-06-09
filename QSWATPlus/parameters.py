@@ -20,7 +20,7 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import Qt, QSettings
+from qgis.PyQt.QtCore import Qt, QSettings, QDir
 from qgis.PyQt.QtGui import QDoubleValidator, QIntValidator, QFont
 from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox
 from qgis.core import Qgis, QgsProject, QgsField
@@ -71,6 +71,7 @@ class Parameters:
     _PLOTS = 'Plots'
     _TXTINOUT = 'TxtInOut'
     _SOILDB = 'swatplus_soils.sqlite'
+    # _SSURGODB = 'swatplus_soils.sqlite'  # 'ssurgo-full.sqlite'
     _SIM = 'time.sim'
     _PRT = 'print.prt'
     _OUTPUTDB = 'swatplus_output.sqlite'
@@ -89,7 +90,7 @@ class Parameters:
     _ANIMATION = 'Animation'
     _PNG = 'Png'
     _STILLPNG = 'still.png'
-    _SSURGODB_HUC = 'swatplus_soils.sqlite'  # 'SSURGO_Soils_HUC.sqlite'
+    # _SSURGODB_HUC = 'swatplus_soils.sqlite'  # 'SSURGO_Soils_HUC.sqlite'
     _SSURGOWater = 377988
     _WATERBODIES = 'WaterBodies.sqlite'
     

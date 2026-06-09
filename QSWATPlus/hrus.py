@@ -919,7 +919,7 @@ class CreateHRUs(QObject):
                                 hruRow[col] = -1
                             continue
                         subbasin = self._gv.topo.chBasinToSubbasin.get(chBasin, -1)
-                        if subbasin == -1:
+                        if subbasin < 0: # allow for NOBASIN (-2) as well as no such chBasin
                             if self._gv.useLandscapes:
                                 lsuRow[col] = -1
                             if self.fullHRUsWanted:
@@ -1234,7 +1234,7 @@ class CreateHRUs(QObject):
                         elif lscape == QSWATUtils._FLOODPLAIN:
                             msg2 = 'the floodplain of '
                         else:
-                            msg2 = 'the upslape of '
+                            msg2 = 'the upslope of '
                         msg3 = 'channel {0} (LINKNO {2}) in subbasin {1} (and perhaps others)'.format(SWATChannel, SWATBasin, channel)
                         if self._gv.isHUC or self._gv.isHAWQS:
                             QSWATUtils.loginfo(msg1 + msg2 + msg3)
@@ -4073,7 +4073,7 @@ class CreateHRUs(QObject):
                     areaHa = areaKm * 100
                     cellCount = basinData.subbasinCellCount()
                     waterId = basinData.waterId
-                    # cell counts amy be zero in HUC and HAWQS models because of restricted landuse and soil maps
+                    # cell counts may be zero in HUC and HAWQS models because of restricted landuse and soil maps
                     assert waterId > 0 or cellCount > 0 or self._gv.isHUC or self._gv.isHAWQS, 'Basin {0!s} has zero cell count'.format(SWATBasin)
                     meanSlope = 0 if waterId > 0 or cellCount == 0 else (basinData.totalSlope() / cellCount) * self._gv.meanSlopeMultiplier
                     meanSlopePercent = meanSlope * 100
@@ -4297,6 +4297,21 @@ class CreateHRUs(QObject):
                         i -= 1
                     QSWATUtils.error('Path has no loop', self._gv.isBatch, logFile=self._gv.logFile)
                     return
+                
+        def addOutletBasin(outlets: Set[int], outBasin: int) -> int:
+            """If outBasin has the same outlet point as an existing outlet basin in outlets, return that outlet basin.
+            Else add outBasin to outlets and return outBasin."""
+            (outPoint, _, _) = self._gv.topo.outlets.get(outBasin, (-1, None, None))
+            if outPoint < 0: # should not happen but safety first
+                outlets.add(outBasin)
+                return outBasin
+            for outletBasin in outlets:
+                (outPoint1, _, _) = self._gv.topo.outlets.get(outletBasin, (-1, None, None))
+                if outPoint1 == outPoint:
+                    return outletBasin
+            # no matching existing outlet found
+            outlets.add(outBasin)
+            return outBasin     
             
         def writeAquifersTables(outletSubbasins: Dict[int, int], outletLakes: Dict[int, int]) -> None:
             """Write gis_aquifers and gis_deep_aquifers tables"""
@@ -4648,7 +4663,7 @@ class CreateHRUs(QObject):
                 if outBasin < 0:
                     QSWATUtils.error('Cannot find watershed outlet for subbasin {0}'.format(SWATBasin), self._gv.isBatch, logFile=self._gv.logFile)
                     continue
-                outlets.add(outBasin)
+                outBasin = addOutletBasin(outlets, outBasin)
                 # check if outlet in lake
                 lakeId = self._gv.topo.outletsInLake.get(outBasin, -1)
                 if lakeId > 0:
@@ -4802,8 +4817,12 @@ class CreateHRUs(QObject):
                 (subbasin, _, _, _) = lakeData.outPoint
                 if (self._gv.isHUC or self._gv.isHAWQS) and subbasin < 0:
                     continue  # lakes file is larger than watershed for HUC12 models
-                # out point may have no subbasin if internal to lake
                 SWATBasin = self._gv.topo.subbasinToSWATBasin.get(subbasin, 0)
+                # out point may have no subbasin if internal to lake
+                if SWATBasin == 0:
+                    SWATBasin = self._gv.topo.subbasinsInLakes.get(subbasin, 0)
+                    if SWATBasin == 0:
+                        QSWATUtils.error('Cannot find subbasin for outlet of lake {0}'.format(lakeId), self._gv.isBatch)
                 areaHa = lakeData.overrideArea / 1E4
                 centroid = lakeData.centroid
                 centroidll = self._gv.topo.pointToLatLong(centroid)
@@ -5821,7 +5840,7 @@ class HRUs(QObject):
                 QSWATUtils.information('Warning: table {0} not found in landuse and soil database {1}'
                                        .format(self._db.usersoilTable, self._db.plantSoilDatabase), self._gv.isBatch, logFile=self._gv.logFile)
         if self._db.useSSURGO: # no lookup table needed
-            self._db.ssurgoSoils = set()
+            self._db.usedSSURGOSoils = set()
             return True
         else:
             self._db.usedSoilNames = dict()
@@ -5975,7 +5994,7 @@ class HRUs(QObject):
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use STATSGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
-                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
+                                       .format('https://plus.swat.tamu.edu/downloads/swatplus_soils.zip', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
         elif self._dlg.SSURGOButton.isChecked():
             self._dlg.dbLabel.setText('Select landuse database')
             self._db.useSTATSGO = False
@@ -5986,8 +6005,8 @@ class HRUs(QObject):
             self._dlg.selectUsersoilTableLabel.setVisible(False)
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
-                QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ STATSGO/SSURGO soil database {0} and save it as {1}.'
-                                       .format('https://bitbucket.org/swatplus/swatplus.editor/downloads/swatplus_soils.sqlite', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
+                QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ SSURGO soil database {0} and save it as {1}.'
+                                       .format('https://swat.tamu.edu/media/lroh4nek/ssurgo-fullsqlite.7z', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
             
     def selectPlantSoilDatabase(self) -> None:
         """Allow user to select plant and soil database."""
@@ -6530,7 +6549,7 @@ class HRUs(QObject):
         else:
             self._db.plantSoilDatabase = self._db.dbFile
         self._dlg.plantSoilDatabase.setText(self._db.plantSoilDatabase)
-        self._db.soilDatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
+        self._db.soilDatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB) if self._db.useSSURGO else QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
         usersoilTable, found = proj.readEntry(self._gv.attTitle, 'soil/databaseTable', '')
         if found and usersoilTable != '':
             self._db.usersoilTable = usersoilTable

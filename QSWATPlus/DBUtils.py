@@ -175,7 +175,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
         ## Set of values occurring in soil map
         self.soilVals: Set[int] = set()
         ## ssurgo soil numbers actually found
-        self.ssurgoSoils: Set[int] = set()
+        self.usedSSURGOSoils: Set[int] = set()
         ## Default soil
         ## Set to 0 soild value (if any) else first soil in lookup table and used to replace soil nodata when using grid model
         self.defaultSoil = -1
@@ -188,22 +188,25 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
         self.useSTATSGO = False
         ## flag indicating SSURGO soil data is being used
         self.useSSURGO = False
-        ## map of SSURGO map values to SSURGO MUID (only used with HUC)
+        ## map of SSURGO map values to SSURGO MUID (only used with HUC and HAWQS)
+        # after switch to ssurgo-full is identity relation exept for mapping water texture soils to SSURGOWater
         self.SSURGOsoils: Dict[int, int] = dict()
         if isHUC or isHAWQS:
             ## SSURGO soil database (only used with HUC and HAWQS)
             if isHUC:
                 # changed to use copy one up frpm projDir
-                self.SSURGODbFile = QSWATUtils.join(projDir + '/..', Parameters._SSURGODB_HUC)
+                self.SSURGODbFile = QSWATUtils.join(projDir + '/..', Parameters._SOILDB)
             else: # HAWQS
-                self.SSURGODbFile = QSWATUtils.join(QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._DBDIR), Parameters._SSURGODB_HUC)
+                self.SSURGODbFile = QSWATUtils.join(QSWATUtils.join(Parameters._SWATPLUSDEFAULTDIR, Parameters._DBDIR), Parameters._SOILDB)
+            QSWATUtils.loginfo('SSURGO soil database is {0}'.format(self.SSURGODbFile))
             self.SSURGOConn = sqlite3.connect(self.SSURGODbFile)  # @UndefinedVariable
         ## nodata value from soil map to replace undefined SSURGO soils (only used with HUC and HAWQS)
         self.SSURGOUndefined = -1
         ## flag to reduce undefined SSURGO map values (only used with HUC and HAWQS)
         self.SSURGOUndefinedMapValueReported = False
-        ## flag to reduce undefined SSURGO lkeys (only used with HUC and HAWQS)
-        self.SSURGOUndefinedKeyReported = False
+        # ## flag to reduce undefined SSURGO lkeys (only used with HUC and HAWQS)
+        # no longer used 
+        # self.SSURGOUndefinedKeyReported = False
         ## regular expression for checking if SSURGO soils are water (only used with HUC and HAWQS)
         self.waterPattern = re.compile(r'\bwaters?\b', re.IGNORECASE)  # @UndefinedVariable
         ## flag indicating, if useSTATSGO is true, that muid+seqn is being used
@@ -392,6 +395,10 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
             # ignore problems such as table not existing
             pass
         
+    def clearKeys(self, table: str) -> None:
+        """Remove all keys for this table."""    
+        self.gis_keys[table] = set()
+        
     def addKey(self, table: str, key: int) -> None:
         """Add key to table entry in gis_keys."""
         keys = self.gis_keys.setdefault(table, set())
@@ -428,6 +435,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
             self.checkKeyInTable(table, sourceId)
         self.routingSources.add((sourceId, sourceCategory))
         self.routingSinks.add((sinkId, sinkCategory))
+        if sourceCategory == 'PT' and sourceId == 214056:
+            x = 0
         cursor.execute(DBUtils._ROUTINGINSERTSQL, (sourceId, sourceCategory, hydTyp, sinkId, sinkCategory, percent))  #type: ignore
             
     def updateRouting(self, cursor: object, sourceId: int, sourceCategory: str, sinkId: int, sinkCategory: str, hydTyp: str, percent: float) -> None:
@@ -822,7 +831,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
     def getSoilName(self, sid: int) -> Tuple[str, bool]:
         """Return name for soil id sid."""
         if self.useSSURGO:
-            self.ssurgoSoils.add(sid)
+            self.usedSSURGOSoils.add(sid)
             return str(sid), True
         sid1, OK = self.translateSoil(sid)
         # first try used soil names
@@ -979,6 +988,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
         """Write the soils_sol and soils_sol_layer tables in the project database."""
         if self.useSTATSGO or self.useSSURGO:
             database = self.soilDatabase
+            QSWATUtils.loginfo('SSURGO or STATSGO soil database is {0}'.format(database))
         else:
             database = self.plantSoilDatabase     
         isProjDb = filecmp.cmp(database, self.dbFile)
@@ -1040,7 +1050,7 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
             sid = 0 # last soil id used
             lid = 0 # last layer id used
             if self.useSSURGO:
-                for ssurgoId in self.ssurgoSoils:
+                for ssurgoId in self.usedSSURGOSoils:
                     row = readCursor.execute(sql, (ssurgoId,)).fetchone()
                     if not row:
                         if self.isHUC or self.isHAWQS:
@@ -1048,7 +1058,8 @@ Have you installed SWATPlus?'''.format(dbRefTemplate), self.isBatch, logFile=sel
                         if not errorReported:
                             QSWATUtils.error("""
 SSURGO soil {0} (and perhaps others) not defined in {1} table in database {2}.  {3} table incomplete.
-See QSWAT+ log messages for full list of undefined soils.""".
+See QSWAT+ log messages for full list of undefined soils.  
+You might like to try using the soil raster https://swat.tamu.edu/docs/swat/SSURGO-2023.tif.""".
                                              format(ssurgoId, usersoilTable, database, DBUtils._SOILS_SOL_NAME), self.isBatch, logFile=self.logFile)
                             errorReported = not self.isBatch
                         QSWATUtils.logerror('SSURGO soil {0} not defined'.format(ssurgoId))
@@ -1140,7 +1151,7 @@ See QSWAT+ log messages for full list of undefined soils.""".
             self.soilTranslate[sid] = equiv
         
     def translateSoil(self, sid: int) -> Tuple[int, bool]:
-        """Translate a soil id to its equivalent id in soilNames, plUs flag indicating lookup success."""
+        """Translate a soil id to its equivalent id in soilNames, plus flag indicating lookup success."""
         self.soilVals.add(sid)
         if self.useSSURGO:
             if self.isHUC or self.isHAWQS:
@@ -1151,39 +1162,44 @@ See QSWAT+ log messages for full list of undefined soils.""".
         return sid1, True
     
     def translateSSURGOSoil(self, sid: int) -> Tuple[int, bool]:
-        """Use statsgo_ssurgo_lkey1 table to convert soil map lkey values to SSURGO muids, plUs flag indicating lookup success.  
-        Replace any soil with sname Water with Parameters._SSURGOWater.  
+        """Return soil id, possibly changed to Parameters._SSURGOWater, plus flag to indicate success or failure in lookup.  
         Report undefined SSURGO soils.  Only used with HUC and HAWQS."""
         if sid in self._undefinedSoilIds:
             return self.SSURGOUndefined, False
         muid = self.SSURGOsoils.get(sid, -1)
         if muid > 0:
             return muid, True
-        sql = self.sqlSelect('statsgo_ssurgo_lkey1', 'Source, MUKEY', '', 'LKEY=?')
-        #sql = self.sqlSelect('statsgo_ssurgo_lkey1', 'Source, MUKEY', '', 'Value=?')
-        lookup_row = self.conn.execute(sql, (sid,)).fetchone()
         msg2 = '' if self.isBatch else ' (and perhaps others)'
-        msg3 = '' if self.isBatch else 'See QSWAT+ log messages.' 
-        if lookup_row is None:
-            QSWATUtils.loginfo('SSURGO soil map value {0} not defined as lkey'.format(sid))
-            if not self.SSURGOUndefinedMapValueReported:
-                QSWATUtils.information('WARNING: SSURGO soil map value {0}{1} not defined as lkey in statsgo_ssurgo_lkey1 in project {2}.  {3}'.format(sid, msg2, self.projName, msg3), self.isBatch, logFile=self.logFile)
-                self.SSURGOUndefinedMapValueReported = not self.isBatch
-            self._undefinedSoilIds.append(sid)
-            return sid, False
-        # only an information issue, not an error for now 
-        if lookup_row[0].upper().strip() == 'STATSGO':
-            QSWATUtils.loginfo('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey1'.format(sid))
-            # self._undefinedSoilIds.append(sid)
-            # return sid
-        sql = self.sqlSelect('ssurgo', 'texture', '', 'muid=?')
-        row = self.SSURGOConn.execute(sql, (lookup_row[1],)).fetchone()
+        msg3 = '' if self.isBatch else 'See QSWAT+ log messages.'
+        sql2 = self.sqlSelect('ssurgo', 'texture', '', 'muid=?') 
+        # statsgo_ssurgo_lkey1 and accompanying maps no longer used with JUC and HAWQS
+        # if self.isHUC:
+        #     sql = self.sqlSelect('statsgo_ssurgo_lkey1', 'Source, MUKEY', '', 'LKEY=?')
+        #     #sql = self.sqlSelect('statsgo_ssurgo_lkey1', 'Source, MUKEY', '', 'Value=?')
+        #     lookup_row = self.conn.execute(sql, (sid,)).fetchone()
+        #     if lookup_row is None:
+        #         QSWATUtils.loginfo('SSURGO soil map value {0} not defined as lkey'.format(sid))
+        #         if not self.SSURGOUndefinedMapValueReported:
+        #             QSWATUtils.information('WARNING: SSURGO soil map value {0}{1} not defined as lkey in statsgo_ssurgo_lkey1 in project {2}.  {3}'.format(sid, msg2, self.projName, msg3), self.isBatch, logFile=self.logFile)
+        #             self.SSURGOUndefinedMapValueReported = not self.isBatch
+        #         self._undefinedSoilIds.append(sid)
+        #         return sid, False
+        #     # only an information issue, not an error for now 
+        #     if lookup_row[0].upper().strip() == 'STATSGO':
+        #         QSWATUtils.loginfo('SSURGO soil map value {0} is a STATSGO soil according to statsgo_ssurgo_lkey1'.format(sid))
+        #         # self._undefinedSoilIds.append(sid)
+        #         # return sid
+        #     row = self.SSURGOConn.execute(sql2, (lookup_row[1],)).fetchone()
+        # else:
+        row = self.SSURGOConn.execute(sql2, (sid,)).fetchone()
         if row is None:
-            QSWATUtils.loginfo('SSURGO soil lkey value {0} and MUID {1} not defined'.format(sid, lookup_row[1]))
-            if not self.SSURGOUndefinedKeyReported:
+            QSWATUtils.loginfo('SSURGO MUID {0} not defined'.format(sid))
+            if not self.SSURGOUndefinedMapValueReported:
                 if not self.isHAWQS:  # minimise interruptions to HAWQS runs
-                    QSWATUtils.information('WARNING: SSURGO soil lkey value {0}{1} and MUID {2} not defined in project {3}.  {4}'.format(sid, msg2, lookup_row[1], self.projName, msg3), self.isBatch, logFile=self.logFile)
-                self.SSURGOUndefinedKeyReported = not self.isBatch
+                    QSWATUtils.information("""WARNING: SSURGO MUID {0}{1} not defined in project {2}.  {3}
+                    You might like to try using the soil raster https://swat.tamu.edu/docs/swat/SSURGO-2023.tif""".
+                    format(sid, msg2, self.projName, msg3), self.isBatch, logFile=self.logFile)
+                self.SSURGOUndefinedMapValueReported = not self.isBatch
             self._undefinedSoilIds.append(sid)
             return self.SSURGOUndefined, False
         #if row[0].lower().strip() == 'water':
@@ -1191,7 +1207,8 @@ See QSWAT+ log messages for full list of undefined soils.""".
             self.SSURGOsoils[int(sid)] = Parameters._SSURGOWater
             return Parameters._SSURGOWater, True
         else:
-            muid = int(lookup_row[1])
+            # muid = int(sid) if self.isHAWQS else int(lookup_row[1])
+            muid = int(sid)
             self.SSURGOsoils[int(sid)] = muid
             return muid, True
     

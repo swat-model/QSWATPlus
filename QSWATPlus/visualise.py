@@ -20,7 +20,7 @@
  ***************************************************************************/
 '''
 # Import the PyQt and QGIS libraries
-from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer 
+from qgis.PyQt.QtCore import QFile, QIODevice, QObject, QRectF, Qt, QTimer, QDir
 from qgis.PyQt.QtGui import QColor, QKeySequence, QGuiApplication, QFont, QFontMetricsF, QPainter, QTextDocument, QIntValidator 
 from qgis.PyQt.QtWidgets import QAbstractItemView, QComboBox, QFileDialog, QListWidget, QListWidgetItem, QMessageBox, QTableWidgetItem, QWidget, QShortcut, QStyleOptionGraphicsItem 
 from qgis.PyQt.QtXml import QDomDocument 
@@ -39,6 +39,7 @@ import csv
 import traceback
 import locale
 from copy import deepcopy
+import platform
 # from collections import OrderedDict
 from typing import Dict, List, Set, Tuple, Optional, Union, Any, TYPE_CHECKING, cast  # @UnusedImport
 
@@ -1561,12 +1562,12 @@ class Visualise(QObject):
         try:
             path = os.path.split(self._dlg.observedFileEdit.text())[0]
         except Exception:
-            path = ''
+                path = ''
         observedFileName, _ = QFileDialog.getOpenFileName(None, 'Choose observed data file', path, 'CSV files (*.csv);;Any file (*.*)')
         if observedFileName == '':
             return
         self.observedFileName = observedFileName
-        self._dlg.observedFileEdit.setText(observedFileName)
+        self._dlg.observedFileEdit.setText(self.observedFileName)
         proj = QgsProject.instance()
         proj.writeEntry(self.title.replace(' ', ''), 'observed/observedFile', self.observedFileName)
         proj.write()
