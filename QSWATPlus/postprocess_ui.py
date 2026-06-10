@@ -50,6 +50,12 @@ def postprocess_file(filepath):
     content = re.sub(r'QAbstractItemView.SingleSelection', 'QAbstractItemView.SelectionMode.SingleSelection', content)
     content = re.sub(r'QAbstractItemView.NoEditTriggers', 'QAbstractItemView.EditTrigger.NoEditTriggers', content)
     content = re.sub(r'Qt.ScrollBarAlwaysOff', 'Qt.ScrollBarPolicy.ScrollBarAlwaysOff', content)
+    # bug fixes 
+    content = re.sub(r'::', r'.', content)
+    content = re.sub(r'QtCore.Qt.QFrame', r'QtWidgets.QFrame', content)
+    content = re.sub(r'QtCore.Qt.QSlider', r'QtWidgets.QSlider', content)
+    content = re.sub(r'QtCore.Qt.QSizePolicy', r'QtWidgets.QSizePolicy', content)
+    content = re.sub(r'Qt.Qt.', r'Qt.', content)
 
     if content != original:
         with open(filepath, 'w', encoding='utf-8') as f:

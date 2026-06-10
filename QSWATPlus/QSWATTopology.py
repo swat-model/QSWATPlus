@@ -901,7 +901,7 @@ class QSWATTopology:
             if lakeResIndex < 0:
                 waterRole = QSWATTopology._RESTYPE
             elif self.isHUC or self.isHAWQS:
-                waterRole = QSWATTopology._RESTYPE if lake[lakeResIndex] == 'Reservoir' or lake[lakeVolumeIndex] >= Parameters._LAKERESERVOIR else QSWATTopology._PONDTYPE
+                waterRole = QSWATTopology._RESTYPE if lake[lakeResIndex] == 'Reservoir' or lake[lakeVolumeIndex] >= Parameters._RESERVOIRVOLUME else QSWATTopology._PONDTYPE
             else:
                 waterRole = int(lake[lakeResIndex])
             if lakeAreaIndex >= 0:
@@ -2202,8 +2202,8 @@ class QSWATTopology:
                 continue
             # order is negative: will be -9 for coastline
             # replace with strahler of incoming channel orders
-            order = channelOrder(channelLink)
-            if order < 0:
+            order3 = channelOrder(channelLink)
+            if order3 < 0:
                 QSWATUtils.error('Failed to find Strahler order for channel with link {0}'.format(channelLink), self.isBatch)
             
     def setStrahler(self, us: Dict[int, List[int]]) -> None:
@@ -3535,7 +3535,6 @@ class QSWATTopology:
                     mainPercent = Parameters._MAJORPERCENT if haveBifurcation else 100
                     # possible that channel is within a lake, and so may not exist
                     # if so we will save the source into the channel and later route it to the channel's sink
-                    chBasin = self.chLinkToChBasin[channel]
                     withinLakeId = self.chLinkInsideLake.get(channel, -1)
                     noChannel = withinLakeId > 0
                     source, sourceCat = (None, None)

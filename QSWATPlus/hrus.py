@@ -1132,7 +1132,6 @@ class CreateHRUs(QObject):
             else:
                 soilDefinedPercent = 0
             QSWATUtils.loginfo('Soil defined percent: {0}'.format(locale.format_string('%.1F', soilDefinedPercent)))
-            under95 = False
             if self._gv.isHUC:
                 huc12 = self._gv.projName[3:]
                 logFile = self._gv.logFile
@@ -1145,7 +1144,6 @@ class CreateHRUs(QObject):
                     # start of message is key phrase for HUC12Models
                     QSWATUtils.information('UNDER95 WARNING: only {0} percent of the watershed in project huc{1} is inside the soil map.'
                                            .format(locale.format_string('%.1F', soilMapPercent), huc12), self._gv.isBatch, logFile=logFile)
-                    under95 = True
                 elif soilMapPercent < 99.95: # always give statistic for HUC models; avoid saying 100.0 when rounded to 1dp
                     # start of message is key word for HUC12Models
                     QSWATUtils.information('WARNING: only {0} percent of the watershed in project huc{1} is inside the soil map.'
@@ -1157,7 +1155,6 @@ class CreateHRUs(QObject):
             else:
                 if soilMapPercent < 95:
                     QSWATUtils.information('WARNING: only {0} percent of the watershed has defined soil values.\n If this percentage is zero check your soil map has the same projection as your DEM.'.format(locale.format_string('%.1F', soilMapPercent)), self._gv.isBatch, logFile=self._gv.logFile)
-                    under95 = True
                     # only run this for non-HUC models: previous warnings sufficient
                 if not self.noCropOrSoilLSUs():
                     return False
@@ -3388,8 +3385,8 @@ class CreateHRUs(QObject):
                 else:
                     # use Katrin's formula
                     upslopePercent = int(100 * lsuData.cropSoilSlopeArea / (lsuData.cropSoilSlopeArea + downLsuData.cropSoilSlopeArea) + 0.5)
-                    # do not allow upslopePercent to be zero, as breaks check on total percentages
-                    upslopePercent = 1 if upslopePercent == 0 else upslopePercent
+                    # do not allow upslopePercent to be zero or 100, as breaks check on total percentages
+                    upslopePercent = 1 if upslopePercent == 0 else 99 if upslopePercent == 100 else upslopePercent
                     if downLsuData.waterBody is not None and not downLsuData.waterBody.isUnknown():
                         wid = downLsuData.waterBody.id
                         wCat = 'RES' if downLsuData.waterBody.isReservoir() else 'PND'
@@ -4822,7 +4819,7 @@ class CreateHRUs(QObject):
                 if SWATBasin == 0:
                     SWATBasin = self._gv.topo.subbasinsInLakes.get(subbasin, 0)
                     if SWATBasin == 0:
-                        QSWATUtils.error('Cannot find subbasin for outlet of lake {0}'.format(lakeId), self._gv.isBatch)
+                        QSWATUtils.error('Cannot find subbasin for outlet of lake {0}'.format(lakeId), self._gv.isBatch, logFile=self._gv.logFile)
                 areaHa = lakeData.overrideArea / 1E4
                 centroid = lakeData.centroid
                 centroidll = self._gv.topo.pointToLatLong(centroid)
@@ -6006,7 +6003,7 @@ class HRUs(QObject):
             self._db.soildatabase = QSWATUtils.join(self._gv.dbPath, Parameters._SOILDB)
             if not os.path.isfile(self._db.soildatabase):
                 QSWATUtils.information('To use SSURGO soils with QSWAT+ you need to download the SWAT+ SSURGO soil database {0} and save it as {1}.'
-                                       .format('https://swat.tamu.edu/media/lroh4nek/ssurgo-fullsqlite.7z', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
+                                       .format('https://plus.swat.tamu.edu/downloads/swatplus_soils.zip', self._db.soildatabase), self._gv.isBatch, logFile=self._gv.logFile)
             
     def selectPlantSoilDatabase(self) -> None:
         """Allow user to select plant and soil database."""
