@@ -2783,13 +2783,14 @@ assumed that its crossing the lake boundary is an inaccuracy.
     def getPoint(self, point: QgsPointXY, button: Any) -> None:  # @UnusedVariable button
         """Add point to drawOutletLayer."""
         isInlet = self._odlg.inletButton.isChecked() or self._odlg.ptsourceButton.isChecked()
+        isWell = self._odlg.wellButton.isChecked()
         # can't use feature count as they can't be counted until adding is confirmed
         # so set to -1 and fix them later
         pid = -1
-        inlet = 1 if isInlet else 0
-        # use 2 for pond, 1 for reservoir, 0 for neither
-        res = 2 if self._odlg.pondButton.isChecked() else 1 if self._odlg.reservoirButton.isChecked() else 0
-        ptsource = 1 if self._odlg.ptsourceButton.isChecked() else 0
+        inlet = 0 if isWell else (1 if isInlet else 0)
+        # observation well: RES=_WELLTYPE; otherwise 2 for pond, 1 for reservoir, 0 for neither
+        res = QSWATTopology._WELLTYPE if isWell else (2 if self._odlg.pondButton.isChecked() else 1 if self._odlg.reservoirButton.isChecked() else 0)
+        ptsource = 0 if isWell else (1 if self._odlg.ptsourceButton.isChecked() else 0)
         idIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._ID)
         inletIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._INLET)
         resIndex = self._gv.topo.getIndex(self.drawOutletLayer, QSWATTopology._RES)
@@ -4865,11 +4866,15 @@ If you want to start again from scratch, reload the lakes shapefile."""
             res = feature[resIndex]
             ptsource = feature[ptsourceIndex]
             ptId = feature[ptIdIndex]
+            point = feature.geometry().asPoint()
+            # Observation wells are gwflow inputs, not watershed points: keep them out of the
+            # snap file so TauDEM never sees them and can't force them onto a reach.
+            if inlet == 0 and res == QSWATTopology._WELLTYPE and ptsource == 0:
+                continue
             inletOrOutlet = res == 0 if inlet == 0 else ptsource == 0
             reachLayer = streamLayer if inletOrOutlet else channelLayer
-            point = feature.geometry().asPoint()
             point1 = QSWATTopology.snapPointToReach(reachLayer, point, snapThreshold, transform, self._gv.isBatch)
-            if point1 is None: 
+            if point1 is None:
                 errorCount += 1
                 continue
             if inlet == 0 and res == 0:
