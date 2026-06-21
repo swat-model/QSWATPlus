@@ -50,6 +50,7 @@ def postprocess_file(filepath):
     content = re.sub(r'QAbstractItemView.SingleSelection', 'QAbstractItemView.SelectionMode.SingleSelection', content)
     content = re.sub(r'QAbstractItemView.NoEditTriggers', 'QAbstractItemView.EditTrigger.NoEditTriggers', content)
     content = re.sub(r'Qt.ScrollBarAlwaysOff', 'Qt.ScrollBarPolicy.ScrollBarAlwaysOff', content)
+    content = re.sub(r'QFormLayout.(FieldRole|LabelRole)', r'QFormLayout.ItemRole.\1', content)
     # bug fixes 
     content = re.sub(r'::', r'.', content)
     content = re.sub(r'QtCore.Qt.QFrame', r'QtWidgets.QFrame', content)
