@@ -309,7 +309,7 @@ class QSWATUtils:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix.
         
-        Do not use with shapefiles: removes some but leaves .shp and .dbf.
+        Beware with shapefiles: removes some but can leave .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
         QSWATUtils.removeFiles(fileName)
@@ -319,7 +319,7 @@ class QSWATUtils:
         """Remove any layers for fileName; delete files with same basename 
         regardless of suffix, but allow deletions to fail.
         
-        Do not use with shapefiles: removes some but leaves .shp and .dbf.
+        Beware with shapefiles: removes some but can leave .shp and .dbf.
         """
         QSWATUtils.removeLayer(fileName, root)
         QSWATUtils.tryRemoveFiles(fileName)
@@ -893,7 +893,7 @@ class QSWATUtils:
             # and so fixing geometry should be unnecessary
             else:
                 outFileName = inFileName
-            if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER:
+            if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER or FileTypes._AQUIFERTHICKNESS:
                 # not to be loaded into QGIS
                 return (outFileName, None)
             # this function will add layer if necessary
@@ -913,23 +913,28 @@ class QSWATUtils:
             if gv.crsProject is not None:  # it is None before DEM is loaded
                 epsgProject = gv.crsProject.authid()
                 epsgLoad = layer.crs().authid()
-                if epsgProject != epsgLoad:
-                    # check for assumed equivalences
-                    same = False
-                    for s in QSWATUtils._EQUIVALENT_EPSGS:
-                        if epsgProject in s and epsgLoad in s:
-                            same = True
-                            break
-                    if not same:
-                        QSWATUtils.information('WARNING: File {0} has a projection {1} which is different from the project projection {2}.  You may need to reproject and reload.'.
-                                         format(outFileName, epsgLoad, epsgProject), gv.isBatch)
-                        #QgsProject.instance().removeMapLayer(layer.id())
-                        #del layer
-                        #gv.iface.mapCanvas().refresh()
-                        #return (None, None)
+                if not QSWATUtils.areSameProjection(epsgProject, epsgLoad):
+                    QSWATUtils.information('WARNING: File {0} has a projection {1} which is different from the project projection {2}.  You may need to reproject and reload.'.
+                                     format(outFileName, epsgLoad, epsgProject), gv.isBatch)
+                    #QgsProject.instance().removeMapLayer(layer.id())
+                    #del layer
+                    #gv.iface.mapCanvas().refresh()
+                    #return (None, None)
             return (outFileName, layer)
         else:
             return (None, None)
+    
+    @staticmethod
+    def areSameProjection(epsg1: str, epsg2: str) -> bool:
+        if epsg1 == epsg2:
+            return True
+        # check for assumed equivalences
+        same = False
+        for s in QSWATUtils._EQUIVALENT_EPSGS:
+            if epsg1 in s and epsg1 in s:
+                same = True
+                break
+        return same
         
     @staticmethod
     def fixGeometry(inFile: str, saveDir: str) -> None:
@@ -1575,8 +1580,10 @@ class FileTypes:
             return 'Select SQLite database'
         elif ft == FileTypes._CHANNELBASINSRASTER:
             return 'Select channel basins raster'
-        elif ft ==FileTypes._LAKES:
+        elif ft == FileTypes._LAKES:
             return 'Select lakes shapefile'
+        elif ft == FileTypes._AQUIFERTHICKNESS:
+            return 'Select aquifer thickness raster'
         else:
             return ''
         

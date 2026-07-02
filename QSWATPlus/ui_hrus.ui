@@ -48,10 +48,7 @@
       </sizepolicy>
      </property>
      <property name="frameShape">
-      <enum>QFrame::Shape::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Shadow::Raised</enum>
+      <enum>QFrame::NoFrame</enum>
      </property>
     </widget>
    </item>
@@ -274,7 +271,7 @@
        </property>
        <layout class="QFormLayout" name="tableFormLayout">
         <property name="labelAlignment">
-         <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+         <set>Qt::AlignLeading</set>
         </property>
         <property name="horizontalSpacing">
          <number>6</number>
@@ -559,11 +556,8 @@
         <property name="maximum">
          <number>100</number>
         </property>
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
-        </property>
         <property name="tickPosition">
-         <enum>QSlider::TickPosition::TicksAbove</enum>
+         <enum>QSlider::NoTicks</enum>
         </property>
        </widget>
        <widget class="QLineEdit" name="channelMergeVal">
@@ -1278,7 +1272,7 @@ with the largest areas in that landscape unit.</string>
        <property name="geometry">
         <rect>
          <x>9</x>
-         <y>534</y>
+         <y>650</y>
          <width>401</width>
          <height>16</height>
         </rect>
@@ -1434,9 +1428,6 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>Landuse (%)</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
              </widget>
             </item>
             <item row="2" column="1">
@@ -1444,18 +1435,12 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>Soil (%)</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
              </widget>
             </item>
             <item row="2" column="2">
              <widget class="QLabel" name="soilMax">
               <property name="text">
                <string>100</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
               </property>
              </widget>
             </item>
@@ -1471,11 +1456,8 @@ will be eliminated from HRU creation.</string>
               <property name="acceptDrops">
                <bool>false</bool>
               </property>
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
               <property name="tickPosition">
-               <enum>QSlider::TickPosition::TicksAbove</enum>
+               <enum>QSlider::NoTicks</enum>
               </property>
              </widget>
             </item>
@@ -1484,11 +1466,8 @@ will be eliminated from HRU creation.</string>
               <property name="acceptDrops">
                <bool>false</bool>
               </property>
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
               <property name="tickPosition">
-               <enum>QSlider::TickPosition::TicksAbove</enum>
+               <enum>QSlider::NoTicks</enum>
               </property>
              </widget>
             </item>
@@ -1497,9 +1476,6 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>100</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
-              </property>
              </widget>
             </item>
             <item row="1" column="0" colspan="3">
@@ -1507,11 +1483,8 @@ will be eliminated from HRU creation.</string>
               <property name="acceptDrops">
                <bool>false</bool>
               </property>
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
               <property name="tickPosition">
-               <enum>QSlider::TickPosition::TicksAbove</enum>
+               <enum>QSlider::NoTicks</enum>
               </property>
              </widget>
             </item>
@@ -1526,9 +1499,6 @@ will be eliminated from HRU creation.</string>
              <widget class="QLabel" name="slopeLabel">
               <property name="text">
                <string>Slope (%)</string>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
               </property>
              </widget>
             </item>
@@ -1583,9 +1553,6 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>100</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
-              </property>
              </widget>
             </item>
            </layout>
@@ -1631,9 +1598,6 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>Area (ha)</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
              </widget>
             </item>
             <item row="0" column="2">
@@ -1641,18 +1605,12 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>9999</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
-              </property>
              </widget>
             </item>
             <item row="1" column="0" colspan="3">
              <widget class="QSlider" name="areaSlider">
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
               <property name="tickPosition">
-               <enum>QSlider::TickPosition::TicksAbove</enum>
+               <enum>QSlider::NoTicks</enum>
               </property>
              </widget>
             </item>
@@ -1733,9 +1691,6 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>Number of HRUs</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
              </widget>
             </item>
             <item row="0" column="2">
@@ -1743,18 +1698,12 @@ will be eliminated from HRU creation.</string>
               <property name="text">
                <string>9999</string>
               </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
-              </property>
              </widget>
             </item>
             <item row="1" column="0" colspan="2">
              <widget class="QSlider" name="targetSlider">
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
               <property name="tickPosition">
-               <enum>QSlider::TickPosition::TicksAbove</enum>
+               <enum>QSlider::NoTicks</enum>
               </property>
              </widget>
             </item>

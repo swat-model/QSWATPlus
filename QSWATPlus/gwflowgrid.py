@@ -23,6 +23,7 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QVariant, QTimer
 
 from .QSWATTopology import QSWATTopology
+from .QSWATUtils import QSWATUtils
 
 _LAYER_NAME = 'GWFlow Cells'
 _LAYER_ID = 'gwflowcells'
@@ -37,7 +38,7 @@ def _log(msg, level=Qgis.MessageLevel.Info):
 class GridGenerator:
     """Manages background grid generation and layer updates."""
 
-    def __init__(self, gv):
+    def __init__(self, gv, progressLabel):
         self._gv = gv
         self._task = None
         self._timer = QTimer()
@@ -45,6 +46,7 @@ class GridGenerator:
         self._timer.setInterval(600)
         self._timer.timeout.connect(self._startGeneration)
         self._params = {}
+        self.progressLabel = progressLabel
 
     def requestGeneration(self, params):
         self._params = dict(params)
@@ -68,6 +70,8 @@ class GridGenerator:
         outPath = os.path.normpath(os.path.join(self._gv.shapesDir, 'gwflowcells.shp'))
         _log('Starting grid generation: type={0} extent={1} out={2}'.format(
             self._params.get('gridType'), extent.toString(), outPath))
+        self.progressLabel.setVisible(True)
+        QSWATUtils.progress('Starting grid generation', self.progressLabel)
         # Drop any map layer pointing at this shapefile so Windows releases the file lock
         # before the background task tries to overwrite it.
         self._releaseLayerLocks(outPath)
@@ -234,6 +238,8 @@ class GridGenerator:
                 newLayer.loadNamedStyle(qmlPath)
             project.addMapLayer(newLayer)
             GridGenerator.setGwflowMode(True)
+            self.progressLabel.setVisible(True)
+            QSWATUtils.progress('Completed grid generation', self.progressLabel)
 
     @staticmethod
     def setGwflowMode(active):

@@ -514,7 +514,7 @@ class GwflowDB:
         kFieldIdx = -1
         for i, field in enumerate(permLayer.fields()):
             name = field.name().lower()
-            if name in ('k', 'k_m_day', 'hydc', 'conductivity', 'perm'):
+            if name in ('k', 'k_mday', 'k_m_day', 'hydc', 'conductivity', 'perm'):
                 kFieldIdx = i
                 break
 
@@ -791,7 +791,8 @@ class GwflowDB:
                              .format(QSWATTopology._CHANNEL, channelFile),
                              self._gv.isBatch, logFile=self._gv.logFile)
             return
-
+        
+        chanDepthIdx = chanLayer.fields().indexOf(QSWATTopology._DEP2)
         validChannels = set()
         for row in conn.execute('SELECT id FROM gis_channels'):
             validChannels.add(row[0])
@@ -799,7 +800,7 @@ class GwflowDB:
         demDs = None
         demBand = None
         demTransform = None
-        riverDepth = 5.0
+        riverDepth = 5.0 # default: changed later to DEP2 field
         if self._gv.demFile and os.path.isfile(self._gv.demFile):
             demDs = gdal.Open(self._gv.demFile, gdal.GA_ReadOnly)
             if demDs:
@@ -818,6 +819,8 @@ class GwflowDB:
                 chanId = int(chanFeat[chanIdIdx])
                 if chanId not in validChannels:
                     continue
+                if chanDepthIdx >= 0:
+                    riverDepth = float(chanFeat[chanDepthIdx])
                 chanGeom = chanFeat.geometry()
                 if cellGeom.intersects(chanGeom):
                     intersection = cellGeom.intersection(chanGeom)
@@ -930,7 +933,7 @@ class GwflowDB:
         # Source wells as gwflowgrid._getWellCoords does (outlets file; inlet==0,
         # RES==well type, ptsource==0) so obs_gw holds the same wells the grid was
         # refined around.
-        wellCoords = []
+        wellCoords = dict()
         outletFile = getattr(self._gv, 'outletFile', '')
         if outletFile and os.path.isfile(outletFile):
             layer = QgsVectorLayer(outletFile, 'tmp', 'ogr')
@@ -938,6 +941,7 @@ class GwflowDB:
                 resIdx = layer.fields().indexOf(QSWATTopology._RES)
                 inletIdx = layer.fields().indexOf(QSWATTopology._INLET)
                 ptsourceIdx = layer.fields().indexOf(QSWATTopology._PTSOURCE)
+                ptIdIdx = layer.fields().indexOf(QSWATTopology._POINTID);
                 if resIdx >= 0 and inletIdx >= 0 and ptsourceIdx >= 0:
                     for feat in layer.getFeatures():
                         if (feat[inletIdx] == 0
@@ -945,13 +949,14 @@ class GwflowDB:
                                 and feat[ptsourceIdx] == 0):
                             geom = feat.geometry()
                             if geom and not geom.isEmpty():
-                                wellCoords.append(geom.asPoint())
+                                ptId = int(feat[ptIdIdx])
+                                wellCoords[ptId] = geom.asPoint()
         if not wellCoords:
             return
 
         # Find nearest cell for each well
         sql = 'INSERT OR IGNORE INTO obs_gw (cell_id, name) VALUES (?, ?)'
-        for i, wellPt in enumerate(wellCoords):
+        for i, wellPt in wellCoords.items():
             wellGeom = QgsGeometry.fromPointXY(wellPt)
             bestCellId = None
             bestDist = float('inf')
@@ -962,7 +967,7 @@ class GwflowDB:
                     bestDist = dist
                     bestCellId = cellFeat['cell_id']
             if bestCellId is not None:
-                conn.execute(sql, (bestCellId, 'well_{0}'.format(i + 1)))
+                conn.execute(sql, (bestCellId, 'well_{0}'.format(i)))
 
     # Helpers
 

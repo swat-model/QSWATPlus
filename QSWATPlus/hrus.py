@@ -118,9 +118,9 @@ class CreateHRUs(QObject):
         self._dlg = dialog
         from qgis.PyQt.QtWidgets import QHBoxLayout
         # Embedded gwflow panel in HRUs tab, shown when gwflow is selected
-        self.gwflowPanel = GwflowHru(dialog.tab_2)
+        self.gwflowPanel = GwflowHru(gv, dialog)
         self.gwflowPanel.setVisible(False)
-        self.gwflowPanel.move(10, 265)
+        self.gwflowPanel.move(10, 300)  # y was 265
         self.gwflowPanel.setMinimumWidth(420)
         self.gwflowPanel.adjustSize()
         # Track tab_2 resize so the panel grows with the dialog
@@ -216,7 +216,13 @@ class CreateHRUs(QObject):
             self.progress_signal.emit(msg)
 
     def _onGwflowToggled(self, on: bool) -> None:
-        """Show/hide gwflow panel and swap Subbasins/GWFlow Cells layer visibility."""
+        """Show/hide gwflow panel and swap Subbasins/GWFlow Cells layer visibility.
+        
+        Hide unless the HRUs tab is selected, 
+        otherwise becomes visible in wrong tab when use gwflow changes or is set, or focus switched back to landuse and soil tab"""
+        if self._dlg.HRUsTab.currentIndex() == 0:
+            self.gwflowPanel.setVisible(False)
+            return
         self.gwflowPanel.setVisible(on)
         self._dlg.createButton.setEnabled(not on or self.gwflowPanel.isValid())
         if on:
@@ -5496,6 +5502,9 @@ class HRUs(QObject):
         """Debugging information when tab switched in HRUs form."""
         #QSWATUtils.information('Switched to tab {}'.format(i), False)
         self.progress('')
+        # also need to make sure gwflow form appears if needed
+        if i == 1:
+            self.CreateHRUs._onGwflowToggled(self._dlg.gwflowButton.isChecked())
         
     def initFloodplain(self) -> None:
         """
@@ -5754,12 +5763,21 @@ class HRUs(QObject):
                 if treeLayer is not None:
                     fullHRUsLayer = treeLayer.layer()
                     fullHRUsFile = QSWATUtils.layerFileInfo(fullHRUsLayer).absoluteFilePath()
-                    QSWATUtils.removeLayer(fullHRUsFile, root)
-                    treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
-                    if treeLayer is not None:
-                        actHRUsLayer = treeLayer.layer()
-                        actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
-                        QSWATUtils.removeLayer(actHRUsFile, root)
+                    QSWATUtils.removeLayerAndFiles(fullHRUsFile, root)
+                treeLayer = QSWATUtils.getLayerByLegend(QSWATUtils._ACTHRUSLEGEND, root.findLayers())
+                if treeLayer is not None:
+                    actHRUsLayer = treeLayer.layer()
+                    actHRUsFile = QSWATUtils.layerFileInfo(actHRUsLayer).absoluteFilePath()
+                    QSWATUtils.removeLayerAndFiles(actHRUsFile, root)
+                hrus1File = QSWATUtils.join(self._gv.shapesDir, 'hrus1.shp')
+                if os.path.isfile(hrus1File):
+                    QSWATUtils.removeLayerAndFiles(hrus1File, root)
+                hrus2File = QSWATUtils.join(self._gv.shapesDir, 'hrus2.shp')
+                if os.path.isfile(hrus2File):
+                    QSWATUtils.removeLayerAndFiles(hrus2File, root)
+                hrusFile = QSWATUtils.join(self._gv.resultsDir, 'hrus.shp')
+                if os.path.isfile(hrusFile):
+                    QSWATUtils.removeLayerAndFiles(hrusFile, root)
             time1 = time.process_time()
             OK = self.CreateHRUs.generateBasins(self._dlg.progressBar, root)
             time2 = time.process_time()
@@ -5924,6 +5942,7 @@ class HRUs(QObject):
             QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch, logFile=self._gv.logFile)
         finally:
             self.saveProj()
+            self.CreateHRUs.gwflowPanel.saveToProject(QgsProject.instance(), self._gv.attTitle)
             time2 = time.process_time()
             QSWATUtils.loginfo('Calculating HRUs took {0} seconds'.format(int(time2 - time1)))
             self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
@@ -6707,4 +6726,3 @@ class HRUs(QObject):
         proj.writeEntry(self._gv.attTitle, 'hru/slopeVal', self.CreateHRUs.slopeVal)
         proj.writeEntry(self._gv.attTitle, 'hru/targetVal', self.CreateHRUs.targetVal)
         proj.writeEntry(self._gv.attTitle, 'hru/useGWFlow', self._dlg.gwflowButton.isChecked())
-        self.CreateHRUs.gwflowPanel.saveToProject(proj, self._gv.attTitle)

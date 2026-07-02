@@ -78,8 +78,7 @@ class QSWATTopology:
     _PONDTYPE = 2
     _WETLANDTYPE = 3
     _PLAYATYPE = 4
-    # observation well (RES=3 in outlets shapefile, distinct from _WETLANDTYPE which is used in the lakes file)
-    _WELLTYPE = 3
+    _WELLTYPE = 5
 
     # flow types (hyd_typ in gis_routing)
     _TOTAL = 'tot'

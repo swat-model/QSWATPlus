@@ -10,22 +10,25 @@ import os
 import math
 from qgis.PyQt.QtCore import QSettings, pyqtSignal
 from qgis.PyQt.QtWidgets import QGroupBox, QFileDialog
+from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
 
 from .ui_gwflow_hru import Ui_GwflowHru
-
+from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns  # type: ignore
 
 class GwflowHru(QGroupBox, Ui_GwflowHru):
     """gwflow configuration panel embedded in the HRUs dialog."""
 
     validityChanged = pyqtSignal(bool)
 
-    def __init__(self, parent=None):
+    def __init__(self, gv, parent):
         super().__init__(parent)
+        self._gv = gv
         self.setupUi(self)
         self._gridGen = None
         self._watershedArea = 0
         self._updateMinSizeLabel()
         self._connect()
+        self.progressLabel = parent.progressLabel2
 
     def _connect(self):
         self.aquiferThicknessButton.clicked.connect(self._browseThickness)
@@ -52,28 +55,68 @@ class GwflowHru(QGroupBox, Ui_GwflowHru):
         QSettings().setValue('/QSWATPlus/LastInputPath', os.path.dirname(filePath))
 
     def _browseThickness(self):
-        f, _ = QFileDialog.getOpenFileName(
-            self, 'Select aquifer thickness raster', self._lastInputPath(),
-            'Raster files (*.tif *.tiff *.img *.asc);;All files (*.*)')
-        if f and os.path.isfile(f):
-            self._saveInputPath(f)
-            self.aquiferThickness.setText(f)
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # for this filetype the file will not be loaded or opened, but will be copied if nesessary to gwflowDir
+        proj = QgsProject.instance()
+        root = proj.layerTreeRoot()
+        thicknessFile, _ = QSWATUtils.openAndLoadFile(root, FileTypes._AQUIFERTHICKNESS, self.aquiferThickness, gwflowDir, self._gv, None, "")
+        if not thicknessFile:
+            return 
+        self.aquiferThickness.setText(thicknessFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsRasterLayer(thicknessFile)
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''Thickness raster {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(thicknessFile, epsg, projEpsg), self._gv.isBatch)
 
     def _browsePermeability(self):
         f, _ = QFileDialog.getOpenFileName(
             self, 'Select aquifer permeability shapefile', self._lastInputPath(),
-            'Shapefiles (*.shp);;All files (*.*)')
-        if f and os.path.isfile(f):
-            self._saveInputPath(f)
-            self.aquiferPermeability.setText(f)
+            FileTypes.filter(FileTypes._PERMEABILITY))
+        if not (f and os.path.isfile(f)):
+            return
+        self._saveInputPath(f)
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # this is a no-op if f is gwflowDir/permeability.shp
+        QSWATUtils.copyShapefile(f, "permeability", gwflowDir);
+        permFile = QSWATUtils.join(gwflowDir, "permeability.shp");    
+        self.aquiferPermeability.setText(permFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsVectorLayer(permFile, '', 'ogr')
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''Permeability shapefile {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(permFile, epsg, projEpsg), self._gv.isBatch)
+
 
     def _browseTileDrains(self):
         f, _ = QFileDialog.getOpenFileName(
             self, 'Select tile drains shapefile', self._lastInputPath(),
-            'Shapefiles (*.shp);;All files (*.*)')
-        if f and os.path.isfile(f):
-            self._saveInputPath(f)
-            self.tileDrains.setText(f)
+            FileTypes.filter(FileTypes._TILEDRAINS))
+        if not (f and os.path.isfile(f)):
+            return
+        self._saveInputPath(f)
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # this is a no-op if f is gwflowDir/permeability.shp
+        QSWATUtils.copyShapefile(f, "tileDrains", gwflowDir);
+        tileDrainsFile = QSWATUtils.join(gwflowDir, "tileDrains.shp"); 
+        self.tileDrains.setText(tileDrainsFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsVectorLayer(tileDrainsFile, '', 'ogr')
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''TileDrains shapefile {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(tileDrainsFile, epsg, projEpsg), self._gv.isBatch)
 
     def _toggleTile(self, on):
         self.tileDrains.setEnabled(on)
@@ -96,7 +139,7 @@ class GwflowHru(QGroupBox, Ui_GwflowHru):
     def initGridGenerator(self, gv):
         """Set up background grid generation and auto-size cells for ~200 cells."""
         from .gwflowgrid import GridGenerator
-        self._gridGen = GridGenerator(gv)
+        self._gridGen = GridGenerator(gv, self.progressLabel)
         extent = self._gridGen._getWatershedExtent()
         if extent is not None and not extent.isEmpty():
             areaM2 = extent.width() * extent.height()

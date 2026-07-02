@@ -2290,7 +2290,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
         QSettings().setValue('/QSWATPlus/NumProcesses', str(numProcesses))
         self._dlg.taudemOutput.clear()
         # create Dinf slopes
-        felFile = base + 'fel' + suffix
         slpFile = base + 'slp' + suffix
         angFile = base + 'ang' + suffix
         QSWATUtils.removeLayer(slpFile, root)
@@ -2361,7 +2360,6 @@ assumed that its crossing the lake boundary is an inaccuracy.
                     self.progress('Generating watershed raster ...')
                     wChannelFile = self.createBasinFile(wshedFile, demLayer, 'wChannel', root)
                 self._gv.channelBasinFile = wChannelFile
-        self._gv.felFile = felFile
         self._gv.slopeFile = slpFile
         self._gv.subbasinsFile = subbasinsFile
         if not self._gv.useGridModel:
