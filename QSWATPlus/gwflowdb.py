@@ -658,7 +658,7 @@ class GwflowDB:
     def _populateHRUCells(self, conn, gridLayer):
         """Intersect gwflow grid with HRU shapefile using parallel workers."""
         self._progress('Computing HRU-cell intersections')
-        hruFile = self._gv.fullHRUsFile
+        hruFile = self._gv.actHRUsFile
         if not hruFile or not os.path.isfile(hruFile):
             return
 
