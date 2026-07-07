@@ -655,7 +655,7 @@ class QSWATTopology:
                     if point[inletIndex] == 1:
                         if point[ptSourceIndex] == 1:
                             isPtSource = True
-                            isInlet = False
+                            isInlet = True
                         else:
                             isPtSource = False
                             isInlet = True
@@ -700,7 +700,12 @@ class QSWATTopology:
                     if isInlet:
                         if isPtSource:
                             pt = point.geometry().asPoint()
-                            self.chLinkToPtSrc[chLink] = (point[ptIdIndex], pt)
+                            # point source feeds the downstream channel
+                            dsChLink = self.downChannels.get(chLink, -1)
+                            if dsChLink < 0:
+                                QSWATUtils.error('Point source {0} has no channel to drain into'.format(point[ptIdIndex]), gv.isBatch)
+                            else:
+                                self.chLinkToPtSrc[dsChLink] = (point[ptIdIndex], pt)
                         elif useGridModel: # inlets collected in setUp0 for non-grids
                             pt = point.geometry().asPoint()
                             self.chLinkToInlet[chLink] = (point[ptIdIndex], pt)

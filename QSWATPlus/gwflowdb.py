@@ -378,11 +378,11 @@ _DROP_ORDER = [
 class GwflowDB:
     """Creates and populates gwflow database tables."""
 
-    def __init__(self, gv, panel, progress=None):
+    def __init__(self, gv, dialog, progress=None):
         self._gv = gv
-        self._panel = panel
+        self._dialog = dialog
         self._progress = progress or (lambda msg: None)
-        self._progressBar = panel.progressBar if panel else None
+        self._progressBar = dialog.progressBar2 if dialog else None
 
     def run(self):
         """Create tables, populate cells and intersections."""
@@ -473,12 +473,12 @@ class GwflowDB:
         conn.execute('CREATE INDEX IF NOT EXISTS idx_chancell_gw_channel ON chancell_gw (channel_id)')
 
     def _populateConfig(self, conn):
-        """Write single config row with defaults from panel."""
+        """Write single config row with defaults from dialog."""
         self._progress('Writing gwflow configuration')
-        panel = self._panel
-        gridType = 'structured' if panel.structuredRadio.isChecked() else 'unstructured'
-        cellSize = panel.cellSize.value() if gridType == 'structured' else panel.maxCellSize.value()
-        useTile = 1 if panel.useTileDrains.isChecked() else 0
+        dialog = self._dialog
+        gridType = 'structured' if dialog.gridTab.currentIndex == 0 else 'unstructured'
+        cellSize = dialog.cellSize.value() if gridType == 'structured' else dialog.maxCellSize.value()
+        useTile = 1 if dialog.useTileDrains.isChecked() else 0
 
         numRows = 0
         numCols = 0
@@ -487,7 +487,7 @@ class GwflowDB:
             gridLayer = QgsVectorLayer(gridPath, 'tmp', 'ogr')
             if gridLayer.isValid():
                 extent = gridLayer.extent()
-                cs = panel.cellSize.value()
+                cs = dialog.cellSize.value()
                 if cs > 0:
                     numRows = int(math.ceil((extent.yMaximum() - extent.yMinimum()) / cs))
                     numCols = int(math.ceil((extent.xMaximum() - extent.xMinimum()) / cs))
@@ -500,7 +500,7 @@ class GwflowDB:
     def _populateZones(self, conn):
         """Create zones from aquifer permeability shapefile."""
         self._progress('Processing aquifer zones')
-        permFile = self._panel.aquiferPermeability.text()
+        permFile = self._dialog.aquiferPermeability.text()
         if not permFile or not os.path.isfile(permFile):
             conn.execute('INSERT INTO zones_gw (zone_id, aquifer_k) VALUES (1, 1.0)')
             return
@@ -546,7 +546,7 @@ class GwflowDB:
         thickDs = None
         thickBand = None
         thickTransform = None
-        thickFile = self._panel.aquiferThickness.text()
+        thickFile = self._dialog.aquiferThickness.text()
         if thickFile and os.path.isfile(thickFile):
             thickDs = gdal.Open(thickFile, gdal.GA_ReadOnly)
             if thickDs:
@@ -557,8 +557,8 @@ class GwflowDB:
         wsGeom = self._getWatershedBoundaryLine()
 
         # For structured grids, compute row/col from cell centroid position
-        isStructured = self._panel.structuredRadio.isChecked()
-        cellSize = self._panel.cellSize.value() if isStructured else 0
+        isStructured = self._dialog.gridTab.currentIndex == 0
+        cellSize = self._dialog.cellSize.value() if isStructured else 0
         gridExtent = gridLayer.extent() if isStructured else None
 
         # gis_id = gwflowcells.shp cell id (== cell_id), for GIS join-back; stored
@@ -660,6 +660,7 @@ class GwflowDB:
         self._progress('Computing HRU-cell intersections')
         hruFile = self._gv.actHRUsFile
         if not hruFile or not os.path.isfile(hruFile):
+            QSWATUtils.error('You cannot use gwflow if you have not generated a fullHRUs shapefile', self._gv.isBatch)
             return
 
         hruLayer = QgsVectorLayer(hruFile, 'hrus', 'ogr')
@@ -1023,7 +1024,7 @@ class GwflowDB:
 
     def _loadPermZones(self):
         """Load permeability shapefile geometries with zone IDs."""
-        permFile = self._panel.aquiferPermeability.text()
+        permFile = self._dialog.aquiferPermeability.text()
         if not permFile or not os.path.isfile(permFile):
             return []
         layer = QgsVectorLayer(permFile, 'perm', 'ogr')

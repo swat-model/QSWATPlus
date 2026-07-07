@@ -236,7 +236,7 @@ if __name__ == '__main__':
         #direc = r'K:\HUCModels\Models4\SWATPlus\Fields_CDL\HUC12\0202000206\huc0202000206\huc0202000206.qgs'
         #direc = r"K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC12/02/huc0202000308/huc0202000308.qgs"
         #direc = r'K:/HUCModels/Models4/SWATPlus/Fields_CDL/HUC14/02040303/huc020403030102/huc020403030102.qgs'
-        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/180300010101\huc180300010101/huc180300010101.qgs'
+        direc = r'K:/HUCModels/Models5/SWATPlus/Fields_CDL/HUC14/01\huc011000051302/huc011000051302.qgs'
         #direc = r"K:\HUCModels\Models5\SWATPlus\Fields_CDL\HUC12\10\huc1016000318\huc1016000318.qgs"
         #direc = r"K:\HAWQSModels\SWATPlus\Fields_CDL\HUC14\Models030902010200\HAWQSProject030902010200_14\HAWQSProject030902010200_14.qgs" 
         subRegion = ''

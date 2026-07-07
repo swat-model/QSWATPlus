@@ -893,7 +893,7 @@ class QSWATUtils:
             # and so fixing geometry should be unnecessary
             else:
                 outFileName = inFileName
-            if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER or FileTypes._AQUIFERTHICKNESS:
+            if ft == FileTypes._CSV or ft == FileTypes._CHANNELBASINSRASTER or ft == FileTypes._AQUIFERTHICKNESS:
                 # not to be loaded into QGIS
                 return (outFileName, None)
             # this function will add layer if necessary

@@ -54,7 +54,7 @@ from .split import Split  # type: ignore
 from .elevationbands import ElevationBands  # type: ignore
 from .delineation import Delineation  # type: ignore
 from .globals import GlobalVars   # type: ignore #  @Reimport
-from .gwflow_hru import GwflowHru  # type: ignore
+#from .gwflow_hru import GwflowHru  # type: ignore
 from .gwflowdb import GwflowDB  # type: ignore
 from .gwflowgrid import GridGenerator  # type: ignore
 
@@ -116,40 +116,6 @@ class CreateHRUs(QObject):
         self._iface = gv.iface
         self._reportsCombo = reportsCombo
         self._dlg = dialog
-        from qgis.PyQt.QtWidgets import QHBoxLayout
-        # Embedded gwflow panel in HRUs tab, shown when gwflow is selected
-        self.gwflowPanel = GwflowHru(gv, dialog)
-        self.gwflowPanel.setVisible(False)
-        self.gwflowPanel.move(10, 300)  # y was 265
-        self.gwflowPanel.setMinimumWidth(420)
-        self.gwflowPanel.adjustSize()
-        # Track tab_2 resize so the panel grows with the dialog
-        _origTabResize = dialog.tab_2.resizeEvent
-        def _onTabResize(ev):
-            _origTabResize(ev)
-            w = max(self.gwflowPanel.minimumWidth(), dialog.tab_2.width() - 20)
-            self.gwflowPanel.resize(w, self.gwflowPanel.height())
-        dialog.tab_2.resizeEvent = _onTabResize
-        self.gwflowPanel.initGridGenerator(gv)
-        dialog.gwflowButton.toggled.connect(self._onGwflowToggled)
-        self.gwflowPanel.validityChanged.connect(
-            lambda valid: dialog.createButton.setEnabled(valid or not dialog.gwflowButton.isChecked()))
-        # Bottom bar: progress display plus Cancel/Create, kept out of the tab
-        # body so the gwflow panel can never overlap or reflow them
-        dialog.createButton.setParent(dialog)
-        dialog.gridLayout_7.removeWidget(dialog.cancelButton)
-        dialog.progressLabel2.setParent(dialog)
-        self.gwflowPanel.progressBar.setParent(dialog)
-        self.gwflowPanel.progressBar.setVisible(False)
-        btnRow = QHBoxLayout()
-        btnRow.addWidget(dialog.progressLabel2)
-        btnRow.addWidget(self.gwflowPanel.progressBar)
-        btnRow.addStretch()
-        btnRow.addWidget(dialog.cancelButton)
-        btnRow.addWidget(dialog.createButton)
-        dialog.gridLayout_7.addLayout(btnRow, 3, 0, 1, 1)
-        # progress bar left the panel, so recompute its content height
-        self.gwflowPanel.adjustSize()
         ## number of HRUs created in watershed
         self.HRUNum = 0
         ## Minimum elevation in watershed
@@ -204,9 +170,34 @@ class CreateHRUs(QObject):
         # and for crop and soil maps with nodata values larger in absolute size
         # this value is assumed in the code to be negative
         self.defaultNoData = 1 - 2 ** 31
+        # from gwflow_hru
+        self._dlg.aquiferThicknessButton.clicked.connect(self._browseThickness)
+        self._dlg.aquiferPermeabilityButton.clicked.connect(self._browsePermeability)
+        self._dlg.tileDrainsButton.clicked.connect(self._browseTileDrains)
+        self._dlg.useTileDrains.toggled.connect(self._toggleTile)
+        self._dlg.refineTopography.toggled.connect(self._toggleElevTolerance)
+        self._dlg.transitionSlider.valueChanged.connect(
+            lambda v: self._dlg.transitionSpin.setValue(v / 10.0))
+        self._dlg.transitionSpin.valueChanged.connect(
+            lambda v: self._dlg.transitionSlider.setValue(int(v * 10)))
+        self._dlg.cellSize.valueChanged.connect(self._onCellSizeChanged)
+        self._dlg.maxCellSize.valueChanged.connect(self._updateMinSizeLabel)
+        self._dlg.refineLevels.valueChanged.connect(self._updateMinSizeLabel)
+        self._dlg.generateGridButton.clicked.connect(self._requestGrid)
+        self._dlg.aquiferThickness.textChanged.connect(self._checkValidity)
+        self._dlg.aquiferPermeability.textChanged.connect(self._checkValidity)
+        self._gridGen = None
+        self._watershedArea = 0
+        self._updateMinSizeLabel()
+        self.initGridGenerator(self._gv)
+        self._dlg.gwflowButton.toggled.connect(self._onGwflowToggled)
+        self.validityChanged.connect(
+            lambda valid: self._dlg.createButton.setEnabled(valid or not self._dlg.gwflowButton.isChecked()))
      
     ## Signal for progress messages       
     progress_signal = pyqtSignal(str)
+
+    validityChanged = pyqtSignal(bool)
     
     def progress(self, msg: str) -> None:
         """Update progress label with message; emit message for display in testing."""
@@ -216,15 +207,9 @@ class CreateHRUs(QObject):
             self.progress_signal.emit(msg)
 
     def _onGwflowToggled(self, on: bool) -> None:
-        """Show/hide gwflow panel and swap Subbasins/GWFlow Cells layer visibility.
-        
-        Hide unless the HRUs tab is selected, 
-        otherwise becomes visible in wrong tab when use gwflow changes or is set, or focus switched back to landuse and soil tab"""
-        if self._dlg.HRUsTab.currentIndex() == 0:
-            self.gwflowPanel.setVisible(False)
-            return
-        self.gwflowPanel.setVisible(on)
-        self._dlg.createButton.setEnabled(not on or self.gwflowPanel.isValid())
+        """Show/hide gwflow group and swap Subbasins/GWFlow Cells layer visibility."""
+        self._dlg.GwflowHru.setVisible(on)
+        self._dlg.createButton.setEnabled(not on or self.isValid())
         if on:
             self._loadExistingGwflowGrid()
             GridGenerator.setGwflowMode(True)
@@ -4923,9 +4908,11 @@ class CreateHRUs(QObject):
             feature.setGeometry(QgsGeometry.fromPointXY(point))
             provider.addFeatures([feature])
         for channel, (pointId, point) in ptSources.items():
-            # check channel not merged with one upstream
+            # check channel has no user-defined point source,
+            # not merged with one upstream
             # and not inside lake
-            if channel not in mergees and \
+            if channel not in self._gv.topo.chLinkToPtSrc and \
+                channel not in mergees and \
                channel not in self._gv.topo.chLinkInsideLake and \
                not (self._gv.useGridModel and channel in self._gv.topo.chLinkFromLake):
                 chBasin = self._gv.topo.chLinkToChBasin.get(channel, -1)
@@ -5374,6 +5361,215 @@ class CreateHRUs(QObject):
                 string2 = locale.format_string('%.2F', percent2).rjust(just2)
                 fw.write(string2)
         fw.writeLine('')
+
+    def _lastInputPath(self):
+        return str(QSettings().value('/QSWATPlus/LastInputPath', ''))
+
+    def _saveInputPath(self, filePath):
+        QSettings().setValue('/QSWATPlus/LastInputPath', os.path.dirname(filePath))
+
+    def _browseThickness(self):
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # for this filetype the file will not be loaded or opened, but will be copied if nesessary to gwflowDir
+        proj = QgsProject.instance()
+        root = proj.layerTreeRoot()
+        thicknessFile, _ = QSWATUtils.openAndLoadFile(root, FileTypes._AQUIFERTHICKNESS, self._dlg.aquiferThickness, gwflowDir, self._gv, None, "")
+        if not thicknessFile:
+            return 
+        self._dlg.aquiferThickness.setText(thicknessFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsRasterLayer(thicknessFile)
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''Thickness raster {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(thicknessFile, epsg, projEpsg), self._gv.isBatch)
+
+    def _browsePermeability(self):
+        f, _ = QFileDialog.getOpenFileName(
+            self._dlg, 'Select aquifer permeability shapefile', self._lastInputPath(),
+            FileTypes.filter(FileTypes._PERMEABILITY))
+        if not (f and os.path.isfile(f)):
+            return
+        self._saveInputPath(f)
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # this is a no-op if f is gwflowDir/permeability.shp
+        QSWATUtils.copyShapefile(f, "permeability", gwflowDir);
+        permFile = QSWATUtils.join(gwflowDir, "permeability.shp");    
+        self._dlg.aquiferPermeability.setText(permFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsVectorLayer(permFile, '', 'ogr')
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''Permeability shapefile {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(permFile, epsg, projEpsg), self._gv.isBatch)
+
+
+    def _browseTileDrains(self):
+        f, _ = QFileDialog.getOpenFileName(
+            self._dlg, 'Select tile drains shapefile', self._lastInputPath(),
+            FileTypes.filter(FileTypes._TILEDRAINS))
+        if not (f and os.path.isfile(f)):
+            return
+        self._saveInputPath(f)
+        gwflowDir = QSWATUtils.join(self._gv.projDir, 'gwflowFiles')
+        if not os.path.isdir(gwflowDir):
+            os.makedirs(gwflowDir)
+        # this is a no-op if f is gwflowDir/permeability.shp
+        QSWATUtils.copyShapefile(f, "tileDrains", gwflowDir);
+        tileDrainsFile = QSWATUtils.join(gwflowDir, "tileDrains.shp"); 
+        self._dlg.tileDrains.setText(tileDrainsFile)
+        # check projection
+        projEpsg = self._gv.crsProject.authid()
+        layer = QgsVectorLayer(tileDrainsFile, '', 'ogr')
+        epsg = layer.crs().authid()
+        if not QSWATUtils.areSameProjection(projEpsg, epsg):
+            QSWATUtils.information('''TileDrains shapefile {0} has projection {1} different from the project's {2}.
+            Do you need to reproject it?'''.format(tileDrainsFile, epsg, projEpsg), self._gv.isBatch)
+
+    def _toggleTile(self, on):
+        self._dlg.tileDrains.setEnabled(on)
+        self._dlg.tileDrainsButton.setEnabled(on)
+
+    def _toggleElevTolerance(self, on):
+        self._dlg.elevTolLabel.setVisible(on)
+        self._dlg.elevTolerance.setVisible(on)
+
+    def _updateMinSizeLabel(self):
+        maxSz = self._dlg.maxCellSize.value()
+        levels = self._dlg.refineLevels.value()
+        minSz = maxSz / (2 ** levels)
+        self._dlg.minSizeLabel.setText('Min cell size: {0:.1f} m  (max / 2^{1})'.format(minSz, levels))
+
+    def initGridGenerator(self, gv):
+        """Set up background grid generation and auto-size cells for ~200 cells."""
+        self._gridGen = GridGenerator(gv, self._dlg.progressLabel2)
+        extent = self._gridGen._getWatershedExtent()
+        if extent is not None and not extent.isEmpty():
+            areaM2 = extent.width() * extent.height()
+            self._watershedArea = areaM2
+            targetCells = 200
+            idealSize = int(math.sqrt(areaM2 / targetCells))
+            magnitude = 10 ** int(math.log10(max(idealSize, 1)))
+            idealSize = max(magnitude, round(idealSize / magnitude) * magnitude)
+            self._dlg.cellSize.setValue(idealSize)
+            self._dlg.maxCellSize.setValue(idealSize * 3)
+            self.updateCellEstimate(areaM2)
+            self._updateMinSizeLabel()
+
+    def _requestGrid(self):
+        """Collect current parameters and request background grid generation."""
+        if self._gridGen is None:
+            return
+        params = {
+            'gridType': 'structured' if self._dlg.gridTab.currentIndex() == 0 else 'unstructured',
+            'cellSize': self._dlg.cellSize.value(),
+            'maxSize': self._dlg.maxCellSize.value(),
+            'levels': self._dlg.refineLevels.value(),
+            'transitionRate': self._dlg.transitionSpin.value(),
+            'refineStreams': self._dlg.refineStreams.isChecked(),
+            'refineTopography': self._dlg.refineTopography.isChecked(),
+            'refineBoundary': self._dlg.refineBoundary.isChecked(),
+            'refineWells': self._dlg.refineWells.isChecked(),
+            'elevTolerance': self._dlg.elevTolerance.value(),
+            'alignToGrid': self._dlg.alignGrids.isChecked(),
+        }
+        self._gridGen.requestGeneration(params)
+
+    def _onCellSizeChanged(self):
+        if self._watershedArea > 0:
+            self.updateCellEstimate(self._watershedArea)
+
+    def updateCellEstimate(self, areaM2):
+        size = self._dlg.cellSize.value()
+        if size > 0:
+            cells = int(areaM2 / (size * size))
+            self._dlg.cellEstimateLabel.setText(
+                '\u2248 {0:,} cells (based on watershed area)'.format(cells))
+
+    def saveToProject(self, proj, attTitle):
+        proj.writeEntry(attTitle, 'gwflow/aquiferThickness', proj.writePath(self._dlg.aquiferThickness.text()))
+        proj.writeEntry(attTitle, 'gwflow/aquiferPermeability', proj.writePath(self._dlg.aquiferPermeability.text()))
+        proj.writeEntry(attTitle, 'gwflow/tileDrains', proj.writePath(self._dlg.tileDrains.text()))
+        proj.writeEntry(attTitle, 'gwflow/gridType', 'structured' if self._dlg.gridTab.currentIndex() == 0 else 'unstructured')
+        proj.writeEntryDouble(attTitle, 'gwflow/cellSize', float(self._dlg.cellSize.value()))
+        proj.writeEntryDouble(attTitle, 'gwflow/maxSize', float(self._dlg.maxCellSize.value()))
+        proj.writeEntryDouble(attTitle, 'gwflow/levels', float(self._dlg.refineLevels.value()))
+        proj.writeEntryDouble(attTitle, 'gwflow/transitionRate', self._dlg.transitionSpin.value())
+        proj.writeEntryBool(attTitle, 'gwflow/refineStreams', self._dlg.refineStreams.isChecked())
+        proj.writeEntryBool(attTitle, 'gwflow/refineTopography', self._dlg.refineTopography.isChecked())
+        proj.writeEntryBool(attTitle, 'gwflow/refineBoundary', self._dlg.refineBoundary.isChecked())
+        proj.writeEntryBool(attTitle, 'gwflow/refineWells', self._dlg.refineWells.isChecked())
+        proj.writeEntryBool(attTitle, 'gwflow/useTileDrains', self._dlg.useTileDrains.isChecked())
+        proj.writeEntryBool(attTitle, 'gwflow/alignGrids', self._dlg.alignGrids.isChecked())
+        proj.writeEntryDouble(attTitle, 'gwflow/elevTolerance', float(self._dlg.elevTolerance.value()))
+
+    def loadFromProject(self, proj, attTitle):
+        val, found = proj.readEntry(attTitle, 'gwflow/aquiferThickness', '')
+        if found and val:
+            self._dlg.aquiferThickness.setText(proj.readPath(val))
+        val, found = proj.readEntry(attTitle, 'gwflow/aquiferPermeability', '')
+        if found and val:
+            self._dlg.aquiferPermeability.setText(proj.readPath(val))
+        val, found = proj.readEntry(attTitle, 'gwflow/tileDrains', '')
+        if found and val:
+            self._dlg.tileDrains.setText(proj.readPath(val))
+            self._dlg.useTileDrains.setChecked(True)
+        val, found = proj.readEntry(attTitle, 'gwflow/gridType', '')
+        if found and val == 'unstructured':
+            self._dlg.gridTab.setCurrentIndex(1)
+        else:
+            self._dlg.gridTab.setCurrentIndex(0)
+        val, found = proj.readDoubleEntry(attTitle, 'gwflow/cellSize', 0)
+        if found and val > 0:
+            self._dlg.cellSize.setValue(int(val))
+        val, found = proj.readDoubleEntry(attTitle, 'gwflow/maxSize', 0)
+        if found and val > 0:
+            self._dlg.maxCellSize.setValue(int(val))
+        val, found = proj.readDoubleEntry(attTitle, 'gwflow/levels', 0)
+        if found and val > 0:
+            self._dlg.refineLevels.setValue(int(val))
+        val, found = proj.readDoubleEntry(attTitle, 'gwflow/transitionRate', 0)
+        if found and val > 0:
+            self._dlg.transitionSpin.setValue(val)
+        val, found = proj.readBoolEntry(attTitle, 'gwflow/refineStreams', True)
+        if found:
+            self._dlg.refineStreams.setChecked(val)
+        val, found = proj.readBoolEntry(attTitle, 'gwflow/refineTopography', True)
+        if found:
+            self._dlg.refineTopography.setChecked(val)
+        val, found = proj.readBoolEntry(attTitle, 'gwflow/refineBoundary', True)
+        if found:
+            self._dlg.refineBoundary.setChecked(val)
+        val, found = proj.readBoolEntry(attTitle, 'gwflow/refineWells', False)
+        if found:
+            self._dlg.refineWells.setChecked(val)
+        val, found = proj.readBoolEntry(attTitle, 'gwflow/alignGrids', True)
+        if found:
+            self._dlg.alignGrids.setChecked(val)
+        val, found = proj.readDoubleEntry(attTitle, 'gwflow/elevTolerance', 0)
+        if found and val > 0:
+            self._dlg.elevTolerance.setValue(int(val))
+        self._toggleElevTolerance(self._dlg.refineTopography.isChecked())
+        self._updateMinSizeLabel()
+
+
+    def isValid(self):
+        t = self._dlg.aquiferThickness.text()
+        p = self._dlg.aquiferPermeability.text()
+        return bool(t) and os.path.isfile(t) and bool(p) and os.path.isfile(p)
+
+    def _checkValidity(self):
+        self.validityChanged.emit(self.isValid())
+
+    def cleanup(self):
+        if self._gridGen:
+            self._gridGen.cleanup()
         
 class HRUs(QObject):
     
@@ -5395,6 +5591,8 @@ class HRUs(QObject):
         ## start in landuse and soil tabsese
         self._dlg.HRUsTab.setCurrentIndex(0)
         self._dlg.HRUsTab.setTabEnabled(1, False)
+        # start with default structured grid
+        self._dlg.gridTab.setCurrentIndex(0)
         ## Landuse grid
         self.landuseFile = ''
         ## Soil grid
@@ -5502,9 +5700,8 @@ class HRUs(QObject):
         """Debugging information when tab switched in HRUs form."""
         #QSWATUtils.information('Switched to tab {}'.format(i), False)
         self.progress('')
-        # also need to make sure gwflow form appears if needed
-        if i == 1:
-            self.CreateHRUs._onGwflowToggled(self._dlg.gwflowButton.isChecked())
+        # also need to make sure gwflow form appears iff needed
+        self.CreateHRUs._onGwflowToggled(i == 1 and self._dlg.gwflowButton.isChecked())
         
     def initFloodplain(self) -> None:
         """
@@ -5942,7 +6139,7 @@ class HRUs(QObject):
             QSWATUtils.exceptionError('Failed to create HRUs', self._gv.isBatch, logFile=self._gv.logFile)
         finally:
             self.saveProj()
-            self.CreateHRUs.gwflowPanel.saveToProject(QgsProject.instance(), self._gv.attTitle)
+            self.CreateHRUs.saveToProject(QgsProject.instance(), self._gv.attTitle)
             time2 = time.process_time()
             QSWATUtils.loginfo('Calculating HRUs took {0} seconds'.format(int(time2 - time1)))
             self._dlg.setCursor(Qt.CursorShape.ArrowCursor)
@@ -5952,7 +6149,7 @@ class HRUs(QObject):
                 # written, which would corrupt the project database
                 gwflowOK = False
                 if self.completed:
-                    gwdb = GwflowDB(self._gv, self.CreateHRUs.gwflowPanel, self.progress)
+                    gwdb = GwflowDB(self._gv, self._dlg, self.progress)
                     gwflowOK = gwdb.run() is not False
                 self.completed = self.completed and gwflowOK
                 if self.completed:
@@ -6671,7 +6868,10 @@ class HRUs(QObject):
         if found and useGWFlow:
             self._dlg.gwGroupBox.setVisible(True)
             self._dlg.gwflowButton.setChecked(True)
-        self.CreateHRUs.gwflowPanel.loadFromProject(proj, self._gv.attTitle)
+            # gwflow needs actHRUs shapefile, which needs fullHRUs shapefile
+            if self._dlg.readFromMaps.isChecked():
+                self._dlg.generateFullHRUs.setChecked(True)
+        self.CreateHRUs.loadFromProject(proj, self._gv.attTitle)
 
     def saveProjPart1(self) -> None:
         """Write landuse, soil, and landscape choices to project file."""
@@ -6726,3 +6926,4 @@ class HRUs(QObject):
         proj.writeEntry(self._gv.attTitle, 'hru/slopeVal', self.CreateHRUs.slopeVal)
         proj.writeEntry(self._gv.attTitle, 'hru/targetVal', self.CreateHRUs.targetVal)
         proj.writeEntry(self._gv.attTitle, 'hru/useGWFlow', self._dlg.gwflowButton.isChecked())
+
