@@ -931,7 +931,7 @@ class QSWATUtils:
         # check for assumed equivalences
         same = False
         for s in QSWATUtils._EQUIVALENT_EPSGS:
-            if epsg1 in s and epsg1 in s:
+            if epsg1 in s and epsg2 in s:
                 same = True
                 break
         return same
@@ -1525,13 +1525,13 @@ class FileTypes:
 
     @staticmethod
     def ensureWellRendererRule(layer: QgsVectorLayer) -> None:
-        """Ensure the outlets layer renderer has a rule for observation wells (RES=3)."""
+        """Ensure the outlets layer renderer has a rule for observation wells (RES=5).""" # number must match QSWATTopology._WELLTYPE
         renderer = layer.renderer()
         if not isinstance(renderer, QgsRuleBasedRenderer):
             return
         root = renderer.rootRule()
         for child in root.children():
-            if '"RES" = 3' in (child.filterExpression() or ''):
+            if '"RES" = 5' in (child.filterExpression() or ''):
                 return
         symbol = QgsMarkerSymbol.createSimple({
             'name': 'diamond',
@@ -1544,7 +1544,7 @@ class FileTypes:
         rule = QgsRuleBasedRenderer.Rule(symbol)
         rule.setLabel('Well')
         rule.setDescription('Observation well')
-        rule.setFilterExpression(' "INLET"  = 0  AND  "RES" = 3')
+        rule.setFilterExpression(' "INLET"  = 0  AND  "RES" = 5')
         root.appendChild(rule)
         layer.triggerRepaint()
 

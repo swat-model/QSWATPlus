@@ -185,9 +185,9 @@ class GridGenerator:
         layer = QgsVectorLayer(outletFile, 'tmp', 'ogr')
         if not layer.isValid():
             return []
-        resIdx = layer.fields().indexOf(QSWATTopology._RES)
-        inletIdx = layer.fields().indexOf(QSWATTopology._INLET)
-        ptsourceIdx = layer.fields().indexOf(QSWATTopology._PTSOURCE)
+        resIdx = self._gv.topo.getIndex(layer, QSWATTopology._RES)
+        inletIdx = self._gv.topo.getIndex(layer, QSWATTopology._INLET)
+        ptsourceIdx = self._gv.topo.getIndex(layer, QSWATTopology._PTSOURCE)
         if resIdx < 0 or inletIdx < 0 or ptsourceIdx < 0:
             return []
         coords = []

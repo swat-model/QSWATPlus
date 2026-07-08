@@ -476,7 +476,7 @@ class GwflowDB:
         """Write single config row with defaults from dialog."""
         self._progress('Writing gwflow configuration')
         dialog = self._dialog
-        gridType = 'structured' if dialog.gridTab.currentIndex == 0 else 'unstructured'
+        gridType = 'structured' if dialog.gridTab.currentIndex() == 0 else 'unstructured'
         cellSize = dialog.cellSize.value() if gridType == 'structured' else dialog.maxCellSize.value()
         useTile = 1 if dialog.useTileDrains.isChecked() else 0
 
@@ -557,7 +557,7 @@ class GwflowDB:
         wsGeom = self._getWatershedBoundaryLine()
 
         # For structured grids, compute row/col from cell centroid position
-        isStructured = self._dialog.gridTab.currentIndex == 0
+        isStructured = self._dialog.gridTab.currentIndex() == 0
         cellSize = self._dialog.cellSize.value() if isStructured else 0
         gridExtent = gridLayer.extent() if isStructured else None
 
@@ -667,9 +667,9 @@ class GwflowDB:
         if not hruLayer.isValid():
             return
 
-        hruIdIdx = hruLayer.fields().indexOf('HRUS')
+        hruIdIdx = self._gv.topo.getIndex(hruLayer, 'HRUS', ignoreMissing=True)
         if hruIdIdx < 0:
-            hruIdIdx = hruLayer.fields().indexOf('HRU')
+            hruIdIdx = self._gv.topo.getIndex(hruLayer, 'HRU', ignoreMissing=True)
         if hruIdIdx < 0:
             for i, f in enumerate(hruLayer.fields()):
                 if 'hru' in f.name().lower():
@@ -731,7 +731,7 @@ class GwflowDB:
         if not lsuLayer.isValid():
             return
 
-        lsuIdIdx = lsuLayer.fields().indexOf('LSUID')
+        lsuIdIdx = self._gv.topo.getIndex(lsuLayer, 'LSUID')
         if lsuIdIdx < 0:
             return
 
@@ -786,14 +786,14 @@ class GwflowDB:
         if not chanLayer.isValid():
             return
 
-        chanIdIdx = chanLayer.fields().indexOf(QSWATTopology._CHANNEL)
+        chanIdIdx = self._gv.topo.getIndex(chanLayer, QSWATTopology._CHANNEL, ignoreMissing=True)
         if chanIdIdx < 0:
             QSWATUtils.error('No {0} field in {1}; cannot link gwflow cells to channels.'
                              .format(QSWATTopology._CHANNEL, channelFile),
                              self._gv.isBatch, logFile=self._gv.logFile)
             return
         
-        chanDepthIdx = chanLayer.fields().indexOf(QSWATTopology._DEP2)
+        chanDepthIdx = self._gv.topo.getIndex(chanLayer, QSWATTopology._DEP2)
         validChannels = set()
         for row in conn.execute('SELECT id FROM gis_channels'):
             validChannels.add(row[0])
@@ -876,7 +876,7 @@ class GwflowDB:
         if not lsuLayer.isValid():
             return
 
-        lsuIdIdx = lsuLayer.fields().indexOf('LSUID')
+        lsuIdIdx = self._gv.topo.getIndex(lsuLayer, 'LSUID')
         if lsuIdIdx < 0:
             return
 
@@ -929,7 +929,7 @@ class GwflowDB:
             conn.execute(sql, s)
 
     def _populateObservationWells(self, conn, gridLayer):
-        """Map observation well points (RES=3 in outlets) to nearest grid cells."""
+        """Map observation well points (RES=5 in outlets) to nearest grid cells."""
         self._progress('Mapping observation wells to cells')
         # Source wells as gwflowgrid._getWellCoords does (outlets file; inlet==0,
         # RES==well type, ptsource==0) so obs_gw holds the same wells the grid was
@@ -939,11 +939,11 @@ class GwflowDB:
         if outletFile and os.path.isfile(outletFile):
             layer = QgsVectorLayer(outletFile, 'tmp', 'ogr')
             if layer.isValid():
-                resIdx = layer.fields().indexOf(QSWATTopology._RES)
-                inletIdx = layer.fields().indexOf(QSWATTopology._INLET)
-                ptsourceIdx = layer.fields().indexOf(QSWATTopology._PTSOURCE)
-                ptIdIdx = layer.fields().indexOf(QSWATTopology._POINTID);
-                if resIdx >= 0 and inletIdx >= 0 and ptsourceIdx >= 0:
+                resIdx = self._gv.topo.getIndex(layer, QSWATTopology._RES)
+                inletIdx = self._gv.topo.getIndex(layer, QSWATTopology._INLET)
+                ptsourceIdx = self._gv.topo.getIndex(layer, QSWATTopology._PTSOURCE)
+                ptIdIdx = self._gv.topo.getIndex(layer, QSWATTopology._POINTID);
+                if resIdx >= 0 and inletIdx >= 0 and ptsourceIdx >= 0 and ptIdIdx >= 0:
                     for feat in layer.getFeatures():
                         if (feat[inletIdx] == 0
                                 and feat[resIdx] == QSWATTopology._WELLTYPE

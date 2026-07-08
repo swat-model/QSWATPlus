@@ -5508,6 +5508,7 @@ class CreateHRUs(QObject):
         proj.writeEntryBool(attTitle, 'gwflow/useTileDrains', self._dlg.useTileDrains.isChecked())
         proj.writeEntryBool(attTitle, 'gwflow/alignGrids', self._dlg.alignGrids.isChecked())
         proj.writeEntryDouble(attTitle, 'gwflow/elevTolerance', float(self._dlg.elevTolerance.value()))
+        proj.write()
 
     def loadFromProject(self, proj, attTitle):
         val, found = proj.readEntry(attTitle, 'gwflow/aquiferThickness', '')

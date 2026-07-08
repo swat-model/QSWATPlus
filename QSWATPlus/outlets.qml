@@ -12,7 +12,7 @@
       <rule symbol="2" filter=" &quot;INLET&quot;  = 0  AND  &quot;RES&quot; = 1" label="Reservoir" key="{cc102ca4-a33c-498d-a2fc-8e598f588d20}"/>
       <rule description="Pond" symbol="3" filter="&quot;INLET&quot; = 0 AND &quot;RES&quot; = 2" label="Pond" key="{0ede00e4-44a0-41de-b5a4-41741e7a90ad}"/>
       <rule description="Point source" symbol="4" filter=" &quot;INLET&quot;  = 1  AND   &quot;PTSOURCE&quot;  = 1" label="Point source" key="{bb3546f0-1b2c-49be-a16f-9bb5728352fd}"/>
-      <rule description="Observation well" symbol="5" filter=" &quot;INLET&quot;  = 0  AND  &quot;RES&quot; = 3" label="Well" key="{a1e2f3d4-5b6c-7d8e-9f0a-1b2c3d4e5f6a}"/>
+      <rule description="Observation well" symbol="5" filter=" &quot;INLET&quot;  = 0  AND  &quot;RES&quot; = 5" label="Well" key="{a1e2f3d4-5b6c-7d8e-9f0a-1b2c3d4e5f6a}"/>
     </rules>
     <symbols>
       <symbol name="0" alpha="1" clip_to_extent="1" type="marker" force_rhr="0">
