@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '4.0.2' 
+    __version__ = '4.0.3' 
 
     def __init__(self, iface):
         """Constructor."""
@@ -185,6 +185,13 @@ class QSWATPlus(QObject):
         self._odlg.reportsLabel.setVisible(False)
         self._odlg.reportsBox.clear()
         self._odlg.reportsBox.addItem(QSWATUtils.trans('Select report to view'))
+        # these two lines should be in ui_qswat.py but seem to be missing
+        #self.buttonBox.accepted.connect(QSwat.accept)
+        #self.buttonBox.rejected.connect(QSwat.reject)
+        # so we add these instead
+        self._odlg.buttonBox.accepted.connect(self.finish)
+        self._odlg.buttonBox.rejected.connect(self.finish)
+        # this also catches form being closed
         self._odlg.finished.connect(self.finish)
         # connect buttons
         self._odlg.aboutButton.clicked.connect(self.about)

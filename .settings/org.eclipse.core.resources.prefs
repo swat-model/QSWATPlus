@@ -74,6 +74,7 @@ encoding//csharp/QSWATPlus/dataInC.pyx=utf-8
 encoding//csharp/QSWATPlus/globals.py=utf-8
 encoding//csharp/QSWATPlus/gwflow.py=utf-8
 encoding//csharp/QSWATPlus/polygonizeInC2.pyx=utf-8
+encoding//csharp/QSWATPlus/ui_qswat.py=utf-8
 encoding//csharp2/gwflow_hru.py=utf-8
 encoding//csharp2/gwflowgrid.py=utf-8
 encoding/fixUpperFlow.py=utf-8

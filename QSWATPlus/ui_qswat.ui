@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>391</width>
-    <height>323</height>
+    <width>394</width>
+    <height>324</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,6 +21,31 @@
    <string/>
   </property>
   <layout class="QGridLayout" name="gridLayout_4">
+   <item row="0" column="0" rowspan="3">
+    <widget class="QLabel" name="SWATLogo">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>170</width>
+       <height>125</height>
+      </size>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="pixmap">
+      <pixmap resource="resources.qrc">:/plugins/QSWATPlus/QSWAT-Icon/SWAT-Logo.png</pixmap>
+     </property>
+     <property name="scaledContents">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
    <item row="0" column="1">
     <spacer name="horizontalSpacer">
      <property name="orientation">
@@ -43,83 +68,58 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>About</string>
+      <string>&amp;About</string>
+     </property>
+     <property name="shortcut">
+      <string>Alt+A</string>
      </property>
     </widget>
    </item>
-   <item row="3" column="0" rowspan="2">
-    <widget class="QWidget" name="widget" native="true">
-     <layout class="QGridLayout" name="gridLayout_3">
+   <item row="1" column="1" colspan="2">
+    <widget class="QGroupBox" name="projectBox">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>50</height>
+      </size>
+     </property>
+     <property name="title">
+      <string>Select Project</string>
+     </property>
+     <layout class="QGridLayout" name="gridLayout">
       <item row="0" column="0">
-       <widget class="QPushButton" name="paramsButton">
+       <widget class="QPushButton" name="newButton">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to set the location of the SWATPlusr and (optionally) MPI.  Unless these locations change, you only need to do this once; the values are used for all projects.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;A number of other parameters may be set here, which are project specific.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
         <property name="text">
-         <string>QSWAT+ Parameters</string>
+         <string>&amp;New Project</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+N</string>
         </property>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QPushButton" name="exportButton">
+      <item row="0" column="1">
+       <widget class="QPushButton" name="existingButton">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="toolTip">
-         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Export SQLite database table to a csv file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-        </property>
         <property name="text">
-         <string>Export Table</string>
+         <string>E&amp;xisting Project</string>
         </property>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="reportsLabel">
-        <property name="text">
-         <string>Reports</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QComboBox" name="reportsBox">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="duplicatesEnabled">
-         <bool>false</bool>
+        <property name="shortcut">
+         <string>Alt+X</string>
         </property>
        </widget>
       </item>
      </layout>
-    </widget>
-   </item>
-   <item row="5" column="0" colspan="3">
-    <widget class="QLabel" name="projPath">
-     <property name="text">
-      <string>This is the path to the  project</string>
-     </property>
-    </widget>
-   </item>
-   <item row="4" column="1" colspan="2">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
     </widget>
    </item>
    <item row="2" column="1" rowspan="2" colspan="2">
@@ -156,7 +156,10 @@
          <string>Click to select the DEM and delineate the watershed</string>
         </property>
         <property name="text">
-         <string>Delineate Watershed</string>
+         <string>&amp;Delineate Watershed</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+D</string>
         </property>
        </widget>
       </item>
@@ -182,7 +185,10 @@
          <string>Click to select landuse and soil files and create HRUs</string>
         </property>
         <property name="text">
-         <string>Create HRUs</string>
+         <string>Create &amp;HRUs</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+H</string>
         </property>
        </widget>
       </item>
@@ -208,7 +214,10 @@
          <string>Click to run the SWAT+ editor</string>
         </property>
         <property name="text">
-         <string>Edit Inputs and Run SWAT+</string>
+         <string>&amp;Edit Inputs and Run SWAT+</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+E</string>
         </property>
        </widget>
       </item>
@@ -234,77 +243,92 @@
          <string>Click to visualise outputs after a SWAT run</string>
         </property>
         <property name="text">
-         <string>Visualise</string>
+         <string>&amp;Visualise</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+V</string>
         </property>
        </widget>
       </item>
      </layout>
     </widget>
    </item>
-   <item row="0" column="0" rowspan="3">
-    <widget class="QLabel" name="SWATLogo">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="maximumSize">
-      <size>
-       <width>170</width>
-       <height>125</height>
-      </size>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
-     <property name="pixmap">
-      <pixmap resource="resources.qrc">:/plugins/QSWATPlus/QSWAT-Icon/SWAT-Logo.png</pixmap>
-     </property>
-     <property name="scaledContents">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="1" colspan="2">
-    <widget class="QGroupBox" name="projectBox">
-     <property name="minimumSize">
-      <size>
-       <width>0</width>
-       <height>50</height>
-      </size>
-     </property>
-     <property name="title">
-      <string>Select Project</string>
-     </property>
-     <layout class="QGridLayout" name="gridLayout">
+   <item row="3" column="0" rowspan="2">
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QGridLayout" name="gridLayout_3">
       <item row="0" column="0">
-       <widget class="QPushButton" name="newButton">
+       <widget class="QPushButton" name="paramsButton">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Click to set the location of the SWATPlusr and (optionally) MPI.  Unless these locations change, you only need to do this once; the values are used for all projects.&lt;/p&gt;&lt;p&gt;&lt;br/&gt;&lt;/p&gt;&lt;p&gt;A number of other parameters may be set here, which are project specific.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
-         <string>New Project</string>
+         <string>&amp;QSWAT+ Parameters</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+Q</string>
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <widget class="QPushButton" name="existingButton">
+      <item row="1" column="0">
+       <widget class="QPushButton" name="exportButton">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Export SQLite database table to a csv file.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
         <property name="text">
-         <string>Existing Project</string>
+         <string>Export Table</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="reportsLabel">
+        <property name="text">
+         <string>Reports</string>
+        </property>
+        <property name="buddy">
+         <cstring>reportsBox</cstring>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QComboBox" name="reportsBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="duplicatesEnabled">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
      </layout>
+    </widget>
+   </item>
+   <item row="4" column="1" colspan="2">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="2">
+    <widget class="QLabel" name="projPath">
+     <property name="text">
+      <string>This is the path to the  project</string>
+     </property>
     </widget>
    </item>
   </layout>
@@ -312,38 +336,5 @@
  <resources>
   <include location="resources.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>accepted()</signal>
-   <receiver>QSwat</receiver>
-   <slot>accept()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>157</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>buttonBox</sender>
-   <signal>rejected()</signal>
-   <receiver>QSwat</receiver>
-   <slot>reject()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>286</x>
-     <y>274</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
 </ui>

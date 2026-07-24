@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>679</width>
-    <height>840</height>
+    <width>694</width>
+    <height>843</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -16,509 +16,532 @@
     <verstretch>0</verstretch>
    </sizepolicy>
   </property>
-  <property name="minimumSize">
-   <size>
-    <width>0</width>
-    <height>840</height>
-   </size>
-  </property>
   <property name="windowTitle">
    <string>Create HRUs</string>
   </property>
   <layout class="QGridLayout" name="gridLayout_7">
-   <item row="2" column="0">
-    <widget class="QTabWidget" name="HRUsTab">
+   <item row="3" column="0">
+    <widget class="QScrollArea" name="scrollArea">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="currentIndex">
-      <number>1</number>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>16777215</height>
+      </size>
      </property>
-     <widget class="QWidget" name="tab">
-      <attribute name="title">
-       <string>Landuse and soil</string>
-      </attribute>
-      <widget class="QLabel" name="selectLanduseLabel">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>9</y>
-         <width>92</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Select landuse map</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="selectLanduseButton">
-       <property name="geometry">
-        <rect>
-         <x>560</x>
-         <y>30</y>
-         <width>75</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Select landuse raster</string>
-       </property>
-       <property name="autoFillBackground">
-        <bool>false</bool>
-       </property>
-       <property name="text">
-        <string>. . .</string>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-       <property name="flat">
-        <bool>false</bool>
-       </property>
-       <property name="browseButton" stdset="0">
-        <bool>true</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="selectSoilLabel">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>57</y>
-         <width>70</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Select soil map</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="selectSoilButton">
-       <property name="geometry">
-        <rect>
-         <x>560</x>
-         <y>80</y>
-         <width>75</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Select soil raster</string>
-       </property>
-       <property name="text">
-        <string>. . .</string>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QLabel" name="dbLabel">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>106</y>
-         <width>156</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="text">
-        <string>Select landuse and soil database</string>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="selectPlantSoilDatabaseButton">
-       <property name="geometry">
-        <rect>
-         <x>560</x>
-         <y>125</y>
-         <width>75</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Select database with tables defining landuse and soil attributes</string>
-       </property>
-       <property name="text">
-        <string>. . .</string>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="soilGroup">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>154</y>
-         <width>181</width>
-         <height>96</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>0</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Soil data</string>
-       </property>
-       <widget class="QRadioButton" name="usersoilButton">
+     <property name="widgetResizable">
+      <bool>true</bool>
+     </property>
+     <widget class="QTabWidget" name="HRUsTab">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>674</width>
+        <height>794</height>
+       </rect>
+      </property>
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>672</width>
+        <height>789</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Landuse and soil</string>
+       </attribute>
+       <widget class="QLabel" name="selectLanduseLabel">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>23</y>
-          <width>131</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>usersoil</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="STATSGOButton">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>46</y>
-          <width>101</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>STATSGO</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="SSURGOButton">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>69</y>
-          <width>141</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>SSURGO</string>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QGroupBox" name="tableGroup">
-       <property name="geometry">
-        <rect>
-         <x>233</x>
-         <y>150</y>
-         <width>311</width>
-         <height>175</height>
-        </rect>
-       </property>
-       <property name="title">
-        <string>Tables</string>
-       </property>
-       <layout class="QFormLayout" name="tableFormLayout">
-        <property name="labelAlignment">
-         <set>Qt::AlignLeading</set>
-        </property>
-        <property name="horizontalSpacing">
-         <number>6</number>
-        </property>
-        <property name="verticalSpacing">
-         <number>4</number>
-        </property>
-        <item row="0" column="0">
-         <widget class="QLabel" name="landuseTableLabel">
-          <property name="text">
-           <string>Landuse lookup</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1">
-         <widget class="QComboBox" name="selectLanduseTable">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in project database mapping landuse grid values to  landuse codes defined in either a plant or urban landuse table in the landuse and soil database&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="soilTableLabel">
-          <property name="text">
-           <string>Soil lookup</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QComboBox" name="selectSoilTable">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in project database mapping soil raster values to soil names in a usersoil table in the landuse and soil database&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="selectUsersoilTableLabel">
-          <property name="text">
-           <string>Usersoil</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QComboBox" name="selectUsersoilTable">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing soil attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="selectPlantTableLabel">
-          <property name="text">
-           <string>Plant</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QComboBox" name="selectPlantTable">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing plantl attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="selectUrbanTableLabel">
-          <property name="text">
-           <string>Urban</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
-         <widget class="QComboBox" name="selectUrbanTable">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing urban landuse attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QGroupBox" name="slopeGroup">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>256</y>
-         <width>150</width>
-         <height>131</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>150</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Set slope bands (%)</string>
-       </property>
-       <widget class="QPushButton" name="clearButton">
-        <property name="geometry">
-         <rect>
-          <x>74</x>
-          <y>52</y>
-          <width>66</width>
-          <height>23</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="toolTip">
-         <string>Cancel all slope bands</string>
-        </property>
-        <property name="text">
-         <string>Clear</string>
-        </property>
-        <property name="autoDefault">
-         <bool>false</bool>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="slopeBand">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>24</y>
-          <width>58</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="toolTip">
-         <string>Enter a slope percent value to be a new boundary between slope bands.</string>
-        </property>
-       </widget>
-       <widget class="QLabel" name="slopeBandsLabel">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>81</y>
-          <width>58</width>
+          <x>9</x>
+          <y>9</y>
+          <width>231</width>
           <height>16</height>
          </rect>
         </property>
         <property name="text">
-         <string>Slope bands</string>
+         <string>Select landuse map</string>
+        </property>
+        <property name="buddy">
+         <cstring>selectLanduse</cstring>
         </property>
        </widget>
-       <widget class="QLineEdit" name="slopeBrowser">
+       <widget class="QPushButton" name="selectLanduseButton">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>100</y>
-          <width>130</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QPushButton" name="insertButton">
-        <property name="geometry">
-         <rect>
-          <x>74</x>
-          <y>23</y>
-          <width>66</width>
+          <x>560</x>
+          <y>30</y>
+          <width>75</width>
           <height>23</height>
          </rect>
         </property>
         <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
         <property name="toolTip">
-         <string>Insert a new division between slope bands</string>
+         <string>Select landuse raster</string>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
         </property>
         <property name="text">
-         <string>Insert</string>
+         <string>. . .</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
+        <property name="browseButton" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QLabel" name="selectSoilLabel">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>57</y>
+          <width>231</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Select soil map</string>
+        </property>
+        <property name="buddy">
+         <cstring>selectSoil</cstring>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="selectSoilButton">
+        <property name="geometry">
+         <rect>
+          <x>560</x>
+          <y>80</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>Select soil raster</string>
+        </property>
+        <property name="text">
+         <string>. . .</string>
         </property>
         <property name="autoDefault">
          <bool>false</bool>
         </property>
        </widget>
-      </widget>
-      <widget class="QComboBox" name="floodplainCombo">
-       <property name="geometry">
-        <rect>
-         <x>230</x>
-         <y>340</y>
-         <width>311</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string/>
-       </property>
-       <property name="maxVisibleItems">
-        <number>20</number>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="shortChannelGroup">
-       <property name="geometry">
-        <rect>
-         <x>233</x>
-         <y>370</y>
-         <width>311</width>
-         <height>83</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Short channels can occur when stream junctions happen to be close together. There is an option to merge them, and hence their landscape units, by selecting a threshold of either a percentage of the subbasin area or an area in hectares. Channels with a drainage area less than the threshold will, where possible, be merged with a downstream channel. Channels are not merged if they have a user-defined reservoir, or if the downstream channel is in a different subbasin. Setting the threshold to zero prevents any merging.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="title">
-        <string>Short channel merge</string>
-       </property>
-       <widget class="QSlider" name="channelMergeSlider">
+       <widget class="QLabel" name="dbLabel">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>46</y>
-          <width>191</width>
-          <height>27</height>
+          <x>9</x>
+          <y>106</y>
+          <width>231</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Select landuse and soil database</string>
+        </property>
+        <property name="buddy">
+         <cstring>plantSoilDatabase</cstring>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="selectPlantSoilDatabaseButton">
+        <property name="geometry">
+         <rect>
+          <x>560</x>
+          <y>125</y>
+          <width>75</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>Select database with tables defining landuse and soil attributes</string>
+        </property>
+        <property name="text">
+         <string>. . .</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="soilGroup">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>154</y>
+          <width>181</width>
+          <height>96</height>
+         </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Soil data</string>
+        </property>
+        <widget class="QRadioButton" name="usersoilButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>23</y>
+           <width>131</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>&amp;usersoil</string>
+         </property>
+         <property name="shortcut">
+          <string>Alt+U</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="STATSGOButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>46</y>
+           <width>101</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>S&amp;TATSGO</string>
+         </property>
+         <property name="shortcut">
+          <string>Alt+T</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="SSURGOButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>69</y>
+           <width>141</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>&amp;SSURGO</string>
+         </property>
+         <property name="shortcut">
+          <string>Alt+S</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="tableGroup">
+        <property name="geometry">
+         <rect>
+          <x>233</x>
+          <y>150</y>
+          <width>311</width>
+          <height>175</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Tables</string>
+        </property>
+        <layout class="QFormLayout" name="tableFormLayout">
+         <property name="labelAlignment">
+          <set>Qt::AlignLeading</set>
+         </property>
+         <property name="horizontalSpacing">
+          <number>6</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>4</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QLabel" name="landuseTableLabel">
+           <property name="text">
+            <string>Landuse lookup</string>
+           </property>
+           <property name="buddy">
+            <cstring>selectLanduseTable</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="selectLanduseTable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in project database mapping landuse grid values to  landuse codes defined in either a plant or urban landuse table in the landuse and soil database&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="soilTableLabel">
+           <property name="text">
+            <string>Soil lookup</string>
+           </property>
+           <property name="buddy">
+            <cstring>selectSoilTable</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QComboBox" name="selectSoilTable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in project database mapping soil raster values to soil names in a usersoil table in the landuse and soil database&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="selectUsersoilTableLabel">
+           <property name="text">
+            <string>Usersoil</string>
+           </property>
+           <property name="buddy">
+            <cstring>selectUsersoilTable</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QComboBox" name="selectUsersoilTable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing soil attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="selectPlantTableLabel">
+           <property name="text">
+            <string>Plant</string>
+           </property>
+           <property name="buddy">
+            <cstring>selectPlantTable</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QComboBox" name="selectPlantTable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing plantl attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="selectUrbanTableLabel">
+           <property name="text">
+            <string>Urban</string>
+           </property>
+           <property name="buddy">
+            <cstring>selectUrbanTable</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QComboBox" name="selectUrbanTable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select table in landuse and soil database providing urban landuse attributes.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QGroupBox" name="slopeGroup">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>256</y>
+          <width>150</width>
+          <height>131</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>150</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Set slope bands (%)</string>
+        </property>
+        <widget class="QPushButton" name="clearButton">
+         <property name="geometry">
+          <rect>
+           <x>74</x>
+           <y>52</y>
+           <width>66</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Cancel all slope bands</string>
+         </property>
+         <property name="text">
+          <string>Clear</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="slopeBand">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>24</y>
+           <width>58</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="toolTip">
+          <string>Enter a slope percent value to be a new boundary between slope bands.</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="slopeBandsLabel">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>81</y>
+           <width>58</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Slope bands</string>
+         </property>
+         <property name="buddy">
+          <cstring>slopeBrowser</cstring>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="slopeBrowser">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>100</y>
+           <width>130</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="insertButton">
+         <property name="geometry">
+          <rect>
+           <x>74</x>
+           <y>23</y>
+           <width>66</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Insert a new division between slope bands</string>
+         </property>
+         <property name="text">
+          <string>Insert</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QComboBox" name="floodplainCombo">
+        <property name="geometry">
+         <rect>
+          <x>230</x>
+          <y>340</y>
+          <width>311</width>
+          <height>20</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -526,131 +549,276 @@
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
-        </property>
-        <property name="maximum">
-         <number>100</number>
-        </property>
-        <property name="orientation">
-         <enum>Qt::Horizontal</enum>
-        </property>
-        <property name="tickPosition">
-         <enum>QSlider::NoTicks</enum>
-        </property>
-       </widget>
-       <widget class="QLineEdit" name="channelMergeVal">
-        <property name="geometry">
-         <rect>
-          <x>250</x>
-          <y>50</y>
-          <width>40</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>40</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>0</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="channelAreaButton">
-        <property name="geometry">
-         <rect>
-          <x>200</x>
-          <y>20</y>
-          <width>91</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Area (ha)</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="channelPercentButton">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>23</y>
-          <width>151</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Percent of subbasin</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QGroupBox" name="reservoirBox">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>392</y>
-         <width>181</width>
-         <height>70</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="toolTip">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Percent of area that mus tbe water to form a reservoir for this channel. The area is the area draining to the channel if no landscape, else the floodplain of the channel.  The default setting of 101 means tht no reservoirs will be formed other than those selected during delineation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="title">
-        <string>Reservoir threshold</string>
-       </property>
-       <widget class="QSpinBox" name="reservoirThreshold">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>23</y>
-          <width>40</width>
-          <height>20</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>100</width>
-          <height>16777215</height>
-         </size>
         </property>
         <property name="toolTip">
          <string/>
         </property>
-        <property name="maximum">
-         <number>101</number>
-        </property>
-        <property name="value">
-         <number>101</number>
+        <property name="maxVisibleItems">
+         <number>20</number>
         </property>
        </widget>
-       <widget class="QLabel" name="reservoirPercent">
+       <widget class="QGroupBox" name="shortChannelGroup">
         <property name="geometry">
          <rect>
-          <x>55</x>
-          <y>23</y>
-          <width>42</width>
-          <height>16</height>
+          <x>233</x>
+          <y>370</y>
+          <width>311</width>
+          <height>83</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Short channels can occur when stream junctions happen to be close together. There is an option to merge them, and hence their landscape units, by selecting a threshold of either a percentage of the subbasin area or an area in hectares. Channels with a drainage area less than the threshold will, where possible, be merged with a downstream channel. Channels are not merged if they have a user-defined reservoir, or if the downstream channel is in a different subbasin. Setting the threshold to zero prevents any merging.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="title">
+         <string>Short channel merge</string>
+        </property>
+        <widget class="QSlider" name="channelMergeSlider">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>46</y>
+           <width>191</width>
+           <height>27</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximum">
+          <number>100</number>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="tickPosition">
+          <enum>QSlider::NoTicks</enum>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="channelMergeVal">
+         <property name="geometry">
+          <rect>
+           <x>250</x>
+           <y>50</y>
+           <width>40</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>40</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="channelAreaButton">
+         <property name="geometry">
+          <rect>
+           <x>200</x>
+           <y>20</y>
+           <width>91</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Area (ha)</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="channelPercentButton">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>23</y>
+           <width>151</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Percent of subbasin</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="reservoirBox">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>392</y>
+          <width>181</width>
+          <height>70</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Percent of area that mus tbe water to form a reservoir for this channel. The area is the area draining to the channel if no landscape, else the floodplain of the channel.  The default setting of 101 means tht no reservoirs will be formed other than those selected during delineation.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        </property>
+        <property name="title">
+         <string>Reservoir threshold</string>
+        </property>
+        <widget class="QSpinBox" name="reservoirThreshold">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>23</y>
+           <width>40</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>100</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="maximum">
+          <number>101</number>
+         </property>
+         <property name="value">
+          <number>101</number>
+         </property>
+        </widget>
+        <widget class="QLabel" name="reservoirPercent">
+         <property name="geometry">
+          <rect>
+           <x>55</x>
+           <y>23</y>
+           <width>42</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>% water</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="readChoiceGroup">
+        <property name="geometry">
+         <rect>
+          <x>233</x>
+          <y>470</y>
+          <width>201</width>
+          <height>101</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="title">
+         <string>Read choice</string>
+        </property>
+        <widget class="QRadioButton" name="readFromPrevious">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>46</y>
+           <width>171</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Read from previous run</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="remerge">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>69</y>
+           <width>191</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Re-merge short channels</string>
+         </property>
+        </widget>
+        <widget class="QRadioButton" name="readFromMaps">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>23</y>
+           <width>171</width>
+           <height>17</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Read from maps</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QCheckBox" name="generateFullHRUs">
+        <property name="geometry">
+         <rect>
+          <x>440</x>
+          <y>485</y>
+          <width>211</width>
+          <height>30</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -659,110 +827,8 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="text">
-         <string>% water</string>
-        </property>
-        <property name="wordWrap">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QGroupBox" name="readChoiceGroup">
-       <property name="geometry">
-        <rect>
-         <x>233</x>
-         <y>470</y>
-         <width>201</width>
-         <height>101</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="title">
-        <string>Read choice</string>
-       </property>
-       <widget class="QRadioButton" name="readFromPrevious">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>46</y>
-          <width>171</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Read from previous run</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="remerge">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>69</y>
-          <width>191</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Re-merge short channels</string>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="readFromMaps">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>23</y>
-          <width>171</width>
-          <height>17</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Read from maps</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </widget>
-      <widget class="QCheckBox" name="generateFullHRUs">
-       <property name="geometry">
-        <rect>
-         <x>440</x>
-         <y>485</y>
-         <width>211</width>
-         <height>30</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+        <property name="toolTip">
+         <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
 &lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
 p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'MS Shell Dlg 2'; font-size:8.25pt; font-weight:400; font-style:normal;&quot;&gt;
@@ -770,42 +836,191 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:8pt;&quot;&gt;You will need this file if you intend to visualise HRU results.&lt;/span&gt;&lt;/p&gt;
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px; font-size:8pt;&quot;&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-       </property>
-       <property name="text">
-        <string>Generate FullHRUs shapefile</string>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="optionGroup">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>468</y>
-         <width>180</width>
-         <height>60</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>180</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Optional</string>
-       </property>
-       <widget class="QPushButton" name="elevBandsButton">
+        </property>
+        <property name="text">
+         <string>Generate &amp;FullHRUs shapefile</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+F</string>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="optionGroup">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>468</y>
+          <width>180</width>
+          <height>60</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>180</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Optional</string>
+        </property>
+        <widget class="QPushButton" name="elevBandsButton">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>25</y>
+           <width>141</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Click to set elevation bands</string>
+         </property>
+         <property name="text">
+          <string>Elevation bands</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QLabel" name="subbasinsLabel">
+        <property name="geometry">
+         <rect>
+          <x>440</x>
+          <y>510</y>
+          <width>181</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Subbasins count:  </string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="channelsLabel">
+        <property name="geometry">
+         <rect>
+          <x>440</x>
+          <y>530</y>
+          <width>181</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Channels count:  </string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="fullHRUsLabel">
+        <property name="geometry">
+         <rect>
+          <x>440</x>
+          <y>550</y>
+          <width>181</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Full HRUs count:   </string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="progressLabel1">
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>25</y>
-          <width>141</width>
+          <y>710</y>
+          <width>300</width>
+          <height>16</height>
+         </rect>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>300</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="geometry">
+         <rect>
+          <x>217</x>
+          <y>710</y>
+          <width>261</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="value">
+         <number>0</number>
+        </property>
+        <property name="textVisible">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="readButton">
+        <property name="geometry">
+         <rect>
+          <x>510</x>
+          <y>710</y>
+          <width>111</width>
           <height>23</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="toolTip">
+         <string>Read watershed, landuse, and soil data to create potential HRUs.</string>
+        </property>
+        <property name="text">
+         <string>&amp;Read</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+R</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QLineEdit" name="selectLanduse">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>29</y>
+          <width>531</width>
+          <height>20</height>
          </rect>
         </property>
         <property name="sizePolicy">
@@ -814,1553 +1029,1444 @@ p, li { white-space: pre-wrap; }
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="toolTip">
-         <string>Click to set elevation bands</string>
+       </widget>
+       <widget class="QLineEdit" name="selectSoil">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>78</y>
+          <width>531</width>
+          <height>20</height>
+         </rect>
         </property>
-        <property name="text">
-         <string>Elevation bands</string>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
-        <property name="autoDefault">
-         <bool>false</bool>
+       </widget>
+       <widget class="QLineEdit" name="plantSoilDatabase">
+        <property name="geometry">
+         <rect>
+          <x>9</x>
+          <y>126</y>
+          <width>531</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
        </widget>
       </widget>
-      <widget class="QLabel" name="subbasinsLabel">
-       <property name="geometry">
-        <rect>
-         <x>440</x>
-         <y>510</y>
-         <width>181</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Subbasins count:  </string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="channelsLabel">
-       <property name="geometry">
-        <rect>
-         <x>440</x>
-         <y>530</y>
-         <width>181</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Channels count:  </string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="fullHRUsLabel">
-       <property name="geometry">
-        <rect>
-         <x>440</x>
-         <y>550</y>
-         <width>181</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="text">
-        <string>Full HRUs count:   </string>
-       </property>
-      </widget>
-      <widget class="QLabel" name="progressLabel1">
-       <property name="geometry">
-        <rect>
-         <x>20</x>
-         <y>710</y>
-         <width>300</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>300</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-      <widget class="QProgressBar" name="progressBar">
-       <property name="geometry">
-        <rect>
-         <x>217</x>
-         <y>710</y>
-         <width>261</width>
-         <height>21</height>
-        </rect>
-       </property>
-       <property name="value">
-        <number>0</number>
-       </property>
-       <property name="textVisible">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QPushButton" name="readButton">
-       <property name="geometry">
-        <rect>
-         <x>510</x>
-         <y>710</y>
-         <width>111</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="toolTip">
-        <string>Read watershed, landuse, and soil data to create potential HRUs.</string>
-       </property>
-       <property name="text">
-        <string>Read</string>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="selectLanduse">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>29</y>
-         <width>531</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="selectSoil">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>78</y>
-         <width>531</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-      </widget>
-      <widget class="QLineEdit" name="plantSoilDatabase">
-       <property name="geometry">
-        <rect>
-         <x>9</x>
-         <y>126</y>
-         <width>531</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-      </widget>
-     </widget>
-     <widget class="QWidget" name="tab_2">
-      <attribute name="title">
-       <string>HRUs</string>
-      </attribute>
-      <widget class="QGroupBox" name="optionGroup_2">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>20</y>
-         <width>151</width>
-         <height>101</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>109</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>180</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Optional</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_16">
-        <item row="1" column="0">
-         <widget class="QPushButton" name="exemptButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Click to exempt landuses from elimination when creating multiple HRUs</string>
-          </property>
-          <property name="text">
-           <string>Exempt landuses</string>
-          </property>
-          <property name="autoDefault">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QPushButton" name="splitButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Click to split landuses</string>
-          </property>
-          <property name="text">
-           <string>Split landuses</string>
-          </property>
-          <property name="autoDefault">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QGroupBox" name="hruChoiceGroup">
-       <property name="geometry">
-        <rect>
-         <x>170</x>
-         <y>20</y>
-         <width>231</width>
-         <height>142</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>190</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Single/Multiple HRUs</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_9">
-        <item row="4" column="0">
-         <widget class="QRadioButton" name="filterAreaButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to remove small HRUs by setting a minimum area threshold.</string>
-          </property>
-          <property name="text">
-           <string>Filter by area</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QRadioButton" name="dominantHRUButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to create one HRU from each landscape unit, the potential HRU with the largest area in that landscape unit.</string>
-          </property>
-          <property name="text">
-           <string>Dominant HRU</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
-         <widget class="QRadioButton" name="targetButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to remove small HRUs by setting a target number of HRUs to be retained. 
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>HRUs</string>
+       </attribute>
+       <widget class="QGroupBox" name="optionGroup_2">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>20</y>
+          <width>151</width>
+          <height>101</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>109</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>180</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Optional</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_16">
+         <item row="1" column="0">
+          <widget class="QPushButton" name="exemptButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Click to exempt landuses from elimination when creating multiple HRUs</string>
+           </property>
+           <property name="text">
+            <string>Exempt landuses</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QPushButton" name="splitButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Click to split landuses</string>
+           </property>
+           <property name="text">
+            <string>Split landuses</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QGroupBox" name="hruChoiceGroup">
+        <property name="geometry">
+         <rect>
+          <x>170</x>
+          <y>20</y>
+          <width>231</width>
+          <height>142</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>190</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Single/Multiple HRUs</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_9">
+         <item row="4" column="0">
+          <widget class="QRadioButton" name="filterAreaButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to remove small HRUs by setting a minimum area threshold.</string>
+           </property>
+           <property name="text">
+            <string>Filter by area</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QRadioButton" name="dominantHRUButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to create one HRU from each landscape unit, the potential HRU with the largest area in that landscape unit.</string>
+           </property>
+           <property name="text">
+            <string>Dominant HRU</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QRadioButton" name="targetButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to remove small HRUs by setting a target number of HRUs to be retained. 
  The smallest are removed, where smallest means smallest area in each landscape unit 
 if the threshold method is set to area, or the smallest percentage area in each 
 landscape unit if the threshold method is set to percentage.</string>
-          </property>
-          <property name="text">
-           <string>Target number of HRUs</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QRadioButton" name="filterLanduseButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to remove small HRUs by setting minimum thresholds for landuse, soil, and slope band.</string>
-          </property>
-          <property name="text">
-           <string>Filter by landuse, soil, slope</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QRadioButton" name="dominantLanduseButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to create one HRU in each landscape unit, formed from the landuse, soil, and slope band 
-with the largest areas in that landscape unit.</string>
-          </property>
-          <property name="text">
-           <string>Dominant landuse, soil, slope</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QGroupBox" name="areaPercentChoiceGroup">
-       <property name="geometry">
-        <rect>
-         <x>170</x>
-         <y>180</y>
-         <width>231</width>
-         <height>81</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>190</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="title">
-        <string>Threshold method</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_11">
-        <item row="0" column="0">
-         <widget class="QRadioButton" name="percentButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to interpret thresholds for landuse, soil, slope, and area as percentages of subbasin areas.</string>
-          </property>
-          <property name="text">
-           <string>Percent of landscape unit</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QRadioButton" name="areaButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="toolTip">
-           <string>Select to interpret thresholds for landuse, soil, slope, and area as areas in hectares.</string>
-          </property>
-          <property name="text">
-           <string>Area (Ha)</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QPushButton" name="createButton">
-       <property name="geometry">
-        <rect>
-         <x>550</x>
-         <y>730</y>
-         <width>101</width>
-         <height>23</height>
-        </rect>
-       </property>
-       <property name="toolTip">
-        <string>Create HRUs, and exit from this form if successful.</string>
-       </property>
-       <property name="text">
-        <string>Create HRUs</string>
-       </property>
-       <property name="autoDefault">
-        <bool>false</bool>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="gwGroupBox">
-       <property name="geometry">
-        <rect>
-         <x>10</x>
-         <y>180</y>
-         <width>151</width>
-         <height>81</height>
-        </rect>
-       </property>
-       <property name="title">
-        <string>Ground water</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout_18">
-        <item row="0" column="0">
-         <widget class="QRadioButton" name="SWATAquifersButton">
-          <property name="text">
-           <string>SWAT+ aquifers</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QRadioButton" name="gwflowButton">
-          <property name="text">
-           <string>Use gwflow</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-      <widget class="QStackedWidget" name="stackedWidget">
-       <property name="geometry">
-        <rect>
-         <x>420</x>
-         <y>15</y>
-         <width>231</width>
-         <height>251</height>
-        </rect>
-       </property>
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>200</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="currentIndex">
-        <number>0</number>
-       </property>
-       <widget class="QWidget" name="page">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_101">
-         <item row="0" column="0">
-          <widget class="QGroupBox" name="landuseSoilSlopeGroup">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="title">
-            <string>Landuse, soil, slope thresholds</string>
-           </property>
-           <layout class="QGridLayout" name="gridLayout_12">
-            <property name="topMargin">
-             <number>4</number>
-            </property>
-            <item row="0" column="3">
-             <widget class="QLineEdit" name="landuseVal">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Unless exempt, landuses covering a lower area or percentage of the subbasin 
-than this number will be eliminated from HRU creation.</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="landuseMin">
-              <property name="text">
-               <string>0</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="3">
-             <widget class="QLineEdit" name="soilVal">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Soils covering a lower area or percentage of the subbasin than this number 
-will be eliminated from HRU creation.</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLabel" name="landuseLabel">
-              <property name="text">
-               <string>Landuse (%)</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="1">
-             <widget class="QLabel" name="soilLabel">
-              <property name="text">
-               <string>Soil (%)</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="2">
-             <widget class="QLabel" name="soilMax">
-              <property name="text">
-               <string>100</string>
-              </property>
-             </widget>
-            </item>
-            <item row="2" column="0">
-             <widget class="QLabel" name="soilMin">
-              <property name="text">
-               <string>0</string>
-              </property>
-             </widget>
-            </item>
-            <item row="5" column="0" colspan="3">
-             <widget class="QSlider" name="slopeSlider">
-              <property name="acceptDrops">
-               <bool>false</bool>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="0" colspan="3">
-             <widget class="QSlider" name="soilSlider">
-              <property name="acceptDrops">
-               <bool>false</bool>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="2">
-             <widget class="QLabel" name="landuseMax">
-              <property name="text">
-               <string>100</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0" colspan="3">
-             <widget class="QSlider" name="landuseSlider">
-              <property name="acceptDrops">
-               <bool>false</bool>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="0">
-             <widget class="QLabel" name="slopeMin">
-              <property name="text">
-               <string>0</string>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="1">
-             <widget class="QLabel" name="slopeLabel">
-              <property name="text">
-               <string>Slope (%)</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="3">
-             <widget class="QPushButton" name="landuseButton">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Go</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="3">
-             <widget class="QLineEdit" name="slopeVal">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Slope bands covering a lower area or percentage of the subbasin than this number 
-will be eliminated from HRU creation.</string>
-              </property>
-             </widget>
-            </item>
-            <item row="3" column="3">
-             <widget class="QPushButton" name="soilButton">
-              <property name="maximumSize">
-               <size>
-                <width>40</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="text">
-               <string>Go</string>
-              </property>
-              <property name="autoDefault">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="4" column="2">
-             <widget class="QLabel" name="slopeMax">
-              <property name="text">
-               <string>100</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="page_2">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_100">
-         <item row="0" column="0">
-          <widget class="QGroupBox" name="areaGroup">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>100</height>
-            </size>
-           </property>
-           <property name="title">
-            <string>Area threshold</string>
-           </property>
-           <layout class="QGridLayout" name="gridLayout_13">
-            <item row="0" column="0">
-             <widget class="QLabel" name="areaMin">
-              <property name="text">
-               <string>0</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLabel" name="areaLabel">
-              <property name="text">
-               <string>Area (ha)</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="2">
-             <widget class="QLabel" name="areaMax">
-              <property name="text">
-               <string>9999</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0" colspan="3">
-             <widget class="QSlider" name="areaSlider">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="3">
-             <widget class="QLineEdit" name="areaVal">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>50</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>50</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>Potential HRUs (particular landuse/soil/slope band combinations) covering less than this area or percentage of their subbasin will be eliminated as HRUs.</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="page_3">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <layout class="QGridLayout" name="gridLayout_10">
-         <item row="0" column="0">
-          <widget class="QGroupBox" name="targetGroup">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>0</width>
-             <height>100</height>
-            </size>
-           </property>
-           <property name="title">
-            <string>Target</string>
-           </property>
-           <layout class="QGridLayout" name="gridLayout_17">
-            <item row="0" column="0">
-             <widget class="QLabel" name="targetMin">
-              <property name="text">
-               <string>0</string>
-              </property>
-              <property name="wordWrap">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLabel" name="targetLabel">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Number of HRUs</string>
-              </property>
-             </widget>
-            </item>
-            <item row="0" column="2">
-             <widget class="QLabel" name="targetMax">
-              <property name="text">
-               <string>9999</string>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="0" colspan="2">
-             <widget class="QSlider" name="targetSlider">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::TicksAbove</enum>
-              </property>
-             </widget>
-            </item>
-            <item row="1" column="2">
-             <widget class="QLineEdit" name="targetVal">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>50</width>
-                <height>0</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>50</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="toolTip">
-               <string>The target number of HRUs to be created.  The target is likely to be exceeded,
-particularly when it is small or there are landuses being split or exempt from removal.</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </widget>
-      <widget class="QLabel" name="progressLabel2">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>730</y>
-         <width>300</width>
-         <height>20</height>
-        </rect>
-       </property>
-       <property name="minimumSize">
-        <size>
-         <width>300</width>
-         <height>0</height>
-        </size>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-      </widget>
-      <widget class="QGroupBox" name="GwflowHru">
-       <property name="geometry">
-        <rect>
-         <x>0</x>
-         <y>280</y>
-         <width>651</width>
-         <height>441</height>
-        </rect>
-       </property>
-       <property name="title">
-        <string>gwflow Configuration</string>
-       </property>
-       <widget class="QGroupBox" name="gridGroup">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>176</y>
-          <width>631</width>
-          <height>221</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Create Grid</string>
-        </property>
-        <widget class="QTabWidget" name="gridTab">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>20</y>
-           <width>611</width>
-           <height>221</height>
-          </rect>
-         </property>
-         <property name="currentIndex">
-          <number>1</number>
-         </property>
-         <widget class="QWidget" name="tab_3">
-          <attribute name="title">
-           <string>Structured</string>
-          </attribute>
-          <widget class="QLabel" name="cellSizeLabel">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>20</y>
-             <width>71</width>
-             <height>21</height>
-            </rect>
            </property>
            <property name="text">
-            <string>Cell size (m)</string>
+            <string>Target number of HRUs</string>
            </property>
           </widget>
-          <widget class="QSpinBox" name="cellSize">
-           <property name="geometry">
-            <rect>
-             <x>80</x>
-             <y>20</y>
-             <width>61</width>
-             <height>20</height>
-            </rect>
+         </item>
+         <item row="3" column="0">
+          <widget class="QRadioButton" name="filterLanduseButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>100000</number>
-           </property>
-           <property name="singleStep">
-            <number>10</number>
-           </property>
-           <property name="value">
-            <number>200</number>
-           </property>
-          </widget>
-          <widget class="QCheckBox" name="alignGrids">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>50</y>
-             <width>187</width>
-             <height>17</height>
-            </rect>
+           <property name="toolTip">
+            <string>Select to remove small HRUs by setting minimum thresholds for landuse, soil, and slope band.</string>
            </property>
            <property name="text">
-            <string>Align to SWAT+ grid</string>
+            <string>Filter by landuse, soil, slope</string>
            </property>
            <property name="checked">
             <bool>true</bool>
            </property>
           </widget>
-          <widget class="QLabel" name="cellEstimateLabel">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>80</y>
-             <width>187</width>
-             <height>31</height>
-            </rect>
-           </property>
-           <property name="styleSheet">
-            <string>color: #777; font-style: italic;</string>
-           </property>
-           <property name="text">
-            <string>≈ 200 cells (based on watershed area)</string>
-           </property>
-          </widget>
-         </widget>
-         <widget class="QWidget" name="tab_4">
-          <attribute name="title">
-           <string>Unstructured</string>
-          </attribute>
-          <widget class="QWidget" name="layoutWidget_5">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>70</y>
-             <width>601</width>
-             <height>21</height>
-            </rect>
-           </property>
-           <layout class="QHBoxLayout" name="refineRow">
-            <item>
-             <widget class="QLabel" name="refineBasedOnLabel">
-              <property name="text">
-               <string>Refine based on</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="refineTopography">
-              <property name="text">
-               <string>Elevation</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="refineStreams">
-              <property name="text">
-               <string>Streams</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="refineBoundary">
-              <property name="text">
-               <string>Boundary</string>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="refineWells">
-              <property name="text">
-               <string>Wells</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="refineRowSpacer">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </widget>
-          <widget class="QLabel" name="minSizeLabel">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>45</y>
-             <width>341</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="styleSheet">
-            <string>color: #777; font-style: italic;</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-          <widget class="QWidget" name="layoutWidget_6">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>10</y>
-             <width>601</width>
-             <height>22</height>
-            </rect>
-           </property>
-           <layout class="QHBoxLayout" name="sizeRow">
-            <item>
-             <widget class="QLabel" name="maxCellSizeLabel">
-              <property name="text">
-               <string>Max size (m)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="maxCellSize">
-              <property name="minimum">
-               <number>10</number>
-              </property>
-              <property name="maximum">
-               <number>100000</number>
-              </property>
-              <property name="singleStep">
-               <number>10</number>
-              </property>
-              <property name="value">
-               <number>500</number>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="sizeRowFixedSpacer">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeType">
-               <enum>QSizePolicy::Fixed</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>10</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-            <item>
-             <widget class="QLabel" name="refineLevelsLabel">
-              <property name="text">
-               <string>Levels</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSpinBox" name="refineLevels">
-              <property name="toolTip">
-               <string>Number of halvings from max size (min = max / 2^levels)</string>
-              </property>
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>8</number>
-              </property>
-              <property name="value">
-               <number>4</number>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="sizeRowSpacer">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </widget>
-          <widget class="QWidget" name="layoutWidget_7">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>140</y>
-             <width>601</width>
-             <height>31</height>
-            </rect>
-           </property>
-           <layout class="QHBoxLayout" name="transRow">
-            <item>
-             <widget class="QLabel" name="transitionRateLabel">
-              <property name="text">
-               <string>Transition rate</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="gradualLabel">
-              <property name="styleSheet">
-               <string>color: #555;</string>
-              </property>
-              <property name="text">
-               <string>Gradual</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QSlider" name="transitionSlider">
-              <property name="minimum">
-               <number>1</number>
-              </property>
-              <property name="maximum">
-               <number>30</number>
-              </property>
-              <property name="value">
-               <number>10</number>
-              </property>
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="tickPosition">
-               <enum>QSlider::NoTicks</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="abruptLabel">
-              <property name="styleSheet">
-               <string>color: #555;</string>
-              </property>
-              <property name="text">
-               <string>Abrupt</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QDoubleSpinBox" name="transitionSpin">
-              <property name="maximumSize">
-               <size>
-                <width>60</width>
-                <height>16777215</height>
-               </size>
-              </property>
-              <property name="decimals">
-               <number>1</number>
-              </property>
-              <property name="minimum">
-               <double>0.100000000000000</double>
-              </property>
-              <property name="maximum">
-               <double>3.000000000000000</double>
-              </property>
-              <property name="singleStep">
-               <double>0.100000000000000</double>
-              </property>
-              <property name="value">
-               <double>1.000000000000000</double>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-          <widget class="QLabel" name="elevTolLabel">
-           <property name="geometry">
-            <rect>
-             <x>0</x>
-             <y>105</y>
-             <width>121</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>Elevation tolerance (m)</string>
-           </property>
-          </widget>
-          <widget class="QSpinBox" name="elevTolerance">
-           <property name="geometry">
-            <rect>
-             <x>140</x>
-             <y>105</y>
-             <width>61</width>
-             <height>22</height>
-            </rect>
-           </property>
-           <property name="minimum">
-            <number>1</number>
-           </property>
-           <property name="maximum">
-            <number>1000</number>
-           </property>
-           <property name="value">
-            <number>100</number>
-           </property>
-          </widget>
-         </widget>
-        </widget>
-       </widget>
-       <widget class="QLabel" name="aquiferThicknessLabel">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>20</y>
-          <width>702</width>
-          <height>16</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Aquifer thickness raster</string>
-        </property>
-       </widget>
-       <widget class="QWidget" name="layoutWidget">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>40</y>
-          <width>631</width>
-          <height>24</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="aquiferThicknessRow">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <item>
-          <widget class="QLineEdit" name="aquiferThickness">
-           <property name="placeholderText">
-            <string>Select raster file...</string>
-           </property>
-          </widget>
          </item>
-         <item>
-          <widget class="QPushButton" name="aquiferThicknessButton">
-           <property name="maximumSize">
-            <size>
-             <width>30</width>
-             <height>22</height>
-            </size>
+         <item row="1" column="0">
+          <widget class="QRadioButton" name="dominantLanduseButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to create one HRU in each landscape unit, formed from the landuse, soil, and slope band 
+with the largest areas in that landscape unit.</string>
            </property>
            <property name="text">
-            <string>...</string>
+            <string>Dominant landuse, soil, slope</string>
            </property>
           </widget>
          </item>
         </layout>
        </widget>
-       <widget class="QCheckBox" name="useTileDrains">
+       <widget class="QGroupBox" name="areaPercentChoiceGroup">
+        <property name="geometry">
+         <rect>
+          <x>170</x>
+          <y>180</y>
+          <width>231</width>
+          <height>81</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>190</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="title">
+         <string>Threshold method</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_11">
+         <item row="0" column="0">
+          <widget class="QRadioButton" name="percentButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to interpret thresholds for landuse, soil, slope, and area as percentages of subbasin areas.</string>
+           </property>
+           <property name="text">
+            <string>Percent of landscape unit</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QRadioButton" name="areaButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Select to interpret thresholds for landuse, soil, slope, and area as areas in hectares.</string>
+           </property>
+           <property name="text">
+            <string>Area (Ha)</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QPushButton" name="createButton">
+        <property name="geometry">
+         <rect>
+          <x>550</x>
+          <y>730</y>
+          <width>101</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="toolTip">
+         <string>Create HRUs, and exit from this form if successful.</string>
+        </property>
+        <property name="text">
+         <string>Create &amp;HRUs</string>
+        </property>
+        <property name="shortcut">
+         <string>Alt+H</string>
+        </property>
+        <property name="autoDefault">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="gwGroupBox">
         <property name="geometry">
          <rect>
           <x>10</x>
-          <y>120</y>
-          <width>702</width>
+          <y>180</y>
+          <width>151</width>
+          <height>81</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Ground water</string>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_18">
+         <item row="0" column="0">
+          <widget class="QRadioButton" name="SWATAquifersButton">
+           <property name="text">
+            <string>SWAT+ aquifers</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QRadioButton" name="gwflowButton">
+           <property name="text">
+            <string>Use gwflow</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QStackedWidget" name="stackedWidget">
+        <property name="geometry">
+         <rect>
+          <x>420</x>
+          <y>15</y>
+          <width>231</width>
+          <height>251</height>
+         </rect>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>200</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <widget class="QWidget" name="page">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_101">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="landuseSoilSlopeGroup">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="title">
+             <string>Landuse, soil, slope thresholds</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_12">
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <item row="0" column="3">
+              <widget class="QLineEdit" name="landuseVal">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Unless exempt, landuses covering a lower area or percentage of the subbasin 
+than this number will be eliminated from HRU creation.</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="0">
+              <widget class="QLabel" name="landuseMin">
+               <property name="text">
+                <string>0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="3">
+              <widget class="QLineEdit" name="soilVal">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Soils covering a lower area or percentage of the subbasin than this number 
+will be eliminated from HRU creation.</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="landuseLabel">
+               <property name="text">
+                <string>Landuse (%)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QLabel" name="soilLabel">
+               <property name="text">
+                <string>Soil (%)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="2">
+              <widget class="QLabel" name="soilMax">
+               <property name="text">
+                <string>100</string>
+               </property>
+               <property name="buddy">
+                <cstring>soilVal</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="soilMin">
+               <property name="text">
+                <string>0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="0" colspan="3">
+              <widget class="QSlider" name="slopeSlider">
+               <property name="acceptDrops">
+                <bool>false</bool>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::TicksAbove</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0" colspan="3">
+              <widget class="QSlider" name="soilSlider">
+               <property name="acceptDrops">
+                <bool>false</bool>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::TicksAbove</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="landuseMax">
+               <property name="text">
+                <string>100</string>
+               </property>
+               <property name="buddy">
+                <cstring>landuseVal</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0" colspan="3">
+              <widget class="QSlider" name="landuseSlider">
+               <property name="acceptDrops">
+                <bool>false</bool>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::TicksAbove</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="slopeMin">
+               <property name="text">
+                <string>0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QLabel" name="slopeLabel">
+               <property name="text">
+                <string>Slope (%)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="3">
+              <widget class="QPushButton" name="landuseButton">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Go</string>
+               </property>
+               <property name="autoDefault">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="3">
+              <widget class="QLineEdit" name="slopeVal">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Slope bands covering a lower area or percentage of the subbasin than this number 
+will be eliminated from HRU creation.</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="3">
+              <widget class="QPushButton" name="soilButton">
+               <property name="maximumSize">
+                <size>
+                 <width>40</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="text">
+                <string>Go</string>
+               </property>
+               <property name="autoDefault">
+                <bool>false</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="2">
+              <widget class="QLabel" name="slopeMax">
+               <property name="text">
+                <string>100</string>
+               </property>
+               <property name="buddy">
+                <cstring>slopeVal</cstring>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_2">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_100">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="areaGroup">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>100</height>
+             </size>
+            </property>
+            <property name="title">
+             <string>Area threshold</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_13">
+             <item row="0" column="0">
+              <widget class="QLabel" name="areaMin">
+               <property name="text">
+                <string>0</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="areaLabel">
+               <property name="text">
+                <string>Area (ha)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="areaMax">
+               <property name="text">
+                <string>9999</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0" colspan="3">
+              <widget class="QSlider" name="areaSlider">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::TicksAbove</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="3">
+              <widget class="QLineEdit" name="areaVal">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>50</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>50</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>Potential HRUs (particular landuse/soil/slope band combinations) covering less than this area or percentage of their subbasin will be eliminated as HRUs.</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="page_3">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <layout class="QGridLayout" name="gridLayout_10">
+          <item row="0" column="0">
+           <widget class="QGroupBox" name="targetGroup">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>100</height>
+             </size>
+            </property>
+            <property name="title">
+             <string>Target</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayout_17">
+             <item row="0" column="0">
+              <widget class="QLabel" name="targetMin">
+               <property name="text">
+                <string>0</string>
+               </property>
+               <property name="wordWrap">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QLabel" name="targetLabel">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Number of HRUs</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="2">
+              <widget class="QLabel" name="targetMax">
+               <property name="text">
+                <string>9999</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0" colspan="2">
+              <widget class="QSlider" name="targetSlider">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::TicksAbove</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="2">
+              <widget class="QLineEdit" name="targetVal">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="minimumSize">
+                <size>
+                 <width>50</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+                <size>
+                 <width>50</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="toolTip">
+                <string>The target number of HRUs to be created.  The target is likely to be exceeded,
+particularly when it is small or there are landuses being split or exempt from removal.</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QLabel" name="progressLabel2">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>730</y>
+          <width>300</width>
           <height>20</height>
          </rect>
         </property>
+        <property name="minimumSize">
+         <size>
+          <width>300</width>
+          <height>0</height>
+         </size>
+        </property>
         <property name="text">
-         <string>Use tile drains</string>
+         <string/>
+        </property>
+        <property name="buddy">
+         <cstring>createButton</cstring>
         </property>
        </widget>
-       <widget class="QLabel" name="aquiferPermeabilityLabel">
+       <widget class="QGroupBox" name="GwflowHru">
         <property name="geometry">
          <rect>
-          <x>10</x>
-          <y>70</y>
-          <width>702</width>
+          <x>0</x>
+          <y>280</y>
+          <width>651</width>
+          <height>441</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>gwflow Configuration</string>
+        </property>
+        <widget class="QGroupBox" name="gridGroup">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>176</y>
+           <width>631</width>
+           <height>221</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Create Grid</string>
+         </property>
+         <widget class="QTabWidget" name="gridTab">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>20</y>
+            <width>611</width>
+            <height>221</height>
+           </rect>
+          </property>
+          <property name="currentIndex">
+           <number>1</number>
+          </property>
+          <widget class="QWidget" name="tab_3">
+           <attribute name="title">
+            <string>Structured</string>
+           </attribute>
+           <widget class="QLabel" name="cellSizeLabel">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>20</y>
+              <width>71</width>
+              <height>21</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Cell size (m)</string>
+            </property>
+           </widget>
+           <widget class="QSpinBox" name="cellSize">
+            <property name="geometry">
+             <rect>
+              <x>80</x>
+              <y>20</y>
+              <width>61</width>
+              <height>20</height>
+             </rect>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100000</number>
+            </property>
+            <property name="singleStep">
+             <number>10</number>
+            </property>
+            <property name="value">
+             <number>200</number>
+            </property>
+           </widget>
+           <widget class="QCheckBox" name="alignGrids">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>50</y>
+              <width>187</width>
+              <height>17</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Align to SWAT+ grid</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+           <widget class="QLabel" name="cellEstimateLabel">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>80</y>
+              <width>187</width>
+              <height>31</height>
+             </rect>
+            </property>
+            <property name="styleSheet">
+             <string>color: #777; font-style: italic;</string>
+            </property>
+            <property name="text">
+             <string>≈ 200 cells (based on watershed area)</string>
+            </property>
+           </widget>
+          </widget>
+          <widget class="QWidget" name="tab_4">
+           <attribute name="title">
+            <string>Unstructured</string>
+           </attribute>
+           <widget class="QWidget" name="layoutWidget_5">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>70</y>
+              <width>601</width>
+              <height>21</height>
+             </rect>
+            </property>
+            <layout class="QHBoxLayout" name="refineRow">
+             <item>
+              <widget class="QLabel" name="refineBasedOnLabel">
+               <property name="text">
+                <string>Refine based on</string>
+               </property>
+               <property name="buddy">
+                <cstring>refineTopography</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="refineTopography">
+               <property name="text">
+                <string>Elevation</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="refineStreams">
+               <property name="text">
+                <string>Streams</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="refineBoundary">
+               <property name="text">
+                <string>Boundary</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="refineWells">
+               <property name="text">
+                <string>Wells</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="refineRowSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QLabel" name="minSizeLabel">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>45</y>
+              <width>341</width>
+              <height>16</height>
+             </rect>
+            </property>
+            <property name="styleSheet">
+             <string>color: #777; font-style: italic;</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+           <widget class="QWidget" name="layoutWidget_6">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>10</y>
+              <width>601</width>
+              <height>22</height>
+             </rect>
+            </property>
+            <layout class="QHBoxLayout" name="sizeRow">
+             <item>
+              <widget class="QLabel" name="maxCellSizeLabel">
+               <property name="text">
+                <string>Max size (m)</string>
+               </property>
+               <property name="buddy">
+                <cstring>maxCellSize</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="maxCellSize">
+               <property name="minimum">
+                <number>10</number>
+               </property>
+               <property name="maximum">
+                <number>100000</number>
+               </property>
+               <property name="singleStep">
+                <number>10</number>
+               </property>
+               <property name="value">
+                <number>500</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="sizeRowFixedSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeType">
+                <enum>QSizePolicy::Fixed</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>10</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="QLabel" name="refineLevelsLabel">
+               <property name="text">
+                <string>Levels</string>
+               </property>
+               <property name="buddy">
+                <cstring>refineLevels</cstring>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSpinBox" name="refineLevels">
+               <property name="toolTip">
+                <string>Number of halvings from max size (min = max / 2^levels)</string>
+               </property>
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>8</number>
+               </property>
+               <property name="value">
+                <number>4</number>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="sizeRowSpacer">
+               <property name="orientation">
+                <enum>Qt::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>40</width>
+                 <height>20</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QWidget" name="layoutWidget_7">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>140</y>
+              <width>601</width>
+              <height>31</height>
+             </rect>
+            </property>
+            <layout class="QHBoxLayout" name="transRow">
+             <item>
+              <widget class="QLabel" name="transitionRateLabel">
+               <property name="text">
+                <string>Transition rate</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="gradualLabel">
+               <property name="styleSheet">
+                <string>color: #555;</string>
+               </property>
+               <property name="text">
+                <string>Gradual</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QSlider" name="transitionSlider">
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>30</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
+               </property>
+               <property name="tickPosition">
+                <enum>QSlider::NoTicks</enum>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="abruptLabel">
+               <property name="styleSheet">
+                <string>color: #555;</string>
+               </property>
+               <property name="text">
+                <string>Abrupt</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QDoubleSpinBox" name="transitionSpin">
+               <property name="maximumSize">
+                <size>
+                 <width>60</width>
+                 <height>16777215</height>
+                </size>
+               </property>
+               <property name="decimals">
+                <number>1</number>
+               </property>
+               <property name="minimum">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="maximum">
+                <double>3.000000000000000</double>
+               </property>
+               <property name="singleStep">
+                <double>0.100000000000000</double>
+               </property>
+               <property name="value">
+                <double>1.000000000000000</double>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+           <widget class="QLabel" name="elevTolLabel">
+            <property name="geometry">
+             <rect>
+              <x>0</x>
+              <y>105</y>
+              <width>121</width>
+              <height>16</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Elevation tolerance (m)</string>
+            </property>
+            <property name="buddy">
+             <cstring>elevTolerance</cstring>
+            </property>
+           </widget>
+           <widget class="QSpinBox" name="elevTolerance">
+            <property name="geometry">
+             <rect>
+              <x>140</x>
+              <y>105</y>
+              <width>61</width>
+              <height>22</height>
+             </rect>
+            </property>
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>1000</number>
+            </property>
+            <property name="value">
+             <number>100</number>
+            </property>
+           </widget>
+          </widget>
+         </widget>
+        </widget>
+        <widget class="QLabel" name="aquiferThicknessLabel">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>20</y>
+           <width>702</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Aquifer thickness raster</string>
+         </property>
+         <property name="buddy">
+          <cstring>aquiferThickness</cstring>
+         </property>
+        </widget>
+        <widget class="QWidget" name="layoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>40</y>
+           <width>631</width>
+           <height>24</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="aquiferThicknessRow">
+          <property name="spacing">
+           <number>3</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="aquiferThickness">
+            <property name="placeholderText">
+             <string>Select raster file...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="aquiferThicknessButton">
+            <property name="maximumSize">
+             <size>
+              <width>30</width>
+              <height>22</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QCheckBox" name="useTileDrains">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>120</y>
+           <width>702</width>
+           <height>20</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Use tile drains</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="aquiferPermeabilityLabel">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>70</y>
+           <width>702</width>
+           <height>16</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Aquifer permeability shapefile</string>
+         </property>
+         <property name="buddy">
+          <cstring>aquiferPermeability</cstring>
+         </property>
+        </widget>
+        <widget class="QWidget" name="layoutWidget_2">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>90</y>
+           <width>631</width>
+           <height>24</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="aquiferPermeabilityRow">
+          <property name="spacing">
+           <number>3</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="aquiferPermeability">
+            <property name="placeholderText">
+             <string>Select shapefile...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="aquiferPermeabilityButton">
+            <property name="maximumSize">
+             <size>
+              <width>30</width>
+              <height>22</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="layoutWidget_3">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>140</y>
+           <width>631</width>
+           <height>24</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="tileDrainsRow">
+          <property name="spacing">
+           <number>3</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="tileDrains">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="placeholderText">
+             <string>Tile drains shapefile...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="tileDrainsButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>30</width>
+              <height>22</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="layoutWidget_4">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>400</y>
+           <width>621</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <layout class="QHBoxLayout" name="btnRow">
+          <item>
+           <widget class="QLabel" name="dummyLabel">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="btnRowSpacer">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="generateGridButton">
+            <property name="minimumSize">
+             <size>
+              <width>100</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Generate &amp;Grid</string>
+            </property>
+            <property name="shortcut">
+             <string>Alt+G</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QProgressBar" name="progressBar2">
+        <property name="geometry">
+         <rect>
+          <x>270</x>
+          <y>730</y>
+          <width>261</width>
           <height>16</height>
          </rect>
         </property>
-        <property name="text">
-         <string>Aquifer permeability shapefile</string>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16</height>
+         </size>
+        </property>
+        <property name="visible">
+         <bool>false</bool>
+        </property>
+        <property name="value">
+         <number>0</number>
+        </property>
+        <property name="format">
+         <string>%v%</string>
         </property>
        </widget>
-       <widget class="QWidget" name="layoutWidget_2">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>90</y>
-          <width>631</width>
-          <height>24</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="aquiferPermeabilityRow">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <item>
-          <widget class="QLineEdit" name="aquiferPermeability">
-           <property name="placeholderText">
-            <string>Select shapefile...</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="aquiferPermeabilityButton">
-           <property name="maximumSize">
-            <size>
-             <width>30</width>
-             <height>22</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>...</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="layoutWidget_3">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>140</y>
-          <width>631</width>
-          <height>24</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="tileDrainsRow">
-         <property name="spacing">
-          <number>3</number>
-         </property>
-         <item>
-          <widget class="QLineEdit" name="tileDrains">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="placeholderText">
-            <string>Tile drains shapefile...</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="tileDrainsButton">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>30</width>
-             <height>22</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>...</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="layoutWidget_4">
-        <property name="geometry">
-         <rect>
-          <x>10</x>
-          <y>400</y>
-          <width>621</width>
-          <height>25</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="btnRow">
-         <item>
-          <widget class="QLabel" name="dummyLabel">
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="btnRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="generateGridButton">
-           <property name="minimumSize">
-            <size>
-             <width>100</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="text">
-            <string>Generate Grid</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </widget>
-      <widget class="QProgressBar" name="progressBar2">
-       <property name="geometry">
-        <rect>
-         <x>270</x>
-         <y>730</y>
-         <width>261</width>
-         <height>16</height>
-        </rect>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16</height>
-        </size>
-       </property>
-       <property name="visible">
-        <bool>false</bool>
-       </property>
-       <property name="value">
-        <number>0</number>
-       </property>
-       <property name="format">
-        <string>%v%</string>
-       </property>
       </widget>
      </widget>
     </widget>
    </item>
-   <item row="3" column="0">
+   <item row="4" column="0">
     <widget class="QPushButton" name="cancelButton">
-     <property name="toolTip">
-      <string>Close this form without saving HRU data.</string>
-     </property>
      <property name="text">
-      <string>Cancel</string>
+      <string>&amp;Cancel</string>
      </property>
-     <property name="autoDefault">
-      <bool>false</bool>
+     <property name="shortcut">
+      <string>Alt+C</string>
      </property>
     </widget>
    </item>

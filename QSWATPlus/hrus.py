@@ -6866,12 +6866,15 @@ class HRUs(QObject):
         if found and self.CreateHRUs.targetVal > 0:
             self._dlg.targetVal.setText(str(self.CreateHRUs.targetVal))
         useGWFlow, found = proj.readBoolEntry(self._gv.attTitle, 'hru/useGWFlow', False)
-        if found and useGWFlow:
-            self._dlg.gwGroupBox.setVisible(True)
-            self._dlg.gwflowButton.setChecked(True)
-            # gwflow needs actHRUs shapefile, which needs fullHRUs shapefile
-            if self._dlg.readFromMaps.isChecked():
-                self._dlg.generateFullHRUs.setChecked(True)
+        if found:
+            if useGWFlow:
+                self._dlg.gwGroupBox.setVisible(True)
+                self._dlg.gwflowButton.setChecked(True)
+                # gwflow needs actHRUs shapefile, which needs fullHRUs shapefile
+                if self._dlg.readFromMaps.isChecked():
+                    self._dlg.generateFullHRUs.setChecked(True)
+            else:
+                self._dlg.SWATAquifersButton.setChecked(True)
         self.CreateHRUs.loadFromProject(proj, self._gv.attTitle)
 
     def saveProjPart1(self) -> None:

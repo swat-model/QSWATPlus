@@ -12,7 +12,7 @@ from qgis.PyQt.QtCore import QSettings, pyqtSignal
 from qgis.PyQt.QtWidgets import QGroupBox, QFileDialog
 from qgis.core import QgsProject, QgsRasterLayer, QgsVectorLayer
 
-from .ui_gwflow_hru import Ui_GwflowHru
+#from .ui_gwflow_hru import Ui_GwflowHru
 from .QSWATUtils import QSWATUtils, fileWriter, FileTypes, ListFuns  # type: ignore
 
 class GwflowHru(QGroupBox, Ui_GwflowHru):

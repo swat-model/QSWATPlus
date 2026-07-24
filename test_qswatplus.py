@@ -2482,7 +2482,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(hrudlg.splitButton.isEnabled(), 'Split landuses button not enabled')
         self.assertTrue(hrudlg.exemptButton.isEnabled(), 'Exempt landuses button not enabled')
         self.assertTrue(hrudlg.floodplainCombo.count() == 4, 'Unexpected number of floodplain maps {0}'.format(hrudlg.floodplainCombo.count() - 1))
-        invFloodIndex = hrudlg.floodplainCombo.findText('invflood', Qt.MatchContains)
+        invFloodIndex = hrudlg.floodplainCombo.findText('invflood', Qt.MatchFlag.MatchContains)
         self.assertTrue(invFloodIndex > 0, 'Flood by inversion raster not in combo box')
         hrudlg.floodplainCombo.setCurrentIndex(invFloodIndex)
         self.assertTrue(hrudlg.dominantHRUButton.isEnabled(), 'Dominant HRU button not enabled')
