@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>498</width>
-    <height>635</height>
+    <height>637</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -50,6 +50,9 @@
        <height>16777215</height>
       </size>
      </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
      <property name="widgetResizable">
       <bool>true</bool>
      </property>
@@ -58,8 +61,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>478</width>
-        <height>615</height>
+        <width>480</width>
+        <height>619</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_13">
@@ -119,11 +122,11 @@
              </sizepolicy>
             </property>
             <property name="currentIndex">
-             <number>3</number>
+             <number>0</number>
             </property>
             <widget class="QWidget" name="staticTab">
              <attribute name="title">
-              <string>Static maps</string>
+              <string>&amp;Static maps</string>
              </attribute>
              <widget class="QGroupBox" name="resultsFileBox">
               <property name="geometry">
@@ -422,7 +425,7 @@
             </widget>
             <widget class="QWidget" name="animationTab">
              <attribute name="title">
-              <string>Animated maps</string>
+              <string>&amp;Animated maps</string>
              </attribute>
              <layout class="QGridLayout" name="gridLayout_9">
               <item row="1" column="2">
@@ -830,7 +833,7 @@ Can also be controlled manually by dragging or by using left and right arrows on
             </widget>
             <widget class="QWidget" name="plotTab">
              <attribute name="title">
-              <string>Plots</string>
+              <string>&amp;Plots</string>
              </attribute>
              <layout class="QGridLayout" name="gridLayout_3">
               <item row="0" column="0" colspan="6">
@@ -1060,7 +1063,7 @@ observed</string>
             </widget>
             <widget class="QWidget" name="tab_2">
              <attribute name="title">
-              <string>Post processing</string>
+              <string>P&amp;ost processing</string>
              </attribute>
              <layout class="QGridLayout" name="gridLayout_18">
               <item row="0" column="0">
@@ -1600,7 +1603,7 @@ p, li { white-space: pre-wrap; }
           <item row="0" column="1">
            <widget class="QPushButton" name="closeButton">
             <property name="text">
-             <string>Close</string>
+             <string>&amp;Close</string>
             </property>
             <property name="autoDefault">
              <bool>false</bool>
