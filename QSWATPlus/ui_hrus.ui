@@ -2456,9 +2456,9 @@ particularly when it is small or there are landuses being split or exempt from r
          <string>%v%</string>
         </property>
        </widget>
-      </widget>
-     </widget>
-    </widget>
+       </widget>
+       </widget>
+ </widget>
    </item>
    <item row="4" column="0">
     <widget class="QPushButton" name="cancelButton">
