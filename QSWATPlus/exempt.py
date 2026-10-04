@@ -45,6 +45,17 @@ class Exempt:
       
     def run(self):
         """Run exempt dialog."""
+        self.fillLists()
+        self._dlg.chooseBox.activated.connect(self.addExempt)
+        self._dlg.cancelExemptionButton.clicked.connect(self.delExempt)
+        self._dlg.show()
+        result = self._dlg.exec()
+        self._gv.exemptPos = self._dlg.pos()
+        if result == 1:
+            self._gv.exemptLanduses = self.exemptLanduses
+            
+    def fillLists(self):
+        """Fill self.landuses and self.exemptLanduses"""
         for landuseVal in self._gv.db.landuseVals:
             landuse = self._gv.db.getLanduseCode(landuseVal)
             ListFuns.insertIntoSortedList(landuse, self.landuses, True)
@@ -57,13 +68,6 @@ class Exempt:
             if landuse in self.landuses:
                 self.landuses.remove(landuse)
         self.fillBoxes()
-        self._dlg.chooseBox.activated.connect(self.addExempt)
-        self._dlg.cancelExemptionButton.clicked.connect(self.delExempt)
-        self._dlg.show()
-        result = self._dlg.exec()
-        self._gv.exemptPos = self._dlg.pos()
-        if result == 1:
-            self._gv.exemptLanduses = self.exemptLanduses
         
     def fillBoxes(self):
         """Initialise dialog combo boxes."""
