@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>427</width>
-    <height>357</height>
+    <width>437</width>
+    <height>367</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -21,7 +21,61 @@
    <bool>true</bool>
   </property>
   <layout class="QGridLayout" name="gridLayout_4">
-   <item row="0" column="1" colspan="2">
+   <item row="7" column="1">
+    <widget class="QSpinBox" name="pointSizeBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="value">
+      <number>10</number>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="2" colspan="2">
+    <widget class="QLineEdit" name="burninDepth">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>The amount in metres that DEM elevations are reduced along a 'burn-in' stream.</string>
+     </property>
+     <property name="inputMethodHints">
+      <set>Qt::ImhFormattedNumbersOnly|Qt::ImhPreferNumbers</set>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="7">
+    <widget class="QPushButton" name="MPIButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>Browse to select MPI bin directory</string>
+     </property>
+     <property name="whatsThis">
+      <string/>
+     </property>
+     <property name="text">
+      <string>. . .</string>
+     </property>
+     <property name="browseButton" stdset="0">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="2" colspan="2">
     <widget class="QLabel" name="SWATPluslLabel">
      <property name="toolTip">
       <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
@@ -32,28 +86,6 @@ p, li { white-space: pre-wrap; }
      </property>
      <property name="text">
       <string>SWATPlus directory</string>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="6">
-    <widget class="QPushButton" name="SWATPlusButton">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="toolTip">
-      <string>Browse to select SWAT editor directory</string>
-     </property>
-     <property name="whatsThis">
-      <string/>
-     </property>
-     <property name="text">
-      <string>. . .</string>
-     </property>
-     <property name="browseButton" stdset="0">
-      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -76,18 +108,89 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="2" column="1" colspan="2">
-    <widget class="QLabel" name="MPILabel">
+   <item row="7" column="3">
+    <widget class="QSpinBox" name="decimalPlacesBox">
      <property name="toolTip">
-      <string>If you have a multi-core processor then using the Message Passing Interface (MPI) can speed up the TauDEM programs used for watershed delineation.  If you install MP you should set this directory to where the mpiexec program is located.  On Windows this is probably C:\Program Files\Microsoft MPI\Bin.</string>
+      <string>Number of decimal places for numeric results.</string>
      </property>
-     <property name="text">
-      <string>MPI bin directory</string>
+     <property name="minimum">
+      <number>0</number>
+     </property>
+     <property name="value">
+      <number>2</number>
      </property>
     </widget>
    </item>
-   <item row="3" column="6">
-    <widget class="QPushButton" name="MPIButton">
+   <item row="1" column="0" colspan="7">
+    <widget class="QLineEdit" name="SWATPlusBox">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="2">
+    <widget class="QLabel" name="decimalPlacesLabel">
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Change the point size of QSWATPlus forms.  This will only take effect generally when you restart QGIS, but the effect can be seen immediately in the text of this label.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Decimal places</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="6" colspan="2">
+    <widget class="QLineEdit" name="upslopeHRUDrain">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The percentage of water routed from upslope HRUs that goes to the channel (or reservoir).  The remainder is routed to the floodplain landscape unit. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="inputMethodHints">
+      <set>Qt::ImhFormattedNumbersOnly</set>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="7">
+    <widget class="QPushButton" name="cancelButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Cancel</string>
+     </property>
+     <property name="cancelButton" stdset="0">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="4" colspan="2">
+    <widget class="QLabel" name="label_11">
+     <property name="text">
+      <string>Upslope HRU drain %</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="7">
+    <widget class="QPushButton" name="SWATPlusButton">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
        <horstretch>0</horstretch>
@@ -95,7 +198,7 @@ p, li { white-space: pre-wrap; }
       </sizepolicy>
      </property>
      <property name="toolTip">
-      <string>Browse to select MPI bin directory</string>
+      <string>Browse to select SWAT editor directory</string>
      </property>
      <property name="whatsThis">
       <string/>
@@ -108,7 +211,23 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="4" column="0" colspan="7">
+   <item row="7" column="0">
+    <widget class="QLabel" name="pointSizeLabel">
+     <property name="toolTip">
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Change the point size of QSWATPlus forms.  This will only take effect generally when you restart QGIS, but the effect can be seen immediately in the text of this label.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+     </property>
+     <property name="text">
+      <string>Font point size</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0" colspan="8">
     <widget class="QGroupBox" name="groupBox">
      <property name="toolTip">
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The expression for calculating channel widths and depths (in metres) takes the form&lt;/p&gt;&lt;p&gt;&lt;span style=&quot; font-style:italic;&quot;&gt;Mult * A &lt;/span&gt;&lt;span style=&quot; font-size:12pt; font-style:italic; vertical-align:super;&quot;&gt;Exp&lt;/span&gt;&lt;/p&gt;&lt;p&gt;where A is the drainage area in square km. &lt;span style=&quot; font-style:italic;&quot;&gt;Mult&lt;/span&gt; and &lt;span style=&quot; font-style:italic;&quot;&gt;Exp&lt;/span&gt; for width and depth may be changed here.&lt;/p&gt;&lt;p&gt;Changing these factors will immediately change relevant database tables. It will also affect later calculation of these tables.&lt;/p&gt;&lt;p&gt;Floodplain generation by buffering uses stream widths to calculate the buffer. Existing such floodplain rasters will not be affected unless the floodplain creation is rerun.&lt;br/&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -233,7 +352,33 @@ p, li { white-space: pre-wrap; }
      </layout>
     </widget>
    </item>
-   <item row="5" column="0" colspan="7">
+   <item row="2" column="2" colspan="2">
+    <widget class="QLabel" name="MPILabel">
+     <property name="toolTip">
+      <string>If you have a multi-core processor then using the Message Passing Interface (MPI) can speed up the TauDEM programs used for watershed delineation.  If you install MP you should set this directory to where the mpiexec program is located.  On Windows this is probably C:\Program Files\Microsoft MPI\Bin.</string>
+     </property>
+     <property name="text">
+      <string>MPI bin directory</string>
+     </property>
+    </widget>
+   </item>
+   <item row="7" column="5" colspan="2">
+    <widget class="QPushButton" name="saveButton">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="text">
+      <string>Save</string>
+     </property>
+     <property name="okButton" stdset="0">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="0" colspan="8">
     <widget class="QGroupBox" name="groupBox_2">
      <property name="toolTip">
       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Changing any of these multipliers will immediately change the current settings in the relevant database tables (if they exist), by multipying by the multiplier. It will also affect later calculation of these tables.  It will not affect the slope bands of HRUs.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
@@ -454,7 +599,7 @@ p, li { white-space: pre-wrap; }
      </layout>
     </widget>
    </item>
-   <item row="6" column="0">
+   <item row="6" column="0" colspan="2">
     <widget class="QLabel" name="label_5">
      <property name="text">
       <string>Stream burn-in depth</string>
@@ -464,139 +609,13 @@ p, li { white-space: pre-wrap; }
      </property>
     </widget>
    </item>
-   <item row="6" column="3">
-    <widget class="QLabel" name="label_11">
-     <property name="text">
-      <string>Upslope HRU drain %</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="0">
-    <widget class="QLabel" name="pointSizeLabel">
-     <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Change the point size of QSWATPlus forms.  This will only take effect generally when you restart QGIS, but the effect can be seen immediately in the text of this label.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="text">
-      <string>Font point size</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="1">
-    <widget class="QSpinBox" name="pointSizeBox">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="minimum">
-      <number>1</number>
-     </property>
-     <property name="value">
-      <number>10</number>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="2">
-    <spacer name="horizontalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>54</width>
-       <height>20</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="7" column="3" colspan="2">
-    <widget class="QPushButton" name="saveButton">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Save</string>
-     </property>
-     <property name="okButton" stdset="0">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="7" column="5" colspan="2">
-    <widget class="QPushButton" name="cancelButton">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Cancel</string>
-     </property>
-     <property name="cancelButton" stdset="0">
-      <bool>false</bool>
-     </property>
-    </widget>
-   </item>
-   <item row="1" column="0" colspan="6">
-    <widget class="QLineEdit" name="SWATPlusBox">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="3" column="0" colspan="6">
+   <item row="3" column="0" colspan="7">
     <widget class="QLineEdit" name="MPIBox">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="1" colspan="2">
-    <widget class="QLineEdit" name="burninDepth">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="toolTip">
-      <string>The amount in metres that DEM elevations are reduced along a 'burn-in' stream.</string>
-     </property>
-     <property name="inputMethodHints">
-      <set>Qt::ImhFormattedNumbersOnly|Qt::ImhPreferNumbers</set>
-     </property>
-    </widget>
-   </item>
-   <item row="6" column="4" colspan="3">
-    <widget class="QLineEdit" name="upslopeHRUDrain">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="toolTip">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;The percentage of water routed from upslope HRUs that goes to the channel (or reservoir).  The remainder is routed to the floodplain landscape unit. &lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-     </property>
-     <property name="inputMethodHints">
-      <set>Qt::ImhFormattedNumbersOnly</set>
      </property>
     </widget>
    </item>

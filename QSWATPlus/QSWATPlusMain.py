@@ -73,7 +73,7 @@ except Exception:
 class QSWATPlus(QObject):
     """QGIS plugin to prepare geographic data for SWAT+ Editor."""
     
-    __version__ = '4.0.3' 
+    __version__ = '4.0.4' 
 
     def __init__(self, iface):
         """Constructor."""
@@ -190,7 +190,7 @@ class QSWATPlus(QObject):
         #self.buttonBox.rejected.connect(QSwat.reject)
         # so we add these instead
         self._odlg.buttonBox.accepted.connect(self.finish)
-        self._odlg.buttonBox.rejected.connect(self.finish)
+        self._odlg.buttonBox.rejected.connect(self._odlg.close)
         # this also catches form being closed
         self._odlg.finished.connect(self.finish)
         # connect buttons
@@ -373,13 +373,11 @@ class QSWATPlus(QObject):
         if found:
             self._gv.fromArcChoice = choice
             if choice == 2:  # NB value from convertFromArc.py
-                self._odlg.editLabel.setEnabled(True)
-                self._odlg.editButton.setEnabled(True)
+                self.allowEdit()
         # also assume editor can be run if there are stream and hrus shapefiles in the results directory
         if os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._RIVS + '.shp')) and \
             os.path.isfile(os.path.join(self._gv.resultsDir, Parameters._SUBS + '.shp')):
-                self._odlg.editLabel.setEnabled(True)
-                self._odlg.editButton.setEnabled(True)
+                self.allowEdit()
         if self.demProcessed():
             self._demIsProcessed = True
             self.allowCreateHRU()
@@ -389,8 +387,7 @@ class QSWATPlus(QObject):
             if self.hrus.HRUsAreCreated():
                 QSWATUtils.progress('Done', self._odlg.hrusLabel)
                 self.showReports()
-                self._odlg.editLabel.setEnabled(True)
-                self._odlg.editButton.setEnabled(True)
+                self.allowEdit()
         if os.path.exists(QSWATUtils.join(self._gv.resultsDir, Parameters._OUTPUTDB)):
             self._odlg.visualiseLabel.setVisible(True)
             self._odlg.visualiseButton.setVisible(True)
@@ -489,8 +486,7 @@ class QSWATPlus(QObject):
         result = self.hrus.run()
         if result == 1:
             QSWATUtils.progress('Done', self._odlg.hrusLabel)
-            self._odlg.editLabel.setEnabled(True)
-            self._odlg.editButton.setEnabled(True)
+            self.allowEdit()
         self._odlg.raise_()
             
     def demProcessed(self):
@@ -768,6 +764,14 @@ class QSWATPlus(QObject):
         self._odlg.editLabel.setEnabled(False)
         self._odlg.editButton.setEnabled(False)
         
+    def allowEdit(self):
+        """Make edit option available."""
+        self._odlg.editLabel.setEnabled(True)
+        self._odlg.editButton.setEnabled(True)
+        # since editor checks QSWAT+ major version, ensure this is up to date
+        # as may have updated QSWAT+ and then rerun the project
+        self._gv.writeProjectConfig(-1, -1);
+        
     def showReports(self):
         """Show reports combo box and add items if necessary."""
         self._odlg.reportsBox.setVisible(True)
@@ -845,4 +849,5 @@ class QSWATPlus(QObject):
                 QSWATUtils.loginfo('Databases closed') 
         except Exception:
             pass
+        
         

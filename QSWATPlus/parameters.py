@@ -137,6 +137,7 @@ class Parameters:
     _SQMETRESTOSQFEET = 10.763910
     _ACREFEETTOCUBICMETRES = 1233.4818375475
     
+    _DECIMALPLACES = 2
     _DEFAULTFONTSIZE = 12 if _ISMAC else 10
     _PLOTFONTSIZE = 5 if _ISMAC else 9
     
@@ -412,6 +413,8 @@ class Parameters:
         self._dlg.tributaryLengthMultiplier.setValue(tributaryLengthMultiplier)
         upslopeHRUDrain = proj.readNumEntry(attTitle, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
         self._dlg.upslopeHRUDrain.setText(str(upslopeHRUDrain))
+        decimalPlaces = proj.readNumEntry(attTitle, 'params/decimalPlaces', Parameters._DECIMALPLACES)[0]
+        self._dlg.decimalPlacesBox.setValue(decimalPlaces)
         settings = QSettings()
         if settings.contains('/QSWATPlus/FontSize'):
             self._dlg.pointSizeBox.setValue(int(settings.value('/QSWATPlus/FontSize')))
@@ -464,6 +467,7 @@ class Parameters:
         proj.writeEntryDouble(attTitle, 'params/meanSlopeMultiplier', locale.atof(self._dlg.meanSlopeMultiplier.text()))
         proj.writeEntryDouble(attTitle, 'params/mainLengthMultiplier', locale.atof(self._dlg.mainLengthMultiplier.text()))
         proj.writeEntryDouble(attTitle, 'params/tributaryLengthMultiplier', locale.atof(self._dlg.tributaryLengthMultiplier.text()))
+        proj.writeEntry(attTitle, 'params/decimalPlaces', self._dlg.decimalPlacesBox.value())
         upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
         if 0 <= upslopeHRUDrain <= 100:
             proj.writeEntry(attTitle, 'params/upslopeHRUDrain', int(self._dlg.upslopeHRUDrain.text()))
@@ -499,6 +503,7 @@ class Parameters:
             self._gv.meanSlopeMultiplier = meanSlopeMultiplier
             self._gv.mainLengthMultiplier = mainLengthMultiplier
             self._gv.tributaryLengthMultiplier = tributaryLengthMultiplier 
+            self._gv.decimalPlaces = self._dlg.decimalPlacesBox.value();
             # update upslopeHRUDrain       
             upslopeHRUDrain = int(self._dlg.upslopeHRUDrain.text())
             if upslopeHRUDrain != self._gv.upslopeHRUDrain:

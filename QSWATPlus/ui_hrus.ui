@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>694</width>
-    <height>843</height>
+    <width>682</width>
+    <height>830</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -34,6 +34,9 @@
        <height>16777215</height>
       </size>
      </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
      <property name="widgetResizable">
       <bool>true</bool>
      </property>
@@ -42,8 +45,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>674</width>
-        <height>794</height>
+        <width>664</width>
+        <height>783</height>
        </rect>
       </property>
       <property name="sizePolicy">
@@ -54,8 +57,8 @@
       </property>
       <property name="minimumSize">
        <size>
-        <width>672</width>
-        <height>789</height>
+        <width>660</width>
+        <height>775</height>
        </size>
       </property>
       <property name="maximumSize">
@@ -713,7 +716,7 @@
         <widget class="QLabel" name="reservoirPercent">
          <property name="geometry">
           <rect>
-           <x>55</x>
+           <x>70</x>
            <y>23</y>
            <width>42</width>
            <height>16</height>
@@ -2456,9 +2459,9 @@ particularly when it is small or there are landuses being split or exempt from r
          <string>%v%</string>
         </property>
        </widget>
-       </widget>
-       </widget>
- </widget>
+      </widget>
+     </widget>
+    </widget>
    </item>
    <item row="4" column="0">
     <widget class="QPushButton" name="cancelButton">

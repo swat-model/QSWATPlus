@@ -46,6 +46,8 @@ from QSWATPlus.hrus import HRUs
 from QSWATPlus.QSWATUtils import QSWATUtils, FileTypes
 from QSWATPlus.parameters import Parameters
 from QSWATPlus.selectsubs import SelectSubbasins
+from QSWATPlus.split import Split
+from QSWATPlus.exempt import Exempt
 
 # create a new application object
 # has to be done before calling initQgis
@@ -601,6 +603,8 @@ def log(message, tag, level):
     message_log[tag].append((message, level,))
 QgsApplication.instance().messageLog().messageReceived.connect(log)
 
+completed = dict()
+
 class TestQswat(unittest.TestCase):
     """Test cases for QSWAT."""
     def setUp(self):
@@ -647,6 +651,7 @@ class TestQswat(unittest.TestCase):
         self.delin = Delineation(self.plugin._gv, self.plugin._demIsProcessed)
         self.delin.init()
         self.delin._dlg.numProcesses.setValue(0)
+        completed = dict()
         
     def tearDown(self):
         """Clean up: make sure no database connections survive."""
@@ -655,6 +660,7 @@ class TestQswat(unittest.TestCase):
     def test01(self):
         """No MPI; single outlet only; no merging/adding in delineation; slope limit 10; percent filters 20/10/5; change numeric parameters."""
         print('\nTest 1')
+        completed[1] = False
         proj = QgsProject.instance()
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
@@ -806,12 +812,14 @@ class TestQswat(unittest.TestCase):
         self.assertAlmostEqual(self.plugin._gv.tributaryLengthMultiplier, 0.7, 
                                 'Wrong tributary length multiplier {}'.format(self.plugin._gv.tributaryLengthMultiplier))
         #self.checkHashes(HashTable1a)
+        completed[1] = True
         self.plugin.finish()               
         
     def test02(self):
         """MPI with 12 processes; stream threshold 100 sq km; channel threshold 10 sq km;
         7 inlets/outlets; snap threshold 600; FullHRUs;  6 elev bands;  area filter 500 ha."""
         print('\nTest 2')
+        completed[2] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -917,12 +925,14 @@ class TestQswat(unittest.TestCase):
         self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 319, 'HRU count is {0} instead of 319'.format(self.hrus.CreateHRUs.countHRUs()))
         #self.checkHashes(HashTable2)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[2] = True
         self.plugin.finish()
         
     def test03(self):
         """No MPI; stream threshold 14400 cells; channel threshold 1440 cells; single outlet; 
         merge subbasins; split and exempts; target by area 400."""
         print('\nTest 3')
+        completed[3] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1005,12 +1015,31 @@ class TestQswat(unittest.TestCase):
                         'Landuse and soil report not accessible from main form')
         self.assertTrue(hrudlg.splitButton.isEnabled(), 'Split landuses button not enabled')
         # split GRAS into 10% SWRN and 90% RNGE
-        self.plugin._gv.splitLanduses.clear()
-        self.plugin._gv.splitLanduses['GRAS'] = dict()
-        self.plugin._gv.splitLanduses['GRAS']['SWRN'] = 10
-        self.plugin._gv.splitLanduses['GRAS']['RNGE'] = 90
+        split = Split(self.plugin._gv)
+        split.populateCombos()
+        split.addSplitItems('GRAS', 'SWRN', 10)
+        split.addSplitItems('GRAS', 'RNGE', 90)
+        self.assertTrue(split.saveEdit(), 'Failed to save split landuse')
+        split.saveSplits()
+        # self.plugin._gv.splitLanduses.clear()
+        # self.plugin._gv.splitLanduses['GRAS'] = dict()
+        # self.plugin._gv.splitLanduses['GRAS']['SWRN'] = 10
+        # self.plugin._gv.splitLanduses['GRAS']['RNGE'] = 90
         self.assertTrue(hrudlg.exemptButton.isEnabled(), 'Exempt landuses button not enabled')
-        self.plugin._gv.exemptLanduses = ['CRDY', 'SWRN']
+        exempt = Exempt(self.plugin._gv)
+        exempt.fillLists()
+        index = exempt._dlg.chooseBox.findText('CRDY', Qt.MatchFlag.MatchFixedString)
+        self.assertTrue(index >= 0, 'Failed to find crop CRDY to exempt')
+        if index >= 0:
+            exempt._dlg.chooseBox.setCurrentIndex(index)
+            exempt.addExempt()
+        index = exempt._dlg.chooseBox.findText('SWRN', Qt.MatchFlag.MatchFixedString)
+        self.assertTrue(index >= 0, 'Failed to find crop SWRN to exempt')
+        if index >= 0:
+            exempt._dlg.chooseBox.setCurrentIndex(index)
+            exempt.addExempt()
+        self.plugin._gv.exemptLanduses = exempt.exemptLanduses
+        # self.plugin._gv.exemptLanduses = ['CRDY', 'SWRN']
         self.assertTrue(hrudlg.targetButton.isEnabled(), 'Target button not enabled')
         QtTest.QTest.mouseClick(hrudlg.targetButton, Qt.MouseButton.LeftButton)
         self.assertTrue(hrudlg.areaButton.isEnabled(), 'Area button not enabled')
@@ -1069,12 +1098,14 @@ class TestQswat(unittest.TestCase):
         # self.checkHashes(HashTable3)
         #=======================================================================
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[3] = True
         self.plugin.finish()
         
     def test04(self):
         """No MPI; use existing; no outlet; no merging/adding in delineation; FullHRUs; 
         no slope limits; channel merge set to 10 and readFiles rerun; filter by percent area 10%."""
         print('\nTest 4')
+        completed[4] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1183,15 +1214,17 @@ class TestQswat(unittest.TestCase):
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 29, 'Subbasin count is {0} instead of 29'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 107, 'Channel count is {0} instead of 107'.format(self.hrus.CreateHRUs.countChannels()))
         self.assertEqual(self.hrus.CreateHRUs.countLsus(), 107, 'LSU count is {0} instead of 107'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 252, 'HRU count is {0} instead of 252'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 149, 'HRU count is {0} instead of 252'.format(self.hrus.CreateHRUs.countHRUs()))
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable4)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[4] = True
         self.plugin.finish()
         
     def test05(self):
         """No MPI; Duffins example (with triple stream reach join); delineation threshold 100 ha; merges small subbasins with default 5% threshold;  no slope limits; target 170 HRUs by percentage."""
         print('\nTest 5')
+        completed[5] = False
         demFileName = self.copyDem('duff_dem.tif')
         self.delin._dlg.selectDem.setText(demFileName)
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
@@ -1303,6 +1336,7 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable5)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[5] = True
         self.plugin.finish()
         
     def test06(self):
@@ -1315,6 +1349,7 @@ class TestQswat(unittest.TestCase):
             5 percent channel merge set before readFiles
             dominant landuse, soil, slope."""
         print('\nTest 6')
+        completed[6] = False
         demFileName = self.copyDem('duff_dem.tif')
         self.delin._dlg.selectDem.setText(demFileName)
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
@@ -1439,11 +1474,13 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable6)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[6] = True
         self.plugin.finish()
         
     def test07(self):
         """MPI with 12 processes; delineation threshod default; 7 inlets/outlets; snap threshold 600; grid size 4; FullHRUs; dominant HRU."""
         print('\nTest 7')
+        completed[7] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1538,11 +1575,13 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable7)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[7] = True
         self.plugin.finish()
         
     def test08(self):
         """No MPI; use existing; use grid; stream drainage; reuse; no outlet; no merging/adding in delineation; filter by percent area 25."""
         print('\nTest 8')
+        completed[8] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1651,11 +1690,13 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable8)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[8] = True
         self.plugin.finish()
         
     def test09(self):
         """No MPI; use existing; use grid; grid drainage; recalculate; 7 outlets; no merging/adding in delineation; filter by percent area 25."""
         print('\nTest 9')
+        completed[9] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1759,11 +1800,13 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable9)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[9] = True
         self.plugin.finish()
         
     def test10(self):
         """No MPI; use existing grid; 7 outlets; no merging/adding in delineation; drainage by table; reuse; slope limit 1; filter by landuse soil slope 2/2/2 ha"""
         print('\nTest 10')
+        completed[10] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1872,23 +1915,25 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._HRUSREPORT)))
         self.assertTrue(self.dlg.reportsBox.findText(Parameters._HRUSITEM) >= 0, \
                         'HRUs report not accessible from main form')
-        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus1.shp')), 'Actual LSUs shapefile not created.')
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus2.shp')), 'Actual LSUs shapefile not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 35161, 'Subbasin count is {0} instead of 35161'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 35161, 'Channel count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countChannels()))
         self.assertEqual(self.hrus.CreateHRUs.countLsus(), 35161, 'LSU count is {0} instead of 35161'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 45569, 'HRU count is {0} instead of 47104'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 45569, 'HRU count is {0} instead of 45569'.format(self.hrus.CreateHRUs.countHRUs()))
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable10)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[10] = True
         self.plugin.finish()
         
     def test11(self):
         """MPI with 6 processes; stream threshold 5 sq km; channel threshold 0.5 sq km;
         1 outlet; lake;  1% channel merge; target 500 HRUs."""
         print('\nTest 11')
+        completed[11] = False
         self.delin._dlg.selectDem.setText(self.copyDem('ravn_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -1996,12 +2041,14 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable11)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[11] = True
         self.plugin.finish()
         
     def test12(self):
         """MPI with 6 processes; existing;
         lake;  1% channel merge; target 500 HRUs."""
         print('\nTest 12')
+        completed[12] = False
         self.delin._dlg.selectDem.setText(self.copyDem('ravn_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -2117,12 +2164,14 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable12)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[12] = True
         self.plugin.finish()
         
     def test13(self):
         """MPI with 8 processes; stream threshold 5 sq km; channel threshold 0.5 sq km;
         1 outlet; grid size 4; lake; dominant HRUs."""
         print('\nTest 13')
+        completed[13] = False
         self.delin._dlg.selectDem.setText(self.copyDem('ravn_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -2227,7 +2276,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._HRUSREPORT)))
         self.assertTrue(self.dlg.reportsBox.findText(Parameters._HRUSITEM) >= 0, \
                         'HRUs report not accessible from main form')
-        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus1.shp')), 'Actual LSUs shapefile not created.')
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus2.shp')), 'Actual LSUs shapefile not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
@@ -2238,11 +2287,13 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable13)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[13] = True
         self.plugin.finish()
         
     def test14(self):
         """MPI with 10 processes; existing grid; stream drainage; lake; dominant HRUs."""
         print('\nTest 14')
+        completed[14] = False
         self.delin._dlg.selectDem.setText(self.copyDem('ravn_dem.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         self.hrus = HRUs(self.plugin._gv, self.dlg.reportsBox)
@@ -2359,7 +2410,7 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._HRUSREPORT)))
         self.assertTrue(self.dlg.reportsBox.findText(Parameters._HRUSITEM) >= 0, \
                         'HRUs report not accessible from main form')
-        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus1.shp')), 'Actual LSUs shapefile not created.')
+        self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.shapesDir, 'lsus2.shp')), 'Actual LSUs shapefile not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'rivs.shp')), 'Reaches results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'subs.shp')), 'Watershed results template file not created.')
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.resultsDir, 'lsus.shp')), 'LSUs results template file not created.')
@@ -2370,12 +2421,14 @@ class TestQswat(unittest.TestCase):
         #if Parameters._ISWIN:
         #    self.checkHashes(HashTable14)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[14] = True
         self.plugin.finish()
         
     def test15(self):
         """MPI 8 processes; clipped San Juan DEM: no inlets/outlets file; delineation threshold 6000 ha; 
         landscape by buffer, inversion and branch (use inversion); no slope limits; dominant HRU"""
         print('\nTest 15')
+        completed[15] = False
         self.delin._dlg.selectDem.setText(self.copyDem('sj_dem_clip.tif'))
         self.assertTrue(os.path.exists(self.delin._dlg.selectDem.text()), 'Failed to copy DEM to source directory')
         ## HRUs object
@@ -2470,6 +2523,12 @@ class TestQswat(unittest.TestCase):
         self.assertTrue(usersoilIndex >= 0, 'Cannot find global usersoil table')
         usersoilCombo.setCurrentIndex(usersoilIndex)
         self.plugin._gv.db.usersoilTable = 'global_usersoil'
+        hrudlg.floodplainCombo.setEnabled(True)
+        self.assertTrue(hrudlg.floodplainCombo.count() == 4, 'Unexpected number of floodplain maps {0}'.format(hrudlg.floodplainCombo.count() - 1))
+        invFloodIndex = hrudlg.floodplainCombo.findText('invflood', Qt.MatchFlag.MatchContains)
+        self.assertTrue(invFloodIndex > 0, 'Flood by inversion raster not in combo box')
+        hrudlg.floodplainCombo.setCurrentIndex(invFloodIndex)
+        hrudlg.reservoirThreshold.setValue(4)
         QtTest.QTest.mouseClick(hrudlg.readButton, Qt.MouseButton.LeftButton)
         self.assertTrue(os.path.exists(os.path.join(self.plugin._gv.textDir, Parameters._TOPOREPORT)))
         self.assertTrue(self.dlg.reportsBox.isEnabled() and self.dlg.reportsBox.findText(Parameters._TOPOITEM) >= 0, \
@@ -2481,10 +2540,6 @@ class TestQswat(unittest.TestCase):
         hrudlg.HRUsTab.setCurrentIndex(1)
         self.assertTrue(hrudlg.splitButton.isEnabled(), 'Split landuses button not enabled')
         self.assertTrue(hrudlg.exemptButton.isEnabled(), 'Exempt landuses button not enabled')
-        self.assertTrue(hrudlg.floodplainCombo.count() == 4, 'Unexpected number of floodplain maps {0}'.format(hrudlg.floodplainCombo.count() - 1))
-        invFloodIndex = hrudlg.floodplainCombo.findText('invflood', Qt.MatchFlag.MatchContains)
-        self.assertTrue(invFloodIndex > 0, 'Flood by inversion raster not in combo box')
-        hrudlg.floodplainCombo.setCurrentIndex(invFloodIndex)
         self.assertTrue(hrudlg.dominantHRUButton.isEnabled(), 'Dominant HRU button not enabled')
         QtTest.QTest.mouseClick(hrudlg.dominantHRUButton, Qt.MouseButton.LeftButton)
         self.assertFalse(hrudlg.stackedWidget.isEnabled(), 'Stacked widget not disabled')
@@ -2495,10 +2550,18 @@ class TestQswat(unittest.TestCase):
                         'HRUs report not accessible from main form')
         self.assertEqual(len(self.hrus.CreateHRUs.basins), 51, 'Subbasin count is {0} instead of 51'.format(len(self.hrus.CreateHRUs.basins)))
         self.assertEqual(self.hrus.CreateHRUs.countChannels(), 518, 'Channel count is {0} instead of 518'.format(self.hrus.CreateHRUs.countChannels()))
-        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 518, 'LSU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countLsus()))
-        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 518, 'HRU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countLsus(), 1001, 'LSU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countLsus()))
+        self.assertEqual(self.hrus.CreateHRUs.countHRUs(), 1001, 'HRU count is {0} instead of 518'.format(self.hrus.CreateHRUs.countHRUs()))
+        self.assertEqual(self.hrus.CreateHRUs.countWater(), 4, 'Water body count is {0} instead of 4'.format(self.hrus.CreateHRUs.countWater()))
         #self.checkHashes(HashTable6)
         self.assertTrue(self.dlg.editButton.isEnabled(), 'SWAT Editor button not enabled')
+        completed[15] = True
+        self.plugin.finish()
+        
+    def test16(self):
+        """Check all above tests completed"""
+        for (num, comp) in completed.items():
+            self.assertTrue(comp, 'Test {0} not completed'.format(num))
         
     def copyDem(self, demFile):
         """Copy DEM to Source directory as GeoTIFF."""

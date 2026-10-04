@@ -3,7 +3,7 @@
 
 #define MyAppName "QSWATPlus"
 #define MyAppVersion "4.0"
-#define MyAppSubVersion "3"
+#define MyAppSubVersion "4"
 #define MyAppPublisher "SWAT"
 #define MyAppURL "https://swat.tamu.edu/"
 
@@ -30,7 +30,6 @@ Compression=lzma
 SolidCompression=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-; use no for testing, yes for delivery??
 UsePreviousPrivileges=no
 
 [Languages]
@@ -71,18 +70,33 @@ function QGISDir(Dir: String; PartName: String): String; forward;
 function SubSubVersion(Name: String): Integer; forward;
 
 function QGIS3or4(Param: String): String;
+var
+  FindRec: TFindRec;
+  pfDir: String;
+  SearchString: String;
 begin
   if not QGIS3or4HasRun then begin
-   case TaskDialogMsgBox('QGIS 3 or QGIS 4',
-                        'Installing for QGIS 3 or QGIS 4?',
-                        mbConfirmation,
-                        MB_YESNO, ['QGIS 3', 'QGIS 4'],
-                        0) of
-      IDYES: QGISMainVersion := '3';
-      IDNO:  QGISMainVersion := '4';
-    end;
+    if IsAdminInstallMode then begin
+      pfDir := ExpandConstant('{pf64}');
+      SearchString := pfDir + '\QGIS 4.*';
+      if FindFirst(SearchString, FindRec) then begin
+        QGISMainVersion := '4';
+      end else begin
+        QGISMainVersion := '3';
+      end;
+      FindClose(FindRec);
+    end else begin
+      case TaskDialogMsgBox('QGIS 3 or QGIS 4',
+                          'Installing for QGIS 3 or QGIS 4?',
+                          mbConfirmation,
+                          MB_YESNO, ['QGIS 3', 'QGIS 4'],
+                          0) of
+        IDYES: QGISMainVersion := '3';
+        IDNO:  QGISMainVersion := '4';
+      end;
+    end;   
     //MsgBox('QGIS main version is ' + QGISMainVersion, mbInformation, MB_OK);
-  end;
+  end;  
   QGIS3or4HasRun := True;
   Result := QGISMainVersion;
 end;
@@ -90,11 +104,15 @@ end;
 function SWATPlusDir(Param: String): String;
 begin
   if not SWATPlusDirHasRun then begin 
-    SWATPlusDirResult := ExpandConstant('{%USERPROFILE}') + '\SWATPlus'
-    if not DirExists(SWATPlusDirResult) then begin
-      SWATPlusDirResult := 'C:\SWAT\SWATPlus'
-      //MsgBox('SWATPlus directory is ' + SWATPlusDirResult, mbInformation, MB_OK);
-    end
+    if IsAdminInstallMode then begin
+      SWATPlusDirResult := 'C:\SWAT\SWATPlus';
+    end else begin
+      SWATPlusDirResult := ExpandConstant('{%USERPROFILE}') + '\SWATPlus';
+      if not DirExists(SWATPlusDirResult) then begin
+        SWATPlusDirResult := 'C:\SWAT\SWATPlus';
+      end
+    end; 
+    //MsgBox('SWATPlus directory is ' + SWATPlusDirResult, mbInformation, MB_OK);
   end;
   SWATPlusDirHasRun := True;
   Result := SWATPlusDirResult;
@@ -107,7 +125,8 @@ begin
       QGISPluginDirResult := MainQGISPluginDir(Param);
     end else begin
       QGISPluginDirResult := ExpandConstant('{app}');
-    end
+    end;     
+    //MsgBox('SWATPlus plugin directory is ' + QGISPluginDirResult, mbInformation, MB_OK);
   end;
   QGISPluginDirHasRun := True;
   Result := QGISPluginDirResult;
@@ -121,13 +140,13 @@ var
 begin
   pfDir := ExpandConstant('{pf64}');
   if QGISMainVersion = '4' then begin
-    QGISDirectory := QGISDir(pfDir, 'QGIS 4.0');
+    QGISDirectory := QGISDir(pfDir, 'QGIS 4.2');
   end else begin
     QGISDirectory := QGISDir(pfDir, 'QGIS 3.44');
     if QGISDirectory = '' then begin
       QGISDirectory := QGISDir(pfDir, 'QGIS 3.40');
       if QGISDirectory = '' then begin
-        QGISDirectory := QGISDir(pfDir, 'QGIS 3.36');
+        QGISDirectory := QGISDir(pfDir, 'QGIS 3.34');
       end;
     end;
   end;
@@ -162,8 +181,8 @@ var
   NextSubSubVersion: Integer;
 begin
   DirResult := '';
-  CurrentSubSubVersion := 0;
-  NextSubSubVersion := 0;
+  CurrentSubSubVersion := -1;
+  NextSubSubVersion := -1;
   SearchString := Dir + '/' + PartName + '.*'
   if FindFirst(SearchString, FindRec) then begin
     try

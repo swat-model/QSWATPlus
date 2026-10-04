@@ -2920,7 +2920,9 @@ class QSWATTopology:
                             # if subbasin subsumed within lake, may not exist, so just default to 0
                             subbasin = self.chBasinToSubbasin.get(chBasin, 0)
                             assert elev is not None
-                            self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                            if not pointId in outletsAdded:
+                                self.addPoint(curs, subbasin, pointId, pt, elev, 'O')
+                                outletsAdded.append(pointId)
             for chLink, (pointId, pt, _) in self.chLinkToWater.items():
                 # reservoir points at lake outlets can appear here 
                 # but already added from lakesdata

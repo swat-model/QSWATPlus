@@ -41,7 +41,7 @@ def postprocess_file(filepath):
     content = re.sub(r'Qt.Align(Left|Right|Center|VCenter|Leading|Trailing|Top|Bottom)', r'Qt.AlignmentFlag.Align\1', content)
     content = re.sub(r'QSlider.(TicksAbove|TicksBelow|NoTicks)', r'QSlider.TickPosition.\1', content)
     content = re.sub(r'QFrame.(NoFrame|StyledPanel)', r'QFrame.Shape.\1', content)
-    content = re.sub(r'QFrame.Raised', r'QFrame.Shadow.Raised', content)
+    content = re.sub(r'QFrame.(Raised|Plain)', r'QFrame.Shadow.\1', content)
     content = re.sub(r'Qt.Imh', r'Qt.InputMethodHint.Imh', content)
     content = re.sub(r'Qt.LeftToRight', r'Qt.LayoutDirection.LeftToRight', content)
     content = re.sub(r'Qt.AutoText', r'Qt.TextFormat.AutoText', content)

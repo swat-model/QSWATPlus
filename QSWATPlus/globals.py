@@ -130,6 +130,8 @@ Please use the Parameters form to set its location.'''.format(SWATPlusDir), isBa
         self.tributaryLengthMultiplier: float = proj.readDoubleEntry(self.attTitle, 'params/tributaryLengthMultiplier', Parameters._MULTIPLIER)[0]
         ## upslope HRU drain percent
         self.upslopeHRUDrain: int = proj.readNumEntry(self.attTitle, 'params/upslopeHRUDrain', Parameters._UPSLOPEHRUDRAIN)[0]
+        ## decimal places for displaying numeric results
+        self.decimalPlaces: int = proj.readNumEntry(self.attTitle, 'params/decimalPlaces', Parameters._DECIMALPLACES)[0]
         ## Index of slope group in Layers panel
         self.slopeGroupIndex = -1
         ## Index of landuse group in Layers panel

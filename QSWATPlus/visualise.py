@@ -272,6 +272,8 @@ class Visualise(QObject):
         self.scenario1 = ''
         ## second scenario to compare
         self.scenario2 = ''
+        ## decimal places to use in displaying scientific form numbers
+        self.decimalFormat = '%.{0}E'.format(self._gv.decimalPlaces)
         
     def init(self) -> None:
         """Initialise the visualise form."""
@@ -4004,7 +4006,7 @@ class Visualise(QObject):
                 l.sort()
                 percentile = Visualise.percentile(l, (100 - self._dlg.QqSpin.value()) / 100)
                 assert percentile is not None
-                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', percentile)))
+                self._dlg.QqResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string(self.decimalFormat, percentile)))
 #         QqStore = QSWATUtils.join(self._gv.resultsDir, 'q{0!s}.txt'.format(self._dlg.QqSpin.value()))
 #         with open(QqStore, 'w', newline='') as f:
 #             for m, l in monthData.items():
@@ -4134,10 +4136,10 @@ class Visualise(QObject):
             p = self._dlg.dQpSpinP.value()
             fraction = p / 100
             self.dQpResult = Visualise.percentile(totals, fraction) / d
-            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2}'.format(d, p, locale.format_string('%.2F', self.dQpResult))) 
+            self._dlg.dQpResult.setText('Result: {0}Q{1} is {2}'.format(d, p, locale.format_string(self.decimalFormat, self.dQpResult))) 
         else:
             self.dQpResult = (sum(totals) / len(totals)) / d
-            self._dlg.dQpResult.setText('Result: {0}Qm is {1}'.format(d, locale.format_string('%.2F', self.dQpResult)))
+            self._dlg.dQpResult.setText('Result: {0}Qm is {1}'.format(d, locale.format_string(self.decimalFormat, self.dQpResult)))
 #         f.write('Result: {0!s}'.format(self.dQpResult))
 #         f.write('\n')
 #         f.close()
@@ -4172,7 +4174,7 @@ class Visualise(QObject):
             subbasin = self._dlg.dQpSubbasin.currentText()
             month = self._dlg.dQpStartMonth.currentText()
             f.write('Subbasin {0};  Channel {1};  Starting in {2};  Result: {3}\n'.
-                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, locale.format_string('%.2F', self.dQpResult)))
+                    format(subbasin, self.subbasinOutletChannels[int(subbasin)], month, locale.format_string(self.decimalFormat, self.dQpResult)))
             f.write('\n') 
         self.lastdQpResultsFile = resultsFile 
         
@@ -4273,7 +4275,7 @@ class Visualise(QObject):
                 means[m] = mean
                 if mean < minMean:
                     minMean = mean
-        self._dlg.QbAnnualResult.setText('Annual result: {0}'.format(locale.format_string('%.2F', self.QbResult)))
+        self._dlg.QbAnnualResult.setText('Annual result: {0}'.format(locale.format_string(self.decimalFormat, self.QbResult)))
         # result for each month is Qb * variation factor
         # variation factor is square root of ratio of Q85 for month to minimum Q85
         # replace above with sqaure root of monthly mean to minimal monthly mean
@@ -4282,7 +4284,7 @@ class Visualise(QObject):
         for m, mean in means.items():
             factor = 1 if minMean == 0 else math.sqrt(mean / minMean)
             Qbm = self.QbResult * factor
-            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string('%.2F', Qbm)))
+            self._dlg.QbResults.setItem(m-1, 0, QTableWidgetItem(locale.format_string(self.decimalFormat, Qbm)))
             
     def saveQb(self) -> None:
         if self._dlg.QbResults.item(0, 0) is None:
@@ -4309,7 +4311,7 @@ class Visualise(QObject):
             subbasin = self._dlg.QbSubbasin.currentText()
             month = self._dlg.QbStartMonth.currentText()
             f.write('Subbasin {0};  Channel {1};  Starting in {2}\n'.format(subbasin, self.subbasinOutletChannels[int(subbasin)], month))
-            f.write('Annual      {0}\n'.format(locale.format_string('%.2F', self.QbResult)))
+            f.write('Annual      {0}\n'.format(locale.format_string(self.decimalFormat, self.QbResult)))
             for m in range(12):
                 f.write(Visualise._MONTHS[m].ljust(12))
                 f.write(self._dlg.QbResults.item(m, 0).text())

@@ -1939,6 +1939,18 @@ class CreateHRUs(QObject):
             for channelData in data.getLsus().values():
                 count += len(channelData)
         return count
+    
+    def countWater(self) -> int:
+        """Count water bodies in watershed (does not include lakes)."""
+        count = 0
+        for data in self.basins.values():
+            for channelData in data.getLsus().values():
+                for lsuData in channelData.values():
+                    # cellCount for water body is zero if merged
+                    if lsuData.waterBody is not None and not lsuData.waterBody.isUnknown() and lsuData.waterBody.cellCount > 0:
+                        count += 1
+        return count
+                        
         
     def saveAreas(self, isOriginal: bool, redistributeNodata: bool=True) -> None:
         """Create area maps for each subbasin."""
@@ -2381,10 +2393,10 @@ class CreateHRUs(QObject):
         for basin, basinData in self.basins.items():
             for channel, channelData in basinData.getLsus().items(): 
                 for landscape, lsuData in channelData.items():
-                    count = len(lsuData.hruMap)
-                    # self.areaVal is either an area in hectares or a percentage of the subbasin
-                    # in either case convert to square metres
+                    # self.areaVal is either an area in hectares or a percentage of the LSU
+                    # threshold is in square metres
                     threshold = self.areaVal * 10000 if self.useArea else (lsuData.cropSoilSlopeArea * self.areaVal) / 100
+                    count = len(lsuData.hruMap)
                     exemptWater = lsuData.waterBody is not None and not lsuData.waterBody.isUnknown()
                     hrusArea = lsuData.area
                     if exemptWater:
@@ -2415,7 +2427,7 @@ class CreateHRUs(QObject):
                                             minSlope = slope
                         if minArea < threshold:
                             # Don't remove last hru.
-                            # This happens when the subbasin area is below the area threshold
+                            # This happens when the LSU area is below the area threshold
                             if count > 1:
                                 lsuData.removeHRU(minHru, minCrop, minSoil, minSlope)
                                 count -= 1
